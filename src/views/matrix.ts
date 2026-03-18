@@ -158,31 +158,46 @@ export function matrixView(): HTMLElement {
     stopPrices();
   }
 
-  // ── Crypto Glyphs ───────────────────────────────────────────
+  // ── Crypto Glyphs — volatility-driven presence ──────────────
 
   function createGlyphs() {
     glyphLayer.innerHTML = '';
     cryptoGlyphs = [];
     if (prices.length === 0) return;
 
-    // Scatter crypto icons across the screen — avoid center panel area
     for (let i = 0; i < prices.length && i < 10; i++) {
       const coin = prices[i];
-      // Place in the margins (left 25% or right 25%, varied vertically)
-      const side = i % 2 === 0 ? 0.05 + Math.random() * 0.2 : 0.75 + Math.random() * 0.2;
-      const y = 0.1 + (i / 10) * 0.8 + (Math.random() - 0.5) * 0.1;
-      const depth = 0.6 + Math.random() * 0.4;
-      const size = 24 * depth * zoom;
+      const vol = Math.abs(coin.change24h); // individual volatility
 
-      const glyph: CryptoGlyph = { coin, x: side, y, size };
+      // Volatility determines visibility — calm coins fade, volatile coins emerge
+      const volFactor = Math.min(1.0, vol / 5.0); // 5% change = full presence
+      const baseOpacity = 0.08 + volFactor * 0.35; // 0.08 calm → 0.43 volatile
+      const baseSize = (18 + volFactor * 16) * zoom; // 18px calm → 34px volatile
+
+      // Scatter in margins — volatile coins get more central placement
+      const marginWidth = 0.22 - volFactor * 0.05; // volatile = slightly more central
+      const side = i % 2 === 0
+        ? 0.03 + Math.random() * marginWidth
+        : 0.97 - Math.random() * marginWidth;
+      const y = 0.08 + (i / 10) * 0.84 + (Math.random() - 0.5) * 0.08;
+
+      const glyph: CryptoGlyph = { coin, x: side, y, size: baseSize };
       cryptoGlyphs.push(glyph);
 
+      // Color: green if up, red if down, dim if flat
+      const color = coin.change24h > 0.5
+        ? `rgba(16,255,90,${baseOpacity})`
+        : coin.change24h < -0.5
+          ? `rgba(255,80,80,${baseOpacity})`
+          : `rgba(200,200,200,${baseOpacity * 0.5})`;
+
       const glyphEl = el('div', {
-        cls: 'parsec-matrix__crypto-glyph',
+        cls: `parsec-matrix__crypto-glyph ${volFactor > 0.4 ? 'parsec-matrix__crypto-glyph--volatile' : ''}`,
         text: coin.symbol,
         attrs: {
           'data-coin': coin.id,
-          style: `left:${side * 100}%;top:${y * 100}%;font-size:${size}px;opacity:${0.15 + depth * 0.25}`,
+          'data-vol': String(vol.toFixed(2)),
+          style: `left:${side * 100}%;top:${y * 100}%;font-size:${baseSize}px;color:${color};text-shadow:0 0 ${6 + volFactor * 20}px ${color}`,
         },
       });
       glyphLayer.appendChild(glyphEl);
@@ -192,18 +207,36 @@ export function matrixView(): HTMLElement {
   function updateGlyphSizes() {
     const glyphs = glyphLayer.querySelectorAll('.parsec-matrix__crypto-glyph');
     cryptoGlyphs.forEach((g, i) => {
-      const el = glyphs[i] as HTMLElement;
-      if (el) el.style.fontSize = `${g.size * zoom}px`;
+      const glyphEl = glyphs[i] as HTMLElement;
+      if (glyphEl) glyphEl.style.fontSize = `${g.size * zoom}px`;
     });
   }
 
   function driftGlyphs(t: number) {
     const glyphs = glyphLayer.querySelectorAll('.parsec-matrix__crypto-glyph');
-    cryptoGlyphs.forEach((_cg, i) => {
+    cryptoGlyphs.forEach((cg, i) => {
       const glyphEl = glyphs[i] as HTMLElement;
       if (!glyphEl) return;
-      const drift = Math.sin(t * 0.3 + i * 1.7) * 8;
-      glyphEl.style.transform = `translateY(${drift}px)`;
+
+      const vol = Math.abs(cg.coin.change24h);
+      const volFactor = Math.min(1.0, vol / 5.0);
+
+      // Gentle drift for calm coins, bounce for volatile ones
+      const driftAmp = 6 + volFactor * 18; // 6px calm → 24px volatile
+      const driftSpeed = 0.2 + volFactor * 0.8; // slow → fast
+
+      // Bounce: damped spring — high vol = bigger initial bounce that settles
+      const bounce = Math.sin(t * driftSpeed * 3.0 + i * 2.1)
+        * driftAmp
+        * (1.0 - volFactor * 0.3 * Math.sin(t * 0.5)); // damping
+
+      // Horizontal sway — volatile coins jitter more
+      const sway = Math.cos(t * driftSpeed * 1.7 + i * 3.3) * (2 + volFactor * 8);
+
+      // Scale pulse for volatile coins
+      const scalePulse = 1.0 + volFactor * 0.08 * Math.sin(t * 2.0 + i);
+
+      glyphEl.style.transform = `translate(${sway}px, ${bounce}px) scale(${scalePulse})`;
     });
   }
 
