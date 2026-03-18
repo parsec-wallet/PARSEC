@@ -22,7 +22,7 @@ async function tinymanFetch(network: NetworkId, path: string): Promise<unknown> 
 export const tinymanApiModule: DexModule = {
   id: 'tinyman-api',
   name: 'Tinyman (API)',
-  enabled: true,
+  enabled: false, // Centralized API — disabled by default. On-chain module is primary.
 
   async fetchPairsForAsset(assetId: number, network: NetworkId): Promise<DexAsset[]> {
     const data = await tinymanFetch(network,
