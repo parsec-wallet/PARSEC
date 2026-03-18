@@ -6,6 +6,7 @@ import { fetchAccountInfo, microAlgosToAlgo } from '../lib/algorand/account';
 import { fetchTransactions } from '../lib/algorand/transactions';
 import { enrichAssets, formatAssetAmount, optOutFromAsset, lookupAsset } from '../lib/algorand/assets';
 import { keystoreRetrieve } from '../lib/keystore';
+import { fetchPrices, formatPrice } from '../lib/prices';
 import type { AccountInfo, TransactionRecord, NetworkId } from '../types/wallet';
 
 export function dashboardView(): HTMLElement {
@@ -15,11 +16,29 @@ export function dashboardView(): HTMLElement {
 
   const container = el('div', { cls: 'parsec-view parsec-dashboard' });
 
-  // Header
+  // Header — PARSEC + live asset price
+  const priceTag = el('span', { cls: 'parsec-dashboard__price-tag', text: '' });
+
+  // Fetch price for current chain's native asset
+  fetchPrices().then(prices => {
+    // Map network to CoinGecko ID
+    const chainPriceId: Record<string, string> = { mainnet: 'algorand', testnet: 'algorand', betanet: 'algorand' };
+    const id = chainPriceId[state.settings.network] || 'algorand';
+    const coin = prices.find(p => p.id === id);
+    if (coin) {
+      const changeColor = coin.change24h >= 0 ? '#10b981' : '#ef4444';
+      const sign = coin.change24h >= 0 ? '+' : '';
+      priceTag.innerHTML = `${coin.symbol} ${formatPrice(coin.usd)} <span style="color:${changeColor};font-size:0.8em">${sign}${coin.change24h.toFixed(1)}%</span>`;
+    }
+  });
+
   const header = el('div', {
     cls: 'parsec-dashboard__header',
     children: [
-      el('div', { cls: 'parsec-logo parsec-logo--small', text: 'PARSEC' }),
+      el('div', { cls: 'parsec-dashboard__brand-row', children: [
+        el('div', { cls: 'parsec-logo parsec-logo--small', text: 'PARSEC' }),
+        priceTag,
+      ]}),
       el('div', {
         cls: 'parsec-dashboard__nav',
         children: [

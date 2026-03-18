@@ -790,6 +790,19 @@
   margin-bottom: $spacing-2;
 }
 
+.parsec-dashboard__brand-row {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-3;
+}
+
+.parsec-dashboard__price-tag {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  font-weight: $font-weight-medium;
+}
+
 .parsec-dashboard__account {
   display: flex;
   align-items: center;
