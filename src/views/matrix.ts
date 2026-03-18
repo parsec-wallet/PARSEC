@@ -501,23 +501,29 @@ export function matrixView(): HTMLElement {
 
       ship.appendChild(hull);
 
-      // ALGO featured beside the ship — Parsec's native chain
-      const algo = prices.find(c => c.symbol === 'ALGO');
-      if (algo) {
-        const algoSign = algo.change24h >= 0 ? '+' : '';
-        const algoColor = algo.change24h >= 0 ? '#10b981' : '#ef4444';
-        ship.appendChild(el('div', {
-          cls: 'parsec-ship__algo',
+      pyramidLayer.appendChild(ship);
+    }
+
+    // ── Major chain fleet — BTC ETH ADA XMR ALGO as their own vessel ──
+    const fleetSymbols = ['BTC', 'ETH', 'ADA', 'XMR', 'ALGO'];
+    const fleetCoins = fleetSymbols.map(s => prices.find(c => c.symbol === s)).filter(Boolean) as CoinPrice[];
+    if (fleetCoins.length > 0) {
+      const fleet = el('div', { cls: 'parsec-fleet' });
+      fleetCoins.forEach(coin => {
+        const sign = coin.change24h >= 0 ? '+' : '';
+        const color = coin.change24h >= 0 ? '#10b981' : '#ef4444';
+        const isAlgo = coin.symbol === 'ALGO';
+        fleet.appendChild(el('div', {
+          cls: `parsec-fleet__coin ${isAlgo ? 'parsec-fleet__coin--algo' : ''}`,
           children: [
-            el('span', { cls: 'parsec-ship__algo-label', text: 'PARSEC' }),
-            el('span', { cls: 'parsec-ship__algo-symbol', text: 'ALGO' }),
-            el('span', { cls: 'parsec-ship__algo-price', text: formatPrice(algo.usd) }),
-            el('span', { cls: 'parsec-ship__algo-change', text: `${algoSign}${algo.change24h.toFixed(1)}%`, attrs: { style: `color:${algoColor}` } }),
+            isAlgo ? el('div', { cls: 'parsec-fleet__parsec', text: 'PARSEC' }) : el('span'),
+            el('div', { cls: 'parsec-fleet__symbol', text: coin.symbol }),
+            el('div', { cls: 'parsec-fleet__price', text: formatPrice(coin.usd) }),
+            el('div', { cls: 'parsec-fleet__change', text: `${sign}${coin.change24h.toFixed(1)}%`, attrs: { style: `color:${color}` } }),
           ],
         }));
-      }
-
-      pyramidLayer.appendChild(ship);
+      });
+      pyramidLayer.appendChild(fleet);
     }
 
     // ── Top winners featured — right side with extra detail ──

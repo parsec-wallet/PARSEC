@@ -474,44 +474,136 @@
   white-space: nowrap;
 }
 
-.parsec-ship__algo {
+// Major chain fleet banner — BTC ETH ADA XMR ALGO
+.parsec-fleet {
   position: absolute;
-  right: -110%;
+  bottom: 2px;
+  right: 3%;
+  display: flex;
+  gap: 3px;
+  pointer-events: auto;
+  z-index: 8;
+}
+
+.parsec-fleet__coin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 10px;
+  background: rgb(255 255 255 / 3%);
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: $border-radius-md;
+  cursor: crosshair;
+  transition: all 0.2s ease;
+  min-width: 54px;
+
+  &:hover {
+    background: rgb(255 255 255 / 8%);
+    border-color: rgb(255 255 255 / 20%);
+    transform: translateY(-2px);
+  }
+
+  &--algo {
+    background: rgb(16 185 129 / 6%);
+    border-color: rgb(16 185 129 / 20%);
+
+    &:hover {
+      background: rgb(16 185 129 / 12%);
+      border-color: rgb(16 185 129 / 35%);
+    }
+  }
+}
+
+.parsec-fleet__parsec {
+  font-size: 0.4em;
+  letter-spacing: 0.15em;
+  color: rgb(16 185 129 / 45%);
+  text-transform: uppercase;
+}
+
+.parsec-fleet__symbol {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: 0.75em;
+  color: rgb(255 255 255 / 70%);
+
+  .parsec-fleet__coin--algo & {
+    color: rgb(16 185 129 / 80%);
+  }
+}
+
+.parsec-fleet__price {
+  font-family: $font-family-mono;
+  font-size: 0.6em;
+  color: rgb(255 255 255 / 45%);
+}
+
+.parsec-fleet__change {
+  font-family: $font-family-mono;
+  font-size: 0.5em;
+  font-weight: $font-weight-semibold;
+}
+
+// Remove old badge styles — replaced by fleet
+.parsec-ship__badge {
+  position: absolute;
   top: 50%;
   transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 4px 10px;
-  background: rgb(16 185 129 / 6%);
-  border: 1px solid rgb(16 185 129 / 20%);
+  padding: 3px 8px;
+  background: rgb(255 255 255 / 3%);
+  border: 1px solid rgb(255 255 255 / 10%);
   border-radius: $border-radius-md;
   white-space: nowrap;
+
+  &--right {
+    right: -115%;
+  }
+
+  &--left {
+    left: -115%;
+
+    &:nth-child(2) { // second left badge — stack below
+      left: -115%;
+      top: calc(50% + 36px);
+    }
+  }
+
+  &--algo {
+    background: rgb(16 185 129 / 6%);
+    border-color: rgb(16 185 129 / 20%);
+  }
 }
 
-.parsec-ship__algo-label {
-  font-size: 0.45em;
+.parsec-ship__badge-label {
+  font-size: 0.4em;
   letter-spacing: 0.15em;
   color: rgb(16 185 129 / 40%);
   text-transform: uppercase;
 }
 
-.parsec-ship__algo-symbol {
+.parsec-ship__badge-symbol {
   font-family: $font-family-mono;
   font-weight: $font-weight-bold;
-  font-size: 0.75em;
-  color: rgb(16 185 129 / 80%);
-}
-
-.parsec-ship__algo-price {
-  font-family: $font-family-mono;
   font-size: 0.7em;
-  color: rgb(255 255 255 / 60%);
+  color: rgb(255 255 255 / 70%);
+
+  .parsec-ship__badge--algo & {
+    color: rgb(16 185 129 / 80%);
+  }
 }
 
-.parsec-ship__algo-change {
+.parsec-ship__badge-price {
   font-family: $font-family-mono;
   font-size: 0.6em;
+  color: rgb(255 255 255 / 50%);
+}
+
+.parsec-ship__badge-change {
+  font-family: $font-family-mono;
+  font-size: 0.5em;
   font-weight: $font-weight-semibold;
 }
 
