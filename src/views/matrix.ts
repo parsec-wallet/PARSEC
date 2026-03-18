@@ -207,13 +207,21 @@ export function matrixView(): HTMLElement {
           ? `rgba(255,80,80,${baseOpacity})`
           : `rgba(180,180,200,${baseOpacity * 0.4})`;
 
+      // Price display inline with symbol
+      const changeSign = coin.change24h >= 0 ? '+' : '';
+      const changeColor = coin.change24h >= 0 ? '#10b981' : '#ef4444';
+
       const glyphEl = el('div', {
         cls: `parsec-matrix__crypto-glyph ${volFactor > 0.3 ? 'parsec-matrix__crypto-glyph--volatile' : ''}`,
-        text: coin.symbol,
         attrs: {
           'data-coin': coin.id,
           style: `left:${x * 100}%;top:${y * 100}%;font-size:${baseSize}px;color:${color};text-shadow:0 0 ${4 + volFactor * 16}px ${color};z-index:${Math.round(depth * 10)}`,
         },
+        children: [
+          el('span', { cls: 'parsec-matrix__glyph-symbol', text: coin.symbol }),
+          el('span', { cls: 'parsec-matrix__glyph-price', text: formatPrice(coin.usd), attrs: { style: `color:${color}` } }),
+          el('span', { cls: 'parsec-matrix__glyph-change', text: `${changeSign}${coin.change24h.toFixed(1)}%`, attrs: { style: `color:${changeColor}` } }),
+        ],
       });
       glyphLayer.appendChild(glyphEl);
     }
