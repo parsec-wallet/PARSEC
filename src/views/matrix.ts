@@ -504,9 +504,9 @@ export function matrixView(): HTMLElement {
       pyramidLayer.appendChild(ship);
     }
 
-    // ── Major chain fleet — BTC ETH ADA XMR ALGO as their own vessel ──
-    const fleetSymbols = ['BTC', 'ETH', 'ADA', 'XMR', 'ALGO'];
-    const fleetCoins = fleetSymbols.map(s => prices.find(c => c.symbol === s)).filter(Boolean) as CoinPrice[];
+    // ── Top 10 fleet (excluding stablecoins — those are in the ship) ──
+    const stableSet = new Set(['USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FDUSD', 'PYUSD', 'USDP', 'GUSD', 'FRAX', 'LUSD', 'PAXG', 'XAUT']);
+    const fleetCoins = prices.filter(c => !stableSet.has(c.symbol)).slice(0, 10);
     if (fleetCoins.length > 0) {
       const fleet = el('div', { cls: 'parsec-fleet' });
       fleetCoins.forEach(coin => {
