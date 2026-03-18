@@ -779,7 +779,7 @@ attribute vec2 a_pos;
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
 `;
 
-// Matrix rain shader — glitch from interaction, 3D rotation, market-driven
+// Matrix rain shader — calm, deep 3D, smooth, market-driven
 const FRAG = `
 precision highp float;
 uniform vec2 u_resolution;
@@ -789,9 +789,9 @@ uniform float u_zoom;
 uniform vec2 u_mouse;
 uniform float u_activity;
 uniform float u_sentiment;
-uniform float u_dragX;    // accumulated drag rotation X
-uniform float u_dragY;    // accumulated drag rotation Y
-uniform float u_breadth;  // market breadth: 0=all red, 1=all green
+uniform float u_dragX;
+uniform float u_dragY;
+uniform float u_breadth;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -801,163 +801,132 @@ float glyph(vec2 uv, float seed, float depth) {
   if (cell.x < 0.0 || cell.x >= grid.x || cell.y < 0.0 || cell.y >= grid.y) return 0.0;
   float id = floor(seed * 128.0);
   float r = hash(cell + id + depth * 13.0);
+  float cx = fract(uv.x * grid.x), cy = fract(uv.y * grid.y);
   float pattern = 0.0;
-  float cx = fract(uv.x * grid.x);
-  float cy = fract(uv.y * grid.y);
-  if (r > 0.3) pattern += smoothstep(0.35, 0.38, cx) * smoothstep(0.65, 0.62, cx);
-  if (r > 0.55) pattern += smoothstep(0.3, 0.33, cy) * smoothstep(0.7, 0.67, cy) * 0.7;
-  float dot1 = 1.0 - smoothstep(0.12, 0.18, length(vec2(cx, cy) - vec2(0.2, 0.2)));
-  float dot2 = 1.0 - smoothstep(0.12, 0.18, length(vec2(cx, cy) - vec2(0.8, 0.8)));
-  if (r > 0.7) pattern += (dot1 + dot2) * 0.6;
-  if (r > 0.8) pattern += smoothstep(0.08, 0.0, abs(cx - cy)) * 0.5;
+  if (r > 0.3) pattern += smoothstep(0.33, 0.37, cx) * smoothstep(0.67, 0.63, cx);
+  if (r > 0.55) pattern += smoothstep(0.28, 0.32, cy) * smoothstep(0.72, 0.68, cy) * 0.6;
+  float d1 = 1.0 - smoothstep(0.1, 0.17, length(vec2(cx, cy) - vec2(0.2, 0.2)));
+  float d2 = 1.0 - smoothstep(0.1, 0.17, length(vec2(cx, cy) - vec2(0.8, 0.8)));
+  if (r > 0.7) pattern += (d1 + d2) * 0.5;
+  if (r > 0.8) pattern += smoothstep(0.06, 0.0, abs(cx - cy)) * 0.4;
   if (r < 0.25) {
-    pattern += smoothstep(0.42, 0.45, cx) * smoothstep(0.58, 0.55, cx);
-    pattern += smoothstep(0.42, 0.45, cy) * smoothstep(0.58, 0.55, cy);
+    pattern += smoothstep(0.42, 0.46, cx) * smoothstep(0.58, 0.54, cx);
+    pattern += smoothstep(0.42, 0.46, cy) * smoothstep(0.58, 0.54, cy);
   }
-  float pad = smoothstep(0.04, 0.1, cx) * smoothstep(0.96, 0.9, cx)
-            * smoothstep(0.04, 0.1, cy) * smoothstep(0.96, 0.9, cy);
+  float pad = smoothstep(0.05, 0.12, cx) * smoothstep(0.95, 0.88, cx)
+            * smoothstep(0.05, 0.12, cy) * smoothstep(0.95, 0.88, cy);
   return clamp(pattern * pad, 0.0, 1.0);
 }
 
 void main() {
-  vec2 fragCoord = gl_FragCoord.xy;
+  vec2 fc = gl_FragCoord.xy;
   vec2 res = u_resolution;
   float z = u_zoom;
   float act = u_activity;
-  float timeScale = 0.15 + act * 0.85;
-  float t = u_time * timeScale;
+  float t = u_time * (0.12 + act * 0.6); // calmer base speed
 
-  // ── 3D rotation — drag for bullet-time full spin ──────────
-  vec2 centered = (fragCoord / res - 0.5) * 2.0;
+  // ── Deep 3D — parallax layers + drag rotation ────────────
+  vec2 c = (fc / res - 0.5) * 2.0;
 
-  // World rotation: slow auto-spin + drag momentum
-  float rotAngle = u_time * 0.015 + u_dragX;
-  float rotPitch = u_dragY * 0.3;
-  float cosR = cos(rotAngle);
-  float sinR = sin(rotAngle);
-  float cosP = cos(rotPitch);
-  float sinP = sin(rotPitch);
+  // Smooth rotation: auto-spin + drag with gentle influence
+  float yaw = u_time * 0.008 + u_dragX; // slower auto-spin
+  float pitch = u_dragY * 0.25;
+  float cy = cos(yaw), sy = sin(yaw);
+  float cp = cos(pitch), sp = sin(pitch);
 
-  // Mouse hover tilt (subtle, on top of drag)
-  float tiltX = (u_mouse.x - 0.5) * 0.06;
-  float tiltY = (u_mouse.y - 0.5) * 0.04;
+  // Mouse parallax — subtle depth shift
+  float mx = (u_mouse.x - 0.5) * 0.04;
+  float my = (u_mouse.y - 0.5) * 0.03;
 
-  // Full 3D projection: yaw (drag X) + pitch (drag Y) + tilt (mouse)
-  float perspZ = 1.0 + centered.y * (0.12 + tiltY + sinP * 0.2) + centered.x * (tiltX + sinR * 0.05);
-  vec2 rotated = vec2(
-    centered.x * cosR - centered.y * sinR * 0.06,
-    centered.y * cosP + centered.x * sinR * 0.04
-  );
-  vec2 warped = (rotated * 0.5 + 0.5) * res / max(perspZ, 0.3);
+  // 3D perspective with depth
+  float pz = 1.0 + c.y * (0.15 + my + sp * 0.12) + c.x * (mx + sy * 0.03);
+  pz = max(pz, 0.4);
+  vec2 rot = vec2(c.x * cy - c.y * sy * 0.04, c.y * cp + c.x * sy * 0.03);
+  vec2 w = (rot * 0.5 + 0.5) * res / pz;
 
-  // ── Glitch from proximity to interaction point ───────────
-  vec2 mousePos = u_mouse * res;
-  float mouseDist = length(fragCoord - mousePos) / max(res.x, res.y);
-  float glitchZone = smoothstep(0.2, 0.0, mouseDist); // 0-1 intensity near cursor
+  float cellSz = 18.0 * z;
+  vec2 gr = w / cellSz;
+  vec2 cid = floor(gr);
+  vec2 cuv = fract(gr);
 
-  // Glitch: horizontal tear — shifts scan lines near cursor
-  float glitchTear = 0.0;
-  if (glitchZone > 0.05) {
-    float tearLine = step(0.92, hash(vec2(floor(fragCoord.y * 0.1), floor(u_time * 8.0))));
-    glitchTear = tearLine * glitchZone * 30.0; // pixel shift magnitude
-  }
-  warped.x += glitchTear;
+  // Column properties — 5 depth layers for parallax
+  float cs = hash(vec2(cid.x, 0.0));
+  float depth = 0.15 + cs * 0.85;
+  float spd = (0.2 + cs * 0.8) * depth;
+  float off = cs * 200.0;
+  float scr = t * spd + off;
+  float rid = cid.y + floor(scr);
+  float chs = hash(vec2(cid.x, rid));
 
-  // Glitch: character shimmer — between two states near cursor
-  float shimmer = glitchZone * sin(u_time * 15.0 + fragCoord.y * 0.5) * 0.5;
+  // Slow deliberate character change
+  float fRate = 0.3 + act * 2.0;
+  float flick = floor(u_time * fRate * (0.2 + cs * 0.5));
+  float fs = chs + flick * 0.005;
 
-  float cellSize = 18.0 * z;
-  vec2 grid = warped / cellSize;
-  vec2 cellId = floor(grid);
-  vec2 cellUv = fract(grid);
+  // Long graceful trails
+  float hd = fract(scr);
+  float dst = fract(cid.y / res.y * cellSz + hd);
+  float tl = 0.5 + (1.0 - act) * 0.3 + depth * 0.15;
+  float trail = smoothstep(0.0, tl * 0.5, dst) * smoothstep(1.0, 1.0 - tl, dst);
+  float pulse = 0.9 + 0.1 * sin(u_time * 0.3 + cs * 6.28);
+  float br = trail * (0.2 + 0.8 * chs) * (0.3 + depth * 0.7) * pulse;
 
-  float colSeed = hash(vec2(cellId.x, 0.0));
-  float depth = 0.25 + colSeed * 0.75;
-  float colSpeed = (0.3 + colSeed * 1.2) * depth;
-  float offset = colSeed * 200.0;
-  float scroll = t * colSpeed + offset;
-  float rowId = cellId.y + floor(scroll);
-  float charSeed = hash(vec2(cellId.x, rowId));
+  float g = glyph(cuv, fs, depth);
+  br *= g;
 
-  // Character flicker — glitch zone forces rapid change
-  float flickerRate = 0.5 + act * 4.0 + glitchZone * 20.0;
-  float charFlicker = floor(u_time * flickerRate * (0.3 + colSeed * 0.7));
-  float flickerSeed = charSeed + charFlicker * 0.007 + shimmer * 0.1;
+  // Soft head glow
+  float hg = smoothstep(0.07, 0.0, abs(dst - 0.97)) * (1.0 + depth * 0.6);
+  float ag = smoothstep(0.18, 0.0, abs(dst - 0.91)) * 0.2 * depth;
 
-  float head = fract(scroll);
-  float dist = fract(cellId.y / res.y * cellSize + head);
-  float trailLen = 0.4 + (1.0 - act) * 0.3 + depth * 0.2;
-  float trail = smoothstep(0.0, trailLen * 0.6, dist) * smoothstep(1.0, 1.0 - trailLen, dist);
-  float pulse = 0.85 + 0.15 * sin(u_time * 0.4 + colSeed * 6.28);
-  float brightness = trail * (0.25 + 0.75 * charSeed) * (0.4 + depth * 0.6) * pulse;
-
-  float g = glyph(cellUv, flickerSeed, depth);
-  brightness *= g;
-
-  // Glitch brightness spike — flashes near cursor
-  brightness += glitchZone * step(0.85, hash(fragCoord * 0.01 + u_time * 3.0)) * 0.6;
-
-  float headGlow = smoothstep(0.06, 0.0, abs(dist - 0.97)) * (1.2 + depth * 0.8);
-  float afterglow = smoothstep(0.15, 0.0, abs(dist - 0.92)) * 0.3 * depth;
-
-  // ── Color ────────────────────────────────────────────────
+  // ── Color — smooth sentiment blending ───────────────────
   float sent = u_sentiment;
-  float hueShift = colSeed * 0.12;
-  float bearMix = max(0.0, -sent);
-  float bullMix = max(0.0, sent);
+  float hs = cs * 0.1;
+  float bear = max(0.0, -sent), bull = max(0.0, sent);
 
-  vec3 greenBase = vec3(0.06, 0.85 + depth * 0.15, 0.25 + hueShift);
-  vec3 bearBase = vec3(0.85 + depth * 0.15, 0.08, 0.06);
-  vec3 bullBase = vec3(0.04, 0.95 + depth * 0.05, 0.35 + hueShift);
-  vec3 baseColor = mix(greenBase, bearBase, bearMix * 0.7);
-  baseColor = mix(baseColor, bullBase, bullMix * 0.4);
-  vec3 col = baseColor * brightness;
+  vec3 gBase = vec3(0.05, 0.8 + depth * 0.15, 0.22 + hs);
+  vec3 rBase = vec3(0.75 + depth * 0.15, 0.07, 0.05);
+  vec3 bBase = vec3(0.04, 0.9 + depth * 0.08, 0.3 + hs);
+  vec3 base = mix(gBase, rBase, bear * 0.6);
+  base = mix(base, bBase, bull * 0.35);
+  vec3 col = base * br;
 
-  vec3 headColor = mix(vec3(0.5, 1.0, 0.65), vec3(1.0, 0.5, 0.3), bearMix * 0.6);
-  headColor = mix(headColor, vec3(0.4, 1.0, 0.6), bullMix * 0.3);
-  col += headColor * headGlow * g * depth;
-  col += mix(vec3(0.03, 0.4, 0.15), vec3(0.4, 0.08, 0.03), bearMix * 0.5) * afterglow;
-  col *= depth * (0.7 + depth * 0.3);
+  // Head + afterglow
+  vec3 hc = mix(vec3(0.45, 0.95, 0.6), vec3(0.95, 0.45, 0.25), bear * 0.5);
+  hc = mix(hc, vec3(0.35, 0.95, 0.55), bull * 0.25);
+  col += hc * hg * g * depth;
+  col += mix(vec3(0.02, 0.3, 0.12), vec3(0.3, 0.06, 0.02), bear * 0.4) * ag;
 
-  // Glitch color aberration — RGB split near cursor
-  if (glitchZone > 0.1) {
-    float aberration = glitchZone * 3.0;
-    vec2 rOff = vec2(aberration, 0.0) / res;
-    vec2 bOff = vec2(-aberration, 0.0) / res;
-    float rShift = hash(fragCoord + rOff * res + u_time) * glitchZone * 0.3;
-    float bShift = hash(fragCoord + bOff * res + u_time * 1.1) * glitchZone * 0.3;
-    col.r += rShift;
-    col.b += bShift;
-  }
+  // Depth fog — far columns recede smoothly
+  col *= depth * depth; // squared for more dramatic depth separation
 
-  // Pill tinting
+  // Pill tinting — gentle
   if (u_pill > 0.5 && u_pill < 1.5) {
-    col = mix(col, vec3(0.9, 0.15, 0.08) * brightness * depth + vec3(1.0, 0.4, 0.25) * headGlow * g, 0.45);
+    col = mix(col, vec3(0.8, 0.12, 0.06) * br * depth + vec3(0.9, 0.35, 0.2) * hg * g, 0.35);
   } else if (u_pill > 1.5) {
-    col = mix(col, vec3(0.08, 0.35, 0.95) * brightness * depth + vec3(0.25, 0.55, 1.0) * headGlow * g, 0.45);
+    col = mix(col, vec3(0.06, 0.3, 0.9) * br * depth + vec3(0.2, 0.5, 0.95) * hg * g, 0.35);
   }
 
-  // Mouse glow + glitch halo
-  float mouseGlow = smoothstep(0.22, 0.0, mouseDist) * 0.18 * depth;
-  float mouseRing = smoothstep(0.002, 0.0, abs(mouseDist - 0.12)) * 0.06 * depth;
-  float glitchHalo = smoothstep(0.15, 0.0, mouseDist) * step(0.7, hash(vec2(u_time * 5.0, fragCoord.y * 0.02))) * 0.15;
-  if (u_pill > 0.5 && u_pill < 1.5) { col += vec3(0.8, 0.1, 0.03) * (mouseGlow + mouseRing + glitchHalo); }
-  else if (u_pill > 1.5) { col += vec3(0.03, 0.25, 0.8) * (mouseGlow + mouseRing + glitchHalo); }
-  else {
-    vec3 neutralGlow = mix(vec3(0.03, 0.6, 0.2), vec3(0.6, 0.08, 0.03), bearMix * 0.6);
-    col += neutralGlow * (mouseGlow + mouseRing + glitchHalo);
-  }
+  // Mouse glow — soft, no glitch
+  vec2 mp = u_mouse * res;
+  float md = length(fc - mp) / max(res.x, res.y);
+  float mglow = smoothstep(0.25, 0.0, md) * 0.12 * depth;
+  float mring = smoothstep(0.003, 0.0, abs(md - 0.1)) * 0.04 * depth;
+  if (u_pill > 0.5 && u_pill < 1.5) col += vec3(0.6, 0.08, 0.02) * (mglow + mring);
+  else if (u_pill > 1.5) col += vec3(0.02, 0.2, 0.6) * (mglow + mring);
+  else col += mix(vec3(0.02, 0.5, 0.18), vec3(0.5, 0.06, 0.02), bear * 0.5) * (mglow + mring);
 
-  // Vignette
-  vec2 uv = fragCoord / res;
-  col *= 1.0 - 0.45 * pow(length(uv - 0.5) * 1.5, 2.2);
+  // Elegant vignette
+  vec2 uv = fc / res;
+  col *= 1.0 - 0.4 * pow(length(uv - 0.5) * 1.4, 2.5);
 
-  // Scanlines + CRT
-  col *= 0.94 + 0.06 * sin(fragCoord.y * 3.0);
-  col *= 1.0 - 0.02 * dot(centered, centered);
+  // Fine scanlines — barely visible
+  col *= 0.96 + 0.04 * sin(fc.y * 2.5);
 
-  // Film grain
-  col += hash(fragCoord + u_time * 100.0) * 0.02;
+  // Subtle barrel
+  col *= 1.0 - 0.015 * dot(c, c);
+
+  // Whisper grain
+  col += hash(fc + u_time * 80.0) * 0.012;
 
   gl_FragColor = vec4(col, 1.0);
 }
