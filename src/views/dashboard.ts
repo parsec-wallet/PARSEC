@@ -187,14 +187,37 @@ function renderAssets(container: HTMLElement, info: AccountInfo, userAddress: st
   container.innerHTML = '';
   container.appendChild(el('h3', { cls: 'parsec-section-title', text: 'Assets' }));
 
-  // ALGO first
+  // Fetch prices for USD display on each asset
+  let coinPrices: CoinPrice[] = [];
+  import('../lib/prices').then(mod => mod.fetchPrices().then(p => {
+    coinPrices = p;
+    updateAssetPrices();
+  }));
+
+  // ALGO first — with price, links
+  const algoUsdEl = el('span', { cls: 'parsec-asset-row__usd', text: '$' });
   container.appendChild(el('div', {
-    cls: 'parsec-asset-row',
+    cls: 'parsec-asset-row parsec-asset-row--clickable',
     children: [
-      el('span', { cls: 'parsec-asset-row__name', text: 'ALGO' }),
-      el('span', { cls: 'parsec-asset-row__amount', text: microAlgosToAlgo(info.amount) }),
+      el('div', { cls: 'parsec-asset-row__info', children: [
+        el('span', { cls: 'parsec-asset-row__name', text: 'ALGO' }),
+        el('div', { cls: 'parsec-asset-row__links', children: [
+          el('a', { text: 'price', cls: 'parsec-asset-link', attrs: { href: 'https://www.coingecko.com/en/coins/algorand', target: '_blank', rel: 'noopener' } }),
+          el('a', { text: 'explorer', cls: 'parsec-asset-link', attrs: { href: `https://allo.info/account/${userAddress}`, target: '_blank', rel: 'noopener' } }),
+          el('a', { text: 'source', cls: 'parsec-asset-link', attrs: { href: 'https://github.com/algorand', target: '_blank', rel: 'noopener' } }),
+        ]}),
+      ]}),
+      el('div', { cls: 'parsec-asset-row__right', children: [
+        el('span', { cls: 'parsec-asset-row__amount', text: microAlgosToAlgo(info.amount) }),
+        algoUsdEl,
+      ]}),
     ],
   }));
+
+  function updateAssetPrices() {
+    const algo = coinPrices.find(p => p.symbol === 'ALGO');
+    if (algo) algoUsdEl.textContent = `≈ $${((info.amount / 1_000_000) * algo.usd).toFixed(2)}`;
+  }
 
   // ASAs
   for (const asset of info.assets) {
@@ -205,18 +228,41 @@ function renderAssets(container: HTMLElement, info: AccountInfo, userAddress: st
 
     const canOptOut = asset.amount === 0 && !asset.isFrozen;
 
+    // Known CoinGecko mappings for Algorand ASAs
+    const asaCoinGecko: Record<number, string> = {
+      31566704: 'usd-coin',     // USDC
+      312769: 'tether',         // USDt
+    };
+    const cgSlug = asaCoinGecko[asset.assetId];
+
+    // Links for each asset
+    const links: HTMLElement[] = [
+      el('a', { text: 'explorer', cls: 'parsec-asset-link', attrs: { href: `https://allo.info/asset/${asset.assetId}`, target: '_blank', rel: 'noopener' } }),
+    ];
+    if (cgSlug) {
+      links.unshift(el('a', { text: 'price', cls: 'parsec-asset-link', attrs: { href: `https://www.coingecko.com/en/coins/${cgSlug}`, target: '_blank', rel: 'noopener' } }));
+    }
+
+    // USD value for stablecoins
+    const usdValue = (asset.unitName === 'USDC' || asset.unitName === 'USDt')
+      ? `≈ $${(asset.amount / Math.pow(10, asset.decimals ?? 6)).toFixed(2)}`
+      : '';
+
     const rowChildren: HTMLElement[] = [
       el('div', {
         cls: 'parsec-asset-row__info',
         children: [
           el('span', { cls: 'parsec-asset-row__name', text: asset.unitName || asset.name || `ASA #${asset.assetId}` }),
           badges.length > 0 ? el('div', { cls: 'parsec-asset-row__badges', children: badges }) : el('span'),
+          el('div', { cls: 'parsec-asset-row__contract', text: `ASA ${asset.assetId} · Algorand` }),
+          el('div', { cls: 'parsec-asset-row__links', children: links }),
         ],
       }),
       el('div', {
         cls: 'parsec-asset-row__right',
         children: [
           el('span', { cls: 'parsec-asset-row__amount', text: formatAssetAmount(asset.amount, asset.decimals) }),
+          usdValue ? el('span', { cls: 'parsec-asset-row__usd', text: usdValue }) : el('span'),
           canOptOut ? btn('Remove', {
             minimal: true, intent: 'danger',
             onClick: async () => {

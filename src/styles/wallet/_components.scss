@@ -109,6 +109,42 @@
   color: var(--bp-text-color-muted, $color-gray-500);
 }
 
+.parsec-asset-row__usd {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-asset-row__links {
+  display: flex;
+  gap: $spacing-2;
+  margin-top: 2px;
+}
+
+.parsec-asset-link {
+  font-size: 0.7em;
+  color: $color-primary;
+  text-decoration: none;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 1;
+    text-decoration: underline;
+  }
+}
+
+.parsec-asset-row__contract {
+  font-family: $font-family-mono;
+  font-size: 0.65em;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  opacity: 0.5;
+}
+
+.parsec-asset-row--clickable {
+  cursor: default;
+}
+
 // Transaction row
 .parsec-tx-row {
   display: flex;
