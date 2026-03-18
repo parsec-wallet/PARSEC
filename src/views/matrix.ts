@@ -334,64 +334,83 @@ export function matrixView(): HTMLElement {
     const sorted = [...prices].sort((a, b) => b.change24h - a.change24h);
     const topWinner = sorted[0];
 
-    // Split: winners on right, losers on left
     const winners = sorted.filter(c => c.change24h > 0);
-    const losers = sorted.filter(c => c.change24h <= 0).reverse(); // worst at bottom
+    const losers = sorted.filter(c => c.change24h <= 0).reverse();
 
-    // Apex — #1 winner at the top
-    pyramidLayer.appendChild(pyramidCoin(topWinner, 50, 3, 1.4, true));
+    // Triangle geometry: apex at (50%, 2%), right base at (96%, 88%), left base at (4%, 88%)
+    const apexX = 50, apexY = 2;
+    const rightBaseX = 96, rightBaseY = 88;
+    const leftBaseX = 4, leftBaseY = 88;
 
-    // Winners cascade down the right — extend to screen edge
-    const maxWinners = Math.min(winners.length - 1, 15); // up to 15 winners
-    for (let i = 0; i < maxWinners; i++) {
-      const coin = winners[i + 1]; // skip apex
-      const rank = i + 1;
-      const x = 52 + rank * (48 / (maxWinners + 1)); // spread to right edge (100%)
-      const y = 5 + rank * (50 / (maxWinners + 1));   // cascade down to 55%
-      const scale = Math.max(0.5, 1.2 - rank * 0.04);
-      const opacity = Math.max(0.3, 1.0 - rank * 0.04);
-      pyramidLayer.appendChild(pyramidCoin(coin, x, y, scale, false, opacity));
+    // ── Apex — #1 winner, featured ──
+    pyramidLayer.appendChild(pyramidCoin(topWinner, apexX, apexY, 1.6, true));
+
+    // ── Winners (green, right side) — follow the triangle angle down ──
+    // Top 4 winners are featured larger
+    const allWinners = winners.slice(1); // skip apex
+    const maxW = Math.min(allWinners.length, 20);
+    for (let i = 0; i < maxW; i++) {
+      const coin = allWinners[i];
+      const t = (i + 1) / (maxW + 1); // 0→1 along the triangle line
+      const x = apexX + (rightBaseX - apexX) * t;
+      const y = apexY + (rightBaseY - apexY) * t;
+      // Larger at bottom (closer to participant), featured top 4 bigger
+      const isFeatured = i < 4;
+      const baseScale = isFeatured ? 1.3 - i * 0.1 : 0.7 + t * 0.5;
+      const opacity = isFeatured ? 1.0 : 0.4 + t * 0.4;
+      pyramidLayer.appendChild(pyramidCoin(coin, x, y, baseScale, false, opacity));
     }
 
-    // Losers cascade down the left — extend to screen edge
-    const maxLosers = Math.min(losers.length, 15);
-    for (let i = 0; i < maxLosers; i++) {
+    // ── Losers (red, left side) — same angle, bigger at bottom ──
+    const maxL = Math.min(losers.length, 20);
+    for (let i = 0; i < maxL; i++) {
       const coin = losers[i];
-      const rank = i + 1;
-      const x = 48 - rank * (48 / (maxLosers + 1)); // spread to left edge (0%)
-      const y = 5 + rank * (50 / (maxLosers + 1));
-      const scale = Math.max(0.5, 1.2 - rank * 0.04);
-      const opacity = Math.max(0.3, 1.0 - rank * 0.04);
-      pyramidLayer.appendChild(pyramidCoin(coin, x, y, scale, false, opacity));
+      const t = (i + 1) / (maxL + 1);
+      const x = apexX + (leftBaseX - apexX) * t;
+      const y = apexY + (leftBaseY - apexY) * t;
+      const isFeatured = i < 4;
+      const baseScale = isFeatured ? 1.3 - i * 0.1 : 0.7 + t * 0.5;
+      const opacity = isFeatured ? 1.0 : 0.4 + t * 0.4;
+      pyramidLayer.appendChild(pyramidCoin(coin, x, y, baseScale, false, opacity));
     }
 
-    // SVG lines — triangle from apex to edges
-    pyramidLayer.appendChild(pyramidLine(50, 5, 95, 52, '#10b981'));
-    pyramidLayer.appendChild(pyramidLine(50, 5, 5, 52, '#ef4444'));
-    pyramidLayer.appendChild(pyramidLine(5, 52, 95, 52, 'rgba(255,255,255,0.06)'));
+    // Triangle lines
+    pyramidLayer.appendChild(pyramidLine(apexX, apexY + 2, rightBaseX, rightBaseY, 'rgba(16,185,129,0.15)'));
+    pyramidLayer.appendChild(pyramidLine(apexX, apexY + 2, leftBaseX, leftBaseY, 'rgba(239,68,68,0.15)'));
 
-    // Bottom ticker — ALL coins in a row, Y position driven by % change
-    const tickerRow = el('div', { cls: 'parsec-pyramid__ticker' });
-    const tickerCoins = sorted.slice(0, 50); // top 50
-    tickerCoins.forEach((coin, i) => {
-      const xPct = 2 + (i / tickerCoins.length) * 96;
-      // Y: winners float up (60-70%), losers hang low (85-95%), center at 78%
-      const changeClamped = Math.max(-10, Math.min(10, coin.change24h));
-      const yPct = 78 - changeClamped * 1.5; // +10% → 63%, -10% → 93%
-      const isUp = coin.change24h >= 0;
-      const color = isUp ? '#10b981' : '#ef4444';
-      const size = Math.max(8, 11 - Math.abs(i - 25) * 0.08);
-
-      tickerRow.appendChild(el('div', {
-        cls: 'parsec-pyramid__ticker-coin',
+    // ── Buy zone — biggest losers hang at the bottom, waiting for rebound ──
+    const buyZone = el('div', { cls: 'parsec-pyramid__buyzone' });
+    const bottomLosers = losers.slice(-8); // 8 deepest losers
+    bottomLosers.forEach((coin) => {
+      const changeSign = coin.change24h >= 0 ? '+' : '';
+      buyZone.appendChild(el('div', {
+        cls: 'parsec-pyramid__buyzone-coin',
         attrs: {
-          style: `left:${xPct}%;top:${yPct}%;font-size:${size}px;color:${color}`,
-          title: `${coin.symbol} ${formatPrice(coin.usd)} ${coin.change24h >= 0 ? '+' : ''}${coin.change24h.toFixed(1)}%`,
+          title: `${coin.symbol} ${formatPrice(coin.usd)} ${changeSign}${coin.change24h.toFixed(1)}% — potential rebound`,
         },
-        text: coin.symbol,
+        children: [
+          el('span', { cls: 'parsec-pyramid__buyzone-symbol', text: coin.symbol }),
+          el('span', { cls: 'parsec-pyramid__buyzone-price', text: formatPrice(coin.usd) }),
+          el('span', { cls: 'parsec-pyramid__buyzone-change', text: `${changeSign}${coin.change24h.toFixed(1)}%` }),
+        ],
       }));
     });
-    pyramidLayer.appendChild(tickerRow);
+    pyramidLayer.appendChild(buyZone);
+
+    // ── Top winners featured — right side with extra detail ──
+    const winnerFeature = el('div', { cls: 'parsec-pyramid__feature parsec-pyramid__feature--right' });
+    winners.slice(0, 4).forEach(coin => {
+      const sign = coin.change24h >= 0 ? '+' : '';
+      winnerFeature.appendChild(el('div', {
+        cls: 'parsec-pyramid__feature-coin',
+        children: [
+          el('span', { cls: 'parsec-pyramid__feature-symbol', text: coin.symbol }),
+          el('span', { text: ` ${formatPrice(coin.usd)} ` }),
+          el('span', { cls: 'parsec-pyramid__feature-change', text: `${sign}${coin.change24h.toFixed(1)}%`, attrs: { style: 'color:#10b981' } }),
+        ],
+      }));
+    });
+    pyramidLayer.appendChild(winnerFeature);
   }
 
   function pyramidCoin(coin: CoinPrice, xPct: number, yPct: number, scale: number, isApex: boolean, opacity = 1): HTMLElement {

@@ -287,6 +287,83 @@
   pointer-events: none;
 }
 
+// Buy zone — bottom left, losers hanging, waiting for rebound
+.parsec-pyramid__buyzone {
+  position: absolute;
+  bottom: 3%;
+  left: 3%;
+  display: flex;
+  gap: $spacing-2;
+  flex-wrap: wrap;
+  max-width: 40%;
+  pointer-events: auto;
+}
+
+.parsec-pyramid__buyzone-coin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 8px;
+  border: 1px solid rgb(239 68 68 / 15%);
+  border-radius: $border-radius-md;
+  background: rgb(239 68 68 / 4%);
+  cursor: crosshair;
+  transition: all 0.3s ease;
+
+  &:hover {
+    border-color: rgb(239 68 68 / 40%);
+    background: rgb(239 68 68 / 10%);
+    transform: translateY(-4px);
+  }
+}
+
+.parsec-pyramid__buyzone-symbol {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 50%);
+}
+
+.parsec-pyramid__buyzone-price {
+  font-family: $font-family-mono;
+  font-size: 0.65em;
+  color: rgb(255 255 255 / 30%);
+}
+
+.parsec-pyramid__buyzone-change {
+  font-family: $font-family-mono;
+  font-size: 0.6em;
+  color: $color-danger;
+}
+
+// Featured winners — right side detail
+.parsec-pyramid__feature {
+  position: absolute;
+  pointer-events: auto;
+
+  &--right {
+    top: 8%;
+    right: 3%;
+    text-align: right;
+  }
+}
+
+.parsec-pyramid__feature-coin {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 50%);
+  padding: 2px 0;
+}
+
+.parsec-pyramid__feature-symbol {
+  font-weight: $font-weight-bold;
+  color: rgb(255 255 255 / 70%);
+}
+
+.parsec-pyramid__feature-change {
+  font-weight: $font-weight-semibold;
+}
+
 .parsec-pyramid__ticker {
   position: absolute;
   inset: 0;
