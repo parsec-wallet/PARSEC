@@ -907,6 +907,37 @@
   padding: $spacing-2 0;
 }
 
+.parsec-swap__quote-card {
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-xl;
+  padding: $spacing-4;
+  margin-bottom: $spacing-3;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+
+  &--best {
+    border-color: $color-success;
+    box-shadow: 0 0 12px rgba($color-success, 0.15);
+  }
+}
+
+.parsec-swap__quote-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-2;
+}
+
+.parsec-swap__quote-dex {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: var(--bp-text-color, $color-gray-900);
+}
+
+.parsec-swap__quote-action {
+  width: 100%;
+  margin-top: $spacing-3;
+}
+
 // ==========================================================================
 // DOCS
 // ==========================================================================

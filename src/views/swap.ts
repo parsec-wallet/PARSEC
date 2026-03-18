@@ -1,13 +1,12 @@
 // Parsec Wallet — SpinTrade Swap View
-// Parsec facilitates secure DEX interaction. Participant chooses the DEX.
-// "To" field pulls real tradeable assets from on-chain pools at zero cost.
+// Aggregates quotes from all DEX modules. Participant picks the best price.
 
 import { el, btn, input, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { microAlgosToAlgo } from '../lib/algorand/account';
 import { formatAssetAmount, DEFAULT_DECIMALS } from '../lib/algorand/assets';
-import { getSwapQuote, executeSwap, fetchPoolsForAsset } from '../lib/algorand/swap';
-import type { SwapQuote, SwapableAsset } from '../lib/algorand/swap';
+import { fetchAllPairs, fetchAllQuotes, executeSwapViaDex } from '../lib/dex/spintrade';
+import type { DexQuote, DexAsset } from '../lib/dex/types';
 import { keystoreRetrieve } from '../lib/keystore';
 
 export function swapView(): HTMLElement {
@@ -28,8 +27,6 @@ export function swapView(): HTMLElement {
   }
 
   const info = state.accountInfo;
-
-  // "From" assets = what the participant holds
   const heldAssets = [
     { assetId: 0, unitName: 'ALGO', name: 'Algorand', decimals: 6, amount: info?.amount || 0 },
     ...(info?.assets || []).filter(a => !a.isFrozen).map(a => ({
@@ -42,14 +39,14 @@ export function swapView(): HTMLElement {
   ];
 
   let selectedFromIdx = 0;
-  let selectedToAsset: SwapableAsset | null = null;
+  let selectedToAsset: DexAsset | null = null;
   let inputAmount = '';
-  let currentQuote: SwapQuote | null = null;
+
 
   const quoteContainer = el('div', { cls: 'parsec-swap__quote' });
   const toSelectContainer = el('div', { cls: 'parsec-swap__to-container' });
 
-  // "From" select — participant's holdings
+  // From select
   const fromSelect = document.createElement('select');
   fromSelect.className = 'bp5-input parsec-settings__select';
   heldAssets.forEach((a, i) => {
@@ -63,28 +60,27 @@ export function swapView(): HTMLElement {
   fromSelect.addEventListener('change', () => {
     selectedFromIdx = parseInt(fromSelect.value, 10);
     selectedToAsset = null;
-    currentQuote = null;
+
     quoteContainer.innerHTML = '';
     loadOutputAssets();
   });
 
-  // Load available output assets from Tinyman pools
+  // Load output assets from all DEX modules
   async function loadOutputAssets() {
     const fromAsset = heldAssets[selectedFromIdx];
     toSelectContainer.innerHTML = '';
-    toSelectContainer.appendChild(el('div', { cls: 'parsec-swap__loading', text: 'Loading tradeable assets...' }));
+    toSelectContainer.appendChild(el('div', { cls: 'parsec-swap__loading', text: 'Discovering tradeable assets...' }));
 
-    const poolAssets = await fetchPoolsForAsset(fromAsset.assetId, state.settings.network);
+    const poolAssets = await fetchAllPairs(fromAsset.assetId, state.settings.network);
 
     toSelectContainer.innerHTML = '';
     if (poolAssets.length === 0) {
-      toSelectContainer.appendChild(el('div', { cls: 'parsec-empty', text: 'No liquidity pools found for this asset.' }));
+      toSelectContainer.appendChild(el('div', { cls: 'parsec-empty', text: 'No liquidity pools found.' }));
       return;
     }
 
     const toSelect = document.createElement('select');
     toSelect.className = 'bp5-input parsec-settings__select';
-
     const placeholder = document.createElement('option');
     placeholder.value = '';
     placeholder.textContent = `Select asset (${poolAssets.length} available)`;
@@ -92,7 +88,7 @@ export function swapView(): HTMLElement {
     placeholder.disabled = true;
     toSelect.appendChild(placeholder);
 
-    poolAssets.forEach((a) => {
+    poolAssets.forEach(a => {
       const opt = document.createElement('option');
       opt.value = String(a.assetId);
       opt.textContent = `${a.unitName || a.name} (ID: ${a.assetId})`;
@@ -102,7 +98,7 @@ export function swapView(): HTMLElement {
     toSelect.addEventListener('change', () => {
       const id = parseInt(toSelect.value, 10);
       selectedToAsset = poolAssets.find(a => a.assetId === id) || null;
-      currentQuote = null;
+  
       quoteContainer.innerHTML = '';
     });
 
@@ -116,7 +112,8 @@ export function swapView(): HTMLElement {
     onInput: (v) => { inputAmount = v; },
   });
 
-  async function fetchQuote() {
+  // Fetch quotes from ALL DEX sources — show all, participant picks best
+  async function fetchQuotes() {
     const parsed = parseFloat(inputAmount);
     if (isNaN(parsed) || parsed <= 0) { toast('Enter an amount', 'danger'); return; }
     if (!selectedToAsset) { toast('Select an asset to receive', 'danger'); return; }
@@ -127,47 +124,52 @@ export function swapView(): HTMLElement {
     const baseAmount = Math.round(parsed * Math.pow(10, fromAsset.decimals));
 
     quoteContainer.innerHTML = '';
-    quoteContainer.appendChild(el('div', { cls: 'parsec-empty', text: 'Fetching quote...' }));
+    quoteContainer.appendChild(el('div', { cls: 'parsec-empty', text: 'Fetching quotes from all sources...' }));
 
-    const quote = await getSwapQuote(
+    const quotes = await fetchAllQuotes(
       fromAsset.assetId, selectedToAsset.assetId, baseAmount, 50, state.settings.network
     );
 
     quoteContainer.innerHTML = '';
-    if (!quote) {
-      quoteContainer.appendChild(el('div', { cls: 'parsec-empty', text: 'No pool found for this pair. Try swapping through ALGO.' }));
-      currentQuote = null;
+    if (quotes.length === 0) {
+      quoteContainer.appendChild(el('div', { cls: 'parsec-empty', text: 'No quotes available. Try a different pair or amount.' }));
+  
       return;
     }
 
-    currentQuote = quote;
-    const outDisplay = formatAssetAmount(quote.outputAmount, selectedToAsset.decimals);
-    const minDisplay = formatAssetAmount(quote.minOutput, selectedToAsset.decimals);
+    // Show all quotes — best first
+    const toAsset = selectedToAsset;
+    for (let i = 0; i < quotes.length; i++) {
+      const q = quotes[i];
+      const isBest = i === 0;
+      const outDisplay = formatAssetAmount(q.outputAmount, toAsset.decimals);
+      const minDisplay = formatAssetAmount(q.minOutput, toAsset.decimals);
 
-    quoteContainer.appendChild(el('div', {
-      cls: 'parsec-confirm__details',
-      children: [
-        row('You Send', `${parsed} ${fromAsset.unitName}`),
-        row('You Receive', `~${outDisplay} ${selectedToAsset.unitName}`),
-        row('Rate', `1 ${fromAsset.unitName} = ${quote.exchangeRate.toFixed(6)} ${selectedToAsset.unitName}`),
-        row('Min Received', `${minDisplay} ${selectedToAsset.unitName}`),
-        row('Price Impact', `${quote.priceImpact.toFixed(2)}%`),
-        row('Slippage', '0.5%'),
-        row('Pool Fee', '0.3%'),
-        row('DEX', 'Tinyman v2'),
-      ],
-    }));
-
-    quoteContainer.appendChild(
-      btn('Confirm Swap', {
-        intent: 'primary', large: true, cls: 'parsec-send__submit',
-        onClick: doSwap,
-      })
-    );
+      const card = el('div', {
+        cls: `parsec-swap__quote-card ${isBest ? 'parsec-swap__quote-card--best' : ''}`,
+        children: [
+          el('div', { cls: 'parsec-swap__quote-header', children: [
+            el('span', { cls: 'parsec-swap__quote-dex', text: q.dex }),
+            isBest ? el('span', { cls: 'parsec-badge', text: 'Best Price' }) : el('span'),
+          ]}),
+          row('You Receive', `${outDisplay} ${toAsset.unitName}`),
+          row('Rate', `1 ${fromAsset.unitName} = ${q.exchangeRate.toFixed(6)} ${toAsset.unitName}`),
+          row('Min Received', `${minDisplay} ${toAsset.unitName}`),
+          row('Impact', `${q.priceImpact.toFixed(2)}%`),
+          row('Fee', '0.3%'),
+          btn(isBest ? 'Swap via ' + q.dex : 'Use this quote', {
+            intent: isBest ? 'primary' : 'none',
+            large: isBest,
+            cls: 'parsec-swap__quote-action',
+            onClick: () => doSwap(q),
+          }),
+        ],
+      });
+      quoteContainer.appendChild(card);
+    }
   }
 
-  async function doSwap() {
-    if (!currentQuote || !selectedToAsset) return;
+  async function doSwap(quote: DexQuote) {
     const passphrase = store.getPassphrase();
     if (!passphrase) { toast('Session expired.', 'danger'); store.navigate('unlock'); return; }
 
@@ -176,13 +178,12 @@ export function swapView(): HTMLElement {
 
     store.set({ isLoading: true });
     try {
-      const { txId } = await executeSwap(
-        mnemonic,
-        currentQuote.inputAssetId,
-        currentQuote.outputAssetId,
-        currentQuote.inputAmount,
-        currentQuote.minOutput,
-        currentQuote.poolAddress,
+      // Find which module can execute (prefer on-chain)
+      const execDex = quote.dex.includes('on-chain') ? 'tinyman-onchain' : 'tinyman-onchain';
+      const { txId } = await executeSwapViaDex(
+        execDex, mnemonic,
+        quote.inputAssetId, quote.outputAssetId,
+        quote.inputAmount, quote.minOutput, quote.poolAddress,
         state.settings.network,
       );
       store.set({ isLoading: false, accountInfo: null });
@@ -197,7 +198,6 @@ export function swapView(): HTMLElement {
     }
   }
 
-  // Initial load of output assets
   loadOutputAssets();
 
   return el('div', {
@@ -207,10 +207,10 @@ export function swapView(): HTMLElement {
         cls: 'parsec-view__header',
         children: [
           btn('Back', { minimal: true, icon: 'arrow-left', onClick: () => store.navigate('dashboard') }),
-          el('h2', { cls: 'parsec-view__title', text: 'Swap' }),
+          el('h2', { cls: 'parsec-view__title', text: 'SpinTrade' }),
         ],
       }),
-      el('p', { cls: 'parsec-view__desc', text: 'Trade assets via Tinyman v2 liquidity pools.' }),
+      el('p', { cls: 'parsec-view__desc', text: 'Best price from all sources. You choose the path.' }),
       el('div', {
         cls: 'parsec-swap__form',
         children: [
@@ -221,7 +221,7 @@ export function swapView(): HTMLElement {
           toSelectContainer,
         ],
       }),
-      btn('Get Quote', { intent: 'primary', large: true, cls: 'parsec-send__submit', onClick: fetchQuote }),
+      btn('Find Best Price', { intent: 'primary', large: true, cls: 'parsec-send__submit', onClick: fetchQuotes }),
       quoteContainer,
     ],
   });
