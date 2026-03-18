@@ -210,7 +210,7 @@ export function matrixView(): HTMLElement {
   // ── Crypto Glyphs — riding the rain, entropy-selected from top 100 ──
 
   // How many icons visible at once
-  const GLYPH_SLOTS = 20;
+  const GLYPH_SLOTS = 10;
   let glyphRotationTimer: ReturnType<typeof setInterval> | null = null;
 
   // Featured chains — top 3 by market cap from the major set, displayed prominently
@@ -399,7 +399,7 @@ export function matrixView(): HTMLElement {
 
     // ── Winners (green, right side) — streaming up the triangle edge ──
     const allWinners = winners.slice(1);
-    const maxW = Math.min(allWinners.length, 20);
+    const maxW = Math.min(allWinners.length, 8);
     for (let i = 0; i < maxW; i++) {
       const coin = allWinners[i];
       // Position along the line, offset by change magnitude (bigger change = higher)
@@ -415,7 +415,7 @@ export function matrixView(): HTMLElement {
     }
 
     // ── Losers (red, left side) — streaming down the triangle edge ──
-    const maxL = Math.min(losers.length, 20);
+    const maxL = Math.min(losers.length, 8);
     for (let i = 0; i < maxL; i++) {
       const coin = losers[i];
       const baseT = (i + 1) / (maxL + 1);
