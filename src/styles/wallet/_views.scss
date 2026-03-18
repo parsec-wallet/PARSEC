@@ -225,6 +225,72 @@
   letter-spacing: 0.08em;
 }
 
+// Crypto glyph overlay
+.parsec-matrix__glyph-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.parsec-matrix__crypto-glyph {
+  position: absolute;
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  color: rgb(16 255 90 / 30%);
+  text-shadow: 0 0 8px rgb(16 255 90 / 20%);
+  pointer-events: auto;
+  cursor: crosshair;
+  transition: color 0.3s, text-shadow 0.3s;
+  user-select: none;
+
+  &:hover {
+    color: rgb(16 255 90 / 80%);
+    text-shadow: 0 0 20px rgb(16 255 90 / 50%), 0 0 40px rgb(16 255 90 / 20%);
+  }
+}
+
+// Price tooltip
+.parsec-matrix__tooltip {
+  position: fixed;
+  z-index: 50;
+  background: rgb(0 0 0 / 85%);
+  border: 1px solid rgb(16 255 90 / 30%);
+  border-radius: $border-radius-lg;
+  padding: $spacing-2 $spacing-3;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  backdrop-filter: blur(8px);
+  min-width: 120px;
+}
+
+.parsec-matrix__tooltip-symbol {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+  color: rgb(16 255 90 / 70%);
+  letter-spacing: 0.15em;
+}
+
+.parsec-matrix__tooltip-price {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: #fff;
+  margin: 2px 0;
+}
+
+.parsec-matrix__tooltip-change {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-matrix__tooltip-cap {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 35%);
+  margin-top: 2px;
+}
+
 // Diagnostics cards (blue pill)
 .parsec-matrix__diag {
   width: 100%;
