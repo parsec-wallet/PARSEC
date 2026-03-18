@@ -358,6 +358,65 @@
   color: rgb(255 255 255 / 50%);
 }
 
+.parsec-matrix__diag-usd-total {
+  font-size: $font-size-sm;
+  color: rgb(16 185 129 / 70%);
+  margin-bottom: $spacing-3;
+}
+
+.parsec-matrix__diag-breakdown {
+  border: 1px solid rgb(255 255 255 / 5%);
+  border-radius: $border-radius-md;
+  padding: $spacing-2;
+  margin-bottom: $spacing-3;
+}
+
+.parsec-matrix__diag-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 40%);
+
+  span:last-child {
+    font-family: $font-family-mono;
+    color: rgb(255 255 255 / 60%);
+  }
+
+  &--reward span:last-child {
+    color: $color-success;
+  }
+}
+
+.parsec-matrix__diag-portfolio {
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  color: #10b981;
+  text-align: center;
+  padding: $spacing-2 0;
+  margin-bottom: $spacing-2;
+  border-top: 1px solid rgb(16 185 129 / 15%);
+  border-bottom: 1px solid rgb(16 185 129 / 15%);
+}
+
+.parsec-matrix__diag-badge {
+  font-size: 0.7em;
+  color: $color-warning;
+  margin-left: $spacing-1;
+}
+
+.parsec-matrix__diag-asset-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.parsec-matrix__diag-usd {
+  font-size: 0.75em;
+  color: rgb(16 185 129 / 50%);
+}
+
 // Diagnostics cards (blue pill)
 .parsec-matrix__diag {
   width: 100%;

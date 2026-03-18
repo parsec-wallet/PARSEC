@@ -315,7 +315,14 @@ export function matrixView(): HTMLElement {
       panel.appendChild(el('p', { cls: 'parsec-matrix__lead', text: 'Read-only portfolio intelligence. No signing authority.' }));
       const diagBox = el('div', { cls: 'parsec-matrix__diag' });
       panel.appendChild(diagBox);
+
+      // Dynamic: refresh diagnostics every 30s while blue pill is active
       loadDiagnostics(diagBox, state.accounts, state.settings.network, netLog);
+      const diagRefresh = setInterval(() => {
+        if (choice !== 'blue') { clearInterval(diagRefresh); return; }
+        logNet(netLog, 'SYNC', 'auto-refresh');
+        loadDiagnostics(diagBox, state.accounts, state.settings.network, netLog);
+      }, 30000);
     }
 
     // Show live price feed status
@@ -334,44 +341,120 @@ export function matrixView(): HTMLElement {
   async function loadDiagnostics(container: HTMLElement, accounts: { address: string; name: string }[], network: NetworkId, netLog?: HTMLElement) {
     container.innerHTML = '';
     container.appendChild(el('div', { cls: 'parsec-matrix__diag-loading', text: 'Reading blockchain...' }));
+
+    // Get prices for USD valuation
+    const coinPrices = prices.length > 0 ? prices : [];
+    const algoPrice = coinPrices.find(p => p.id === 'algorand');
+    const usdcId = 31566704;
+
     for (const acct of accounts) {
       const addrShort = `${acct.address.slice(0, 6)}...${acct.address.slice(-4)}`;
+      const t0 = performance.now();
       if (netLog) logNet(netLog, 'FETCH', `accountInfo ${addrShort}`);
+
       try {
         const info = await fetchAccountInfo(acct.address, network);
-        if (netLog) logNet(netLog, 'OK', `${microAlgosToAlgo(info.amount)} ALGO · round ${info.round}`);
+        const fetchMs = Math.round(performance.now() - t0);
+        if (netLog) logNet(netLog, 'OK', `${microAlgosToAlgo(info.amount)} ALGO · ${fetchMs}ms · round ${info.round}`);
 
+        const t1 = performance.now();
         if (netLog) logNet(netLog, 'FETCH', `enriching ${info.assets.length} assets`);
         info.assets = await enrichAssets(info.assets, network);
-        if (netLog) logNet(netLog, 'OK', `${info.assets.length} assets resolved`);
+        const enrichMs = Math.round(performance.now() - t1);
+        if (netLog) logNet(netLog, 'OK', `${info.assets.length} assets resolved · ${enrichMs}ms`);
+
+        // Calculate USD portfolio value
+        const algoUsd = algoPrice ? algoPrice.usd : 0;
+        const algoValue = (info.amount / 1_000_000) * algoUsd;
+        let totalUsd = algoValue;
 
         const frozenCount = info.assets.filter(a => a.isFrozen).length;
         if (frozenCount > 0 && netLog) logNet(netLog, 'WARN', `${frozenCount} frozen asset(s)`);
 
+        // Available vs locked
+        const available = Math.max(0, info.amount - info.minBalance);
+        const locked = info.minBalance;
+
+        // Build asset rows with USD values
         const assetRows = info.assets.map(a => {
+          const decimals = a.decimals ?? 6;
+          const displayAmount = formatAssetAmount(a.amount, decimals);
           const badges: string[] = [];
           if (a.isFrozen) badges.push('FROZEN');
           if (a.hasFreezeAddr) badges.push('freezable');
-          const suffix = badges.length ? ` [${badges.join(',')}]` : '';
+          if (a.hasClawbackAddr) badges.push('clawback');
+
+          // USD estimate for known stablecoins
+          let usdValue = '';
+          if (a.assetId === usdcId || (a.unitName && a.unitName.toUpperCase() === 'USDC')) {
+            const val = a.amount / Math.pow(10, decimals);
+            totalUsd += val;
+            usdValue = `≈ $${val.toFixed(2)}`;
+          } else if (a.unitName && a.unitName.toUpperCase() === 'USDT') {
+            const val = a.amount / Math.pow(10, decimals);
+            totalUsd += val;
+            usdValue = `≈ $${val.toFixed(2)}`;
+          }
+
           return el('div', { cls: 'parsec-matrix__diag-asset', children: [
-            el('span', { text: (a.unitName || a.name || `ASA #${a.assetId}`) + suffix }),
-            el('span', { text: formatAssetAmount(a.amount, a.decimals) }),
+            el('div', { children: [
+              el('span', { text: a.unitName || a.name || `ASA #${a.assetId}` }),
+              badges.length > 0 ? el('span', { cls: 'parsec-matrix__diag-badge', text: ` ${badges.join(' · ')}` }) : el('span'),
+            ]}),
+            el('div', { cls: 'parsec-matrix__diag-asset-right', children: [
+              el('span', { text: displayAmount }),
+              usdValue ? el('span', { cls: 'parsec-matrix__diag-usd', text: usdValue }) : el('span'),
+            ]}),
           ]});
         });
+
+        if (netLog && algoPrice) {
+          logNet(netLog, 'PRICE', `ALGO ${formatPrice(algoPrice.usd)} · portfolio ≈ $${totalUsd.toFixed(2)}`);
+        }
+
         container.innerHTML = '';
         container.appendChild(el('div', { cls: 'parsec-matrix__diag-card', children: [
+          // Account header
           el('div', { cls: 'parsec-matrix__diag-header', children: [
             el('span', { cls: 'parsec-matrix__diag-name', text: acct.name }),
             el('span', { cls: 'parsec-matrix__diag-addr', text: addrShort }),
           ]}),
+
+          // Balance with USD
           el('div', { cls: 'parsec-matrix__diag-balance', text: `${microAlgosToAlgo(info.amount)} ALGO` }),
-          el('div', { cls: 'parsec-matrix__diag-meta', text: `Min: ${microAlgosToAlgo(info.minBalance)} · ${info.assets.length} assets · Round ${info.round}` }),
+          algoPrice ? el('div', { cls: 'parsec-matrix__diag-usd-total', text: `≈ $${algoValue.toFixed(2)} USD` }) : el('span'),
+
+          // Available / Locked / Rewards breakdown
+          el('div', { cls: 'parsec-matrix__diag-breakdown', children: [
+            el('div', { cls: 'parsec-matrix__diag-breakdown-row', children: [
+              el('span', { text: 'Available' }),
+              el('span', { text: `${microAlgosToAlgo(available)} ALGO` }),
+            ]}),
+            el('div', { cls: 'parsec-matrix__diag-breakdown-row', children: [
+              el('span', { text: 'Locked (min balance)' }),
+              el('span', { text: `${microAlgosToAlgo(locked)} ALGO` }),
+            ]}),
+            info.pendingRewards > 0 ? el('div', { cls: 'parsec-matrix__diag-breakdown-row parsec-matrix__diag-breakdown-row--reward', children: [
+              el('span', { text: 'Pending Rewards' }),
+              el('span', { text: `${microAlgosToAlgo(info.pendingRewards)} ALGO` }),
+            ]}) : el('span'),
+          ]}),
+
+          // Chain metadata
+          el('div', { cls: 'parsec-matrix__diag-meta', text: `${info.assets.length} assets · Round ${info.round} · ${network}` }),
+
+          // Portfolio total (if priced)
+          totalUsd > 0 ? el('div', { cls: 'parsec-matrix__diag-portfolio', text: `Portfolio ≈ $${totalUsd.toFixed(2)}` }) : el('span'),
+
+          // Asset list
           ...assetRows,
         ]}));
+
       } catch (err) {
-        if (netLog) logNet(netLog, 'ERR', `${addrShort} — ${err instanceof Error ? err.message : 'failed'}`);
+        const failMs = Math.round(performance.now() - t0);
+        if (netLog) logNet(netLog, 'ERR', `${addrShort} — ${err instanceof Error ? err.message : 'failed'} · ${failMs}ms`);
         container.innerHTML = '';
-        container.appendChild(el('div', { cls: 'parsec-matrix__diag-error', text: 'Could not fetch data.' }));
+        container.appendChild(el('div', { cls: 'parsec-matrix__diag-error', text: `Could not fetch data: ${err instanceof Error ? err.message : 'network error'}` }));
       }
     }
   }
