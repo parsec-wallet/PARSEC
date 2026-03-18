@@ -225,6 +225,147 @@
   letter-spacing: 0.08em;
 }
 
+// Diagnostics cards (blue pill)
+.parsec-matrix__diag {
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: $spacing-4;
+}
+
+.parsec-matrix__diag-loading {
+  text-align: center;
+  color: rgb(255 255 255 / 30%);
+  font-size: $font-size-xs;
+  letter-spacing: 0.1em;
+}
+
+.parsec-matrix__diag-card {
+  background: rgb(0 0 0 / 60%);
+  border: 1px solid rgb(59 130 246 / 20%);
+  border-radius: $border-radius-xl;
+  padding: $spacing-4;
+  backdrop-filter: blur(12px);
+}
+
+.parsec-matrix__diag-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-2;
+}
+
+.parsec-matrix__diag-name {
+  font-weight: $font-weight-semibold;
+  color: #93c5fd;
+  font-size: $font-size-sm;
+}
+
+.parsec-matrix__diag-addr {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 35%);
+}
+
+.parsec-matrix__diag-balance {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  color: #fff;
+  margin-bottom: $spacing-1;
+}
+
+.parsec-matrix__diag-meta {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 30%);
+  margin-bottom: $spacing-3;
+}
+
+.parsec-matrix__diag-asset {
+  display: flex;
+  justify-content: space-between;
+  padding: $spacing-1 0;
+  font-size: $font-size-sm;
+  color: rgb(255 255 255 / 60%);
+  border-top: 1px solid rgb(255 255 255 / 5%);
+
+  span:last-child {
+    font-family: $font-family-mono;
+    color: rgb(255 255 255 / 80%);
+  }
+}
+
+.parsec-matrix__diag-warn {
+  color: $color-warning;
+  font-size: $font-size-xs;
+  margin-top: $spacing-2;
+}
+
+.parsec-matrix__diag-error {
+  color: $color-danger;
+  font-size: $font-size-xs;
+  text-align: center;
+}
+
+// Chain selector (red pill — new user)
+.parsec-matrix__chain-section {
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: $spacing-4;
+}
+
+.parsec-matrix__chain-title {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 40%);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: $spacing-3;
+  text-align: center;
+}
+
+.parsec-matrix__chain-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.parsec-matrix__chain-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-3 $spacing-4;
+  background: rgb(0 0 0 / 50%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: $border-radius-xl;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: rgb(239 68 68 / 40%);
+    background: rgb(239 68 68 / 8%);
+  }
+
+  &--disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+
+    &:hover {
+      border-color: rgb(255 255 255 / 10%);
+      background: rgb(0 0 0 / 50%);
+    }
+  }
+}
+
+.parsec-matrix__chain-name {
+  font-weight: $font-weight-semibold;
+  color: #fff;
+  font-size: $font-size-sm;
+}
+
+.parsec-matrix__chain-format {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 35%);
+  font-family: $font-family-mono;
+}
+
 // ==========================================================================
 // STANDARD VIEWS
 // ==========================================================================

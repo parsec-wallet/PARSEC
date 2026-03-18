@@ -1,6 +1,8 @@
 // Parsec Wallet — SpinTrade Swap Engine
-// Queries Tinyman v2 pools for quotes. Executes swaps via direct pool contracts.
-// Own implementation — Tinyman as protocol reference, not code dependency.
+// SpinTrade is Parsec's native swap interface.
+// NOT a Tinyman fork — uses Tinyman v2 public API for pool quotes and
+// executes swaps through Tinyman's on-chain AMM contracts as a participant.
+// Future: participant choice of DEX (Tinyman, Pact, Folks, etc).
 
 import algosdk from 'algosdk';
 import type { NetworkId } from '../../types/wallet';
