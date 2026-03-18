@@ -291,41 +291,107 @@ export function matrixView(): HTMLElement {
   function renderBluePill() {
     panel.appendChild(el('div', { cls: 'parsec-matrix__choice-label parsec-matrix__choice-label--blue', text: 'BLUE PILL — DIAGNOSTICS' }));
     const state = store.get();
+
+    // Network activity feed — always shown
+    const netFeed = el('div', { cls: 'parsec-matrix__netfeed' });
+    const netLog = el('div', { cls: 'parsec-matrix__netlog' });
+    netFeed.appendChild(el('div', { cls: 'parsec-matrix__netfeed-header', children: [
+      el('span', { cls: 'parsec-matrix__netfeed-dot' }),
+      el('span', { text: 'Network Activity' }),
+    ]}));
+    netFeed.appendChild(netLog);
+    panel.appendChild(netFeed);
+
+    // Start network activity monitor
+    logNet(netLog, 'INIT', `Parsec v0.1.0 — ${state.settings.network}`);
+    logNet(netLog, 'NODE', `Algod: ${state.settings.network}-api.algonode.cloud`);
+    logNet(netLog, 'NODE', `Indexer: ${state.settings.network}-idx.algonode.cloud`);
+
     if (!state.accounts.length) {
+      logNet(netLog, 'WAIT', 'No accounts — import a public address');
       panel.appendChild(el('p', { cls: 'parsec-matrix__lead', text: 'No accounts. Import a public address to view diagnostics.' }));
       panel.appendChild(btn('Import Watch-Only Address', { large: true, outlined: true, cls: 'parsec-matrix__action', onClick: () => { cancelAnimation(); store.navigate('import-wallet'); } }));
     } else {
       panel.appendChild(el('p', { cls: 'parsec-matrix__lead', text: 'Read-only portfolio intelligence. No signing authority.' }));
       const diagBox = el('div', { cls: 'parsec-matrix__diag' });
       panel.appendChild(diagBox);
-      loadDiagnostics(diagBox, state.accounts, state.settings.network);
+      loadDiagnostics(diagBox, state.accounts, state.settings.network, netLog);
     }
+
+    // Show live price feed status
+    if (prices.length > 0) {
+      logNet(netLog, 'PRICE', `${prices.length} coins tracked — CoinGecko free tier`);
+      const topMover = [...prices].sort((a, b) => Math.abs(b.change24h) - Math.abs(a.change24h))[0];
+      if (topMover) {
+        const dir = topMover.change24h >= 0 ? '+' : '';
+        logNet(netLog, 'MOVER', `${topMover.symbol} ${dir}${topMover.change24h.toFixed(2)}% (24h)`);
+      }
+    }
+
     backButton();
   }
 
-  async function loadDiagnostics(container: HTMLElement, accounts: { address: string; name: string }[], network: NetworkId) {
+  async function loadDiagnostics(container: HTMLElement, accounts: { address: string; name: string }[], network: NetworkId, netLog?: HTMLElement) {
     container.innerHTML = '';
     container.appendChild(el('div', { cls: 'parsec-matrix__diag-loading', text: 'Reading blockchain...' }));
     for (const acct of accounts) {
+      const addrShort = `${acct.address.slice(0, 6)}...${acct.address.slice(-4)}`;
+      if (netLog) logNet(netLog, 'FETCH', `accountInfo ${addrShort}`);
       try {
         const info = await fetchAccountInfo(acct.address, network);
+        if (netLog) logNet(netLog, 'OK', `${microAlgosToAlgo(info.amount)} ALGO · round ${info.round}`);
+
+        if (netLog) logNet(netLog, 'FETCH', `enriching ${info.assets.length} assets`);
         info.assets = await enrichAssets(info.assets, network);
-        const assetRows = info.assets.map(a => el('div', { cls: 'parsec-matrix__diag-asset', children: [
-          el('span', { text: a.unitName || a.name || `ASA #${a.assetId}` }),
-          el('span', { text: formatAssetAmount(a.amount, a.decimals) }),
-        ]}));
+        if (netLog) logNet(netLog, 'OK', `${info.assets.length} assets resolved`);
+
+        const frozenCount = info.assets.filter(a => a.isFrozen).length;
+        if (frozenCount > 0 && netLog) logNet(netLog, 'WARN', `${frozenCount} frozen asset(s)`);
+
+        const assetRows = info.assets.map(a => {
+          const badges: string[] = [];
+          if (a.isFrozen) badges.push('FROZEN');
+          if (a.hasFreezeAddr) badges.push('freezable');
+          const suffix = badges.length ? ` [${badges.join(',')}]` : '';
+          return el('div', { cls: 'parsec-matrix__diag-asset', children: [
+            el('span', { text: (a.unitName || a.name || `ASA #${a.assetId}`) + suffix }),
+            el('span', { text: formatAssetAmount(a.amount, a.decimals) }),
+          ]});
+        });
         container.innerHTML = '';
         container.appendChild(el('div', { cls: 'parsec-matrix__diag-card', children: [
           el('div', { cls: 'parsec-matrix__diag-header', children: [
             el('span', { cls: 'parsec-matrix__diag-name', text: acct.name }),
-            el('span', { cls: 'parsec-matrix__diag-addr', text: `${acct.address.slice(0, 6)}...${acct.address.slice(-4)}` }),
+            el('span', { cls: 'parsec-matrix__diag-addr', text: addrShort }),
           ]}),
           el('div', { cls: 'parsec-matrix__diag-balance', text: `${microAlgosToAlgo(info.amount)} ALGO` }),
           el('div', { cls: 'parsec-matrix__diag-meta', text: `Min: ${microAlgosToAlgo(info.minBalance)} · ${info.assets.length} assets · Round ${info.round}` }),
           ...assetRows,
         ]}));
-      } catch { container.innerHTML = ''; container.appendChild(el('div', { cls: 'parsec-matrix__diag-error', text: 'Could not fetch data.' })); }
+      } catch (err) {
+        if (netLog) logNet(netLog, 'ERR', `${addrShort} — ${err instanceof Error ? err.message : 'failed'}`);
+        container.innerHTML = '';
+        container.appendChild(el('div', { cls: 'parsec-matrix__diag-error', text: 'Could not fetch data.' }));
+      }
     }
+  }
+
+  function logNet(log: HTMLElement, tag: string, msg: string) {
+    const now = new Date();
+    const ts = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`;
+    const tagColors: Record<string, string> = {
+      INIT: '#10b981', NODE: '#3b82f6', FETCH: '#f59e0b', OK: '#10b981',
+      WARN: '#f59e0b', ERR: '#ef4444', PRICE: '#8b5cf6', MOVER: '#8b5cf6', WAIT: '#6b7280',
+    };
+    const color = tagColors[tag] || '#6b7280';
+    const line = el('div', {
+      cls: 'parsec-matrix__netlog-line',
+      html: `<span style="color:#555">${ts}</span> <span style="color:${color};font-weight:600">${tag}</span> <span>${msg}</span>`,
+    });
+    log.appendChild(line);
+    // Keep last 12 lines
+    while (log.childNodes.length > 12) log.removeChild(log.firstChild!);
+    log.scrollTop = log.scrollHeight;
   }
 
   function renderRedPill() {

@@ -300,6 +300,64 @@
   margin-top: 2px;
 }
 
+// Network activity feed (blue pill)
+.parsec-matrix__netfeed {
+  width: 100%;
+  max-width: 420px;
+  margin-bottom: $spacing-4;
+  background: rgb(0 0 0 / 60%);
+  border: 1px solid rgb(59 130 246 / 15%);
+  border-radius: $border-radius-xl;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+
+.parsec-matrix__netfeed-header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-2 $spacing-3;
+  border-bottom: 1px solid rgb(255 255 255 / 5%);
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: rgb(255 255 255 / 40%);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.parsec-matrix__netfeed-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  animation: parsec-dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes parsec-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.parsec-matrix__netlog {
+  padding: $spacing-2 $spacing-3;
+  max-height: 180px;
+  overflow-y: auto;
+  font-family: $font-family-mono;
+  font-size: 0.7rem;
+  line-height: 1.6;
+
+  &::-webkit-scrollbar { width: 3px; }
+  &::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 10%); border-radius: 3px; }
+}
+
+.parsec-matrix__netlog-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgb(255 255 255 / 50%);
+}
+
 // Diagnostics cards (blue pill)
 .parsec-matrix__diag {
   width: 100%;
