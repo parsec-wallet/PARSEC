@@ -235,8 +235,12 @@ export function matrixView(): HTMLElement {
       if (!selected.includes(coin)) selected.push(coin);
     }
 
-    // Fill remaining slots randomly from the rest
-    const remaining = pool.filter(c => !selected.includes(c));
+    // Fill remaining slots randomly — exclude junk tokens
+    const glyphExclude = new Set([
+      'USDS', 'USDE', 'FIGR_HELOC', 'WBTC', 'WETH', 'STETH', 'WSTETH', 'CBETH', 'RETH', 'WEETH',
+      'LEO', 'OKB', 'CRO', 'KCS', 'HT', 'GT', 'FTT',
+    ]);
+    const remaining = pool.filter(c => !selected.includes(c) && !glyphExclude.has(c.symbol) && c.marketCap > 50_000_000);
     while (selected.length < GLYPH_SLOTS && remaining.length > 0) {
       const idx = Math.floor(Math.random() * remaining.length);
       selected.push(remaining.splice(idx, 1)[0]);
