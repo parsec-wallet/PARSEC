@@ -383,16 +383,24 @@ export function matrixView(): HTMLElement {
     pyramidLayer.innerHTML = '';
     if (prices.length < 10) return;
 
-    const sorted = [...prices].sort((a, b) => b.change24h - a.change24h);
+    // Filter out stablecoins, wrapped tokens, and junk from the pyramid
+    const pyramidExclude = new Set([
+      'USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FDUSD', 'PYUSD', 'USDP', 'GUSD', 'FRAX', 'LUSD', 'USDS', 'USDE',
+      'PAXG', 'XAUT', 'WBTC', 'WETH', 'STETH', 'WSTETH', 'CBETH', 'RETH', 'WEETH',
+      'LEO', 'OKB', 'CRO', 'KCS', 'HT', 'GT', 'FTT', 'FIGR_HELOC',
+    ]);
+    const pyramidPrices = prices.filter(c => !pyramidExclude.has(c.symbol) && c.marketCap > 100_000_000);
+    const sorted = [...pyramidPrices].sort((a, b) => b.change24h - a.change24h);
+    if (sorted.length === 0) return;
     const topWinner = sorted[0];
 
     const winners = sorted.filter(c => c.change24h > 0);
     const losers = sorted.filter(c => c.change24h <= 0).reverse();
 
-    // Triangle geometry: apex at (50%, 2%), right base at (96%, 88%), left base at (4%, 88%)
+    // Triangle geometry: apex at top, bases stop ABOVE the ship/fleet zone
     const apexX = 50, apexY = 2;
-    const rightBaseX = 96, rightBaseY = 88;
-    const leftBaseX = 4, leftBaseY = 88;
+    const rightBaseX = 92, rightBaseY = 68;
+    const leftBaseX = 8, leftBaseY = 68;
 
     // ── Apex — #1 gainer, large and clear ──
     pyramidLayer.appendChild(pyramidCoin(topWinner, apexX, apexY, 1.8, true));
