@@ -320,6 +320,11 @@ export function matrixView(): HTMLElement {
           el('span', { cls: 'parsec-matrix__glyph-change', text: `${changeSign}${coin.change24h.toFixed(1)}%`, attrs: { style: `color:${changeColor}` } }),
         ],
       });
+
+      // Hover info panel on floating glyphs too
+      glyphEl.addEventListener('mouseenter', () => showCoinPanel(coin, glyphEl));
+      glyphEl.addEventListener('mouseleave', () => hideCoinPanel());
+
       glyphLayer.appendChild(glyphEl);
     }
 
@@ -392,32 +397,35 @@ export function matrixView(): HTMLElement {
     // ── Apex — #1 winner, featured ──
     pyramidLayer.appendChild(pyramidCoin(topWinner, apexX, apexY, 1.6, true));
 
-    // ── Winners (green, right side) — follow the triangle angle down ──
-    // Top 4 winners are featured larger
-    const allWinners = winners.slice(1); // skip apex
+    // ── Winners (green, right side) — streaming up the triangle edge ──
+    const allWinners = winners.slice(1);
     const maxW = Math.min(allWinners.length, 20);
     for (let i = 0; i < maxW; i++) {
       const coin = allWinners[i];
-      const t = (i + 1) / (maxW + 1); // 0→1 along the triangle line
+      // Position along the line, offset by change magnitude (bigger change = higher)
+      const baseT = (i + 1) / (maxW + 1);
+      const changeBoost = Math.min(0.15, coin.change24h * 0.01); // rising coins push upward
+      const t = Math.max(0.05, baseT - changeBoost);
       const x = apexX + (rightBaseX - apexX) * t;
       const y = apexY + (rightBaseY - apexY) * t;
-      // Larger at bottom (closer to participant), featured top 4 bigger
       const isFeatured = i < 4;
-      const baseScale = isFeatured ? 1.3 - i * 0.1 : 0.7 + t * 0.5;
-      const opacity = isFeatured ? 1.0 : 0.4 + t * 0.4;
+      const baseScale = isFeatured ? 1.3 - i * 0.08 : 0.6 + t * 0.6;
+      const opacity = isFeatured ? 1.0 : 0.35 + t * 0.45;
       pyramidLayer.appendChild(pyramidCoin(coin, x, y, baseScale, false, opacity));
     }
 
-    // ── Losers (red, left side) — same angle, bigger at bottom ──
+    // ── Losers (red, left side) — streaming down the triangle edge ──
     const maxL = Math.min(losers.length, 20);
     for (let i = 0; i < maxL; i++) {
       const coin = losers[i];
-      const t = (i + 1) / (maxL + 1);
+      const baseT = (i + 1) / (maxL + 1);
+      const changeDrag = Math.min(0.15, Math.abs(coin.change24h) * 0.01); // deeper loss = lower
+      const t = Math.min(0.95, baseT + changeDrag);
       const x = apexX + (leftBaseX - apexX) * t;
       const y = apexY + (leftBaseY - apexY) * t;
       const isFeatured = i < 4;
-      const baseScale = isFeatured ? 1.3 - i * 0.1 : 0.7 + t * 0.5;
-      const opacity = isFeatured ? 1.0 : 0.4 + t * 0.4;
+      const baseScale = isFeatured ? 1.3 - i * 0.08 : 0.6 + t * 0.6;
+      const opacity = isFeatured ? 1.0 : 0.35 + t * 0.45;
       pyramidLayer.appendChild(pyramidCoin(coin, x, y, baseScale, false, opacity));
     }
 
@@ -534,7 +542,7 @@ export function matrixView(): HTMLElement {
     const sign = isUp ? '+' : '';
     const cls = isApex ? 'parsec-pyramid__coin parsec-pyramid__coin--apex' : 'parsec-pyramid__coin';
 
-    return el('div', {
+    const coinEl = el('div', {
       cls,
       attrs: {
         style: `left:${xPct}%;top:${yPct}%;transform:translate(-50%,-50%) scale(${scale});opacity:${opacity}`,
@@ -545,6 +553,67 @@ export function matrixView(): HTMLElement {
         el('div', { cls: 'parsec-pyramid__change', text: `${sign}${coin.change24h.toFixed(1)}%`, attrs: { style: `color:${color}` } }),
       ],
     });
+
+    // Hover info panel — expands on hover, pushes neighbors away
+    coinEl.addEventListener('mouseenter', () => {
+      // Show expanded info card
+      showCoinPanel(coin, coinEl);
+      // Push nearby pyramid coins away for isolation
+      coinEl.style.zIndex = '50';
+      coinEl.style.transform = `translate(-50%,-50%) scale(${scale * 1.5})`;
+    });
+    coinEl.addEventListener('mouseleave', () => {
+      hideCoinPanel();
+      coinEl.style.zIndex = '';
+      coinEl.style.transform = `translate(-50%,-50%) scale(${scale})`;
+    });
+
+    return coinEl;
+  }
+
+  // ── Hover info panel — detailed coin card ──────────────────
+
+  let activeCoinPanel: HTMLElement | null = null;
+
+  function showCoinPanel(coin: CoinPrice, anchor: HTMLElement) {
+    hideCoinPanel();
+    const isUp = coin.change24h >= 0;
+    const sign = isUp ? '+' : '';
+    const color = isUp ? '#10b981' : '#ef4444';
+
+    const panel = el('div', {
+      cls: 'parsec-coinpanel',
+      children: [
+        el('div', { cls: 'parsec-coinpanel__header', children: [
+          el('span', { cls: 'parsec-coinpanel__symbol', text: coin.symbol }),
+          el('span', { cls: 'parsec-coinpanel__name', text: coin.id.replace(/-/g, ' ') }),
+        ]}),
+        el('div', { cls: 'parsec-coinpanel__price', text: formatPrice(coin.usd) }),
+        el('div', { cls: 'parsec-coinpanel__change', text: `${sign}${coin.change24h.toFixed(2)}%`, attrs: { style: `color:${color}` } }),
+        el('div', { cls: 'parsec-coinpanel__cap', text: `Market Cap: ${formatMarketCap(coin.marketCap)}` }),
+        el('div', { cls: 'parsec-coinpanel__links', children: [
+          el('a', { text: 'CoinGecko', cls: 'parsec-asset-link', attrs: { href: `https://www.coingecko.com/en/coins/${coin.id}`, target: '_blank', rel: 'noopener' } }),
+          el('a', { text: 'Chart', cls: 'parsec-asset-link', attrs: { href: `https://www.coingecko.com/en/coins/${coin.id}#panel`, target: '_blank', rel: 'noopener' } }),
+        ]}),
+      ],
+    });
+
+    // Position near the anchor
+    const rect = anchor.getBoundingClientRect();
+    const panelX = Math.min(rect.left, window.innerWidth - 200);
+    const panelY = Math.max(rect.top - 120, 10);
+    panel.style.left = `${panelX}px`;
+    panel.style.top = `${panelY}px`;
+
+    document.body.appendChild(panel);
+    activeCoinPanel = panel;
+  }
+
+  function hideCoinPanel() {
+    if (activeCoinPanel) {
+      activeCoinPanel.remove();
+      activeCoinPanel = null;
+    }
   }
 
   function pyramidLine(x1: number, y1: number, x2: number, y2: number, color: string): HTMLElement {

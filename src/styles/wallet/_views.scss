@@ -548,6 +548,72 @@
   }
 }
 
+// Coin info panel — hover detail card
+.parsec-coinpanel {
+  position: fixed;
+  z-index: 100;
+  background: rgb(10 15 26 / 95%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: $border-radius-xl;
+  padding: $spacing-3 $spacing-4;
+  backdrop-filter: blur(16px);
+  min-width: 160px;
+  pointer-events: none;
+  animation: parsec-panel-in 0.15s ease;
+}
+
+@keyframes parsec-panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.parsec-coinpanel__header {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-2;
+  margin-bottom: $spacing-1;
+}
+
+.parsec-coinpanel__symbol {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-base;
+  color: #fff;
+}
+
+.parsec-coinpanel__name {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 35%);
+  text-transform: capitalize;
+}
+
+.parsec-coinpanel__price {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-lg;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.parsec-coinpanel__change {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-sm;
+  margin-bottom: $spacing-2;
+}
+
+.parsec-coinpanel__cap {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 30%);
+  margin-bottom: $spacing-2;
+}
+
+.parsec-coinpanel__links {
+  display: flex;
+  gap: $spacing-3;
+  pointer-events: auto;
+}
+
 // Crypto glyph overlay
 .parsec-matrix__glyph-layer {
   position: absolute;
