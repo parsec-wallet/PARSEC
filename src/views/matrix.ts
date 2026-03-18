@@ -10,7 +10,7 @@ import { hasVault } from '../lib/crypto';
 import { isTauri } from '../lib/vault';
 import { fetchAccountInfo, microAlgosToAlgo } from '../lib/algorand/account';
 import { enrichAssets, formatAssetAmount } from '../lib/algorand/assets';
-import { startPriceUpdates, formatPrice, formatMarketCap } from '../lib/prices';
+import { startPriceUpdates, formatPrice, formatMarketCap, getMarketActivity, getMarketSentiment } from '../lib/prices';
 import type { CoinPrice } from '../lib/prices';
 import type { NetworkId } from '../types/wallet';
 
@@ -80,9 +80,11 @@ export function matrixView(): HTMLElement {
 
   container.addEventListener('mouseleave', () => { tooltip.style.opacity = '0'; });
 
-  // Casual realtime price updates — auto-refreshes within free tier limits
+  // Casual realtime price updates — market activity drives shader speed
   const stopPrices = startPriceUpdates(p => {
     prices = p;
+    activityUniform = getMarketActivity(p);
+    sentimentUniform = getMarketSentiment(p);
     createGlyphs();
   });
 
@@ -94,6 +96,8 @@ export function matrixView(): HTMLElement {
   let startTime = performance.now();
   let raf = 0;
   let pillUniform = 0;
+  let activityUniform = 0.15; // calm default — mesmerizing slow
+  let sentimentUniform = 0.0; // -1 bear/red to +1 bull/green
 
   function setUniform(name: string, ...values: number[]) {
     if (!gl || !program) return;
@@ -138,6 +142,8 @@ export function matrixView(): HTMLElement {
     const t = (performance.now() - startTime) * 0.001;
     setUniform('u_time', t); setUniform('u_pill', pillUniform);
     setUniform('u_zoom', zoom); setUniform('u_mouse', mouseX, mouseY);
+    setUniform('u_activity', activityUniform);
+    setUniform('u_sentiment', sentimentUniform);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     // Drift glyphs slowly
     driftGlyphs(t);
@@ -361,112 +367,183 @@ attribute vec2 a_pos;
 void main() { gl_Position = vec4(a_pos, 0.0, 1.0); }
 `;
 
-// Enhanced matrix rain — 3D depth, intricate glyphs, perspective
+// Matrix rain shader — market-driven speed, 3D depth, elegant glyphs
 const FRAG = `
-precision mediump float;
+precision highp float;
 uniform vec2 u_resolution;
 uniform float u_time;
 uniform float u_pill;
 uniform float u_zoom;
 uniform vec2 u_mouse;
+uniform float u_activity;  // 0.0=frozen, 0.15=calm, 0.5=normal, 0.9=volatile
+uniform float u_sentiment; // -1.0=bear/red, 0.0=neutral/green, +1.0=bull/bright green
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float hash1(float p) { return fract(sin(p * 127.1) * 43758.5453); }
 
-// 3D perspective glyph with depth
+// Smooth glyph with anti-aliased strokes and elegant structure
 float glyph(vec2 uv, float seed, float depth) {
-  // Higher depth = more complex glyph
-  vec2 grid = vec2(5.0, 7.0) + depth * vec2(2.0, 3.0);
+  vec2 grid = vec2(5.0, 8.0);
   vec2 cell = floor(uv * grid);
   if (cell.x < 0.0 || cell.x >= grid.x || cell.y < 0.0 || cell.y >= grid.y) return 0.0;
-  float id = floor(seed * 96.0);
-  float bit = hash(cell + id + depth * 17.0);
-  float threshold = 0.32 + 0.15 * sin(seed * 6.28 + depth);
-  // Add serifs and cross-strokes based on depth
-  float serif = step(0.85, bit) * step(cell.y, 1.0) * 0.5;
-  float stroke = step(threshold, bit) * step(0.12, fract(uv.x * grid.x)) * step(0.1, fract(uv.y * grid.y));
-  return stroke + serif;
+
+  float id = floor(seed * 128.0);
+  float r = hash(cell + id + depth * 13.0);
+
+  // Structural patterns — horizontals, verticals, diagonals, dots
+  float pattern = 0.0;
+  float cx = fract(uv.x * grid.x);
+  float cy = fract(uv.y * grid.y);
+
+  // Vertical strokes
+  if (r > 0.3) pattern += smoothstep(0.35, 0.38, cx) * smoothstep(0.65, 0.62, cx);
+  // Horizontal bars
+  if (r > 0.55) pattern += smoothstep(0.3, 0.33, cy) * smoothstep(0.7, 0.67, cy) * 0.7;
+  // Corner dots (kanji-like)
+  float dot1 = 1.0 - smoothstep(0.12, 0.18, length(vec2(cx, cy) - vec2(0.2, 0.2)));
+  float dot2 = 1.0 - smoothstep(0.12, 0.18, length(vec2(cx, cy) - vec2(0.8, 0.8)));
+  if (r > 0.7) pattern += (dot1 + dot2) * 0.6;
+  // Diagonal
+  if (r > 0.8) pattern += smoothstep(0.08, 0.0, abs(cx - cy)) * 0.5;
+  // Cross
+  if (r < 0.25) {
+    pattern += smoothstep(0.42, 0.45, cx) * smoothstep(0.58, 0.55, cx);
+    pattern += smoothstep(0.42, 0.45, cy) * smoothstep(0.58, 0.55, cy);
+  }
+
+  // Outer padding — clean edges
+  float pad = smoothstep(0.04, 0.1, cx) * smoothstep(0.96, 0.9, cx)
+            * smoothstep(0.04, 0.1, cy) * smoothstep(0.96, 0.9, cy);
+
+  return clamp(pattern * pad, 0.0, 1.0);
 }
 
 void main() {
   vec2 fragCoord = gl_FragCoord.xy;
   vec2 res = u_resolution;
-  float t = u_time;
   float z = u_zoom;
+  float act = u_activity;
 
-  // 3D perspective warp — subtle vanishing point
+  // Market-driven time — calm markets = slow mesmerizing flow
+  // Base speed 0.15 (very slow) scaled up by activity
+  float timeScale = 0.15 + act * 0.85;
+  float t = u_time * timeScale;
+
+  // 3D perspective
   vec2 centered = (fragCoord / res - 0.5) * 2.0;
-  float perspZ = 1.0 + centered.y * 0.15; // depth from top to bottom
+  float perspZ = 1.0 + centered.y * 0.12;
   vec2 warped = fragCoord / perspZ;
 
-  float cellSize = 16.0 * z;
+  float cellSize = 18.0 * z;
   vec2 grid = warped / cellSize;
   vec2 cellId = floor(grid);
   vec2 cellUv = fract(grid);
 
-  // Column properties with depth layering
+  // Column depth — 3 distinct layers
   float colSeed = hash(vec2(cellId.x, 0.0));
-  float depth = 0.3 + colSeed * 0.7; // each column at different z-depth
-  float speed = (0.4 + colSeed * 2.0) * (0.5 + depth * 0.8);
-  float offset = colSeed * 100.0;
+  float depthRaw = colSeed;
+  float depth = 0.25 + depthRaw * 0.75;
 
-  // Scrolling
-  float scroll = t * speed + offset;
+  // Speed per column — slower base, scaled by market activity
+  float colSpeed = (0.3 + colSeed * 1.2) * depth;
+  float offset = colSeed * 200.0;
+
+  float scroll = t * colSpeed + offset;
   float rowId = cellId.y + floor(scroll);
   float charSeed = hash(vec2(cellId.x, rowId));
 
-  // Change characters over time — some columns faster than others
-  float charFlicker = floor(t * (2.0 + colSeed * 8.0) + cellId.x * 0.7);
-  float flickerSeed = charSeed + charFlicker * 0.01;
+  // Character change rate — slow and deliberate at low activity
+  float flickerRate = 0.5 + act * 4.0;
+  float charFlicker = floor(u_time * flickerRate * (0.3 + colSeed * 0.7));
+  float flickerSeed = charSeed + charFlicker * 0.007;
 
-  // Rain trail with 3D depth-based falloff
+  // Rain trail — longer, more graceful trails at low activity
   float head = fract(scroll);
   float dist = fract(cellId.y / res.y * cellSize + head);
-  float trailLen = 0.3 + depth * 0.4;
-  float trail = smoothstep(0.0, trailLen, dist) * smoothstep(1.0, 1.0 - trailLen, dist);
-  float brightness = trail * (0.3 + 0.7 * charSeed) * (0.5 + depth * 0.5);
+  float trailLen = 0.4 + (1.0 - act) * 0.3 + depth * 0.2;
+  float trail = smoothstep(0.0, trailLen * 0.6, dist) * smoothstep(1.0, 1.0 - trailLen, dist);
 
-  // Glyph with depth complexity
+  // Brightness with gentle pulsing
+  float pulse = 0.85 + 0.15 * sin(u_time * 0.4 + colSeed * 6.28);
+  float brightness = trail * (0.25 + 0.75 * charSeed) * (0.4 + depth * 0.6) * pulse;
+
+  // Elegant glyph
   float g = glyph(cellUv, flickerSeed, depth);
   brightness *= g;
 
-  // Head glow — brighter at high depth (foreground)
-  float headGlow = smoothstep(0.04, 0.0, abs(dist - 0.98)) * (1.5 + depth);
+  // Head glow — soft bloom
+  float headGlow = smoothstep(0.06, 0.0, abs(dist - 0.97)) * (1.2 + depth * 0.8);
+  // Secondary afterglow trail
+  float afterglow = smoothstep(0.15, 0.0, abs(dist - 0.92)) * 0.3 * depth;
 
-  // Base color — green with depth-based saturation
-  float greenIntensity = 0.8 + depth * 0.2;
-  vec3 col = vec3(0.08, greenIntensity, 0.3) * brightness;
-  col += vec3(0.6, 1.0, 0.7) * headGlow * g * depth;
+  // Color — sentiment-driven: green (bull) ↔ red (bear) gradience
+  float sent = u_sentiment; // -1 to +1
+  float hueShift = colSeed * 0.12;
 
-  // Depth fog — far columns dimmer
-  col *= depth;
+  // Bull: rich green. Bear: deep red. Neutral: classic matrix green.
+  float bearMix = max(0.0, -sent); // 0 when bull, 1 when deep bear
+  float bullMix = max(0.0, sent);  // 0 when bear, 1 when strong bull
 
-  // Pill tinting
+  vec3 greenBase = vec3(0.06, 0.85 + depth * 0.15, 0.25 + hueShift);
+  vec3 bearBase = vec3(0.85 + depth * 0.15, 0.08, 0.06);
+  vec3 bullBase = vec3(0.04, 0.95 + depth * 0.05, 0.35 + hueShift);
+
+  vec3 baseColor = mix(greenBase, bearBase, bearMix * 0.7);
+  baseColor = mix(baseColor, bullBase, bullMix * 0.4);
+
+  vec3 col = baseColor * brightness;
+
+  // Head glow follows sentiment
+  vec3 greenGlow = vec3(0.5, 1.0, 0.65);
+  vec3 bearGlow = vec3(1.0, 0.5, 0.3);
+  vec3 bullGlow = vec3(0.4, 1.0, 0.6);
+  vec3 headColor = mix(greenGlow, bearGlow, bearMix * 0.6);
+  headColor = mix(headColor, bullGlow, bullMix * 0.3);
+  col += headColor * headGlow * g * depth;
+
+  vec3 afterColor = mix(vec3(0.03, 0.4, 0.15), vec3(0.4, 0.08, 0.03), bearMix * 0.5);
+  col += afterColor * afterglow;
+
+  // Depth atmosphere
+  col *= depth * (0.7 + depth * 0.3);
+
+  // Pill tinting — preserves elegance
   if (u_pill > 0.5 && u_pill < 1.5) {
-    col = mix(col, vec3(1.0, 0.25, 0.12) * brightness * depth + vec3(1.0, 0.5, 0.3) * headGlow * g, 0.5);
+    vec3 redBase = vec3(0.9, 0.15, 0.08) * brightness * depth;
+    vec3 redGlow = vec3(1.0, 0.4, 0.25) * headGlow * g;
+    col = mix(col, redBase + redGlow, 0.45);
   } else if (u_pill > 1.5) {
-    col = mix(col, vec3(0.12, 0.45, 1.0) * brightness * depth + vec3(0.3, 0.6, 1.0) * headGlow * g, 0.5);
+    vec3 blueBase = vec3(0.08, 0.35, 0.95) * brightness * depth;
+    vec3 blueGlow = vec3(0.25, 0.55, 1.0) * headGlow * g;
+    col = mix(col, blueBase + blueGlow, 0.45);
   }
 
-  // Mouse proximity — 3D-aware glow
+  // Mouse glow — soft and organic
   vec2 mousePos = u_mouse * res;
   float mouseDist = length(fragCoord - mousePos) / max(res.x, res.y);
-  float mouseGlow = smoothstep(0.2, 0.0, mouseDist) * 0.2 * depth;
-  if (u_pill > 0.5 && u_pill < 1.5) { col += vec3(1.0, 0.15, 0.05) * mouseGlow; }
-  else if (u_pill > 1.5) { col += vec3(0.05, 0.3, 1.0) * mouseGlow; }
-  else { col += vec3(0.05, 0.7, 0.25) * mouseGlow; }
+  float mouseGlow = smoothstep(0.22, 0.0, mouseDist) * 0.18 * depth;
+  float mouseRing = smoothstep(0.002, 0.0, abs(mouseDist - 0.12)) * 0.06 * depth;
+  if (u_pill > 0.5 && u_pill < 1.5) { col += vec3(0.8, 0.1, 0.03) * (mouseGlow + mouseRing); }
+  else if (u_pill > 1.5) { col += vec3(0.03, 0.25, 0.8) * (mouseGlow + mouseRing); }
+  else {
+    vec3 neutralGlow = mix(vec3(0.03, 0.6, 0.2), vec3(0.6, 0.08, 0.03), bearMix * 0.6);
+    col += neutralGlow * (mouseGlow + mouseRing);
+  }
 
-  // Perspective vignette — darker at edges, brighter center
+  // Vignette — elegant darkening
   vec2 uv = fragCoord / res;
-  float vig = 1.0 - 0.5 * pow(length(uv - 0.5) * 1.4, 2.0);
+  float vig = 1.0 - 0.45 * pow(length(uv - 0.5) * 1.5, 2.2);
   col *= vig;
 
-  // Scanlines with depth variation
-  col *= 0.9 + 0.1 * sin(fragCoord.y * (2.0 + depth));
+  // Fine scanlines
+  col *= 0.94 + 0.06 * sin(fragCoord.y * 3.0);
 
-  // CRT curvature subtle hint
-  float crt = 1.0 - 0.03 * (centered.x * centered.x + centered.y * centered.y);
+  // Subtle CRT barrel
+  float crt = 1.0 - 0.02 * dot(centered, centered);
   col *= crt;
+
+  // Film grain — very subtle
+  float grain = hash(fragCoord + u_time * 100.0) * 0.02;
+  col += grain;
 
   gl_FragColor = vec4(col, 1.0);
 }

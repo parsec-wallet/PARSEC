@@ -76,6 +76,33 @@ export function startPriceUpdates(onUpdate: (prices: CoinPrice[]) => void): () =
   };
 }
 
+/**
+ * Market activity index 0.0–1.0 derived from aggregate 24h price changes.
+ * Calm market ≈ 0.1, normal ≈ 0.3, volatile ≈ 0.7+
+ * Drives matrix rain speed — mesmerizing when calm, frantic when volatile.
+ */
+export function getMarketActivity(prices: CoinPrice[]): number {
+  if (prices.length === 0) return 0.15; // calm default
+  const avgChange = prices.reduce((sum, p) => sum + Math.abs(p.change24h), 0) / prices.length;
+  // 0% average change → 0.1 activity, 5%+ → 0.8+ activity
+  return Math.min(0.95, 0.1 + avgChange * 0.14);
+}
+
+/**
+ * Market sentiment -1.0 (deep bear/red) to +1.0 (strong bull/green).
+ * Derived from weighted average 24h change (BTC/ETH weighted heavier).
+ * Drives matrix rain color gradient: green = bull, red = bear.
+ */
+export function getMarketSentiment(prices: CoinPrice[]): number {
+  if (prices.length === 0) return 0.0;
+  // Weight by market cap — BTC and ETH dominate sentiment
+  const totalCap = prices.reduce((s, p) => s + p.marketCap, 0);
+  if (totalCap === 0) return 0.0;
+  const weightedChange = prices.reduce((s, p) => s + p.change24h * (p.marketCap / totalCap), 0);
+  // Clamp: ±5% weighted change maps to ±1.0
+  return Math.max(-1.0, Math.min(1.0, weightedChange / 5.0));
+}
+
 export function formatMarketCap(cap: number): string {
   if (cap >= 1e12) return '$' + (cap / 1e12).toFixed(1) + 'T';
   if (cap >= 1e9) return '$' + (cap / 1e9).toFixed(1) + 'B';
