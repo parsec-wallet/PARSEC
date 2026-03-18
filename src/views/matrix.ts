@@ -156,52 +156,73 @@ export function matrixView(): HTMLElement {
     cancelAnimationFrame(raf);
     window.removeEventListener('resize', resize);
     stopPrices();
+    if (glyphRotationTimer) clearInterval(glyphRotationTimer);
   }
 
-  // ── Crypto Glyphs — volatility-driven presence ──────────────
+  // ── Crypto Glyphs — riding the rain, entropy-selected from top 100 ──
+
+  // How many icons visible at once — scales with volatility
+  const GLYPH_SLOTS = 16;
+  let glyphRotationTimer: ReturnType<typeof setInterval> | null = null;
 
   function createGlyphs() {
     glyphLayer.innerHTML = '';
     cryptoGlyphs = [];
     if (prices.length === 0) return;
 
-    for (let i = 0; i < prices.length && i < 10; i++) {
-      const coin = prices[i];
-      const vol = Math.abs(coin.change24h); // individual volatility
+    // Entropy-driven random selection from the full pool
+    const pool = [...prices];
+    const selected: CoinPrice[] = [];
 
-      // Volatility determines visibility — calm coins fade, volatile coins emerge
-      const volFactor = Math.min(1.0, vol / 5.0); // 5% change = full presence
-      const baseOpacity = 0.08 + volFactor * 0.35; // 0.08 calm → 0.43 volatile
-      const baseSize = (18 + volFactor * 16) * zoom; // 18px calm → 34px volatile
+    // Always include top 5 by market cap
+    for (let i = 0; i < Math.min(5, pool.length); i++) selected.push(pool[i]);
 
-      // Scatter in margins — volatile coins get more central placement
-      const marginWidth = 0.22 - volFactor * 0.05; // volatile = slightly more central
-      const side = i % 2 === 0
-        ? 0.03 + Math.random() * marginWidth
-        : 0.97 - Math.random() * marginWidth;
-      const y = 0.08 + (i / 10) * 0.84 + (Math.random() - 0.5) * 0.08;
+    // Fill remaining slots randomly — like paper wallet entropy, the randomness IS the selection
+    while (selected.length < GLYPH_SLOTS && pool.length > 0) {
+      const idx = Math.floor(Math.random() * pool.length);
+      const coin = pool.splice(idx, 1)[0];
+      if (!selected.includes(coin)) selected.push(coin);
+    }
 
-      const glyph: CryptoGlyph = { coin, x: side, y, size: baseSize };
+    // Place glyphs — riding rain columns across the full screen
+    for (let i = 0; i < selected.length; i++) {
+      const coin = selected[i];
+      const vol = Math.abs(coin.change24h);
+      const volFactor = Math.min(1.0, vol / 5.0);
+
+      // Spread across the full width, varied depth
+      const x = 0.03 + (i / selected.length) * 0.94 + (Math.random() - 0.5) * 0.06;
+      const y = Math.random() * 0.9 + 0.05;
+      const depth = 0.4 + Math.random() * 0.6;
+      const baseSize = (14 + volFactor * 14 + depth * 8) * zoom;
+      const baseOpacity = (0.06 + volFactor * 0.3 + depth * 0.12);
+
+      const glyph: CryptoGlyph = { coin, x, y, size: baseSize };
       cryptoGlyphs.push(glyph);
 
-      // Color: green if up, red if down, dim if flat
+      // Color from change direction
       const color = coin.change24h > 0.5
         ? `rgba(16,255,90,${baseOpacity})`
         : coin.change24h < -0.5
           ? `rgba(255,80,80,${baseOpacity})`
-          : `rgba(200,200,200,${baseOpacity * 0.5})`;
+          : `rgba(180,180,200,${baseOpacity * 0.4})`;
 
       const glyphEl = el('div', {
-        cls: `parsec-matrix__crypto-glyph ${volFactor > 0.4 ? 'parsec-matrix__crypto-glyph--volatile' : ''}`,
+        cls: `parsec-matrix__crypto-glyph ${volFactor > 0.3 ? 'parsec-matrix__crypto-glyph--volatile' : ''}`,
         text: coin.symbol,
         attrs: {
           'data-coin': coin.id,
-          'data-vol': String(vol.toFixed(2)),
-          style: `left:${side * 100}%;top:${y * 100}%;font-size:${baseSize}px;color:${color};text-shadow:0 0 ${6 + volFactor * 20}px ${color}`,
+          style: `left:${x * 100}%;top:${y * 100}%;font-size:${baseSize}px;color:${color};text-shadow:0 0 ${4 + volFactor * 16}px ${color};z-index:${Math.round(depth * 10)}`,
         },
       });
       glyphLayer.appendChild(glyphEl);
     }
+
+    // Rotate selection every 20 seconds — new random coins surface
+    if (glyphRotationTimer) clearInterval(glyphRotationTimer);
+    glyphRotationTimer = setInterval(() => {
+      if (prices.length > GLYPH_SLOTS) createGlyphs();
+    }, 20000);
   }
 
   function updateGlyphSizes() {
@@ -221,22 +242,27 @@ export function matrixView(): HTMLElement {
       const vol = Math.abs(cg.coin.change24h);
       const volFactor = Math.min(1.0, vol / 5.0);
 
-      // Gentle drift for calm coins, bounce for volatile ones
-      const driftAmp = 6 + volFactor * 18; // 6px calm → 24px volatile
-      const driftSpeed = 0.2 + volFactor * 0.8; // slow → fast
+      // Rain speed — icons fall with the matrix columns
+      const fallSpeed = 0.08 + activityUniform * 0.3 + volFactor * 0.15;
+      const fallY = ((cg.y * 100 + t * fallSpeed * 3.0 + i * 7) % 110) - 5;
 
-      // Bounce: damped spring — high vol = bigger initial bounce that settles
-      const bounce = Math.sin(t * driftSpeed * 3.0 + i * 2.1)
-        * driftAmp
-        * (1.0 - volFactor * 0.3 * Math.sin(t * 0.5)); // damping
+      // Dangle — pendulum swing, stronger for volatile
+      const dangleAmp = 3 + volFactor * 15;
+      const dangleSpeed = 0.3 + volFactor * 0.7;
+      const dangle = Math.sin(t * dangleSpeed + i * 1.9) * dangleAmp;
 
-      // Horizontal sway — volatile coins jitter more
-      const sway = Math.cos(t * driftSpeed * 1.7 + i * 3.3) * (2 + volFactor * 8);
+      // Depth perspective — scale and opacity shift with 3D rotation
+      const rotPhase = t * 0.015; // matches shader rotation
+      const depthShift = Math.sin(rotPhase + cg.x * 3.14) * 0.15;
+      const perspScale = 0.85 + depthShift + volFactor * 0.1;
 
-      // Scale pulse for volatile coins
-      const scalePulse = 1.0 + volFactor * 0.08 * Math.sin(t * 2.0 + i);
+      // Bounce for volatile — damped spring
+      const bounce = volFactor > 0.2
+        ? Math.sin(t * 2.5 + i * 2.7) * volFactor * 8 * Math.exp(-((t % 10) * 0.15))
+        : 0;
 
-      glyphEl.style.transform = `translate(${sway}px, ${bounce}px) scale(${scalePulse})`;
+      glyphEl.style.top = `${fallY}%`;
+      glyphEl.style.transform = `translateX(${dangle}px) translateY(${bounce}px) scale(${perspScale})`;
     });
   }
 

@@ -10,40 +10,30 @@ export interface CoinPrice {
   change24h: number;
 }
 
-const COINS = 'bitcoin,ethereum,algorand,solana,ripple,cardano,polkadot,avalanche-2,dogecoin,tron';
-
 let cache: CoinPrice[] | null = null;
 let lastFetch = 0;
-const CACHE_TTL = 60 * 1000; // 60 seconds — casual realtime within free tier limits
+const CACHE_TTL = 60 * 1000;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
-const SYMBOL_MAP: Record<string, string> = {
-  bitcoin: 'BTC', ethereum: 'ETH', algorand: 'ALGO', solana: 'SOL',
-  ripple: 'XRP', cardano: 'ADA', polkadot: 'DOT', 'avalanche-2': 'AVAX',
-  dogecoin: 'DOGE', tron: 'TRX',
-};
-
+/** Fetch top 100 coins by market cap from CoinGecko markets endpoint */
 export async function fetchPrices(): Promise<CoinPrice[]> {
   if (cache && Date.now() - lastFetch < CACHE_TTL) return cache;
 
   try {
     const response = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=${COINS}&vs_currencies=usd&include_24hr_change=true&include_market_cap=true`,
-      { signal: AbortSignal.timeout(8000) }
+      'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=24h',
+      { signal: AbortSignal.timeout(10000) }
     );
     if (!response.ok) return cache || [];
-    const data = await response.json();
+    const data = await response.json() as Record<string, unknown>[];
 
-    cache = Object.entries(data).map(([id, v]) => {
-      const val = v as Record<string, number>;
-      return {
-        id,
-        symbol: SYMBOL_MAP[id] || id.toUpperCase(),
-        usd: val.usd || 0,
-        marketCap: val.usd_market_cap || 0,
-        change24h: val.usd_24h_change || 0,
-      };
-    }).sort((a, b) => b.marketCap - a.marketCap);
+    cache = data.map(coin => ({
+      id: String(coin.id || ''),
+      symbol: String(coin.symbol || '').toUpperCase(),
+      usd: Number(coin.current_price || 0),
+      marketCap: Number(coin.market_cap || 0),
+      change24h: Number(coin.price_change_percentage_24h || 0),
+    })).filter(c => c.id && c.usd > 0);
 
     lastFetch = Date.now();
     return cache;
