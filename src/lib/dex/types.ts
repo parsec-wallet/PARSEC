@@ -23,6 +23,11 @@ export interface DexAsset {
   unitName: string;
   name: string;
   decimals: number;
+  // Pool context — what the participant needs to see
+  poolReserveThis?: number;   // reserve of THIS asset in the pool
+  poolReserveOther?: number;  // reserve of the OTHER asset (the input asset)
+  poolPrice?: number;         // price ratio: 1 input = X of this asset
+  poolLiquidity?: string;     // human-readable liquidity description
 }
 
 export interface DexModule {

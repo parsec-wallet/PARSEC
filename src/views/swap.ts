@@ -79,30 +79,43 @@ export function swapView(): HTMLElement {
       return;
     }
 
-    const toSelect = document.createElement('select');
-    toSelect.className = 'bp5-input parsec-settings__select';
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = `Select asset (${poolAssets.length} available)`;
-    placeholder.selected = true;
-    placeholder.disabled = true;
-    toSelect.appendChild(placeholder);
+    const fromAssetName = heldAssets[selectedFromIdx].unitName;
+
+    // Show pools as cards with liquidity info, not just a dropdown
+    const poolList = el('div', { cls: 'parsec-swap__pool-list' });
 
     poolAssets.forEach(a => {
-      const opt = document.createElement('option');
-      opt.value = String(a.assetId);
-      opt.textContent = `${a.unitName || a.name} (ID: ${a.assetId})`;
-      toSelect.appendChild(opt);
+      const priceText = a.poolPrice
+        ? `1 ${fromAssetName} = ${a.poolPrice.toFixed(a.poolPrice > 1 ? 2 : 6)} ${a.unitName}`
+        : 'price unavailable';
+      const liqText = a.poolLiquidity
+        ? `Pool: ${a.poolLiquidity}`
+        : '';
+
+      const isSelected = selectedToAsset?.assetId === a.assetId;
+
+      const card = el('div', {
+        cls: `parsec-swap__pool-card ${isSelected ? 'parsec-swap__pool-card--selected' : ''}`,
+        onClick: () => {
+          selectedToAsset = a;
+          quoteContainer.innerHTML = '';
+          // Update selection UI
+          poolList.querySelectorAll('.parsec-swap__pool-card').forEach(c => c.classList.remove('parsec-swap__pool-card--selected'));
+          card.classList.add('parsec-swap__pool-card--selected');
+        },
+        children: [
+          el('div', { cls: 'parsec-swap__pool-card-header', children: [
+            el('span', { cls: 'parsec-swap__pool-card-name', text: a.unitName || a.name }),
+            el('span', { cls: 'parsec-swap__pool-card-id', text: `ID: ${a.assetId}` }),
+          ]}),
+          el('div', { cls: 'parsec-swap__pool-card-price', text: priceText }),
+          liqText ? el('div', { cls: 'parsec-swap__pool-card-liq', text: liqText }) : el('span'),
+        ],
+      });
+      poolList.appendChild(card);
     });
 
-    toSelect.addEventListener('change', () => {
-      const id = parseInt(toSelect.value, 10);
-      selectedToAsset = poolAssets.find(a => a.assetId === id) || null;
-  
-      quoteContainer.innerHTML = '';
-    });
-
-    toSelectContainer.appendChild(toSelect);
+    toSelectContainer.appendChild(poolList);
   }
 
   const amountInput = input({

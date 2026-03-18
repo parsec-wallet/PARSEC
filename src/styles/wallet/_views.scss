@@ -1153,6 +1153,63 @@
   min-height: 2.5rem;
 }
 
+.parsec-swap__pool-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.parsec-swap__pool-card {
+  padding: $spacing-3;
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-lg;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: rgba($color-warning, 0.4);
+    background: rgba($color-warning, 0.04);
+  }
+
+  &--selected {
+    border-color: $color-warning;
+    background: rgba($color-warning, 0.08);
+    box-shadow: 0 0 8px rgba($color-warning, 0.1);
+  }
+}
+
+.parsec-swap__pool-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.parsec-swap__pool-card-name {
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-sm;
+}
+
+.parsec-swap__pool-card-id {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-swap__pool-card-price {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: $color-warning;
+  margin-bottom: 2px;
+}
+
+.parsec-swap__pool-card-liq {
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
 .parsec-swap__loading {
   font-size: $font-size-xs;
   color: var(--bp-text-color-muted, $color-gray-500);

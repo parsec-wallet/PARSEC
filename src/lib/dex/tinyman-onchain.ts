@@ -143,7 +143,7 @@ export const tinymanOnchainModule: DexModule = {
       }
     } catch { /* fall through to known pairs */ }
 
-    // Always include known pairs
+    // Always include known pairs as fallback
     for (const known of getKnownPairs(assetId, network)) {
       if (!seenIds.has(known.assetId)) {
         seenIds.add(known.assetId);
@@ -165,6 +165,30 @@ export const tinymanOnchainModule: DexModule = {
       } catch {
         discovered.push({ assetId: aid, unitName: `ASA#${aid}`, name: `ASA #${aid}`, decimals: 6 });
       }
+    }
+
+    // Enrich each pair with pool reserves and price from on-chain data
+    for (const asset of discovered) {
+      try {
+        const pool = await findPoolAndReserves(assetId, asset.assetId, network);
+        if (pool && pool.inputReserve > 0 && pool.outputReserve > 0) {
+          // Input decimals (the asset we're swapping FROM)
+          const inputDec = assetId === 0 ? 6 : 6; // ALGO = 6, default 6
+          const outputDec = asset.decimals;
+
+          // Reserves in human-readable form
+          const inputReserveHuman = pool.inputReserve / Math.pow(10, inputDec);
+          const outputReserveHuman = pool.outputReserve / Math.pow(10, outputDec);
+
+          // Price: how much output per 1 input (constant product)
+          const price = outputReserveHuman / inputReserveHuman;
+
+          asset.poolReserveThis = pool.outputReserve;
+          asset.poolReserveOther = pool.inputReserve;
+          asset.poolPrice = price;
+          asset.poolLiquidity = `${inputReserveHuman.toFixed(2)} / ${outputReserveHuman.toFixed(2)}`;
+        }
+      } catch { /* pool lookup failed — show without liquidity data */ }
     }
 
     return discovered;
