@@ -4,6 +4,231 @@
 
 @use '../abstracts' as *;
 
+// ==========================================================================
+// MATRIX ENTRY GATE
+// ==========================================================================
+
+.parsec-matrix {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.parsec-matrix__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.parsec-matrix__overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgb(0 0 0 / 20%) 0%, rgb(0 0 0 / 70%) 100%);
+  pointer-events: none;
+}
+
+.parsec-matrix__panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  padding: $spacing-6;
+}
+
+.parsec-matrix__brand {
+  font-size: 3rem;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.2em;
+  color: #fff;
+  text-shadow: 0 0 40px rgb(16 255 90 / 50%), 0 0 80px rgb(16 255 90 / 20%);
+  margin-bottom: $spacing-4;
+}
+
+.parsec-matrix__tagline {
+  color: rgb(255 255 255 / 50%);
+  font-size: $font-size-sm;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: $spacing-8;
+}
+
+.parsec-matrix__pills {
+  display: flex;
+  gap: $spacing-8;
+  margin-bottom: $spacing-8;
+}
+
+.parsec-matrix__pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  padding: $spacing-6;
+  border-radius: $border-radius-2xl;
+  border: 1px solid rgb(255 255 255 / 10%);
+  background: rgb(0 0 0 / 50%);
+  backdrop-filter: blur(12px);
+  transition: all 0.3s ease;
+  min-width: 160px;
+
+  &:hover {
+    transform: translateY(-4px);
+    border-color: rgb(255 255 255 / 20%);
+  }
+}
+
+.parsec-matrix__pill--red {
+  &:hover {
+    border-color: rgb(239 68 68 / 50%);
+    box-shadow: 0 0 30px rgb(239 68 68 / 20%);
+  }
+
+  .parsec-matrix__pill-capsule {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    box-shadow: 0 0 20px rgb(239 68 68 / 40%);
+  }
+
+  .parsec-matrix__pill-label {
+    color: #fca5a5;
+  }
+}
+
+.parsec-matrix__pill--blue {
+  &:hover {
+    border-color: rgb(59 130 246 / 50%);
+    box-shadow: 0 0 30px rgb(59 130 246 / 20%);
+  }
+
+  .parsec-matrix__pill-capsule {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    box-shadow: 0 0 20px rgb(59 130 246 / 40%);
+  }
+
+  .parsec-matrix__pill-label {
+    color: #93c5fd;
+  }
+}
+
+.parsec-matrix__pill-capsule {
+  width: 48px;
+  height: 24px;
+  border-radius: $border-radius-full;
+  margin-bottom: $spacing-3;
+}
+
+.parsec-matrix__pill-label {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.1em;
+  margin-bottom: $spacing-1;
+}
+
+.parsec-matrix__pill-desc {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 40%);
+}
+
+.parsec-matrix__choice-label {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.2em;
+  margin-bottom: $spacing-3;
+
+  &--red { color: #fca5a5; }
+  &--blue { color: #93c5fd; }
+}
+
+.parsec-matrix__lead {
+  color: rgb(255 255 255 / 60%);
+  font-size: $font-size-sm;
+  margin-bottom: $spacing-6;
+  max-width: 360px;
+  text-align: center;
+}
+
+.parsec-matrix__input {
+  width: 100%;
+  max-width: 320px;
+  padding: $spacing-3 $spacing-4;
+  background: rgb(0 0 0 / 60%);
+  border: 1px solid rgb(255 255 255 / 15%);
+  border-radius: $border-radius-xl;
+  color: #fff;
+  font-size: $font-size-base;
+  text-align: center;
+  letter-spacing: 0.1em;
+  margin-bottom: $spacing-4;
+  backdrop-filter: blur(8px);
+
+  &:focus {
+    border-color: rgb(239 68 68 / 50%);
+    box-shadow: 0 0 20px rgb(239 68 68 / 15%);
+    outline: none;
+  }
+
+  &::placeholder {
+    color: rgb(255 255 255 / 25%);
+    letter-spacing: 0.05em;
+  }
+}
+
+.parsec-matrix__action {
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: $spacing-3;
+  border-radius: $border-radius-xl !important;
+
+  &--red {
+    background: linear-gradient(135deg, #dc2626, #991b1b) !important;
+    border-color: rgb(239 68 68 / 30%) !important;
+    box-shadow: 0 0 20px rgb(239 68 68 / 20%);
+  }
+
+  &--blue {
+    background: linear-gradient(135deg, #2563eb, #1e40af) !important;
+    border-color: rgb(59 130 246 / 30%) !important;
+    box-shadow: 0 0 20px rgb(59 130 246 / 20%);
+  }
+}
+
+.parsec-matrix__note {
+  color: rgb(255 255 255 / 35%);
+  font-size: $font-size-xs;
+  max-width: 300px;
+  text-align: center;
+  margin-top: $spacing-2;
+}
+
+.parsec-matrix__back {
+  margin-top: $spacing-6;
+
+  a {
+    color: rgb(255 255 255 / 30%);
+    font-size: $font-size-xs;
+    text-decoration: none;
+    letter-spacing: 0.1em;
+
+    &:hover {
+      color: rgb(255 255 255 / 60%);
+    }
+  }
+}
+
+.parsec-matrix__footer-text {
+  color: rgb(255 255 255 / 20%);
+  font-size: $font-size-xs;
+  letter-spacing: 0.08em;
+}
+
+// ==========================================================================
+// STANDARD VIEWS
+// ==========================================================================
+
 // Shared view structure
 .parsec-view {
   max-width: 480px;
@@ -60,7 +285,6 @@
   letter-spacing: 0.15em;
   margin-bottom: $spacing-4;
   background: linear-gradient(135deg, $color-primary 0%, $color-success 100%);
-  background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }

@@ -61,6 +61,7 @@ export interface PendingSend {
 }
 
 export type AppView =
+  | 'matrix'
   | 'onboarding'
   | 'create-wallet'
   | 'verify-mnemonic'

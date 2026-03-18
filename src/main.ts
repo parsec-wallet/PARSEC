@@ -7,6 +7,7 @@ import './styles/main.scss';
 
 import { registerView, mountRouter } from './lib/router';
 import { store } from './lib/store';
+import { matrixView } from './views/matrix';
 import { onboardingView } from './views/onboarding';
 import { createWalletView } from './views/create-wallet';
 import { verifyMnemonicView } from './views/verify-mnemonic';
@@ -22,6 +23,7 @@ import { docsView } from './views/docs';
 import { settingsView } from './views/settings';
 
 // Register all views
+registerView('matrix', matrixView);
 registerView('onboarding', onboardingView);
 registerView('create-wallet', createWalletView);
 registerView('verify-mnemonic', verifyMnemonicView);

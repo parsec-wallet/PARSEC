@@ -34,10 +34,9 @@ function persistState(state: WalletState): void {
 
 function defaultState(): WalletState {
   const persisted = loadPersistedState();
-  const hasAccounts = persisted.accounts && persisted.accounts.length > 0;
 
   return {
-    view: hasAccounts ? 'unlock' : 'onboarding',
+    view: 'matrix',
     accounts: persisted.accounts || [],
     activeAccountIndex: persisted.activeAccountIndex || 0,
     accountInfo: null,
@@ -115,7 +114,7 @@ class Store {
     this._pendingSend = null;
     this.clearLockTimer();
     this.set({ accountInfo: null, transactions: [] });
-    this.navigate('unlock');
+    this.navigate('matrix');
   }
 
   reset(): void {
