@@ -213,8 +213,9 @@ export function matrixView(): HTMLElement {
   const GLYPH_SLOTS = 20;
   let glyphRotationTimer: ReturnType<typeof setInterval> | null = null;
 
-  // Featured chains — always visible, larger, more prominent
-  const FEATURED_SYMBOLS = new Set(['BTC', 'ETH', 'AVAX', 'ADA', 'ALGO', 'POL', 'XRP', 'SOL', 'DOT', 'MATIC']);
+  // Featured chains — top 3 by market cap from the major set, displayed prominently
+  const MAJOR_SYMBOLS = new Set(['BTC', 'ETH', 'AVAX', 'ADA', 'ALGO', 'POL', 'XRP', 'SOL', 'DOT']);
+  const FEATURED_SYMBOLS = new Set<string>();
 
   function createGlyphs() {
     glyphLayer.innerHTML = '';
@@ -224,11 +225,14 @@ export function matrixView(): HTMLElement {
     const pool = [...prices];
     const selected: CoinPrice[] = [];
 
-    // Always include featured chains first
-    for (const coin of pool) {
-      if (FEATURED_SYMBOLS.has(coin.symbol) && !selected.includes(coin)) {
-        selected.push(coin);
-      }
+    // Top 3 gainers from the major set — the ones moving right now
+    FEATURED_SYMBOLS.clear();
+    const majors = pool.filter(c => MAJOR_SYMBOLS.has(c.symbol)).sort((a, b) => b.change24h - a.change24h).slice(0, 3);
+    for (const m of majors) FEATURED_SYMBOLS.add(m.symbol);
+
+    // Always include the top 3 featured
+    for (const coin of majors) {
+      if (!selected.includes(coin)) selected.push(coin);
     }
 
     // Fill remaining slots randomly from the rest
@@ -418,23 +422,55 @@ export function matrixView(): HTMLElement {
     });
     pyramidLayer.appendChild(buyZone);
 
-    // ── Stablecoin + Gold bar — bottom of screen ──
+    // ── Stablecoin Ship — liquidity vessel floating at the bottom ──
     const stableNames = new Set(['USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FDUSD', 'PYUSD', 'USDP', 'GUSD', 'FRAX', 'LUSD', 'PAXG', 'XAUT']);
     const stables = prices.filter(c => stableNames.has(c.symbol));
     if (stables.length > 0) {
-      const stableBar = el('div', { cls: 'parsec-pyramid__stablebar' });
+      // Total liquidity across all stablecoins
+      const totalLiquidity = stables.reduce((s, c) => s + c.marketCap, 0);
+
+      const ship = el('div', { cls: 'parsec-ship' });
+
+      // Ship hull — the vessel
+      const hull = el('div', { cls: 'parsec-ship__hull' });
+
+      // Mast — total liquidity display
+      hull.appendChild(el('div', {
+        cls: 'parsec-ship__mast',
+        children: [
+          el('div', { cls: 'parsec-ship__flag', text: formatMarketCap(totalLiquidity) }),
+          el('div', { cls: 'parsec-ship__flag-label', text: 'STABLECOIN LIQUIDITY' }),
+        ],
+      }));
+
+      // Deck — stablecoins as cargo
+      const deck = el('div', { cls: 'parsec-ship__deck' });
+      stables.sort((a, b) => b.marketCap - a.marketCap);
       stables.forEach(coin => {
         const isGold = coin.symbol === 'PAXG' || coin.symbol === 'XAUT';
-        stableBar.appendChild(el('div', {
-          cls: `parsec-pyramid__stable-coin ${isGold ? 'parsec-pyramid__stable-coin--gold' : ''}`,
+        // Width proportional to market cap share
+        const share = coin.marketCap / totalLiquidity;
+        const widthPct = Math.max(4, Math.round(share * 100));
+
+        deck.appendChild(el('div', {
+          cls: `parsec-ship__cargo ${isGold ? 'parsec-ship__cargo--gold' : ''}`,
+          attrs: {
+            style: `flex-basis:${widthPct}%`,
+            title: `${coin.symbol} — ${formatMarketCap(coin.marketCap)} (${(share * 100).toFixed(1)}% of stablecoin liquidity)`,
+          },
           children: [
-            el('span', { cls: 'parsec-pyramid__stable-symbol', text: coin.symbol }),
-            el('span', { cls: 'parsec-pyramid__stable-price', text: formatPrice(coin.usd) }),
-            el('span', { cls: 'parsec-pyramid__stable-cap', text: formatMarketCap(coin.marketCap) }),
+            el('span', { cls: 'parsec-ship__cargo-symbol', text: coin.symbol }),
+            el('span', { cls: 'parsec-ship__cargo-cap', text: formatMarketCap(coin.marketCap) }),
           ],
         }));
       });
-      pyramidLayer.appendChild(stableBar);
+      hull.appendChild(deck);
+
+      // Water line
+      hull.appendChild(el('div', { cls: 'parsec-ship__waterline' }));
+
+      ship.appendChild(hull);
+      pyramidLayer.appendChild(ship);
     }
 
     // ── Top winners featured — right side with extra detail ──

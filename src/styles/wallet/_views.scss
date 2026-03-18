@@ -364,65 +364,124 @@
   font-weight: $font-weight-semibold;
 }
 
-// Stablecoin + Gold bar — anchored bottom
-.parsec-pyramid__stablebar {
+// Stablecoin Ship — liquidity vessel
+.parsec-ship {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: center;
-  gap: $spacing-3;
-  padding: $spacing-2 $spacing-4;
-  background: rgb(0 0 0 / 40%);
-  border-top: 1px solid rgb(255 255 255 / 5%);
+  bottom: 2px;
+  left: 45.5%;
+  width: 9%;
+  transform: translateX(-50%);
   pointer-events: auto;
-  flex-wrap: wrap;
+  animation: parsec-ship-float 6s ease-in-out infinite;
 }
 
-.parsec-pyramid__stable-coin {
-  display: flex;
-  align-items: center;
-  gap: $spacing-1;
-  padding: 2px 8px;
-  border-radius: $border-radius-md;
+@keyframes parsec-ship-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.parsec-ship__hull {
+  position: relative;
+  background: linear-gradient(180deg, rgb(15 23 42 / 80%) 0%, rgb(15 23 42 / 95%) 100%);
   border: 1px solid rgb(255 255 255 / 8%);
+  border-bottom: 3px solid rgb(59 130 246 / 25%);
+  border-radius: $border-radius-xl $border-radius-xl 40% 40%;
+  padding: $spacing-1 $spacing-2 $spacing-2;
+  backdrop-filter: blur(8px);
+}
+
+.parsec-ship__mast {
+  text-align: center;
+  padding: $spacing-1 0;
+  border-bottom: 1px solid rgb(255 255 255 / 5%);
+  margin-bottom: $spacing-1;
+}
+
+.parsec-ship__flag {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-base;
+  color: rgb(59 130 246 / 80%);
+  letter-spacing: 0.03em;
+}
+
+.parsec-ship__flag-label {
+  font-size: 0.45em;
+  letter-spacing: 0.2em;
+  color: rgb(255 255 255 / 25%);
+  text-transform: uppercase;
+}
+
+.parsec-ship__deck {
+  display: flex;
+  gap: 1px;
+  min-height: 18px;
+  align-items: stretch;
+}
+
+.parsec-ship__cargo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  border-radius: $border-radius-sm;
+  background: rgb(59 130 246 / 8%);
+  border: 1px solid rgb(59 130 246 / 10%);
+  min-width: 0;
+  overflow: hidden;
   cursor: crosshair;
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
 
   &:hover {
-    border-color: rgb(255 255 255 / 20%);
+    background: rgb(59 130 246 / 18%);
+    border-color: rgb(59 130 246 / 30%);
+    transform: translateY(-2px);
   }
 
   &--gold {
-    border-color: rgb(245 158 11 / 25%);
-
-    .parsec-pyramid__stable-symbol {
-      color: #f59e0b;
-    }
+    background: rgb(245 158 11 / 8%);
+    border-color: rgb(245 158 11 / 15%);
 
     &:hover {
-      border-color: rgb(245 158 11 / 50%);
+      background: rgb(245 158 11 / 18%);
+      border-color: rgb(245 158 11 / 35%);
+    }
+
+    .parsec-ship__cargo-symbol {
+      color: #f59e0b;
+      font-size: 0.8em;
+    }
+
+    .parsec-ship__cargo-cap {
+      font-size: 0.6em;
+      color: rgb(245 158 11 / 40%);
     }
   }
 }
 
-.parsec-pyramid__stable-symbol {
+.parsec-ship__cargo-symbol {
   font-family: $font-family-mono;
   font-weight: $font-weight-bold;
-  font-size: $font-size-xs;
-  color: rgb(255 255 255 / 45%);
-}
-
-.parsec-pyramid__stable-price {
-  font-family: $font-family-mono;
-  font-size: 0.7em;
-  color: rgb(255 255 255 / 35%);
-}
-
-.parsec-pyramid__stable-cap {
   font-size: 0.6em;
-  color: rgb(255 255 255 / 20%);
+  color: rgb(59 130 246 / 70%);
+  white-space: nowrap;
+}
+
+.parsec-ship__cargo-cap {
+  font-size: 0.5em;
+  color: rgb(255 255 255 / 25%);
+  white-space: nowrap;
+}
+
+.parsec-ship__waterline {
+  position: absolute;
+  bottom: -6px;
+  left: 10%;
+  right: 10%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgb(59 130 246 / 20%), rgb(59 130 246 / 30%), rgb(59 130 246 / 20%), transparent);
+  border-radius: 50%;
 }
 
 .parsec-pyramid__ticker {
