@@ -75,7 +75,7 @@ export function dashboardView(): HTMLElement {
     ],
   });
 
-  // Actions
+  // Actions — participant choices after signature-based login
   const actions = el('div', {
     cls: 'parsec-dashboard__actions',
     children: [
