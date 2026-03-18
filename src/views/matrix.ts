@@ -524,9 +524,9 @@ export function matrixView(): HTMLElement {
 
     // ── Top 10 by market cap — real chains only, no stables/wrapped ──
     const excludeFromFleet = new Set([
-      'USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FDUSD', 'PYUSD', 'USDP', 'GUSD', 'FRAX', 'LUSD',
-      'PAXG', 'XAUT', 'WBTC', 'WETH', 'STETH', 'WSTETH', 'CBETH', 'RETH',
-      'LEO', 'OKB', 'CRO', 'KCS', 'HT', 'GT', 'FTT',
+      'USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FDUSD', 'PYUSD', 'USDP', 'GUSD', 'FRAX', 'LUSD', 'USDS', 'USDE',
+      'PAXG', 'XAUT', 'WBTC', 'WETH', 'STETH', 'WSTETH', 'CBETH', 'RETH', 'WEETH',
+      'LEO', 'OKB', 'CRO', 'KCS', 'HT', 'GT', 'FTT', 'FIGR_HELOC',
     ]);
     const fleetCoins = prices
       .filter(c => !excludeFromFleet.has(c.symbol))
