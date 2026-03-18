@@ -298,30 +298,31 @@ export function matrixView(): HTMLElement {
       const glyphEl = glyphs[i] as HTMLElement;
       if (!glyphEl) return;
 
-      const vol = Math.abs(cg.coin.change24h);
-      const volFactor = Math.min(1.0, vol / 5.0);
+      const change = cg.coin.change24h;
+      const absChange = Math.abs(change);
 
-      // Rain speed — icons fall with the matrix columns
-      const fallSpeed = 0.08 + activityUniform * 0.3 + volFactor * 0.15;
-      const fallY = ((cg.y * 100 + t * fallSpeed * 3.0 + i * 7) % 110) - 5;
+      // Y position driven by price change:
+      // Up = floats higher on screen, down = sinks lower
+      // Flat = hangs at original position, drifting sideways
+      const changeClamped = Math.max(-15, Math.min(15, change));
+      const baseY = cg.y * 100; // original slot
+      const priceY = baseY - changeClamped * 1.5; // up = higher, down = lower
+      // Coins that went down only sink further if price drops more — otherwise hang
+      const targetY = Math.max(5, Math.min(92, priceY));
 
-      // Dangle — pendulum swing, stronger for volatile
-      const dangleAmp = 3 + volFactor * 15;
-      const dangleSpeed = 0.3 + volFactor * 0.7;
-      const dangle = Math.sin(t * dangleSpeed + i * 1.9) * dangleAmp;
+      // Gentle sideways float — all coins drift horizontally
+      const sway = Math.sin(t * 0.15 + i * 2.3) * (3 + absChange * 0.5);
 
-      // Depth perspective — scale and opacity shift with 3D rotation
-      const rotPhase = t * 0.015; // matches shader rotation
-      const depthShift = Math.sin(rotPhase + cg.x * 3.14) * 0.15;
-      const perspScale = 0.85 + depthShift + volFactor * 0.1;
+      // Depth perspective
+      const rotPhase = t * 0.008;
+      const depthShift = Math.sin(rotPhase + cg.x * 3.14) * 0.1;
+      const perspScale = 0.9 + depthShift;
 
-      // Bounce for volatile — damped spring
-      const bounce = volFactor > 0.2
-        ? Math.sin(t * 2.5 + i * 2.7) * volFactor * 8 * Math.exp(-((t % 10) * 0.15))
-        : 0;
+      // Gentle vertical bob — not a bounce, a breath
+      const bob = Math.sin(t * 0.2 + i * 1.7) * 2;
 
-      glyphEl.style.top = `${fallY}%`;
-      glyphEl.style.transform = `translateX(${dangle}px) translateY(${bounce}px) scale(${perspScale})`;
+      glyphEl.style.top = `${targetY}%`;
+      glyphEl.style.transform = `translateX(${sway}px) translateY(${bob}px) scale(${perspScale})`;
     });
   }
 
@@ -396,6 +397,25 @@ export function matrixView(): HTMLElement {
       }));
     });
     pyramidLayer.appendChild(buyZone);
+
+    // ── Stablecoin + Gold bar — bottom of screen ──
+    const stableNames = new Set(['USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FDUSD', 'PYUSD', 'USDP', 'GUSD', 'FRAX', 'LUSD', 'PAXG', 'XAUT']);
+    const stables = prices.filter(c => stableNames.has(c.symbol));
+    if (stables.length > 0) {
+      const stableBar = el('div', { cls: 'parsec-pyramid__stablebar' });
+      stables.forEach(coin => {
+        const isGold = coin.symbol === 'PAXG' || coin.symbol === 'XAUT';
+        stableBar.appendChild(el('div', {
+          cls: `parsec-pyramid__stable-coin ${isGold ? 'parsec-pyramid__stable-coin--gold' : ''}`,
+          children: [
+            el('span', { cls: 'parsec-pyramid__stable-symbol', text: coin.symbol }),
+            el('span', { cls: 'parsec-pyramid__stable-price', text: formatPrice(coin.usd) }),
+            el('span', { cls: 'parsec-pyramid__stable-cap', text: formatMarketCap(coin.marketCap) }),
+          ],
+        }));
+      });
+      pyramidLayer.appendChild(stableBar);
+    }
 
     // ── Top winners featured — right side with extra detail ──
     const winnerFeature = el('div', { cls: 'parsec-pyramid__feature parsec-pyramid__feature--right' });

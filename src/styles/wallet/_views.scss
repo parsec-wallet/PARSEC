@@ -364,6 +364,67 @@
   font-weight: $font-weight-semibold;
 }
 
+// Stablecoin + Gold bar — anchored bottom
+.parsec-pyramid__stablebar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: $spacing-3;
+  padding: $spacing-2 $spacing-4;
+  background: rgb(0 0 0 / 40%);
+  border-top: 1px solid rgb(255 255 255 / 5%);
+  pointer-events: auto;
+  flex-wrap: wrap;
+}
+
+.parsec-pyramid__stable-coin {
+  display: flex;
+  align-items: center;
+  gap: $spacing-1;
+  padding: 2px 8px;
+  border-radius: $border-radius-md;
+  border: 1px solid rgb(255 255 255 / 8%);
+  cursor: crosshair;
+  transition: border-color 0.2s;
+
+  &:hover {
+    border-color: rgb(255 255 255 / 20%);
+  }
+
+  &--gold {
+    border-color: rgb(245 158 11 / 25%);
+
+    .parsec-pyramid__stable-symbol {
+      color: #f59e0b;
+    }
+
+    &:hover {
+      border-color: rgb(245 158 11 / 50%);
+    }
+  }
+}
+
+.parsec-pyramid__stable-symbol {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 45%);
+}
+
+.parsec-pyramid__stable-price {
+  font-family: $font-family-mono;
+  font-size: 0.7em;
+  color: rgb(255 255 255 / 35%);
+}
+
+.parsec-pyramid__stable-cap {
+  font-size: 0.6em;
+  color: rgb(255 255 255 / 20%);
+}
+
 .parsec-pyramid__ticker {
   position: absolute;
   inset: 0;
@@ -401,9 +462,9 @@
   font-weight: $font-weight-bold;
   pointer-events: auto;
   cursor: crosshair;
-  transition: color 0.5s ease, text-shadow 0.5s ease, transform 0.3s ease, opacity 0.5s ease;
+  transition: top 1.5s ease, color 0.5s ease, text-shadow 0.5s ease, transform 0.4s ease, opacity 0.5s ease;
   user-select: none;
-  will-change: transform, opacity;
+  will-change: transform, top, opacity;
 
   &:hover {
     opacity: 1 !important;
