@@ -46,6 +46,10 @@ export function matrixView(): HTMLElement {
   container.appendChild(canvas);
   container.appendChild(el('div', { cls: 'parsec-matrix__overlay' }));
 
+  // Pyramid — top winners and losers of the hour
+  const pyramidLayer = el('div', { cls: 'parsec-matrix__pyramid' });
+  container.appendChild(pyramidLayer);
+
   // Crypto glyph overlay layer (HTML on top of WebGL)
   const glyphLayer = el('div', { cls: 'parsec-matrix__glyph-layer' });
   container.appendChild(glyphLayer);
@@ -88,6 +92,7 @@ export function matrixView(): HTMLElement {
     activityUniform = getMarketActivity(p);
     sentimentUniform = getMarketSentiment(p);
     createGlyphs();
+    renderPyramid();
   });
 
   renderPanel();
@@ -190,9 +195,12 @@ export function matrixView(): HTMLElement {
       const vol = Math.abs(coin.change24h);
       const volFactor = Math.min(1.0, vol / 5.0);
 
-      // Spread across the full width, varied depth
-      const x = 0.03 + (i / selected.length) * 0.94 + (Math.random() - 0.5) * 0.06;
-      const y = Math.random() * 0.9 + 0.05;
+      // Spread across width — avoid center panel (35%-65% x, 25%-75% y)
+      let x: number, y: number;
+      do {
+        x = 0.03 + Math.random() * 0.94;
+        y = Math.random() * 0.9 + 0.05;
+      } while (x > 0.3 && x < 0.7 && y > 0.2 && y < 0.8); // exclusion zone for pills/panel
       const depth = 0.4 + Math.random() * 0.6;
       const baseSize = (14 + volFactor * 14 + depth * 8) * zoom;
       const baseOpacity = (0.06 + volFactor * 0.3 + depth * 0.12);
@@ -272,6 +280,80 @@ export function matrixView(): HTMLElement {
       glyphEl.style.top = `${fallY}%`;
       glyphEl.style.transform = `translateX(${dangle}px) translateY(${bounce}px) scale(${perspScale})`;
     });
+  }
+
+  // ── Pyramid — top coin at apex, winners right, losers left ──
+
+  function renderPyramid() {
+    pyramidLayer.innerHTML = '';
+    if (prices.length < 10) return;
+
+    // Sort by 24h change to find winners and losers
+    const sorted = [...prices].sort((a, b) => b.change24h - a.change24h);
+    const topWinner = sorted[0]; // #1 at the apex
+    const winners = sorted.slice(1, 5); // next 4 winners cascade right
+    const losers = sorted.slice(-4).reverse(); // 4 biggest losers cascade left
+
+    // Apex — top of pyramid, center top
+    pyramidLayer.appendChild(pyramidCoin(topWinner, 50, 4, 1.3, true));
+
+    // Winners cascade down the right side of the pyramid
+    winners.forEach((coin, i) => {
+      const x = 54 + (i + 1) * 8; // stepping right
+      const y = 8 + (i + 1) * 7;  // stepping down
+      const scale = 1.1 - i * 0.1;
+      pyramidLayer.appendChild(pyramidCoin(coin, x, y, scale, false));
+    });
+
+    // Draw pyramid line (winners side)
+    pyramidLayer.appendChild(pyramidLine(50, 6, 54 + 4 * 8, 8 + 4 * 7, '#10b981'));
+
+    // Losers cascade down the left side
+    losers.forEach((coin, i) => {
+      const x = 46 - (i + 1) * 8; // stepping left
+      const y = 8 + (i + 1) * 7;  // stepping down
+      const scale = 1.1 - i * 0.1;
+      pyramidLayer.appendChild(pyramidCoin(coin, x, y, scale, false));
+    });
+
+    // Draw pyramid line (losers side)
+    pyramidLayer.appendChild(pyramidLine(50, 6, 46 - 4 * 8, 8 + 4 * 7, '#ef4444'));
+  }
+
+  function pyramidCoin(coin: CoinPrice, xPct: number, yPct: number, scale: number, isApex: boolean): HTMLElement {
+    const isUp = coin.change24h >= 0;
+    const color = isUp ? '#10b981' : '#ef4444';
+    const sign = isUp ? '+' : '';
+    const cls = isApex ? 'parsec-pyramid__coin parsec-pyramid__coin--apex' : 'parsec-pyramid__coin';
+
+    return el('div', {
+      cls,
+      attrs: {
+        style: `left:${xPct}%;top:${yPct}%;transform:translate(-50%,-50%) scale(${scale})`,
+      },
+      children: [
+        el('div', { cls: 'parsec-pyramid__symbol', text: coin.symbol }),
+        el('div', { cls: 'parsec-pyramid__price', text: formatPrice(coin.usd) }),
+        el('div', { cls: 'parsec-pyramid__change', text: `${sign}${coin.change24h.toFixed(1)}%`, attrs: { style: `color:${color}` } }),
+      ],
+    });
+  }
+
+  function pyramidLine(x1: number, y1: number, x2: number, y2: number, color: string): HTMLElement {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'parsec-pyramid__line');
+    svg.setAttribute('viewBox', '0 0 100 50');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', String(x1));
+    line.setAttribute('y1', String(y1));
+    line.setAttribute('x2', String(x2));
+    line.setAttribute('y2', String(y2));
+    line.setAttribute('stroke', color);
+    line.setAttribute('stroke-width', '0.15');
+    line.setAttribute('stroke-opacity', '0.3');
+    svg.appendChild(line);
+    return svg as unknown as HTMLElement;
   }
 
   function checkGlyphHover(mx: number, my: number) {

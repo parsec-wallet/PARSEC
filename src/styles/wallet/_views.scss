@@ -234,6 +234,59 @@
   letter-spacing: 0.08em;
 }
 
+// Pyramid — winners right, losers left, apex top
+.parsec-matrix__pyramid {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.parsec-pyramid__coin {
+  position: absolute;
+  text-align: center;
+  pointer-events: auto;
+  cursor: crosshair;
+  transition: transform 0.5s ease, opacity 0.5s ease;
+
+  &:hover {
+    transform: translate(-50%, -50%) scale(1.4) !important;
+    z-index: 20;
+  }
+}
+
+.parsec-pyramid__coin--apex {
+  filter: brightness(1.3);
+}
+
+.parsec-pyramid__symbol {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-sm;
+  color: rgb(255 255 255 / 70%);
+  letter-spacing: 0.05em;
+}
+
+.parsec-pyramid__price {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 40%);
+}
+
+.parsec-pyramid__change {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-pyramid__line {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
 // Crypto glyph overlay
 .parsec-matrix__glyph-layer {
   position: absolute;
