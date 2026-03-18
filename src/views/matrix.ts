@@ -242,26 +242,48 @@ export function matrixView(): HTMLElement {
       selected.push(remaining.splice(idx, 1)[0]);
     }
 
+    // Grid-based placement — track occupied zones to prevent overlap
+    const occupied: { x: number; y: number }[] = [];
+    function findOpenSpot(preferred?: { x: number; y: number }): { x: number; y: number } {
+      const minGap = 0.1; // 10% of screen between icons — no overlap
+      if (preferred) {
+        const tooClose = occupied.some(o => Math.abs(o.x - preferred.x) < minGap && Math.abs(o.y - preferred.y) < minGap);
+        if (!tooClose) { occupied.push(preferred); return preferred; }
+      }
+      for (let attempt = 0; attempt < 50; attempt++) {
+        const tx = 0.03 + Math.random() * 0.94;
+        const ty = Math.random() * 0.72 + 0.05; // cap at 77% — below is ship/buy zone
+        // Skip center panel
+        if (tx > 0.28 && tx < 0.72 && ty > 0.15 && ty < 0.72) continue;
+        // Skip bottom zone (ship + buy zone area)
+        if (ty > 0.72) continue;
+        // Skip if too close to any existing glyph
+        const collision = occupied.some(o => Math.abs(o.x - tx) < minGap && Math.abs(o.y - ty) < minGap);
+        if (!collision) { occupied.push({ x: tx, y: ty }); return { x: tx, y: ty }; }
+      }
+      // Fallback — edges only
+      const fx = Math.random() > 0.5 ? 0.02 + Math.random() * 0.15 : 0.83 + Math.random() * 0.15;
+      const fy = 0.05 + Math.random() * 0.5;
+      occupied.push({ x: fx, y: fy });
+      return { x: fx, y: fy };
+    }
+
     for (let i = 0; i < selected.length; i++) {
       const coin = selected[i];
       const vol = Math.abs(coin.change24h);
       const volFactor = Math.min(1.0, vol / 5.0);
       const isFeatured = FEATURED_SYMBOLS.has(coin.symbol);
 
-      // Position: featured in margins, others scattered avoiding center panel
-      let x: number, y: number;
+      // Featured: top-left area. Others: find open spot.
+      let pos: { x: number; y: number };
       if (isFeatured) {
-        // Featured chains placed in left margin and top-left — large, visible, no overlap
         const fIdx = [...FEATURED_SYMBOLS].indexOf(coin.symbol);
-        x = 0.03 + (fIdx % 3) * 0.08; // 3 columns in left margin
-        y = 0.05 + Math.floor(fIdx / 3) * 0.12; // rows down
+        pos = findOpenSpot({ x: 0.04 + fIdx * 0.09, y: 0.06 });
       } else {
-        // Others: right margin or scattered edges
-        do {
-          x = 0.03 + Math.random() * 0.94;
-          y = Math.random() * 0.85 + 0.05;
-        } while (x > 0.28 && x < 0.72 && y > 0.15 && y < 0.78);
+        pos = findOpenSpot();
       }
+      const x = pos.x;
+      const y = pos.y;
       const depth = isFeatured ? 0.8 + Math.random() * 0.2 : 0.3 + Math.random() * 0.7;
       // Featured coins are significantly larger
       const baseSize = isFeatured
@@ -331,8 +353,8 @@ export function matrixView(): HTMLElement {
       const changeClamped = Math.max(-15, Math.min(15, change));
       const baseY = cg.y * 100; // original slot
       const priceY = baseY - changeClamped * 1.5; // up = higher, down = lower
-      // Coins that went down only sink further if price drops more — otherwise hang
-      const targetY = Math.max(5, Math.min(92, priceY));
+      // Coins stay above the ship/buy zone (max 72%)
+      const targetY = Math.max(5, Math.min(72, priceY));
 
       // Gentle sideways float — all coins drift horizontally
       const sway = Math.sin(t * 0.15 + i * 2.3) * (3 + absChange * 0.5);
@@ -470,6 +492,23 @@ export function matrixView(): HTMLElement {
       hull.appendChild(el('div', { cls: 'parsec-ship__waterline' }));
 
       ship.appendChild(hull);
+
+      // ALGO featured beside the ship — Parsec's native chain
+      const algo = prices.find(c => c.symbol === 'ALGO');
+      if (algo) {
+        const algoSign = algo.change24h >= 0 ? '+' : '';
+        const algoColor = algo.change24h >= 0 ? '#10b981' : '#ef4444';
+        ship.appendChild(el('div', {
+          cls: 'parsec-ship__algo',
+          children: [
+            el('span', { cls: 'parsec-ship__algo-label', text: 'PARSEC' }),
+            el('span', { cls: 'parsec-ship__algo-symbol', text: 'ALGO' }),
+            el('span', { cls: 'parsec-ship__algo-price', text: formatPrice(algo.usd) }),
+            el('span', { cls: 'parsec-ship__algo-change', text: `${algoSign}${algo.change24h.toFixed(1)}%`, attrs: { style: `color:${algoColor}` } }),
+          ],
+        }));
+      }
+
       pyramidLayer.appendChild(ship);
     }
 
