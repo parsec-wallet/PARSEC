@@ -394,39 +394,45 @@ export function matrixView(): HTMLElement {
     const rightBaseX = 96, rightBaseY = 88;
     const leftBaseX = 4, leftBaseY = 88;
 
-    // ── Apex — #1 winner, featured ──
-    pyramidLayer.appendChild(pyramidCoin(topWinner, apexX, apexY, 1.6, true));
+    // ── Apex — #1 gainer, large and clear ──
+    pyramidLayer.appendChild(pyramidCoin(topWinner, apexX, apexY, 1.8, true));
 
-    // ── Winners (green, right side) — streaming up the triangle edge ──
-    const allWinners = winners.slice(1);
-    const maxW = Math.min(allWinners.length, 8);
-    for (let i = 0; i < maxW; i++) {
-      const coin = allWinners[i];
-      // Position along the line, offset by change magnitude (bigger change = higher)
-      const baseT = (i + 1) / (maxW + 1);
-      const changeBoost = Math.min(0.15, coin.change24h * 0.01); // rising coins push upward
-      const t = Math.max(0.05, baseT - changeBoost);
+    // ── Top 5 winners — each gets their own clear space on the right ──
+    const topWinners = winners.slice(1, 6); // positions 2-6
+    const restWinners = winners.slice(6);
+    topWinners.forEach((coin, i) => {
+      // Evenly spaced down the right side with generous gaps
+      const t = (i + 1) * 0.15; // 15%, 30%, 45%, 60%, 75%
       const x = apexX + (rightBaseX - apexX) * t;
       const y = apexY + (rightBaseY - apexY) * t;
-      const isFeatured = i < 4;
-      const baseScale = isFeatured ? 1.3 - i * 0.08 : 0.6 + t * 0.6;
-      const opacity = isFeatured ? 1.0 : 0.35 + t * 0.45;
-      pyramidLayer.appendChild(pyramidCoin(coin, x, y, baseScale, false, opacity));
+      const scale = 1.4 - i * 0.12; // 1.4, 1.28, 1.16, 1.04, 0.92
+      pyramidLayer.appendChild(pyramidCoin(coin, x, y, scale, false, 1.0));
+    });
+    // Remaining winners — smaller, trailing down
+    const maxRestW = Math.min(restWinners.length, 4);
+    for (let i = 0; i < maxRestW; i++) {
+      const t = 0.8 + i * 0.05;
+      const x = apexX + (rightBaseX - apexX) * t;
+      const y = apexY + (rightBaseY - apexY) * t;
+      pyramidLayer.appendChild(pyramidCoin(restWinners[i], x, y, 0.65, false, 0.5));
     }
 
-    // ── Losers (red, left side) — streaming down the triangle edge ──
-    const maxL = Math.min(losers.length, 8);
-    for (let i = 0; i < maxL; i++) {
-      const coin = losers[i];
-      const baseT = (i + 1) / (maxL + 1);
-      const changeDrag = Math.min(0.15, Math.abs(coin.change24h) * 0.01); // deeper loss = lower
-      const t = Math.min(0.95, baseT + changeDrag);
+    // ── Top 5 losers — each gets their own clear space on the left ──
+    const topLosers = losers.slice(0, 5);
+    const restLosers = losers.slice(5);
+    topLosers.forEach((coin, i) => {
+      const t = (i + 1) * 0.15;
       const x = apexX + (leftBaseX - apexX) * t;
       const y = apexY + (leftBaseY - apexY) * t;
-      const isFeatured = i < 4;
-      const baseScale = isFeatured ? 1.3 - i * 0.08 : 0.6 + t * 0.6;
-      const opacity = isFeatured ? 1.0 : 0.35 + t * 0.45;
-      pyramidLayer.appendChild(pyramidCoin(coin, x, y, baseScale, false, opacity));
+      const scale = 1.4 - i * 0.12;
+      pyramidLayer.appendChild(pyramidCoin(coin, x, y, scale, false, 1.0));
+    });
+    const maxRestL = Math.min(restLosers.length, 4);
+    for (let i = 0; i < maxRestL; i++) {
+      const t = 0.8 + i * 0.05;
+      const x = apexX + (leftBaseX - apexX) * t;
+      const y = apexY + (leftBaseY - apexY) * t;
+      pyramidLayer.appendChild(pyramidCoin(restLosers[i], x, y, 0.65, false, 0.5));
     }
 
     // Triangle lines
