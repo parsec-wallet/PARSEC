@@ -6,7 +6,8 @@ import { fetchAccountInfo, microAlgosToAlgo } from '../lib/algorand/account';
 import { fetchTransactions } from '../lib/algorand/transactions';
 import { enrichAssets, formatAssetAmount, optOutFromAsset, lookupAsset } from '../lib/algorand/assets';
 import { keystoreRetrieve } from '../lib/keystore';
-import { fetchPrices, formatPrice } from '../lib/prices';
+import { startPriceUpdates, formatPrice } from '../lib/prices';
+import type { CoinPrice } from '../lib/prices';
 import type { AccountInfo, TransactionRecord, NetworkId } from '../types/wallet';
 
 export function dashboardView(): HTMLElement {
@@ -16,21 +17,24 @@ export function dashboardView(): HTMLElement {
 
   const container = el('div', { cls: 'parsec-view parsec-dashboard' });
 
-  // Header — PARSEC + live asset price
-  const priceTag = el('span', { cls: 'parsec-dashboard__price-tag', text: '' });
+  // Header — PARSEC + live ticking price
+  const priceTag = el('span', { cls: 'parsec-dashboard__price-tag', text: '$...' });
 
-  // Fetch price for current chain's native asset
-  fetchPrices().then(prices => {
-    // Map network to CoinGecko ID
+  function updatePriceTag(coinPrices: CoinPrice[]) {
     const chainPriceId: Record<string, string> = { mainnet: 'algorand', testnet: 'algorand', betanet: 'algorand' };
     const id = chainPriceId[state.settings.network] || 'algorand';
-    const coin = prices.find(p => p.id === id);
+    const coin = coinPrices.find(p => p.id === id);
     if (coin) {
       const changeColor = coin.change24h >= 0 ? '#10b981' : '#ef4444';
       const sign = coin.change24h >= 0 ? '+' : '';
       priceTag.innerHTML = `${coin.symbol} ${formatPrice(coin.usd)} <span style="color:${changeColor};font-size:0.8em">${sign}${coin.change24h.toFixed(1)}%</span>`;
+    } else {
+      priceTag.textContent = '$';
     }
-  });
+  }
+
+  // Live price — updates every 60s
+  startPriceUpdates(updatePriceTag);
 
   const header = el('div', {
     cls: 'parsec-dashboard__header',
@@ -139,6 +143,26 @@ async function loadDashboardData(address: string, network: NetworkId, balanceEl:
 function renderBalance(container: HTMLElement, info: AccountInfo): void {
   const val = container.querySelector('.parsec-dashboard__balance-value');
   if (val) val.textContent = `${microAlgosToAlgo(info.amount)} ALGO`;
+
+  // USD value — live from price feed
+  let usdEl = container.querySelector('.parsec-dashboard__balance-usd') as HTMLElement;
+  if (!usdEl) {
+    usdEl = document.createElement('div');
+    usdEl.className = 'parsec-dashboard__balance-usd';
+    usdEl.textContent = '$';
+    val?.after(usdEl);
+  }
+  // Update USD from latest prices
+  import('../lib/prices').then(mod => {
+    mod.fetchPrices().then(pp => {
+      const algo = pp.find(p => p.id === 'algorand');
+      if (algo) {
+        usdEl.textContent = `≈ $${((info.amount / 1_000_000) * algo.usd).toFixed(2)}`;
+      } else {
+        usdEl.textContent = '$';
+      }
+    });
+  });
 
   const min = container.querySelector('.parsec-dashboard__balance-min');
   if (min) min.textContent = `Min Balance: ${microAlgosToAlgo(info.minBalance)} ALGO`;

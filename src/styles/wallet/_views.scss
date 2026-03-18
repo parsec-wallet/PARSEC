@@ -951,6 +951,12 @@
   font-weight: $font-weight-bold;
 }
 
+.parsec-dashboard__balance-usd {
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  margin-top: 2px;
+}
+
 .parsec-dashboard__balance-min {
   font-size: $font-size-xs;
   color: var(--bp-text-color-muted, $color-gray-500);
