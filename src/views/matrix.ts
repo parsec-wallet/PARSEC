@@ -504,9 +504,16 @@ export function matrixView(): HTMLElement {
       pyramidLayer.appendChild(ship);
     }
 
-    // ── Top 10 fleet (excluding stablecoins — those are in the ship) ──
-    const stableSet = new Set(['USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FDUSD', 'PYUSD', 'USDP', 'GUSD', 'FRAX', 'LUSD', 'PAXG', 'XAUT']);
-    const fleetCoins = prices.filter(c => !stableSet.has(c.symbol)).slice(0, 10);
+    // ── Top 10 by market cap — real chains only, no stables/wrapped ──
+    const excludeFromFleet = new Set([
+      'USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FDUSD', 'PYUSD', 'USDP', 'GUSD', 'FRAX', 'LUSD',
+      'PAXG', 'XAUT', 'WBTC', 'WETH', 'STETH', 'WSTETH', 'CBETH', 'RETH',
+      'LEO', 'OKB', 'CRO', 'KCS', 'HT', 'GT', 'FTT',
+    ]);
+    const fleetCoins = prices
+      .filter(c => !excludeFromFleet.has(c.symbol))
+      .sort((a, b) => b.marketCap - a.marketCap)
+      .slice(0, 10);
     if (fleetCoins.length > 0) {
       const fleet = el('div', { cls: 'parsec-fleet' });
       fleetCoins.forEach(coin => {
