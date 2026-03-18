@@ -78,14 +78,20 @@ export function startPriceUpdates(onUpdate: (prices: CoinPrice[]) => void): () =
 
 /**
  * Market activity index 0.0–1.0 derived from aggregate 24h price changes.
- * Calm market ≈ 0.1, normal ≈ 0.3, volatile ≈ 0.7+
- * Drives matrix rain speed — mesmerizing when calm, frantic when volatile.
+ * Calibrated to hourly feel:
+ *   - Sideways (<0.5%/24h ≈ 0.02%/hr): 0.1 — slow, mesmerizing, nice and easy
+ *   - Normal (~1%/24h ≈ 0.04%/hr): 0.25 — gentle flow
+ *   - Moving (~1%/hr = 24%/24h): 0.55 — faster, noticeable urgency
+ *   - Volatile (~5%/hr = 120%/24h): 0.85+ — very fast, frantic rain
+ * The 24h change is what CoinGecko gives us. We scale it:
+ *   1%/24h is calm. 24%/24h (≈1%/hr) is faster. 120%+ is very fast.
  */
 export function getMarketActivity(prices: CoinPrice[]): number {
-  if (prices.length === 0) return 0.15; // calm default
-  const avgChange = prices.reduce((sum, p) => sum + Math.abs(p.change24h), 0) / prices.length;
-  // 0% average change → 0.1 activity, 5%+ → 0.8+ activity
-  return Math.min(0.95, 0.1 + avgChange * 0.14);
+  if (prices.length === 0) return 0.1; // sideways default
+  const avgAbsChange = prices.reduce((sum, p) => sum + Math.abs(p.change24h), 0) / prices.length;
+  // Map: 0% → 0.08, 1% → 0.15, 5% → 0.3, 24% (1%/hr) → 0.55, 120% (5%/hr) → 0.85
+  const activity = 0.08 + Math.pow(avgAbsChange / 100, 0.5) * 2.5;
+  return Math.min(0.95, Math.max(0.08, activity));
 }
 
 /**

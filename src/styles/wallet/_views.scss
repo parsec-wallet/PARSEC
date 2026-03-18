@@ -49,6 +49,15 @@
   margin-bottom: $spacing-4;
 }
 
+.parsec-matrix__brand-hint {
+  font-size: $font-size-xs;
+  color: rgb(16 255 90 / 50%);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: $spacing-4;
+  text-align: center;
+}
+
 .parsec-matrix__tagline {
   color: rgb(255 255 255 / 50%);
   font-size: $font-size-sm;
@@ -430,6 +439,47 @@
   font-size: $font-size-xs;
   color: rgb(255 255 255 / 35%);
   font-family: $font-family-mono;
+}
+
+.parsec-matrix__chain-item--import {
+  border-color: rgb(16 255 90 / 25%) !important;
+
+  &:hover {
+    border-color: rgb(16 255 90 / 50%) !important;
+    background: rgb(16 255 90 / 8%) !important;
+  }
+
+  .parsec-matrix__chain-name {
+    color: rgb(16 255 90 / 80%);
+  }
+}
+
+.parsec-matrix__add-wallet {
+  margin-top: $spacing-6;
+  width: 100%;
+  max-width: 320px;
+}
+
+.parsec-matrix__add-wallet-divider {
+  text-align: center;
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 20%);
+  letter-spacing: 0.1em;
+  margin-bottom: $spacing-3;
+  position: relative;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 25%;
+    height: 1px;
+    background: rgb(255 255 255 / 10%);
+  }
+
+  &::before { left: 0; }
+  &::after { right: 0; }
 }
 
 // ==========================================================================

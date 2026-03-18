@@ -60,6 +60,21 @@ Backend (Rust via Tauri IPC)
 - [x] ALGO shown as native asset in verified list
 - [x] Balance validation before ASA opt-in (0.101 ALGO required)
 - [x] Router fix — only re-renders on view change, not every state update
+- [x] Matrix entry gate — WebGL shader rain, red/blue pill, market-driven
+- [x] Matrix shader: 3D depth perspective, anti-aliased glyphs, CRT effects
+- [x] Matrix speed driven by market volatility (CoinGecko free tier)
+- [x] Matrix color driven by bull/bear sentiment (weighted 24h change)
+- [x] Crypto icon glyphs floating in matrix with live price tooltips on hover
+- [x] PARSEC brand hover → Create New Wallet shortcut
+- [x] Red pill: unlock existing + add new wallet (chain selector)
+- [x] Blue pill: on-chain diagnostics from public key holdings
+- [x] Chain registry: ALGO active, BTC/LTC/XMR/ETH/SOL ready to plug in
+- [x] Import option in chain selector (private key or mnemonic)
+- [x] Modular DEX architecture: on-chain reads + API as separate modules
+- [x] SpinTrade aggregator: queries all DEX modules, returns best price first
+- [x] Swap "To" field populated from live on-chain pool data
+- [x] Security audit: 5 critical fixes (mnemonic zeroing, CSP, session isolation)
+- [x] BANKON license applied, README rewritten
 
 ## Roadmap
 
@@ -116,16 +131,24 @@ Informed by: parsec-wallet/parsec-pod, ailgo/mint-arc19, ailgo/ExtendableDAO
 - [ ] DAO interaction module
 - [ ] Staking/governance participation
 
-### Phase H — Multi-Chain Expansion (Future)
-Informed by: parsec-wallet org (50 repos spanning BTC, EVM, Cosmos, Solana, Arweave)
+### Phase H — Multi-Chain Sovereign Holdings
+Informed by: parsec-wallet org, Atomic Wallet key pair model, MetaMask/Phantom patterns
+
+Parsec absorbs from existing wallets — participant has complete handling of
+public/private key pairs across all chains. True sovereign holding.
 
 - [ ] Chain-pack adapter architecture (per parsec-wallet/xchainjs-lib-1 patterns)
-- [ ] EVM/BSC chain pack (BIP-39 import, 0x checksum, balance, transfer)
-- [ ] Bitcoin read-only support (UTXO model, Bech32)
-- [ ] Solana read-only support
-- [ ] Cosmos-family (Bech32 HRP-aware)
-- [ ] Hardware wallet integration (Ledger via parsec-wallet/eth-dcent-keyring patterns)
+- [ ] Bitcoin (BTC) — UTXO model, Bech32, full private key control
+- [ ] Litecoin (LTC) — Scrypt PoW, Bech32
+- [ ] Monero (XMR) — privacy-first, view keys + spend keys
+- [ ] Ethereum (ETH) — EVM, BIP-39, 0x checksum, ERC-20
+- [ ] Solana (SOL) — ed25519, SPL tokens
+- [ ] Each chain: create, import, send, receive, private key export
+- [ ] Atomic-style key pair display (participant sees all their keys)
+- [ ] bankon_vault holds all chain keys in one encrypted Tomb volume
+- [ ] USB cold storage for multi-chain key files
 - [ ] Network registry (per parsec-wallet/chainlist)
+- [ ] Hardware wallet integration (Ledger, Trezor)
 
 ### Phase I — Sovereign Infrastructure (Strategic)
 Informed by: parsec-wallet/hypercore, parsec-wallet/earthstar, parsec-wallet/agregore-browser

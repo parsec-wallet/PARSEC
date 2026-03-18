@@ -16,12 +16,14 @@ import type { NetworkId } from '../types/wallet';
 
 type PillChoice = 'none' | 'red' | 'blue';
 
-interface ChainDef { id: string; name: string; enabled: boolean; }
+interface ChainDef { id: string; name: string; symbol: string; enabled: boolean; }
 const CHAINS: ChainDef[] = [
-  { id: 'algorand', name: 'Algorand', enabled: true },
-  { id: 'solana', name: 'Solana', enabled: false },
-  { id: 'bitcoin', name: 'Bitcoin', enabled: false },
-  { id: 'ethereum', name: 'Ethereum', enabled: false },
+  { id: 'algorand', name: 'Algorand', symbol: 'ALGO', enabled: true },
+  { id: 'bitcoin', name: 'Bitcoin', symbol: 'BTC', enabled: false },
+  { id: 'litecoin', name: 'Litecoin', symbol: 'LTC', enabled: false },
+  { id: 'monero', name: 'Monero', symbol: 'XMR', enabled: false },
+  { id: 'ethereum', name: 'Ethereum', symbol: 'ETH', enabled: false },
+  { id: 'solana', name: 'Solana', symbol: 'SOL', enabled: false },
 ];
 
 // Crypto icon positions — scattered across the matrix rain
@@ -244,7 +246,18 @@ export function matrixView(): HTMLElement {
 
   function renderPanel() {
     panel.innerHTML = '';
-    panel.appendChild(el('div', { cls: 'parsec-matrix__brand', text: 'PARSEC' }));
+
+    // PARSEC brand — hover reveals "Create New Wallet"
+    const brand = el('div', { cls: 'parsec-matrix__brand', text: 'PARSEC' });
+    const brandHint = el('div', { cls: 'parsec-matrix__brand-hint', text: 'Create New Wallet' });
+    brandHint.style.display = 'none';
+    brand.addEventListener('mouseenter', () => { brandHint.style.display = 'block'; });
+    brand.addEventListener('mouseleave', () => { brandHint.style.display = 'none'; });
+    brand.addEventListener('click', () => { cancelAnimation(); store.navigate('onboarding'); });
+    brand.style.cursor = 'pointer';
+    panel.appendChild(brand);
+    panel.appendChild(brandHint);
+
     if (choice === 'none') return renderPillChoice();
     if (choice === 'blue') return renderBluePill();
     if (choice === 'red') return renderRedPill();
@@ -318,27 +331,54 @@ export function matrixView(): HTMLElement {
   function renderRedPill() {
     panel.appendChild(el('div', { cls: 'parsec-matrix__choice-label parsec-matrix__choice-label--red', text: 'RED PILL — LIVE WALLET' }));
     panel.appendChild(el('p', { cls: 'parsec-matrix__lead', text: 'Sovereign access. Signing authority. Full control.' }));
-    const hasAccounts = store.get().accounts.length > 0;
+
+    const state = store.get();
+    const hasAccounts = state.accounts.length > 0;
     const hasKeys = isTauri() || hasVault();
+
     if (hasAccounts && hasKeys) {
+      // Returning user — unlock existing wallet
       const passInput = input({ type: 'password', placeholder: 'Enter passphrase', cls: 'parsec-matrix__input', onInput: (v) => { passphrase = v; }, onEnter: () => doUnlock() });
       panel.appendChild(passInput);
       panel.appendChild(btn('Unlock Wallet', { intent: 'primary', large: true, cls: 'parsec-matrix__action parsec-matrix__action--red', onClick: doUnlock }));
       setTimeout(() => passInput.focus(), 100);
+
+      // Add new wallet to existing Parsec
+      panel.appendChild(el('div', { cls: 'parsec-matrix__add-wallet', children: [
+        el('div', { cls: 'parsec-matrix__add-wallet-divider', text: 'or add another wallet' }),
+        renderChainSelector(),
+      ]}));
     } else {
-      panel.appendChild(el('div', { cls: 'parsec-matrix__chain-section', children: [
-        el('div', { cls: 'parsec-matrix__chain-title', text: 'Select Chain' }),
-        el('div', { cls: 'parsec-matrix__chain-list', children: CHAINS.map(chain => el('div', {
+      // New user — chain selector to create first wallet
+      panel.appendChild(renderChainSelector());
+    }
+
+    backButton();
+  }
+
+  function renderChainSelector(): HTMLElement {
+    return el('div', { cls: 'parsec-matrix__chain-section', children: [
+      el('div', { cls: 'parsec-matrix__chain-list', children: [
+        // Import existing wallet (any chain)
+        el('div', {
+          cls: 'parsec-matrix__chain-item parsec-matrix__chain-item--import',
+          onClick: () => { cancelAnimation(); store.navigate('import-wallet'); },
+          children: [
+            el('span', { cls: 'parsec-matrix__chain-name', text: 'Import' }),
+            el('span', { cls: 'parsec-matrix__chain-format', text: 'Private key or mnemonic' }),
+          ],
+        }),
+        // Chain-specific create
+        ...CHAINS.map(chain => el('div', {
           cls: `parsec-matrix__chain-item ${chain.enabled ? '' : 'parsec-matrix__chain-item--disabled'}`,
           onClick: chain.enabled ? () => { cancelAnimation(); store.navigate('onboarding'); } : undefined,
           children: [
-            el('span', { cls: 'parsec-matrix__chain-name', text: chain.name }),
-            el('span', { cls: 'parsec-matrix__chain-format', text: chain.enabled ? 'Active' : 'Coming soon' }),
+            el('span', { cls: 'parsec-matrix__chain-name', text: chain.symbol }),
+            el('span', { cls: 'parsec-matrix__chain-format', text: chain.enabled ? `Create ${chain.name} wallet` : `${chain.name} — coming soon` }),
           ],
-        })) }),
-      ]}));
-    }
-    backButton();
+        })),
+      ]}),
+    ]});
   }
 
   function backButton() {
