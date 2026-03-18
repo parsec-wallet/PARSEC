@@ -177,8 +177,11 @@ const SECTIONS: Record<DocSection, () => HTMLElement> = {
       el('h4', { text: 'Open Source' }),
       el('p', { text: 'Parsec is built by cypherpunk2048. The wallet is designed to be auditable, extensible, and sovereign. No blind trust — read the code.' }),
 
+      el('h4', { text: 'Paper Export' }),
+      el('p', { text: 'Parsec Paper Export is a free offline Bitcoin wallet generator forked from bitaddress.org. Single self-contained HTML file — 937KB, zero remote dependencies. Generate, print, and verify Bitcoin wallets offline. All wallet types: single, paper, bulk, brain, vanity, split. Cypherpunk2048 Standard.' }),
+
       el('h4', { text: 'Roadmap' }),
-      el('p', { text: 'Algorand first: complete wallet with ASA management, transaction confirmation, and encrypted key storage. Next: SpinTrade DEX integration, WalletConnect (ARC-25), multi-chain expansion, ASA/NFT minter extensions.' }),
+      el('p', { text: 'Algorand first. Bitcoin via Paper Export and future Core integration. Multi-chain sovereign holdings: BTC, LTC, XMR, ETH, SOL. SpinTrade DEX. WalletConnect (ARC-25). ASA/NFT minter extensions. Wallet Pouch architecture for multi-chain identity.' }),
 
       el('h4', { text: 'Contact' }),
       el('p', { text: 'github@deltav.exchange' }),
