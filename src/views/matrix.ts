@@ -209,54 +209,74 @@ export function matrixView(): HTMLElement {
 
   // ── Crypto Glyphs — riding the rain, entropy-selected from top 100 ──
 
-  // How many icons visible at once — scales with volatility
-  const GLYPH_SLOTS = 16;
+  // How many icons visible at once
+  const GLYPH_SLOTS = 20;
   let glyphRotationTimer: ReturnType<typeof setInterval> | null = null;
+
+  // Featured chains — always visible, larger, more prominent
+  const FEATURED_SYMBOLS = new Set(['BTC', 'ETH', 'AVAX', 'ADA', 'ALGO', 'POL', 'XRP', 'SOL', 'DOT', 'MATIC']);
 
   function createGlyphs() {
     glyphLayer.innerHTML = '';
     cryptoGlyphs = [];
     if (prices.length === 0) return;
 
-    // Entropy-driven random selection from the full pool
     const pool = [...prices];
     const selected: CoinPrice[] = [];
 
-    // Always include top 5 by market cap
-    for (let i = 0; i < Math.min(5, pool.length); i++) selected.push(pool[i]);
-
-    // Fill remaining slots randomly — like paper wallet entropy, the randomness IS the selection
-    while (selected.length < GLYPH_SLOTS && pool.length > 0) {
-      const idx = Math.floor(Math.random() * pool.length);
-      const coin = pool.splice(idx, 1)[0];
-      if (!selected.includes(coin)) selected.push(coin);
+    // Always include featured chains first
+    for (const coin of pool) {
+      if (FEATURED_SYMBOLS.has(coin.symbol) && !selected.includes(coin)) {
+        selected.push(coin);
+      }
     }
 
-    // Place glyphs — riding rain columns across the full screen
+    // Fill remaining slots randomly from the rest
+    const remaining = pool.filter(c => !selected.includes(c));
+    while (selected.length < GLYPH_SLOTS && remaining.length > 0) {
+      const idx = Math.floor(Math.random() * remaining.length);
+      selected.push(remaining.splice(idx, 1)[0]);
+    }
+
     for (let i = 0; i < selected.length; i++) {
       const coin = selected[i];
       const vol = Math.abs(coin.change24h);
       const volFactor = Math.min(1.0, vol / 5.0);
+      const isFeatured = FEATURED_SYMBOLS.has(coin.symbol);
 
-      // Spread across width — avoid center panel (35%-65% x, 25%-75% y)
+      // Position: featured in margins, others scattered avoiding center panel
       let x: number, y: number;
-      do {
-        x = 0.03 + Math.random() * 0.94;
-        y = Math.random() * 0.9 + 0.05;
-      } while (x > 0.3 && x < 0.7 && y > 0.2 && y < 0.8); // exclusion zone for pills/panel
-      const depth = 0.4 + Math.random() * 0.6;
-      const baseSize = (14 + volFactor * 14 + depth * 8) * zoom;
-      const baseOpacity = (0.06 + volFactor * 0.3 + depth * 0.12);
+      if (isFeatured) {
+        // Featured chains placed in left margin and top-left — large, visible, no overlap
+        const fIdx = [...FEATURED_SYMBOLS].indexOf(coin.symbol);
+        x = 0.03 + (fIdx % 3) * 0.08; // 3 columns in left margin
+        y = 0.05 + Math.floor(fIdx / 3) * 0.12; // rows down
+      } else {
+        // Others: right margin or scattered edges
+        do {
+          x = 0.03 + Math.random() * 0.94;
+          y = Math.random() * 0.85 + 0.05;
+        } while (x > 0.28 && x < 0.72 && y > 0.15 && y < 0.78);
+      }
+      const depth = isFeatured ? 0.8 + Math.random() * 0.2 : 0.3 + Math.random() * 0.7;
+      // Featured coins are significantly larger
+      const baseSize = isFeatured
+        ? (24 + volFactor * 12 + depth * 6) * zoom
+        : (12 + volFactor * 10 + depth * 6) * zoom;
+      const baseOpacity = isFeatured
+        ? 0.25 + volFactor * 0.35 + depth * 0.15
+        : 0.06 + volFactor * 0.25 + depth * 0.1;
 
       const glyph: CryptoGlyph = { coin, x, y, size: baseSize };
       cryptoGlyphs.push(glyph);
 
-      // Color from change direction
-      const color = coin.change24h > 0.5
-        ? `rgba(16,255,90,${baseOpacity})`
-        : coin.change24h < -0.5
-          ? `rgba(255,80,80,${baseOpacity})`
-          : `rgba(180,180,200,${baseOpacity * 0.4})`;
+      // Color — featured coins get richer color, others subtle
+      const featuredBoost = isFeatured ? 1.4 : 1.0;
+      const color = coin.change24h > 0.3
+        ? `rgba(16,255,90,${baseOpacity * featuredBoost})`
+        : coin.change24h < -0.3
+          ? `rgba(255,80,80,${baseOpacity * featuredBoost})`
+          : `rgba(200,210,220,${baseOpacity * 0.5 * featuredBoost})`;
 
       // Price display inline with symbol
       const changeSign = coin.change24h >= 0 ? '+' : '';
