@@ -137,20 +137,8 @@ $transition-colors: background-color $transition-duration-base $transition-timin
 $transition-opacity: opacity $transition-duration-base $transition-timing-function;
 $transition-transform: transform $transition-duration-base $transition-timing-function;
 
-// Component Specific Variables
+// Animation Variables
 // ==========================================================================
 
-// Chat Variables
-$chat-sidebar-width: 320px;
-$chat-sidebar-width-mobile: 100%;
-$chat-message-max-width: 70%;
-$chat-bubble-border-radius: 18px;
-$chat-avatar-size-sm: 32px;
-$chat-avatar-size-md: 40px;
-$chat-avatar-size-lg: 56px;
-$chat-avatar-size-xl: 80px;
-
-// Animation Variables
-$animation-duration-typing: 1.4s;
 $animation-duration-fade: 0.3s;
-$animation-duration-slide: 0.25s; 
+$animation-duration-slide: 0.25s;

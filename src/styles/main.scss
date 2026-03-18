@@ -1,38 +1,34 @@
 // ==========================================================================
-// MAIN STYLESHEET
+// PARSEC WALLET — MAIN STYLESHEET
 // ==========================================================================
 
 // 1. ABSTRACTS
-// Configuration and helpers
 @use 'abstracts' as *;
 
 // 2. VENDORS
-// Third-party styles and overrides
 @use 'vendors/blueprint-overrides';
 
 // 3. BASE
-// Default styles for basic HTML elements
 @use 'base/reset';
 @use 'base/typography';
 @use 'base/animations';
 
 // 4. LAYOUT
-// Major layout components
 @use 'layout/app';
-@use 'layout/chat-layout';
 
 // 5. COMPONENTS
-// Reusable UI components
 @use 'components/buttons';
 @use 'components/scrollbars';
 
 // 6. THEMES
-// Theme-specific styles
 @use 'themes/light';
 @use 'themes/dark';
 
 // 7. UTILITIES
-// Utility classes and helpers
 @use 'utilities/utility-classes';
 @use 'utilities/responsive';
-@use 'utilities/text-selection'; 
+@use 'utilities/text-selection';
+
+// 8. WALLET
+@use 'wallet/views';
+@use 'wallet/components';

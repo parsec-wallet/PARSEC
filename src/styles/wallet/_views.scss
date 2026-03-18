@@ -1,0 +1,625 @@
+// ==========================================================================
+// PARSEC WALLET — VIEW STYLES
+// ==========================================================================
+
+@use '../abstracts' as *;
+
+// Shared view structure
+.parsec-view {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: $spacing-6;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.parsec-view__header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  margin-bottom: $spacing-6;
+}
+
+.parsec-view__title {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  margin: 0;
+  flex: 1;
+}
+
+.parsec-view__subtitle {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-semibold;
+  margin: $spacing-6 0 $spacing-3;
+}
+
+.parsec-view__desc {
+  color: var(--bp-text-color-muted, $color-gray-500);
+  margin-bottom: $spacing-4;
+  line-height: $line-height-relaxed;
+}
+
+// ==========================================================================
+// ONBOARDING
+// ==========================================================================
+
+.parsec-onboarding {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.parsec-onboarding__hero {
+  margin-bottom: $spacing-12;
+}
+
+.parsec-logo {
+  font-size: $font-size-4xl;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.15em;
+  margin-bottom: $spacing-4;
+  background: linear-gradient(135deg, $color-primary 0%, $color-success 100%);
+  background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.parsec-logo--small {
+  font-size: $font-size-lg;
+  margin-bottom: 0;
+}
+
+.parsec-onboarding__tagline {
+  font-size: $font-size-xl;
+  color: var(--bp-text-color, $color-gray-900);
+  margin-bottom: $spacing-2;
+}
+
+.parsec-onboarding__sub {
+  color: var(--bp-text-color-muted, $color-gray-500);
+  font-size: $font-size-sm;
+}
+
+.parsec-onboarding__actions {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  width: 100%;
+  max-width: 320px;
+}
+
+.parsec-onboarding__footer {
+  margin-top: $spacing-12;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  max-width: 300px;
+}
+
+// ==========================================================================
+// CREATE WALLET — Mnemonic Grid
+// ==========================================================================
+
+.parsec-mnemonic-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: $spacing-2;
+  margin: $spacing-4 0;
+}
+
+.parsec-mnemonic-word {
+  display: flex;
+  align-items: center;
+  gap: $spacing-1;
+  padding: $spacing-2;
+  border-radius: $border-radius-md;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  font-size: $font-size-sm;
+}
+
+.parsec-mnemonic-word__num {
+  color: var(--bp-text-color-muted, $color-gray-500);
+  font-size: $font-size-xs;
+  min-width: 1.5em;
+}
+
+.parsec-mnemonic-word__text {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-medium;
+}
+
+.parsec-create__continue {
+  margin-top: $spacing-6;
+  width: 100%;
+}
+
+// ==========================================================================
+// VERIFY MNEMONIC
+// ==========================================================================
+
+.parsec-verify__words {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  margin: $spacing-4 0;
+}
+
+.parsec-verify__word-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+}
+
+.parsec-verify__word-num {
+  font-weight: $font-weight-bold;
+  min-width: 2em;
+  text-align: right;
+}
+
+.parsec-verify__input {
+  flex: 1;
+}
+
+.parsec-verify__submit {
+  margin-top: $spacing-6;
+  width: 100%;
+}
+
+.parsec-passphrase-input {
+  width: 100%;
+  margin-bottom: $spacing-3;
+}
+
+// ==========================================================================
+// IMPORT WALLET
+// ==========================================================================
+
+.parsec-import__textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  padding: $spacing-3;
+  margin-bottom: $spacing-2;
+  min-height: 100px;
+  background: var(--bp-input-background-color, $color-gray-50);
+  border: 1px solid var(--bp-border-color, $color-gray-300);
+  border-radius: $border-radius-md;
+  color: var(--bp-text-color, $color-gray-900);
+
+  &:focus {
+    border-color: $color-primary;
+    box-shadow: 0 0 0 2px rgba($color-primary, 0.2);
+  }
+}
+
+.parsec-import__hint {
+  font-size: $font-size-xs;
+  margin-bottom: $spacing-4;
+  min-height: 1.2em;
+  color: var(--bp-text-color-muted, $color-gray-500);
+
+  &--ok {
+    color: $color-success;
+  }
+
+  &--warn {
+    color: $color-warning;
+  }
+}
+
+.parsec-import__address-preview {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  word-break: break-all;
+  margin-bottom: $spacing-4;
+  opacity: 0;
+  height: 0;
+  overflow: hidden;
+
+  &--visible {
+    opacity: 1;
+    height: auto;
+    margin-bottom: $spacing-4;
+  }
+}
+
+.parsec-import__submit {
+  margin-top: $spacing-4;
+  width: 100%;
+}
+
+.parsec-import__alt {
+  margin-top: $spacing-6;
+  padding-top: $spacing-4;
+  border-top: 1px solid var(--bp-border-color, $color-gray-200);
+}
+
+// ==========================================================================
+// DASHBOARD
+// ==========================================================================
+
+.parsec-dashboard {
+  max-width: 560px;
+}
+
+.parsec-dashboard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-2;
+}
+
+.parsec-dashboard__account {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+}
+
+.parsec-dashboard__pubkey {
+  text-align: center;
+  margin: $spacing-4 0;
+}
+
+.parsec-dashboard__pubkey-label {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  margin-bottom: $spacing-2;
+}
+
+.parsec-dashboard__pubkey-value {
+  cursor: pointer;
+  padding: $spacing-3 $spacing-4;
+  border-radius: $border-radius-xl;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+
+  &:active {
+    background: var(--bp-background-color-tertiary, $color-gray-200);
+  }
+}
+
+.parsec-pubkey__text {
+  display: block;
+  font-family: $font-family-mono;
+  font-weight: $font-weight-medium;
+  text-align: center;
+  color: var(--bp-text-color, $color-gray-900);
+  font-size: $font-size-lg;
+  letter-spacing: 0.04em;
+
+  .parsec-pubkey--expanded & {
+    font-size: $font-size-xs;
+    line-height: $line-height-relaxed;
+    word-break: break-all;
+    letter-spacing: 0;
+  }
+}
+
+.parsec-network-badge {
+  display: inline-block;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.05em;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $border-radius-full;
+  margin-bottom: $spacing-4;
+
+  &--mainnet {
+    background: rgba($color-success, 0.15);
+    color: $color-success;
+  }
+
+  &--testnet {
+    background: rgba($color-warning, 0.15);
+    color: $color-warning;
+  }
+
+  &--betanet {
+    background: rgba($color-info, 0.15);
+    color: $color-info;
+  }
+}
+
+.parsec-dashboard__balance {
+  text-align: center;
+  padding: $spacing-8 0;
+}
+
+.parsec-dashboard__balance-label {
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  margin-bottom: $spacing-1;
+}
+
+.parsec-dashboard__balance-value {
+  font-size: $font-size-3xl;
+  font-weight: $font-weight-bold;
+}
+
+.parsec-dashboard__balance-min {
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  margin-top: $spacing-1;
+}
+
+.parsec-dashboard__balance-rewards {
+  font-size: $font-size-xs;
+  color: $color-success;
+}
+
+.parsec-faucet-link {
+  display: block;
+  text-align: center;
+  font-size: $font-size-xs;
+  color: $color-primary;
+  margin-bottom: $spacing-4;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.parsec-dashboard__actions {
+  display: flex;
+  gap: $spacing-3;
+  margin-bottom: $spacing-8;
+
+  .bp5-button {
+    flex: 1;
+  }
+}
+
+.parsec-dashboard__add-asset {
+  width: 100%;
+  margin-bottom: $spacing-6;
+}
+
+// ==========================================================================
+// ADD ASSET
+// ==========================================================================
+
+.parsec-add-asset__search-row {
+  display: flex;
+  gap: $spacing-2;
+  margin-bottom: $spacing-4;
+}
+
+.parsec-add-asset__search {
+  flex: 1;
+}
+
+.parsec-add-asset__results {
+  margin-bottom: $spacing-6;
+}
+
+.parsec-add-asset__known {
+  margin-bottom: $spacing-4;
+}
+
+// ==========================================================================
+// CONFIRM SEND
+// ==========================================================================
+
+.parsec-confirm__details {
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  border-radius: $border-radius-xl;
+  padding: $spacing-4;
+  margin-bottom: $spacing-4;
+}
+
+.parsec-confirm__row {
+  display: flex;
+  justify-content: space-between;
+  padding: $spacing-2 0;
+  border-bottom: 1px solid var(--bp-border-color, $color-gray-200);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.parsec-confirm__label {
+  color: var(--bp-text-color-muted, $color-gray-500);
+  font-size: $font-size-sm;
+}
+
+.parsec-confirm__value {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  text-align: right;
+  word-break: break-all;
+  max-width: 60%;
+}
+
+.parsec-confirm__actions {
+  display: flex;
+  gap: $spacing-3;
+
+  .bp5-button {
+    flex: 1;
+  }
+}
+
+// ==========================================================================
+// SEND
+// ==========================================================================
+
+.parsec-send__form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.parsec-send__balance {
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  margin-bottom: $spacing-4;
+}
+
+.parsec-send__input {
+  margin-bottom: $spacing-2;
+}
+
+.parsec-send__note-count {
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  text-align: right;
+
+  &--over {
+    color: $color-danger;
+    font-weight: $font-weight-semibold;
+  }
+}
+
+.parsec-send__submit {
+  margin-top: $spacing-6;
+  width: 100%;
+}
+
+// ==========================================================================
+// RECEIVE
+// ==========================================================================
+
+.parsec-receive__address-box {
+  text-align: center;
+  padding: $spacing-6;
+  margin: $spacing-4 0;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  border-radius: $border-radius-xl;
+}
+
+.parsec-receive__label {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  margin-bottom: $spacing-3;
+}
+
+.parsec-receive__address {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  word-break: break-all;
+  line-height: $line-height-relaxed;
+  color: var(--bp-text-color, $color-gray-900);
+}
+
+.parsec-receive__note {
+  margin-top: $spacing-4;
+  font-size: $font-size-xs;
+  text-align: center;
+}
+
+// ==========================================================================
+// SWAP
+// ==========================================================================
+
+.parsec-swap__form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin-bottom: $spacing-4;
+}
+
+.parsec-swap__quote {
+  margin-top: $spacing-4;
+}
+
+// ==========================================================================
+// DOCS
+// ==========================================================================
+
+.parsec-docs__nav {
+  display: flex;
+  gap: $spacing-1;
+  margin-bottom: $spacing-4;
+  border-bottom: 1px solid var(--bp-border-color, $color-gray-200);
+  padding-bottom: $spacing-2;
+  flex-wrap: wrap;
+}
+
+.parsec-docs__tab {
+  font-size: $font-size-sm;
+  border-radius: $border-radius-md $border-radius-md 0 0;
+
+  &--active {
+    background: rgba($color-primary, 0.1) !important;
+    color: $color-primary !important;
+  }
+}
+
+.parsec-docs__content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.parsec-docs__section {
+  h3 {
+    font-size: $font-size-xl;
+    font-weight: $font-weight-bold;
+    margin-bottom: $spacing-4;
+  }
+
+  h4 {
+    font-size: $font-size-base;
+    font-weight: $font-weight-semibold;
+    margin-top: $spacing-4;
+    margin-bottom: $spacing-1;
+  }
+
+  p {
+    color: var(--bp-text-color-muted, $color-gray-500);
+    font-size: $font-size-sm;
+    line-height: $line-height-relaxed;
+    margin-bottom: $spacing-2;
+  }
+}
+
+// ==========================================================================
+// SETTINGS
+// ==========================================================================
+
+.parsec-settings__section {
+  margin-bottom: $spacing-6;
+  padding-bottom: $spacing-6;
+  border-bottom: 1px solid var(--bp-border-color, $color-gray-200);
+}
+
+.parsec-settings__select {
+  width: 100%;
+  padding: $spacing-2 $spacing-3;
+  appearance: auto;
+}
+
+.parsec-settings__account {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-3;
+  border-radius: $border-radius-md;
+  margin-bottom: $spacing-2;
+
+  &--active {
+    background: rgba($color-primary, 0.1);
+  }
+}
+
+.parsec-settings__account-addr {
+  flex: 1;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-settings__danger {
+  margin-top: $spacing-8;
+  padding-top: $spacing-6;
+  border-top: 1px solid rgba($color-danger, 0.3);
+}

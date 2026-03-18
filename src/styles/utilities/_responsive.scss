@@ -153,58 +153,6 @@
 // Chat-specific Responsive Classes
 // ==========================================================================
 
-// Mobile chat layout
-@include media-down(md) {
-  .chat-mobile-stack {
-    flex-direction: column;
-  }
-  
-  .chat-mobile-full {
-    width: 100%;
-    height: 100%;
-  }
-  
-  .chat-mobile-hidden {
-    display: none;
-  }
-  
-  .chat-sidebar-mobile {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1000;
-    transform: translateX(-100%);
-    transition: transform 0.3s ease;
-    
-    &.open {
-      transform: translateX(0);
-    }
-  }
-}
-
-// Tablet adjustments
-@include media-between(md, lg) {
-  .chat-sidebar {
-    width: 280px;
-    min-width: 280px;
-  }
-}
-
-// Desktop optimizations
-@include media(lg) {
-  .chat-sidebar {
-    width: $chat-sidebar-width;
-    min-width: $chat-sidebar-width;
-  }
-  
-  .chat-desktop-grid {
-    display: grid;
-    grid-template-columns: $chat-sidebar-width 1fr;
-  }
-}
-
 // Container Responsive Classes
 // ==========================================================================
 

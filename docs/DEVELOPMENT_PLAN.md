@@ -1,189 +1,164 @@
-# Development Plan - [Your Project Name]
+# Parsec Wallet — Development Plan
 
-> **📋 Updated:** *[Current Date]*  
-> **📋 Status:** *[Current Development Status]*  
-> **📋 Vision:** *[Your Project Vision Statement]*
+> **Updated:** 2026-03-17
+> **Status:** Alpha — Algorand core functional, security hardened
+> **Vision:** The evolution of the cryptocurrency wallet. Sovereign, modular, Algorand-first.
 
-## Project Overview
+## Mission
 
-*[Brief description of what your application does and its purpose]*
+Build Parsec as a sovereign universal wallet: Tauri desktop shell, zero-dependency vanilla TypeScript frontend, Rust backend, bankon_vault encrypted storage with optional Tomb cold storage, extensible chain packs. Algorand native first-class support, SpinTrade DEX inside the wallet.
 
-### Core Concept
-1. *[Key feature or workflow #1]*
-2. *[Key feature or workflow #2]*
-3. *[Key feature or workflow #3]*
-4. *[Key feature or workflow #4]*
-5. *[Key feature or workflow #5]*
+**Policy:** Parsec never holds the user's private key or mnemonic. bankon_vault is recommended but optional. User controls their keys.
 
-### Current Status
-- *[Phase/Feature Status]*: *[Status Description]*
-- *[Phase/Feature Status]*: *[Status Description]*
-- *[Phase/Feature Status]*: *[Status Description]*
-- *[Next Phase]*: *[What's coming next]*
-
-### **Github Workflow Behavior Matrix:**
-
-| Action | Branch | CI Result | Release Result | Build Time |
-|--------|--------|-----------|---------------|------------|
-| Push | `dev` | ✅ Lint + Frontend + Tauri | ❌ | *[Your Time]* |
-| Push | `main` | ✅ Lint + Frontend | ✅ Cross-platform | *[Your Time]* |
-| PR | `dev` | ✅ Lint + Frontend | ❌ | *[Your Time]* |
-| PR | `main` | ✅ Lint + Frontend | ❌ | *[Your Time]* |
-| Manual | `any` | ❌ | ✅ Cross-platform | *[Your Time]* |
-
-### **Key Benefits:**
-- *[List your workflow benefits]*
-- *[Add more benefits]*
-- *[Additional workflow advantages]*
-
-### **Usage Guidelines:**
-- *[Your development workflow guidelines]*
-- *[Branch strategy recommendations]*
-- *[Release deployment strategy]*
-
-## Architecture Strategy
-
-### Module Structure
-*[Describe your module organization approach]*
+## Architecture
 
 ```
-src-tauri/src/
-├── lib.rs                    # Tauri app and command exports
-├── [module1]/               # *[Module Purpose]*
-│   ├── mod.rs               # *[Module Description]*
-│   └── [submodule].rs       # *[Submodule Purpose]*
-├── [module2]/               # *[Module Purpose]*
-│   ├── mod.rs               # *[Module Description]*
-│   └── [submodule].rs       # *[Submodule Purpose]*
-├── [module3]/               # *[Module Purpose]*
-│   ├── mod.rs               # *[Module Description]*
-│   └── [submodule].rs       # *[Submodule Purpose]*
-└── utils/                   # *[Utilities Purpose]*
-    ├── mod.rs               # *[Utilities Description]*
-    ├── error.rs             # *[Error Handling]*
-    └── logging.rs           # *[Logging System]*
+Frontend (vanilla TypeScript + Blueprint CSS)
+├── src/views/          # View modules (onboarding, dashboard, send, receive, etc.)
+├── src/lib/            # Core modules (store, router, dom, keystore, vault, tomb)
+├── src/lib/algorand/   # Chain pack: account, transactions, assets, client
+└── src/types/          # TypeScript types
+
+Backend (Rust via Tauri IPC)
+├── bankon_vault/       # Modular encrypted vault (portable across wallets)
+│   ├── crypto.rs       # Argon2id + AES-256-GCM
+│   ├── store.rs        # File-based vault storage
+│   ├── commands.rs     # 9 Tauri IPC commands
+│   ├── tomb.rs         # Tomb CLI wrapper (Linux cold storage)
+│   └── tomb_commands.rs # 7 Tomb Tauri IPC commands
+└── lib.rs              # Tauri app entry
 ```
 
-### Implementation Priorities
+## What's Built (Phase A+B complete)
 
-#### **Phase 1: Foundation (Weeks X-Y)**
-- *[List your foundation tasks]*
-- *[Add setup requirements]*
-- *[Define architecture tasks]*
+- [x] Vanilla TypeScript frontend — no React, no frameworks
+- [x] Blueprint.js CSS for styling (CSS only, no React components)
+- [x] State management with private sensitive fields (never in localStorage)
+- [x] Auto-lock timer (configurable, default 5 min)
+- [x] Algorand account create (25-word mnemonic)
+- [x] Algorand account import (mnemonic + base64 private key)
+- [x] MetaMask-style unlock view (passphrase → session)
+- [x] bankon_vault Rust module (Argon2id + AES-256-GCM, file-based)
+- [x] Tomb integration (Linux encrypted volumes, USB cold storage)
+- [x] Keystore unified interface (auto-selects Tauri vault or Web Crypto fallback)
+- [x] Send ALGO + any ASA (asset selector dropdown)
+- [x] Transaction confirmation screen (review before signing)
+- [x] Receive view with full address display
+- [x] ASA opt-in with verified asset registry (USDC, USDt — official contracts only)
+- [x] ASA opt-out (recover 0.1 ALGO min balance)
+- [x] Freeze/clawback warnings on assets
+- [x] Minimum balance display
+- [x] Pending rewards display
+- [x] Note field with byte count validation (1000 byte limit)
+- [x] Fee pre-display on confirmation screen
+- [x] Testnet faucet link
+- [x] Network switching (mainnet/testnet/betanet) with cache invalidation
+- [x] Multi-account support (create, import, switch)
+- [x] 6 decimal precision default for all assets
+- [x] Public receive key display (truncated, expand on hover, click to copy)
+- [x] In-wallet documentation (Quick Start, FAQ, Security, Assets, About)
+- [x] ALGO shown as native asset in verified list
+- [x] Balance validation before ASA opt-in (0.101 ALGO required)
+- [x] Router fix — only re-renders on view change, not every state update
 
-#### **Phase 2: Core Features (Weeks X-Y)**
-- *[List your core feature tasks]*
-- *[Add main functionality]*
-- *[Define feature milestones]*
+## Roadmap
 
-#### **Phase 3: Advanced Features (Weeks X-Y)**
-- *[List advanced features]*
-- *[Add enhancement tasks]*
-- *[Define polish requirements]*
+### Phase C — Input Recognition & Validation
+Informed by: parsec-wallet/metamask-extension (vault patterns), ailgo/js-algorand-sdk
 
-#### **Phase 4: Release Preparation (Weeks X-Y)**
-- *[List release tasks]*
-- *[Add testing requirements]*
-- *[Define deployment tasks]*
+- [x] Input classifier (detect: mnemonic, private key, address, unknown)
+- [x] Live validation feedback with confidence scoring
+- [x] Address preview on valid input
+- [x] Multi-format import: mnemonic, private key, watch-only address
+- [x] Watch-only mode (view balance, cannot sign)
+- [ ] Rust-side address validators (Algorand base32 checksum) — future hardening
 
-## Frontend Status
+### Phase D — SpinTrade DEX Foundation
+Informed by: ailgo/tinyman-amm-contracts-v2, Tinyman JS SDK docs
 
-### Current UI Design
-- **Status**: *[Current UI Implementation Status]*
-- **Style**: *[Your UI Framework and Theme Choice]*
-- **Components**: *[List your main UI components]*
+- [x] Swap engine (src/lib/algorand/swap.ts) — Tinyman v2 pool query + constant product quote
+- [x] Swap view with asset selectors, amount input, quote preview
+- [x] Quote display: rate, price impact, min received, slippage, pool fee
+- [x] Confirm-and-sign flow for swaps
+- [x] Atomic group transaction execution (input transfer + app call)
+- [x] 0.5% default slippage with min output calculation
+- [x] Swap button on dashboard
+- [ ] Multi-hop routing (ASA→ALGO→ASA) for better rates
+- [ ] Swap history tracking
+- [ ] Custom slippage setting
 
-### Key UI Components Status
-- *[Component Name]*: *[Implementation Status and Description]*
-- *[Component Name]*: *[Implementation Status and Description]*
-- *[Component Name]*: *[Implementation Status and Description]*
+### Phase E — Wallet Interop & Standards
+Informed by: ailgo/use-wallet, ailgo/peraconnect, ARC-1, ARC-25
 
-## Current Focus
+- [ ] WalletConnect v1/v2 support (ARC-25)
+- [ ] ARC-1 transaction signing API compliance
+- [ ] dApp connection interface (QR code + deep link)
+- [ ] Watch-only mode (view balance without signing keys)
 
-### 1. *[Current Development Area #1]*
-- *[List current tasks]*
-- *[Add implementation details]*
+### Phase F — Advanced Algorand Features
+Informed by: ailgo/pera-wallet, developer.algorand.org
 
-### 2. *[Current Development Area #2]*
-- *[List current tasks]*
-- *[Add implementation details]*
+- [ ] Rekeying support
+- [ ] Multisig account creation and signing
+- [ ] Group transaction builder
+- [ ] Application call support (smart contract interaction)
+- [ ] ARC-19/ARC-3 NFT metadata display
+- [ ] Transaction history export (CSV)
+- [ ] Address book / contacts
+- [ ] QR code generation for receive (algorand:// URI)
 
-### 3. *[Current Development Area #3]*
-- *[List current tasks]*
-- *[Add implementation details]*
+### Phase G — Modular Extensions
+Informed by: parsec-wallet/parsec-pod, ailgo/mint-arc19, ailgo/ExtendableDAO
 
-## Completed Achievements
+- [ ] ASA minter extension
+- [ ] NFT minter extension (ARC-19)
+- [ ] Plugin/extension system architecture
+- [ ] DAO interaction module
+- [ ] Staking/governance participation
 
-### ✅ **[Achievement Category #1]**
-- *[List completed items]*
-- *[Add achievement details]*
+### Phase H — Multi-Chain Expansion (Future)
+Informed by: parsec-wallet org (50 repos spanning BTC, EVM, Cosmos, Solana, Arweave)
 
-### ✅ **[Achievement Category #2]**
-- *[List completed items]*
-- *[Add achievement details]*
+- [ ] Chain-pack adapter architecture (per parsec-wallet/xchainjs-lib-1 patterns)
+- [ ] EVM/BSC chain pack (BIP-39 import, 0x checksum, balance, transfer)
+- [ ] Bitcoin read-only support (UTXO model, Bech32)
+- [ ] Solana read-only support
+- [ ] Cosmos-family (Bech32 HRP-aware)
+- [ ] Hardware wallet integration (Ledger via parsec-wallet/eth-dcent-keyring patterns)
+- [ ] Network registry (per parsec-wallet/chainlist)
 
-### ✅ **Performance Metrics Achieved**
-- *[Metric Name]*: *[Target and Status]*
-- *[Metric Name]*: *[Target and Status]*
-- *[Metric Name]*: *[Target and Status]*
+### Phase I — Sovereign Infrastructure (Strategic)
+Informed by: parsec-wallet/hypercore, parsec-wallet/earthstar, parsec-wallet/agregore-browser
 
-## Development Principles
+- [ ] Sovereign sync (offline-first wallet state)
+- [ ] Distributed backup (Hypercore-style append-only log)
+- [ ] P2P wallet discovery
+- [ ] Tomb FIDO2 passkey support
 
-### *[Principle Category #1]*
-- *[List your development principles]*
-- *[Add methodologies]*
+## Design Principles
 
-### *[Principle Category #2]*
-- *[List quality standards]*
-- *[Add architecture guidelines]*
+1. **Minimal code, maximum impact** — no unnecessary abstractions
+2. **Security first** — keys never leave device, Rust for signing, frontend for display
+3. **No external runtime dependencies** — vanilla TS, Blueprint CSS only
+4. **Chain-pack architecture** — each chain is a modular adapter
+5. **User sovereignty** — Parsec never holds keys, bankon_vault recommended not required
+6. **Extract ideas, not code** — learn from parsec-wallet org + ailgo repos, reimplement clean
 
-### *[Principle Category #3]*
-- *[List user experience priorities]*
-- *[Add performance targets]*
+## Reference Corpus
 
-## Success Metrics
+### parsec-wallet org (https://github.com/parsec-wallet) — 50 repos
+Wallet R&D corpus: BitPay/Copay, Safe multisig, MetaMask, Keplr, xchainjs, Hypercore/Earthstar, EIPs
 
-### Technical Targets
-- *[Technical Metric]*: *[Target Value]*
-- *[Performance Metric]*: *[Target Value]*
-- *[Quality Metric]*: *[Target Value]*
+### ailgo org (https://github.com/ailgo) — 101+ repos
+Algorand reference library: js-algorand-sdk, AlgoKit, Pera, use-wallet, vibekit, Tinyman, Tauri
 
-### User Experience Targets
-- *[UX Metric]*: *[Target Value]*
-- *[Usability Metric]*: *[Target Value]*
-- *[Satisfaction Metric]*: *[Target Value]*
-
-### Development Targets
-- *[Development Metric]*: *[Target Value]*
-- *[Process Metric]*: *[Target Value]*
-- *[Quality Metric]*: *[Target Value]*
-
-## Risk Management
-
-### Technical Risks
-- *[Risk Category]*: *[Description and Mitigation]*
-- *[Risk Category]*: *[Description and Mitigation]*
-- *[Risk Category]*: *[Description and Mitigation]*
-
-### Mitigation Strategies
-- *[Strategy #1]*: *[Implementation Approach]*
-- *[Strategy #2]*: *[Implementation Approach]*
-- *[Strategy #3]*: *[Implementation Approach]*
-
-## Dependencies and Constraints
-
-### External Dependencies
-- *[Dependency Type]*: *[Description and Requirements]*
-- *[Dependency Type]*: *[Description and Requirements]*
-
-### Technical Constraints
-- *[Constraint Type]*: *[Description and Impact]*
-- *[Constraint Type]*: *[Description and Impact]*
-
-### Development Constraints
-- *[Constraint Type]*: *[Description and Guidelines]*
-- *[Constraint Type]*: *[Description and Guidelines]*
+### Key External References
+- [Algorand Developer Docs](https://developer.algorand.org)
+- [ARC Standards](https://arc.algorand.foundation)
+- [Tomb Encrypted Volumes](https://dyne.org/docs/tomb/)
+- [Tauri 2.0](https://v2.tauri.app)
+- [Tinyman Protocol](https://docs.tinyman.org)
 
 ---
 
-*This development plan is a living document. Update it as your project evolves and requirements change.*
+*Parsec is the evolution of the cryptocurrency wallet. Extract ideas and architecture, not accidental complexity. The right outcome is a cleaner, safer, more sovereign Parsec.*

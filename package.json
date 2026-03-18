@@ -1,11 +1,11 @@
 {
-  "name": "tauri-template",
+  "name": "parsec-wallet",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.1.0",
   "type": "module",
-  "description": "Production-ready Tauri template with React, TypeScript, Blueprint.js, and comprehensive tooling",
-  "author": "Your Name",
-  "license": "MIT",
+  "description": "Parsec Wallet — Algorand desktop wallet built on cypherpunk2048 principles",
+  "author": "cypherpunk2048",
+  "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -16,35 +16,17 @@
     "lint:css": "stylelint \"src/**/*.scss\" --fix",
     "lint:css:production": "stylelint \"src/**/*.scss\" --config .stylelintrc.production.cjs",
     "lint:css:ci": "stylelint \"src/**/*.scss\" --config .stylelintrc.production.cjs --formatter compact",
-    "prepare": "husky install",
-    "docker": "node docker/run-docker-script.js",
-    "docker:menu": "npm run docker",
-    "docker:build-image": "npm run docker -- build-image",
-    "docker:build-tauri": "npm run docker -- build-tauri",
-    "docker:build-all": "npm run docker -- build-all",
-    "docker:run": "npm run docker -- run",
-    "docker:clean": "npm run docker -- clean",
-    "docker:check": "npm run docker -- check",
-    "docker:help": "npm run docker -- --help",
-    "docker:quiet": "npm run docker -- --quiet",
-    "docker:show-logs": "npm run docker -- show-logs"
+    "prepare": "husky install"
   },
   "dependencies": {
-    "@blueprintjs/core": "^6.0.0",
-    "@blueprintjs/icons": "^6.0.0",
-    "@blueprintjs/select": "^6.0.0",
     "@tauri-apps/api": "^2",
-    "@tauri-apps/cli": "^2.6.2",
     "@tauri-apps/plugin-opener": "^2",
-    "perfect-scrollbar": "^1.5.6",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "algosdk": "^3.0.0"
   },
   "devDependencies": {
-    "@types/perfect-scrollbar": "^0.7.0",
-    "@types/react": "^18.3.1",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@blueprintjs/core": "^6.0.0",
+    "@blueprintjs/icons": "^6.0.0",
+    "@tauri-apps/cli": "^2.6.2",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.2",
     "sass-embedded": "^1.89.2",
@@ -60,12 +42,11 @@
     ]
   },
   "keywords": [
+    "algorand",
+    "wallet",
     "tauri",
-    "react",
     "typescript",
-    "blueprint",
-    "template",
     "desktop",
-    "cross-platform"
+    "cypherpunk"
   ]
 }

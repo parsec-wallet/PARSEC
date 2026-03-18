@@ -1,0 +1,231 @@
+// ==========================================================================
+// PARSEC WALLET — SHARED COMPONENTS
+// ==========================================================================
+
+@use '../abstracts' as *;
+
+// Labels
+.parsec-label {
+  display: block;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-medium;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  margin-bottom: $spacing-1;
+  margin-top: $spacing-3;
+}
+
+// Section titles
+.parsec-section-title {
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  margin-bottom: $spacing-3;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+// Empty state
+.parsec-empty {
+  text-align: center;
+  padding: $spacing-6;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  font-size: $font-size-sm;
+}
+
+// Badge
+.parsec-badge {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $border-radius-full;
+  background: rgba($color-primary, 0.15);
+  color: $color-primary;
+
+  &--warn {
+    background: rgba($color-warning, 0.15);
+    color: $color-warning;
+  }
+
+  &--danger {
+    background: rgba($color-danger, 0.15);
+    color: $color-danger;
+  }
+}
+
+.parsec-asset-row__badges {
+  display: flex;
+  gap: $spacing-1;
+  margin-top: 2px;
+}
+
+.parsec-asset-row__right {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+}
+
+// Callout
+.parsec-callout {
+  padding: $spacing-3 $spacing-4;
+  border-radius: $border-radius-md;
+  margin-bottom: $spacing-4;
+  font-size: $font-size-sm;
+}
+
+// Asset row
+.parsec-asset-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-3;
+  border-radius: $border-radius-md;
+  margin-bottom: $spacing-1;
+
+  &--add {
+    border: 1px solid var(--bp-border-color, $color-gray-200);
+    margin-bottom: $spacing-2;
+  }
+
+  &:hover {
+    background: var(--bp-background-color-secondary, $color-gray-50);
+  }
+}
+
+.parsec-asset-row__name {
+  font-weight: $font-weight-medium;
+}
+
+.parsec-asset-row__amount {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+}
+
+.parsec-asset-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.parsec-asset-row__meta {
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+// Transaction row
+.parsec-tx-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-3;
+  border-radius: $border-radius-md;
+  margin-bottom: $spacing-1;
+
+  &:hover {
+    background: var(--bp-background-color-secondary, $color-gray-50);
+  }
+}
+
+.parsec-tx-row__info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.parsec-tx-row__type {
+  font-weight: $font-weight-medium;
+  font-size: $font-size-sm;
+}
+
+.parsec-tx-row__address {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-tx-row__date {
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-tx-row__amount {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-sm;
+}
+
+.parsec-tx-row--sent .parsec-tx-row__amount {
+  color: $color-danger;
+}
+
+.parsec-tx-row--received .parsec-tx-row__amount {
+  color: $color-success;
+}
+
+// Toast
+.parsec-toast-container {
+  position: fixed;
+  top: $spacing-4;
+  right: $spacing-4;
+  z-index: $z-index-tooltip;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.parsec-toast {
+  padding: $spacing-3 $spacing-4;
+  border-radius: $border-radius-md;
+  font-size: $font-size-sm;
+  box-shadow: $shadow-lg;
+  animation: parsec-toast-in $transition-duration-slow $transition-timing-function;
+  max-width: 360px;
+
+  // Blueprint intents provide the colors
+  &.bp5-intent-success {
+    background: $color-success;
+    color: #fff;
+  }
+
+  &.bp5-intent-danger {
+    background: $color-danger;
+    color: #fff;
+  }
+
+  &.bp5-intent-warning {
+    background: $color-warning;
+    color: #000;
+  }
+
+  &.bp5-intent-primary {
+    background: $color-primary;
+    color: #fff;
+  }
+
+  &--leaving {
+    animation: parsec-toast-out $transition-duration-slow $transition-timing-function forwards;
+  }
+}
+
+@keyframes parsec-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes parsec-toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+// Error state
+.parsec-error {
+  text-align: center;
+  padding: $spacing-8;
+  color: $color-danger;
+}

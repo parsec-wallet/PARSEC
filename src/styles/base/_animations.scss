@@ -256,27 +256,9 @@
   animation: scale-out $animation-duration-fade ease-out;
 }
 
-// Chat-specific Animation Classes
-// ==========================================================================
-
-.animate-typing {
-  animation: typing-dots $animation-duration-typing ease-in-out infinite;
-}
-
-.animate-message-appear {
-  animation: message-appear $animation-duration-slide ease-out;
-}
-
-.animate-status-pulse {
-  animation: status-pulse 2s ease-in-out infinite;
-}
-
+// Notification animation
 .animate-notification {
   animation: notification-slide $animation-duration-slide ease-out;
-}
-
-.animate-ripple {
-  animation: ripple 0.6s ease-out;
 }
 
 // Transition Utilities
@@ -369,11 +351,7 @@
   .animate-spin,
   .animate-scale-in,
   .animate-scale-out,
-  .animate-typing,
-  .animate-message-appear,
-  .animate-status-pulse,
-  .animate-notification,
-  .animate-ripple {
+  .animate-notification {
     animation: none !important;
   }
   

@@ -1,23 +1,8 @@
-// Template application state
-#[derive(Default)]
-pub struct AppState {
-    // Add your application state here
-    // Example: pub config: Arc<RwLock<Config>>,
-}
+mod bankon_vault;
 
-// Example Tauri command
-#[tauri::command]
-async fn greet(name: String) -> Result<String, String> {
-    Ok(format!("Hello, {}! You've been greeted from Rust!", name))
-}
-
-// Example async command with state
-#[tauri::command]
-async fn get_app_info(
-    _state: tauri::State<'_, AppState>
-) -> Result<String, String> {
-    Ok("Tauri Template v1.0.0".to_string())
-}
+use bankon_vault::VaultState;
+use bankon_vault::commands::*;
+use bankon_vault::tomb_commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -30,11 +15,27 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_os::init())
-        .manage(AppState::default())
+        .manage(VaultState::default())
         .invoke_handler(tauri::generate_handler![
-            greet,
-            get_app_info
+            // bankon_vault — file-based encrypted vault
+            vault_status,
+            vault_create,
+            vault_unlock,
+            vault_lock,
+            vault_store_key,
+            vault_retrieve_key,
+            vault_remove_account,
+            vault_list_accounts,
+            vault_destroy,
+            // bankon_vault — tomb integration (Linux cold storage)
+            tomb_check,
+            tomb_detect_usb,
+            tomb_create,
+            tomb_open,
+            tomb_close,
+            tomb_slam,
+            tomb_status,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .expect("error while running Parsec Wallet");
 }

@@ -212,66 +212,6 @@
   }
 }
 
-// Chat-specific Mixins
-// ==========================================================================
-
-/// Create chat bubble style
-@mixin chat-bubble($is-own: false) {
-  max-width: $chat-message-max-width;
-  padding: $spacing-2 $spacing-3;
-  border-radius: $chat-bubble-border-radius;
-  word-wrap: break-word;
-  box-shadow: $shadow-sm;
-  transition: $transition-all;
-
-  @if $is-own {
-    background: $color-primary;
-    color: #fff;
-    margin-left: auto;
-  } @else {
-    background: var(--bp-background-color-secondary, $color-gray-100);
-    color: var(--bp-text-color, $color-gray-900);
-    margin-right: auto;
-  }
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: $shadow-md;
-  }
-}
-
-/// Create avatar style
-@mixin avatar($size: $chat-avatar-size-md) {
-  width: $size;
-  height: $size;
-  border-radius: 50%;
-  overflow: hidden;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
-  font-weight: $font-weight-semibold;
-  user-select: none;
-}
-
-/// Create status indicator
-@mixin status-indicator($size: 12px) {
-  width: $size;
-  height: $size;
-  border-radius: 50%;
-  border: 2px solid var(--bp-background-color, white);
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  
-  &.online { background-color: $color-online; }
-  &.away { background-color: $color-away; }
-  &.busy { background-color: $color-busy; }
-  &.offline { background-color: $color-offline; }
-}
-
 // Scrollbar Mixins
 // ==========================================================================
 
