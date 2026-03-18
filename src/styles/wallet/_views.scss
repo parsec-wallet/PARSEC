@@ -897,6 +897,16 @@
   margin-top: $spacing-4;
 }
 
+.parsec-swap__to-container {
+  min-height: 2.5rem;
+}
+
+.parsec-swap__loading {
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  padding: $spacing-2 0;
+}
+
 // ==========================================================================
 // DOCS
 // ==========================================================================

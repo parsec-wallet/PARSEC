@@ -1,11 +1,13 @@
 // Parsec Wallet — SpinTrade Swap View
+// Parsec facilitates secure DEX interaction. Participant chooses the DEX.
+// "To" field pulls real tradeable assets from on-chain pools at zero cost.
 
 import { el, btn, input, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { microAlgosToAlgo } from '../lib/algorand/account';
 import { formatAssetAmount, DEFAULT_DECIMALS } from '../lib/algorand/assets';
-import { getSwapQuote, executeSwap } from '../lib/algorand/swap';
-import type { SwapQuote } from '../lib/algorand/swap';
+import { getSwapQuote, executeSwap, fetchPoolsForAsset } from '../lib/algorand/swap';
+import type { SwapQuote, SwapableAsset } from '../lib/algorand/swap';
 import { keystoreRetrieve } from '../lib/keystore';
 
 export function swapView(): HTMLElement {
@@ -26,7 +28,9 @@ export function swapView(): HTMLElement {
   }
 
   const info = state.accountInfo;
-  const assets = [
+
+  // "From" assets = what the participant holds
+  const heldAssets = [
     { assetId: 0, unitName: 'ALGO', name: 'Algorand', decimals: 6, amount: info?.amount || 0 },
     ...(info?.assets || []).filter(a => !a.isFrozen).map(a => ({
       assetId: a.assetId,
@@ -37,34 +41,73 @@ export function swapView(): HTMLElement {
     })),
   ];
 
-  let inputAssetIdx = 0;
-  let outputAssetIdx = assets.length > 1 ? 1 : 0;
+  let selectedFromIdx = 0;
+  let selectedToAsset: SwapableAsset | null = null;
   let inputAmount = '';
   let currentQuote: SwapQuote | null = null;
-  let slippage = 50; // 0.5% default
 
   const quoteContainer = el('div', { cls: 'parsec-swap__quote' });
+  const toSelectContainer = el('div', { cls: 'parsec-swap__to-container' });
 
-  // Asset selectors
-  function makeSelect(selected: number, onChange: (idx: number) => void): HTMLSelectElement {
-    const sel = document.createElement('select');
-    sel.className = 'bp5-input parsec-settings__select';
-    assets.forEach((a, i) => {
+  // "From" select — participant's holdings
+  const fromSelect = document.createElement('select');
+  fromSelect.className = 'bp5-input parsec-settings__select';
+  heldAssets.forEach((a, i) => {
+    const opt = document.createElement('option');
+    opt.value = String(i);
+    const bal = a.assetId === 0 ? microAlgosToAlgo(a.amount) : formatAssetAmount(a.amount, a.decimals);
+    opt.textContent = `${a.unitName} (${bal})`;
+    opt.selected = i === 0;
+    fromSelect.appendChild(opt);
+  });
+  fromSelect.addEventListener('change', () => {
+    selectedFromIdx = parseInt(fromSelect.value, 10);
+    selectedToAsset = null;
+    currentQuote = null;
+    quoteContainer.innerHTML = '';
+    loadOutputAssets();
+  });
+
+  // Load available output assets from Tinyman pools
+  async function loadOutputAssets() {
+    const fromAsset = heldAssets[selectedFromIdx];
+    toSelectContainer.innerHTML = '';
+    toSelectContainer.appendChild(el('div', { cls: 'parsec-swap__loading', text: 'Loading tradeable assets...' }));
+
+    const poolAssets = await fetchPoolsForAsset(fromAsset.assetId, state.settings.network);
+
+    toSelectContainer.innerHTML = '';
+    if (poolAssets.length === 0) {
+      toSelectContainer.appendChild(el('div', { cls: 'parsec-empty', text: 'No liquidity pools found for this asset.' }));
+      return;
+    }
+
+    const toSelect = document.createElement('select');
+    toSelect.className = 'bp5-input parsec-settings__select';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = `Select asset (${poolAssets.length} available)`;
+    placeholder.selected = true;
+    placeholder.disabled = true;
+    toSelect.appendChild(placeholder);
+
+    poolAssets.forEach((a) => {
       const opt = document.createElement('option');
-      opt.value = String(i);
-      const bal = a.assetId === 0
-        ? microAlgosToAlgo(a.amount)
-        : formatAssetAmount(a.amount, a.decimals);
-      opt.textContent = `${a.unitName} (${bal})`;
-      opt.selected = i === selected;
-      sel.appendChild(opt);
+      opt.value = String(a.assetId);
+      opt.textContent = `${a.unitName || a.name} (ID: ${a.assetId})`;
+      toSelect.appendChild(opt);
     });
-    sel.addEventListener('change', () => onChange(parseInt(sel.value, 10)));
-    return sel;
-  }
 
-  const inputSelect = makeSelect(inputAssetIdx, (i) => { inputAssetIdx = i; });
-  const outputSelect = makeSelect(outputAssetIdx, (i) => { outputAssetIdx = i; });
+    toSelect.addEventListener('change', () => {
+      const id = parseInt(toSelect.value, 10);
+      selectedToAsset = poolAssets.find(a => a.assetId === id) || null;
+      currentQuote = null;
+      quoteContainer.innerHTML = '';
+    });
+
+    toSelectContainer.appendChild(toSelect);
+  }
 
   const amountInput = input({
     type: 'number',
@@ -76,17 +119,18 @@ export function swapView(): HTMLElement {
   async function fetchQuote() {
     const parsed = parseFloat(inputAmount);
     if (isNaN(parsed) || parsed <= 0) { toast('Enter an amount', 'danger'); return; }
-    if (inputAssetIdx === outputAssetIdx) { toast('Select different assets', 'danger'); return; }
+    if (!selectedToAsset) { toast('Select an asset to receive', 'danger'); return; }
 
-    const inAsset = assets[inputAssetIdx];
-    const outAsset = assets[outputAssetIdx];
-    const baseAmount = Math.round(parsed * Math.pow(10, inAsset.decimals));
+    const fromAsset = heldAssets[selectedFromIdx];
+    if (fromAsset.assetId === selectedToAsset.assetId) { toast('Cannot swap to same asset', 'danger'); return; }
+
+    const baseAmount = Math.round(parsed * Math.pow(10, fromAsset.decimals));
 
     quoteContainer.innerHTML = '';
     quoteContainer.appendChild(el('div', { cls: 'parsec-empty', text: 'Fetching quote...' }));
 
     const quote = await getSwapQuote(
-      inAsset.assetId, outAsset.assetId, baseAmount, slippage, state.settings.network
+      fromAsset.assetId, selectedToAsset.assetId, baseAmount, 50, state.settings.network
     );
 
     quoteContainer.innerHTML = '';
@@ -97,20 +141,20 @@ export function swapView(): HTMLElement {
     }
 
     currentQuote = quote;
-    const outDisplay = formatAssetAmount(quote.outputAmount, outAsset.decimals);
-    const minDisplay = formatAssetAmount(quote.minOutput, outAsset.decimals);
-    const rateDisplay = quote.exchangeRate.toFixed(6);
+    const outDisplay = formatAssetAmount(quote.outputAmount, selectedToAsset.decimals);
+    const minDisplay = formatAssetAmount(quote.minOutput, selectedToAsset.decimals);
 
     quoteContainer.appendChild(el('div', {
       cls: 'parsec-confirm__details',
       children: [
-        row('You Send', `${parsed} ${inAsset.unitName}`),
-        row('You Receive', `~${outDisplay} ${outAsset.unitName}`),
-        row('Rate', `1 ${inAsset.unitName} = ${rateDisplay} ${outAsset.unitName}`),
-        row('Min Received', `${minDisplay} ${outAsset.unitName}`),
+        row('You Send', `${parsed} ${fromAsset.unitName}`),
+        row('You Receive', `~${outDisplay} ${selectedToAsset.unitName}`),
+        row('Rate', `1 ${fromAsset.unitName} = ${quote.exchangeRate.toFixed(6)} ${selectedToAsset.unitName}`),
+        row('Min Received', `${minDisplay} ${selectedToAsset.unitName}`),
         row('Price Impact', `${quote.priceImpact.toFixed(2)}%`),
-        row('Slippage', `${slippage / 100}%`),
-        row('Pool Fee', `0.3%`),
+        row('Slippage', '0.5%'),
+        row('Pool Fee', '0.3%'),
+        row('DEX', 'Tinyman v2'),
       ],
     }));
 
@@ -123,7 +167,7 @@ export function swapView(): HTMLElement {
   }
 
   async function doSwap() {
-    if (!currentQuote) return;
+    if (!currentQuote || !selectedToAsset) return;
     const passphrase = store.getPassphrase();
     if (!passphrase) { toast('Session expired.', 'danger'); store.navigate('unlock'); return; }
 
@@ -153,6 +197,9 @@ export function swapView(): HTMLElement {
     }
   }
 
+  // Initial load of output assets
+  loadOutputAssets();
+
   return el('div', {
     cls: 'parsec-view parsec-swap',
     children: [
@@ -163,14 +210,15 @@ export function swapView(): HTMLElement {
           el('h2', { cls: 'parsec-view__title', text: 'Swap' }),
         ],
       }),
+      el('p', { cls: 'parsec-view__desc', text: 'Trade assets via Tinyman v2 liquidity pools.' }),
       el('div', {
         cls: 'parsec-swap__form',
         children: [
-          el('label', { cls: 'parsec-label', text: 'From' }),
-          inputSelect,
+          el('label', { cls: 'parsec-label', text: 'From (your holdings)' }),
+          fromSelect,
           amountInput,
-          el('label', { cls: 'parsec-label', text: 'To' }),
-          outputSelect,
+          el('label', { cls: 'parsec-label', text: 'To (available pools)' }),
+          toSelectContainer,
         ],
       }),
       btn('Get Quote', { intent: 'primary', large: true, cls: 'parsec-send__submit', onClick: fetchQuote }),

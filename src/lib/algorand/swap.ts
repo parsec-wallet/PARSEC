@@ -36,6 +36,65 @@ export interface SwapableAsset {
   decimals: number;
 }
 
+/** Fetch top tradeable assets from Tinyman pools — zero cost, public API */
+export async function fetchTradeableAssets(
+  network: NetworkId,
+  limit = 30,
+): Promise<SwapableAsset[]> {
+  const subdomain = network === 'mainnet' ? 'mainnet' : 'testnet';
+  try {
+    const response = await fetch(
+      `https://${subdomain}.analytics.tinyman.org/api/v1/assets/?ordering=-liquidity_in_usd&limit=${limit}&with_liquidity=true`,
+      { signal: AbortSignal.timeout(10000) }
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return (data.results || []).map((a: Record<string, unknown>) => ({
+      assetId: Number(a.id),
+      unitName: String(a.unit_name || ''),
+      name: String(a.name || ''),
+      decimals: Number(a.decimals ?? 6),
+      verified: Boolean(a.is_verified),
+      liquidity: Number(a.liquidity_in_usd || 0),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/** Fetch pools available for a specific input asset */
+export async function fetchPoolsForAsset(
+  assetId: number,
+  network: NetworkId,
+): Promise<SwapableAsset[]> {
+  const subdomain = network === 'mainnet' ? 'mainnet' : 'testnet';
+  const queryId = assetId === 0 ? 0 : assetId;
+  try {
+    const response = await fetch(
+      `https://${subdomain}.analytics.tinyman.org/api/v1/pools/?asset_1=${queryId}&with_liquidity=true&ordering=-liquidity_in_usd&limit=20`,
+      { signal: AbortSignal.timeout(10000) }
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    const assets: SwapableAsset[] = [];
+    for (const pool of data.results || []) {
+      // Return the OTHER asset in the pair
+      const other = pool.asset_1?.id === queryId ? pool.asset_2 : pool.asset_1;
+      if (other && !assets.some(a => a.assetId === Number(other.id))) {
+        assets.push({
+          assetId: Number(other.id),
+          unitName: String(other.unit_name || ''),
+          name: String(other.name || ''),
+          decimals: Number(other.decimals ?? 6),
+        });
+      }
+    }
+    return assets;
+  } catch {
+    return [];
+  }
+}
+
 /** Fetch a swap quote from Tinyman v2 pools */
 export async function getSwapQuote(
   inputAssetId: number,
