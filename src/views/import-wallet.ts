@@ -86,7 +86,7 @@ export function importWalletView(): HTMLElement {
     if (isWatchOnly) {
       // Watch-only: no passphrase needed, no key stored
       store.set({
-        accounts: [...state.accounts, { address, name: `Watch ${state.accounts.length + 1}`, createdAt: Date.now() }],
+        accounts: [...state.accounts, { address, name: `Account ${state.accounts.length + 1} (watch)`, createdAt: Date.now(), watchOnly: true }],
       });
       store.setPassphrase('__watch_only__');
       toast('Watch-only account added', 'success');

@@ -107,6 +107,9 @@ class Store {
   // --- Session lifecycle ---
 
   lock(): void {
+    // Zero sensitive strings before nullifying (best effort — JS strings are immutable)
+    if (this._sessionPassphrase) this._sessionPassphrase = '\0'.repeat(this._sessionPassphrase.length);
+    if (this._tempMnemonic) this._tempMnemonic = '\0'.repeat(this._tempMnemonic.length);
     this._sessionPassphrase = null;
     this._tempMnemonic = null;
     this._pendingSend = null;
@@ -116,6 +119,8 @@ class Store {
   }
 
   reset(): void {
+    if (this._sessionPassphrase) this._sessionPassphrase = '\0'.repeat(this._sessionPassphrase.length);
+    if (this._tempMnemonic) this._tempMnemonic = '\0'.repeat(this._tempMnemonic.length);
     this._sessionPassphrase = null;
     this._tempMnemonic = null;
     this._pendingSend = null;

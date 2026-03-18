@@ -112,20 +112,23 @@ function assetRow(
             onClick: async () => {
               const passphrase = store.getPassphrase();
               if (!passphrase) { toast('Session expired.', 'danger'); store.navigate('unlock'); return; }
-              const mnemonic = await keystoreRetrieve(userAddress, passphrase);
+              let mnemonic: string | null = await keystoreRetrieve(userAddress, passphrase);
               if (!mnemonic) { toast('Could not retrieve key.', 'danger'); return; }
 
               if (hasFreezeAddr || hasClawbackAddr) {
                 const warns = [];
                 if (hasFreezeAddr) warns.push('freeze your holdings');
                 if (hasClawbackAddr) warns.push('revoke (clawback) your tokens');
-                if (!confirm(`Warning: The issuer of this asset can ${warns.join(' and ')}. Continue?`)) return;
+                if (!confirm(`Warning: The issuer of this asset can ${warns.join(' and ')}. Continue?`)) {
+                  mnemonic = '\0'.repeat(mnemonic.length); mnemonic = null;
+                  return;
+                }
               }
 
-              // Check balance
               if (availableBalance < 101_000) {
                 const displayBal = (Math.max(0, availableBalance) / 1_000_000).toFixed(4);
                 toast(`Insufficient balance. Need 0.101 ALGO, you have ${displayBal} ALGO available.`, 'danger');
+                mnemonic = '\0'.repeat(mnemonic.length); mnemonic = null;
                 return;
               }
 
@@ -138,6 +141,9 @@ function assetRow(
               } catch (err) {
                 store.set({ isLoading: false });
                 toast(err instanceof Error ? err.message : 'Opt-in failed', 'danger');
+              } finally {
+                if (mnemonic) mnemonic = '\0'.repeat(mnemonic.length);
+                mnemonic = null;
               }
             },
           }),

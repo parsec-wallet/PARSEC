@@ -12,7 +12,7 @@ export function swapView(): HTMLElement {
   const state = store.get();
   const account = state.accounts[state.activeAccountIndex];
   if (!account) { store.navigate('onboarding'); return el('div'); }
-  if (account.name.startsWith('Watch')) {
+  if (account.watchOnly) {
     return el('div', {
       cls: 'parsec-view',
       children: [
@@ -127,7 +127,7 @@ export function swapView(): HTMLElement {
     const passphrase = store.getPassphrase();
     if (!passphrase) { toast('Session expired.', 'danger'); store.navigate('unlock'); return; }
 
-    const mnemonic = await keystoreRetrieve(account.address, passphrase);
+    let mnemonic: string | null = await keystoreRetrieve(account.address, passphrase);
     if (!mnemonic) { toast('Could not retrieve key.', 'danger'); return; }
 
     store.set({ isLoading: true });
@@ -147,6 +147,9 @@ export function swapView(): HTMLElement {
     } catch (err) {
       store.set({ isLoading: false });
       toast(err instanceof Error ? err.message : 'Swap failed', 'danger');
+    } finally {
+      if (mnemonic) mnemonic = '\0'.repeat(mnemonic.length);
+      mnemonic = null;
     }
   }
 

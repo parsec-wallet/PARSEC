@@ -33,7 +33,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: http://localhost:* http://127.0.0.1:* data: blob:; img-src 'self' https: http://localhost:* http://127.0.0.1:* data: blob:; media-src 'self' https: http://localhost:* http://127.0.0.1:* data: blob:; connect-src 'self' https: http://localhost:* http://127.0.0.1:* ws://localhost:* wss://localhost:*; font-src 'self' https: data:; style-src 'self' 'unsafe-inline' https:;",
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data:; connect-src 'self' https://mainnet-api.algonode.cloud https://mainnet-idx.algonode.cloud https://testnet-api.algonode.cloud https://testnet-idx.algonode.cloud https://betanet-api.algonode.cloud https://betanet-idx.algonode.cloud https://mainnet.analytics.tinyman.org",
       "dangerousDisableAssetCspModification": false,
       "assetProtocol": {
         "enable": true,

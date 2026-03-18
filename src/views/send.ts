@@ -15,7 +15,7 @@ export function sendView(): HTMLElement {
   if (!account) { store.navigate('onboarding'); return el('div'); }
 
   // Watch-only accounts cannot send
-  if (account.name.startsWith('Watch')) {
+  if (account.watchOnly) {
     return el('div', {
       cls: 'parsec-view parsec-send',
       children: [

@@ -6,6 +6,7 @@ export interface WalletAccount {
   address: string;
   name: string;
   createdAt: number;
+  watchOnly?: boolean;
 }
 
 export interface AccountInfo {

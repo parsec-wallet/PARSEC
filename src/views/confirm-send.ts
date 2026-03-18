@@ -65,8 +65,9 @@ export function confirmSendView(): HTMLElement {
               if (!passphrase) { toast('Session expired.', 'danger'); store.navigate('unlock'); return; }
 
               store.set({ isLoading: true });
+              let mnemonic: string | null = null;
               try {
-                const mnemonic = await keystoreRetrieve(account.address, passphrase);
+                mnemonic = await keystoreRetrieve(account.address, passphrase);
                 if (!mnemonic) { toast('Could not retrieve key. Re-unlock.', 'danger'); store.set({ isLoading: false }); store.navigate('unlock'); return; }
 
                 let txId: string;
@@ -85,6 +86,9 @@ export function confirmSendView(): HTMLElement {
               } catch (err) {
                 store.set({ isLoading: false });
                 toast(err instanceof Error ? err.message : 'Transaction failed', 'danger');
+              } finally {
+                if (mnemonic) mnemonic = '\0'.repeat(mnemonic.length);
+                mnemonic = null;
               }
             },
           }),
