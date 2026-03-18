@@ -929,6 +929,14 @@
   max-width: 320px;
 }
 
+.parsec-onboarding__divider {
+  text-align: center;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  margin: $spacing-2 0;
+  letter-spacing: 0.1em;
+}
+
 .parsec-onboarding__footer {
   margin-top: $spacing-12;
   font-size: $font-size-xs;
