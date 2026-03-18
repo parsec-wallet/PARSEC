@@ -106,14 +106,32 @@ class Store {
   // --- Session lifecycle ---
 
   lock(): void {
-    // Zero sensitive strings before nullifying (best effort — JS strings are immutable)
-    if (this._sessionPassphrase) this._sessionPassphrase = '\0'.repeat(this._sessionPassphrase.length);
-    if (this._tempMnemonic) this._tempMnemonic = '\0'.repeat(this._tempMnemonic.length);
+    // Zero every sensitive field — leave no trace
+    if (this._sessionPassphrase) {
+      this._sessionPassphrase = '\0'.repeat(this._sessionPassphrase.length);
+      this._sessionPassphrase = '';
+    }
     this._sessionPassphrase = null;
+
+    if (this._tempMnemonic) {
+      this._tempMnemonic = '\0'.repeat(this._tempMnemonic.length);
+      this._tempMnemonic = '';
+    }
     this._tempMnemonic = null;
+
     this._pendingSend = null;
+
+    // Clear all cached chain data
     this.clearLockTimer();
     this.set({ accountInfo: null, transactions: [] });
+
+    // Lock the Tauri vault session if available
+    import('./vault').then(v => {
+      if (v.isTauri()) {
+        import('./keystore').then(k => k.keystoreLock());
+      }
+    });
+
     this.navigate('matrix');
   }
 

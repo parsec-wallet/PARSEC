@@ -1199,6 +1199,16 @@
   margin-bottom: $spacing-2;
 }
 
+.parsec-dashboard__logout {
+  color: $color-danger !important;
+  font-size: $font-size-xs;
+  letter-spacing: 0.05em;
+
+  &:hover {
+    background: rgba($color-danger, 0.1) !important;
+  }
+}
+
 .parsec-dashboard__brand-row {
   display: flex;
   align-items: baseline;

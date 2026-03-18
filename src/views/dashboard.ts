@@ -47,7 +47,17 @@ export function dashboardView(): HTMLElement {
         cls: 'parsec-dashboard__nav',
         children: [
           btn('', { minimal: true, icon: 'help', onClick: () => store.navigate('docs') }),
-          btn('', { minimal: true, icon: 'lock', onClick: () => store.lock() }),
+          btn('Logout', {
+            minimal: true, icon: 'log-out', cls: 'parsec-dashboard__logout',
+            onClick: () => {
+              // Visual confirmation before clearing
+              const confirmed = confirm('Lock wallet and clear session?\n\nYour passphrase and all sensitive data will be wiped from memory. You will need your passphrase to re-enter.');
+              if (confirmed) {
+                store.lock();
+                toast('Session cleared. No trace.', 'success');
+              }
+            },
+          }),
           btn('', { minimal: true, icon: 'cog', onClick: () => store.navigate('settings') }),
         ],
       }),
