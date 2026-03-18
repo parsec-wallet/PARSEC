@@ -77,21 +77,28 @@ export function startPriceUpdates(onUpdate: (prices: CoinPrice[]) => void): () =
 }
 
 /**
- * Market activity index 0.0–1.0 derived from aggregate 24h price changes.
- * Calibrated to hourly feel:
- *   - Sideways (<0.5%/24h ≈ 0.02%/hr): 0.1 — slow, mesmerizing, nice and easy
- *   - Normal (~1%/24h ≈ 0.04%/hr): 0.25 — gentle flow
- *   - Moving (~1%/hr = 24%/24h): 0.55 — faster, noticeable urgency
- *   - Volatile (~5%/hr = 120%/24h): 0.85+ — very fast, frantic rain
- * The 24h change is what CoinGecko gives us. We scale it:
- *   1%/24h is calm. 24%/24h (≈1%/hr) is faster. 120%+ is very fast.
+ * Market activity index 0.0–1.0 from 24h price changes.
+ * CoinGecko gives us 24h change. Real crypto day calibration:
+ *
+ *   24h change    what it feels like           matrix speed
+ *   ─────────    ──────────────────           ────────────
+ *   < 1%         dead sideways                0.08 — slow, mesmerizing
+ *   1-2%         common, happens often        0.15 — gentle drift
+ *   3-5%         a move, getting interesting   0.30 — moderate flow
+ *   ~10%         normal day of getting it done 0.50 — working speed
+ *   15-20%       strong move                  0.65 — brisk
+ *   25%+         windy day (5%/hr territory)  0.80+ — fast, urgent
+ *   40%+         storm                        0.90+ — frantic
  */
 export function getMarketActivity(prices: CoinPrice[]): number {
-  if (prices.length === 0) return 0.1; // sideways default
-  const avgAbsChange = prices.reduce((sum, p) => sum + Math.abs(p.change24h), 0) / prices.length;
-  // Map: 0% → 0.08, 1% → 0.15, 5% → 0.3, 24% (1%/hr) → 0.55, 120% (5%/hr) → 0.85
-  const activity = 0.08 + Math.pow(avgAbsChange / 100, 0.5) * 2.5;
-  return Math.min(0.95, Math.max(0.08, activity));
+  if (prices.length === 0) return 0.08;
+  const avg = prices.reduce((sum, p) => sum + Math.abs(p.change24h), 0) / prices.length;
+  // Piecewise linear — calibrated to real crypto daily swings
+  if (avg <= 1) return 0.08 + avg * 0.07;          // 0-1% → 0.08-0.15
+  if (avg <= 5) return 0.15 + (avg - 1) * 0.0375;  // 1-5% → 0.15-0.30
+  if (avg <= 10) return 0.30 + (avg - 5) * 0.04;   // 5-10% → 0.30-0.50
+  if (avg <= 25) return 0.50 + (avg - 10) * 0.02;  // 10-25% → 0.50-0.80
+  return Math.min(0.95, 0.80 + (avg - 25) * 0.01); // 25%+ → 0.80-0.95
 }
 
 /**
