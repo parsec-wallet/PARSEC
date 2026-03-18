@@ -10,7 +10,7 @@ import { hasVault } from '../lib/crypto';
 import { isTauri } from '../lib/vault';
 import { fetchAccountInfo, microAlgosToAlgo } from '../lib/algorand/account';
 import { enrichAssets, formatAssetAmount } from '../lib/algorand/assets';
-import { startPriceUpdates, formatPrice, formatMarketCap, getMarketActivity, getMarketSentiment } from '../lib/prices';
+import { startPriceUpdates, formatPrice, formatMarketCap, getMarketActivity, getMarketSentiment, getMarketBreadth } from '../lib/prices';
 import type { CoinPrice } from '../lib/prices';
 import type { NetworkId } from '../types/wallet';
 
@@ -69,14 +69,38 @@ export function matrixView(): HTMLElement {
     updateGlyphSizes();
   }, { passive: false });
 
-  // Mouse
+  // Mouse + drag for bullet-time full rotation
   let mouseX = 0.5, mouseY = 0.5;
+  let isDragging = false;
+  let dragRotX = 0, dragRotY = 0; // accumulated rotation from drag
+  let dragVelX = 0, dragVelY = 0; // momentum
+  let lastDragMX = 0, lastDragMY = 0;
+
   container.addEventListener('mousemove', (e) => {
     mouseX = e.clientX / window.innerWidth;
     mouseY = 1.0 - e.clientY / window.innerHeight;
     if (gl) setUniform('u_mouse', mouseX, mouseY);
     checkGlyphHover(e.clientX, e.clientY);
+
+    if (isDragging) {
+      const dx = (e.clientX - lastDragMX) / window.innerWidth;
+      const dy = (e.clientY - lastDragMY) / window.innerHeight;
+      dragRotX += dx * 4.0;
+      dragRotY += dy * 3.0;
+      dragVelX = dx * 4.0;
+      dragVelY = dy * 3.0;
+      lastDragMX = e.clientX;
+      lastDragMY = e.clientY;
+    }
   });
+  container.addEventListener('mousedown', (e) => {
+    if ((e.target as HTMLElement).closest('.parsec-matrix__panel')) return; // don't drag on UI
+    isDragging = true;
+    lastDragMX = e.clientX;
+    lastDragMY = e.clientY;
+    container.style.cursor = 'grabbing';
+  });
+  container.addEventListener('mouseup', () => { isDragging = false; container.style.cursor = ''; });
   container.addEventListener('touchmove', (e) => {
     const t = e.touches[0];
     mouseX = t.clientX / window.innerWidth;
@@ -84,7 +108,7 @@ export function matrixView(): HTMLElement {
     if (gl) setUniform('u_mouse', mouseX, mouseY);
   }, { passive: true });
 
-  container.addEventListener('mouseleave', () => { tooltip.style.opacity = '0'; });
+  container.addEventListener('mouseleave', () => { tooltip.style.opacity = '0'; isDragging = false; });
 
   // Casual realtime price updates — market activity drives shader speed
   const stopPrices = startPriceUpdates(p => {
@@ -147,12 +171,31 @@ export function matrixView(): HTMLElement {
   function frame() {
     if (!gl || !program) return;
     const t = (performance.now() - startTime) * 0.001;
-    setUniform('u_time', t); setUniform('u_pill', pillUniform);
-    setUniform('u_zoom', zoom); setUniform('u_mouse', mouseX, mouseY);
+
+    // Momentum decay when not dragging — bullet-time spin continues then slows
+    if (!isDragging) {
+      dragRotX += dragVelX;
+      dragRotY += dragVelY;
+      dragVelX *= 0.96; // friction
+      dragVelY *= 0.96;
+      if (Math.abs(dragVelX) < 0.0001) dragVelX = 0;
+      if (Math.abs(dragVelY) < 0.0001) dragVelY = 0;
+    }
+
+    // Market breadth for shader
+    const breadth = prices.length > 0 ? getMarketBreadth(prices) : { greenPct: 50, redPct: 50, flatPct: 0 };
+
+    setUniform('u_time', t);
+    setUniform('u_pill', pillUniform);
+    setUniform('u_zoom', zoom);
+    setUniform('u_mouse', mouseX, mouseY);
     setUniform('u_activity', activityUniform);
     setUniform('u_sentiment', sentimentUniform);
+    setUniform('u_dragX', dragRotX);
+    setUniform('u_dragY', dragRotY);
+    setUniform('u_breadth', breadth.greenPct / 100.0); // 0=all red, 1=all green
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    // Drift glyphs slowly
+
     driftGlyphs(t);
     raf = requestAnimationFrame(frame);
   }
@@ -288,39 +331,70 @@ export function matrixView(): HTMLElement {
     pyramidLayer.innerHTML = '';
     if (prices.length < 10) return;
 
-    // Sort by 24h change to find winners and losers
     const sorted = [...prices].sort((a, b) => b.change24h - a.change24h);
-    const topWinner = sorted[0]; // #1 at the apex
-    const winners = sorted.slice(1, 5); // next 4 winners cascade right
-    const losers = sorted.slice(-4).reverse(); // 4 biggest losers cascade left
+    const topWinner = sorted[0];
 
-    // Apex — top of pyramid, center top
-    pyramidLayer.appendChild(pyramidCoin(topWinner, 50, 4, 1.3, true));
+    // Split: winners on right, losers on left
+    const winners = sorted.filter(c => c.change24h > 0);
+    const losers = sorted.filter(c => c.change24h <= 0).reverse(); // worst at bottom
 
-    // Winners cascade down the right side of the pyramid
-    winners.forEach((coin, i) => {
-      const x = 54 + (i + 1) * 8; // stepping right
-      const y = 8 + (i + 1) * 7;  // stepping down
-      const scale = 1.1 - i * 0.1;
-      pyramidLayer.appendChild(pyramidCoin(coin, x, y, scale, false));
+    // Apex — #1 winner at the top
+    pyramidLayer.appendChild(pyramidCoin(topWinner, 50, 3, 1.4, true));
+
+    // Winners cascade down the right — extend to screen edge
+    const maxWinners = Math.min(winners.length - 1, 15); // up to 15 winners
+    for (let i = 0; i < maxWinners; i++) {
+      const coin = winners[i + 1]; // skip apex
+      const rank = i + 1;
+      const x = 52 + rank * (48 / (maxWinners + 1)); // spread to right edge (100%)
+      const y = 5 + rank * (50 / (maxWinners + 1));   // cascade down to 55%
+      const scale = Math.max(0.5, 1.2 - rank * 0.04);
+      const opacity = Math.max(0.3, 1.0 - rank * 0.04);
+      pyramidLayer.appendChild(pyramidCoin(coin, x, y, scale, false, opacity));
+    }
+
+    // Losers cascade down the left — extend to screen edge
+    const maxLosers = Math.min(losers.length, 15);
+    for (let i = 0; i < maxLosers; i++) {
+      const coin = losers[i];
+      const rank = i + 1;
+      const x = 48 - rank * (48 / (maxLosers + 1)); // spread to left edge (0%)
+      const y = 5 + rank * (50 / (maxLosers + 1));
+      const scale = Math.max(0.5, 1.2 - rank * 0.04);
+      const opacity = Math.max(0.3, 1.0 - rank * 0.04);
+      pyramidLayer.appendChild(pyramidCoin(coin, x, y, scale, false, opacity));
+    }
+
+    // SVG lines — triangle from apex to edges
+    pyramidLayer.appendChild(pyramidLine(50, 5, 95, 52, '#10b981'));
+    pyramidLayer.appendChild(pyramidLine(50, 5, 5, 52, '#ef4444'));
+    pyramidLayer.appendChild(pyramidLine(5, 52, 95, 52, 'rgba(255,255,255,0.06)'));
+
+    // Bottom ticker — ALL coins in a row, Y position driven by % change
+    const tickerRow = el('div', { cls: 'parsec-pyramid__ticker' });
+    const tickerCoins = sorted.slice(0, 50); // top 50
+    tickerCoins.forEach((coin, i) => {
+      const xPct = 2 + (i / tickerCoins.length) * 96;
+      // Y: winners float up (60-70%), losers hang low (85-95%), center at 78%
+      const changeClamped = Math.max(-10, Math.min(10, coin.change24h));
+      const yPct = 78 - changeClamped * 1.5; // +10% → 63%, -10% → 93%
+      const isUp = coin.change24h >= 0;
+      const color = isUp ? '#10b981' : '#ef4444';
+      const size = Math.max(8, 11 - Math.abs(i - 25) * 0.08);
+
+      tickerRow.appendChild(el('div', {
+        cls: 'parsec-pyramid__ticker-coin',
+        attrs: {
+          style: `left:${xPct}%;top:${yPct}%;font-size:${size}px;color:${color}`,
+          title: `${coin.symbol} ${formatPrice(coin.usd)} ${coin.change24h >= 0 ? '+' : ''}${coin.change24h.toFixed(1)}%`,
+        },
+        text: coin.symbol,
+      }));
     });
-
-    // Draw pyramid line (winners side)
-    pyramidLayer.appendChild(pyramidLine(50, 6, 54 + 4 * 8, 8 + 4 * 7, '#10b981'));
-
-    // Losers cascade down the left side
-    losers.forEach((coin, i) => {
-      const x = 46 - (i + 1) * 8; // stepping left
-      const y = 8 + (i + 1) * 7;  // stepping down
-      const scale = 1.1 - i * 0.1;
-      pyramidLayer.appendChild(pyramidCoin(coin, x, y, scale, false));
-    });
-
-    // Draw pyramid line (losers side)
-    pyramidLayer.appendChild(pyramidLine(50, 6, 46 - 4 * 8, 8 + 4 * 7, '#ef4444'));
+    pyramidLayer.appendChild(tickerRow);
   }
 
-  function pyramidCoin(coin: CoinPrice, xPct: number, yPct: number, scale: number, isApex: boolean): HTMLElement {
+  function pyramidCoin(coin: CoinPrice, xPct: number, yPct: number, scale: number, isApex: boolean, opacity = 1): HTMLElement {
     const isUp = coin.change24h >= 0;
     const color = isUp ? '#10b981' : '#ef4444';
     const sign = isUp ? '+' : '';
@@ -329,7 +403,7 @@ export function matrixView(): HTMLElement {
     return el('div', {
       cls,
       attrs: {
-        style: `left:${xPct}%;top:${yPct}%;transform:translate(-50%,-50%) scale(${scale})`,
+        style: `left:${xPct}%;top:${yPct}%;transform:translate(-50%,-50%) scale(${scale});opacity:${opacity}`,
       },
       children: [
         el('div', { cls: 'parsec-pyramid__symbol', text: coin.symbol }),
@@ -715,6 +789,9 @@ uniform float u_zoom;
 uniform vec2 u_mouse;
 uniform float u_activity;
 uniform float u_sentiment;
+uniform float u_dragX;    // accumulated drag rotation X
+uniform float u_dragY;    // accumulated drag rotation Y
+uniform float u_breadth;  // market breadth: 0=all red, 1=all green
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -750,25 +827,28 @@ void main() {
   float timeScale = 0.15 + act * 0.85;
   float t = u_time * timeScale;
 
-  // ── 3D rotation + axis spin ──────────────────────────────
+  // ── 3D rotation — drag for bullet-time full spin ──────────
   vec2 centered = (fragCoord / res - 0.5) * 2.0;
 
-  // Slow world rotation from time — gentle spin on Y axis
-  float rotAngle = u_time * 0.015;
+  // World rotation: slow auto-spin + drag momentum
+  float rotAngle = u_time * 0.015 + u_dragX;
+  float rotPitch = u_dragY * 0.3;
   float cosR = cos(rotAngle);
   float sinR = sin(rotAngle);
+  float cosP = cos(rotPitch);
+  float sinP = sin(rotPitch);
 
-  // Mouse-driven tilt — interaction tilts the perspective
-  float tiltX = (u_mouse.x - 0.5) * 0.08;
-  float tiltY = (u_mouse.y - 0.5) * 0.06;
+  // Mouse hover tilt (subtle, on top of drag)
+  float tiltX = (u_mouse.x - 0.5) * 0.06;
+  float tiltY = (u_mouse.y - 0.5) * 0.04;
 
-  // Apply rotation + tilt as pseudo-3D projection
-  float perspZ = 1.0 + centered.y * (0.12 + tiltY) + centered.x * tiltX;
+  // Full 3D projection: yaw (drag X) + pitch (drag Y) + tilt (mouse)
+  float perspZ = 1.0 + centered.y * (0.12 + tiltY + sinP * 0.2) + centered.x * (tiltX + sinR * 0.05);
   vec2 rotated = vec2(
-    centered.x * cosR - centered.y * sinR * 0.03,
-    centered.y + centered.x * sinR * 0.02
+    centered.x * cosR - centered.y * sinR * 0.06,
+    centered.y * cosP + centered.x * sinR * 0.04
   );
-  vec2 warped = (rotated * 0.5 + 0.5) * res / perspZ;
+  vec2 warped = (rotated * 0.5 + 0.5) * res / max(perspZ, 0.3);
 
   // ── Glitch from proximity to interaction point ───────────
   vec2 mousePos = u_mouse * res;

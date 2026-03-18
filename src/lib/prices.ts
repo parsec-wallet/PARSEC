@@ -106,6 +106,41 @@ export function getMarketSentiment(prices: CoinPrice[]): number {
   return Math.max(-1.0, Math.min(1.0, weightedChange / 5.0));
 }
 
+/** Market breadth — what % of coins are green vs red */
+export function getMarketBreadth(prices: CoinPrice[]): { greenPct: number; redPct: number; flatPct: number } {
+  if (prices.length === 0) return { greenPct: 0, redPct: 0, flatPct: 100 };
+  const green = prices.filter(p => p.change24h > 0.5).length;
+  const red = prices.filter(p => p.change24h < -0.5).length;
+  const flat = prices.length - green - red;
+  return {
+    greenPct: Math.round((green / prices.length) * 100),
+    redPct: Math.round((red / prices.length) * 100),
+    flatPct: Math.round((flat / prices.length) * 100),
+  };
+}
+
+/** Total market cap from tracked coins */
+export function getTotalMarketCap(prices: CoinPrice[]): number {
+  return prices.reduce((s, p) => s + p.marketCap, 0);
+}
+
+/** BTC dominance % */
+export function getBtcDominance(prices: CoinPrice[]): number {
+  const total = getTotalMarketCap(prices);
+  if (total === 0) return 0;
+  const btc = prices.find(p => p.symbol === 'BTC');
+  return btc ? (btc.marketCap / total) * 100 : 0;
+}
+
+/** Sector groupings for sorting */
+export function categorize(coin: CoinPrice): string {
+  const s = coin.symbol;
+  if (['USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FDUSD', 'PYUSD'].includes(s)) return 'stable';
+  if (['BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'AVAX', 'DOT', 'MATIC', 'ALGO'].includes(s)) return 'major';
+  if (['DOGE', 'SHIB', 'PEPE', 'FLOKI', 'BONK', 'WIF'].includes(s)) return 'meme';
+  return 'alt';
+}
+
 export function formatMarketCap(cap: number): string {
   if (cap >= 1e12) return '$' + (cap / 1e12).toFixed(1) + 'T';
   if (cap >= 1e9) return '$' + (cap / 1e9).toFixed(1) + 'B';
