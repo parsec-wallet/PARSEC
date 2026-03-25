@@ -7,6 +7,7 @@ import './styles/main.scss';
 
 import { registerView, mountRouter } from './lib/router';
 import { store } from './lib/store';
+import { matrixView } from './views/matrix';
 import { onboardingView } from './views/onboarding';
 import { createWalletView } from './views/create-wallet';
 import { verifyMnemonicView } from './views/verify-mnemonic';
@@ -20,8 +21,14 @@ import { addAssetView } from './views/add-asset';
 import { swapView } from './views/swap';
 import { docsView } from './views/docs';
 import { settingsView } from './views/settings';
+import { pmvpnView } from './views/pmvpn';
+import { x402ConfirmView } from './views/x402-confirm';
+import { agentsView } from './views/agents';
+import { identityView } from './views/identity';
+import './styles/pmvpn.scss';
 
 // Register all views
+registerView('matrix', matrixView);
 registerView('onboarding', onboardingView);
 registerView('create-wallet', createWalletView);
 registerView('verify-mnemonic', verifyMnemonicView);
@@ -35,6 +42,10 @@ registerView('add-asset', addAssetView);
 registerView('swap', swapView);
 registerView('docs', docsView);
 registerView('settings', settingsView);
+registerView('pmvpn', pmvpnView);
+registerView('x402-confirm', x402ConfirmView);
+registerView('agents', agentsView);
+registerView('identity', identityView);
 
 // Mount
 const root = document.getElementById('root');

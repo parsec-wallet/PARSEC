@@ -20,4 +20,16 @@ export default defineConfig(async () => ({
       ignored: ["**/src-tauri/**"],
     },
   },
+  build: {
+    // Split heavy deps into separate chunks for caching
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          algosdk: ["algosdk"],
+          blueprint: ["@blueprintjs/core", "@blueprintjs/icons"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
 }));

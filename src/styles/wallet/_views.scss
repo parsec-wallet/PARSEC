@@ -4,6 +4,1583 @@
 
 @use '../abstracts' as *;
 
+// ==========================================================================
+// MATRIX ENTRY GATE
+// ==========================================================================
+
+.parsec-matrix {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.parsec-matrix__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.parsec-matrix__overlay {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgb(0 0 0 / 20%) 0%, rgb(0 0 0 / 70%) 100%);
+  pointer-events: none;
+}
+
+.parsec-matrix__panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  padding: $spacing-6;
+  pointer-events: none;
+
+  // Allow clicks through to pyramid when pills are flanking
+  > * {
+    pointer-events: auto;
+  }
+
+  // Full-screen mode: pill choice, diagnostics, or wallet login
+  &--fullscreen {
+    inset: 0;
+    background: rgb(0 0 0 / 85%);
+    backdrop-filter: blur(12px);
+    pointer-events: auto;
+    overflow-y: auto;
+  }
+}
+
+// ── Flanking Pills (left/right of pyramid) ──────────────
+.parsec-matrix__pill-flank {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: grab;
+  padding: $spacing-6;
+  border-radius: 16px;
+  border: 1px solid rgb(255 255 255 / 10%);
+  background: rgb(0 0 0 / 60%);
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
+  user-select: none;
+
+  &:hover {
+    background: rgb(0 0 0 / 80%);
+    transform: translateY(-50%) scale(1.05);
+  }
+
+  &--blue {
+    left: 3%;
+
+    &:hover {
+      border-color: rgb(59 130 246 / 50%);
+      box-shadow: 0 0 30px rgb(59 130 246 / 20%);
+    }
+
+    .parsec-matrix__pill-capsule {
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      box-shadow: 0 0 20px rgb(59 130 246 / 40%);
+    }
+
+    .parsec-matrix__pill-label {
+      color: #93c5fd;
+    }
+  }
+
+  &--red {
+    right: 3%;
+
+    &:hover {
+      border-color: rgb(239 68 68 / 50%);
+      box-shadow: 0 0 30px rgb(239 68 68 / 20%);
+    }
+
+    .parsec-matrix__pill-capsule {
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      box-shadow: 0 0 20px rgb(239 68 68 / 40%);
+    }
+
+    .parsec-matrix__pill-label {
+      color: #fca5a5;
+    }
+  }
+
+  .parsec-matrix__pill-capsule {
+    width: 48px;
+    height: 24px;
+    border-radius: 9999px;
+    margin-bottom: $spacing-3;
+  }
+
+  .parsec-matrix__pill-label {
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    letter-spacing: 0.1em;
+    margin-bottom: $spacing-1;
+  }
+
+  .parsec-matrix__pill-desc {
+    font-size: $font-size-xs;
+    color: rgb(255 255 255 / 40%);
+  }
+
+  @media (width <= 768px) {
+    top: auto;
+    transform: none;
+    width: 45%;
+
+    &--blue {
+      left: 2%;
+      bottom: 80px;
+    }
+
+    &--red {
+      right: 2%;
+      bottom: 80px;
+    }
+  }
+}
+
+.parsec-matrix__brand {
+  font-size: 3rem;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.2em;
+  color: #fff;
+  text-shadow: 0 0 40px rgb(16 255 90 / 50%), 0 0 80px rgb(16 255 90 / 20%);
+  margin-bottom: $spacing-4;
+
+  // Floating standalone draggable brand
+  &--floating {
+    position: absolute;
+    top: 2%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9;
+    font-size: 2rem;
+    padding: 8px 24px;
+    background: rgb(0 0 0 / 40%);
+    border: 1px solid rgb(16 255 90 / 15%);
+    border-radius: 8px;
+    cursor: grab;
+    user-select: none;
+    transition: background 0.2s;
+
+    &:hover {
+      background: rgb(0 0 0 / 60%);
+      border-color: rgb(16 255 90 / 30%);
+    }
+
+    &:active {
+      cursor: grabbing;
+    }
+  }
+}
+
+.parsec-matrix__brand-hint {
+  font-size: $font-size-xs;
+  color: rgb(16 255 90 / 50%);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: $spacing-4;
+  text-align: center;
+}
+
+.parsec-matrix__tagline {
+  color: rgb(255 255 255 / 50%);
+  font-size: $font-size-sm;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: $spacing-8;
+}
+
+// Full-screen centered pill choice container
+.parsec-matrix__pill-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.parsec-matrix__pill-screen-brand {
+  font-size: 3rem;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.2em;
+  color: #fff;
+  text-shadow: 0 0 40px rgb(16 255 90 / 50%), 0 0 80px rgb(16 255 90 / 20%);
+  margin-bottom: $spacing-6;
+}
+
+.parsec-matrix__pills {
+  display: flex;
+  gap: $spacing-8;
+  margin-bottom: $spacing-8;
+}
+
+.parsec-matrix__pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  padding: $spacing-6;
+  border-radius: $border-radius-2xl;
+  border: 1px solid rgb(255 255 255 / 10%);
+  background: rgb(0 0 0 / 50%);
+  backdrop-filter: blur(12px);
+  transition: all 0.3s ease;
+  min-width: 160px;
+
+  &:hover {
+    transform: translateY(-4px);
+    border-color: rgb(255 255 255 / 20%);
+  }
+}
+
+.parsec-matrix__pill--red {
+  &:hover {
+    border-color: rgb(239 68 68 / 50%);
+    box-shadow: 0 0 30px rgb(239 68 68 / 20%);
+  }
+
+  .parsec-matrix__pill-capsule {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    box-shadow: 0 0 20px rgb(239 68 68 / 40%);
+  }
+
+  .parsec-matrix__pill-label {
+    color: #fca5a5;
+  }
+}
+
+.parsec-matrix__pill--blue {
+  &:hover {
+    border-color: rgb(59 130 246 / 50%);
+    box-shadow: 0 0 30px rgb(59 130 246 / 20%);
+  }
+
+  .parsec-matrix__pill-capsule {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    box-shadow: 0 0 20px rgb(59 130 246 / 40%);
+  }
+
+  .parsec-matrix__pill-label {
+    color: #93c5fd;
+  }
+}
+
+.parsec-matrix__pill-capsule {
+  width: 48px;
+  height: 24px;
+  border-radius: $border-radius-full;
+  margin-bottom: $spacing-3;
+}
+
+.parsec-matrix__pill-label {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.1em;
+  margin-bottom: $spacing-1;
+}
+
+.parsec-matrix__pill-desc {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 40%);
+}
+
+.parsec-matrix__choice-label {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.2em;
+  margin-bottom: $spacing-3;
+
+  &--red { color: #fca5a5; }
+  &--blue { color: #93c5fd; }
+}
+
+.parsec-matrix__lead {
+  color: rgb(255 255 255 / 60%);
+  font-size: $font-size-sm;
+  margin-bottom: $spacing-6;
+  max-width: 360px;
+  text-align: center;
+}
+
+.parsec-matrix__input {
+  width: 100%;
+  max-width: 320px;
+  padding: $spacing-3 $spacing-4;
+  background: rgb(0 0 0 / 60%);
+  border: 1px solid rgb(255 255 255 / 15%);
+  border-radius: $border-radius-xl;
+  color: #fff;
+  font-size: $font-size-base;
+  text-align: center;
+  letter-spacing: 0.1em;
+  margin-bottom: $spacing-4;
+  backdrop-filter: blur(8px);
+
+  &:focus {
+    border-color: rgb(239 68 68 / 50%);
+    box-shadow: 0 0 20px rgb(239 68 68 / 15%);
+    outline: none;
+  }
+
+  &::placeholder {
+    color: rgb(255 255 255 / 25%);
+    letter-spacing: 0.05em;
+  }
+}
+
+.parsec-matrix__action {
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: $spacing-3;
+  border-radius: $border-radius-xl !important;
+
+  &--red {
+    background: linear-gradient(135deg, #dc2626, #991b1b) !important;
+    border-color: rgb(239 68 68 / 30%) !important;
+    box-shadow: 0 0 20px rgb(239 68 68 / 20%);
+  }
+
+  &--blue {
+    background: linear-gradient(135deg, #2563eb, #1e40af) !important;
+    border-color: rgb(59 130 246 / 30%) !important;
+    box-shadow: 0 0 20px rgb(59 130 246 / 20%);
+  }
+}
+
+.parsec-matrix__note {
+  color: rgb(255 255 255 / 35%);
+  font-size: $font-size-xs;
+  max-width: 300px;
+  text-align: center;
+  margin-top: $spacing-2;
+}
+
+.parsec-matrix__back {
+  margin-top: $spacing-6;
+
+  a {
+    color: rgb(255 255 255 / 30%);
+    font-size: $font-size-xs;
+    text-decoration: none;
+    letter-spacing: 0.1em;
+
+    &:hover {
+      color: rgb(255 255 255 / 60%);
+    }
+  }
+}
+
+.parsec-matrix__footer-text {
+  color: rgb(255 255 255 / 20%);
+  font-size: $font-size-xs;
+  letter-spacing: 0.08em;
+}
+
+// Pyramid — winners right, losers left, apex top
+.parsec-matrix__pyramid {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+}
+
+// Brick pyramid — wide base to single apex, centered on screen
+.parsec-pyramid__body {
+  position: absolute;
+  top: 8%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  pointer-events: auto;
+  z-index: 5;
+  width: 98%;
+  max-width: 1200px;
+  padding-top: 8px;
+}
+
+.parsec-pyramid__row {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  flex-wrap: nowrap;
+}
+
+.parsec-pyramid__row--apex {
+  margin-bottom: 4px;
+}
+
+.parsec-pyramid__row--base {
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 4px;
+  opacity: 0.65;
+}
+
+// Brick card — each coin is a block in the pyramid step
+.parsec-pyramid__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 12px;
+  background: rgb(255 255 255 / 4%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 3px;
+  cursor: crosshair;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+  min-width: 64px;
+  flex: 1;
+  max-width: 140px;
+
+  &:hover {
+    background: rgb(255 255 255 / 10%);
+    border-color: rgb(255 255 255 / 25%);
+    transform: translateY(-2px);
+    z-index: 20;
+  }
+}
+
+.parsec-pyramid__card--apex {
+  padding: 10px 24px;
+  background: rgb(16 185 129 / 8%);
+  border-color: rgb(16 185 129 / 30%);
+  border-width: 2px;
+  filter: brightness(1.3);
+  min-width: 100px;
+  max-width: 180px;
+
+  .parsec-pyramid__card-icon {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .parsec-pyramid__card-symbol {
+    font-size: 1.3em;
+    color: rgb(255 255 255 / 95%);
+  }
+
+  .parsec-pyramid__card-price {
+    font-size: 0.95em;
+    color: rgb(255 255 255 / 70%);
+  }
+
+  .parsec-pyramid__card-change {
+    font-size: 0.8em;
+  }
+
+  &:hover {
+    background: rgb(16 185 129 / 15%);
+    border-color: rgb(16 185 129 / 50%);
+    box-shadow: 0 0 24px rgb(16 185 129 / 20%);
+  }
+}
+
+.parsec-pyramid__card-icon {
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 2px;
+  filter: brightness(0.9);
+
+  &--fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    font-size: 0.6em;
+    font-weight: 700;
+    font-family: $font-family-mono;
+  }
+}
+
+// ── Wallet Summary (Red Pill logged-in view) ────────────
+.parsec-matrix__wallet-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #10b981;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.15em;
+  margin-bottom: $spacing-3;
+}
+
+.parsec-matrix__wallet-dot {
+  width: 8px;
+  height: 8px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.parsec-matrix__wallet-address {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  color: rgb(255 255 255 / 70%);
+  cursor: pointer;
+  padding: 4px 12px;
+  background: rgb(255 255 255 / 5%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: $border-radius-lg;
+  margin-bottom: $spacing-4;
+  text-align: center;
+
+  &:hover {
+    background: rgb(255 255 255 / 10%);
+    color: #fff;
+  }
+}
+
+.parsec-matrix__wallet-summary {
+  width: 100%;
+  max-width: 360px;
+  margin-bottom: $spacing-4;
+}
+
+.parsec-matrix__wallet-balance {
+  text-align: center;
+  margin-bottom: $spacing-4;
+}
+
+.parsec-matrix__wallet-balance-label {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 40%);
+  letter-spacing: 0.15em;
+  margin-bottom: 2px;
+}
+
+.parsec-matrix__wallet-balance-value {
+  font-family: $font-family-mono;
+  font-size: 1.4rem;
+  font-weight: $font-weight-bold;
+  color: #fff;
+}
+
+.parsec-matrix__wallet-balance-usd {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  color: rgb(255 255 255 / 50%);
+}
+
+.parsec-matrix__wallet-assets {
+  border-top: 1px solid rgb(255 255 255 / 8%);
+  padding-top: $spacing-3;
+}
+
+.parsec-matrix__wallet-assets-label {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 40%);
+  letter-spacing: 0.15em;
+  margin-bottom: $spacing-2;
+}
+
+.parsec-matrix__wallet-asset-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+}
+
+.parsec-matrix__wallet-asset-name {
+  color: rgb(255 255 255 / 70%);
+  font-weight: $font-weight-semibold;
+  min-width: 60px;
+}
+
+.parsec-matrix__wallet-asset-amount {
+  color: rgb(255 255 255 / 50%);
+  flex: 1;
+  text-align: right;
+}
+
+.parsec-matrix__wallet-asset-usd {
+  color: rgb(255 255 255 / 35%);
+  min-width: 70px;
+  text-align: right;
+}
+
+.parsec-matrix__wallet-asset-more {
+  color: rgb(255 255 255 / 30%);
+  font-size: $font-size-xs;
+  text-align: center;
+  padding-top: $spacing-2;
+}
+
+.parsec-pyramid__card-symbol {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: 0.75em;
+  color: rgb(255 255 255 / 75%);
+  letter-spacing: 0.04em;
+}
+
+.parsec-pyramid__card-price {
+  font-family: $font-family-mono;
+  font-size: 0.6em;
+  color: rgb(255 255 255 / 40%);
+}
+
+.parsec-pyramid__card-change {
+  font-family: $font-family-mono;
+  font-size: 0.55em;
+  font-weight: $font-weight-semibold;
+}
+
+// Legacy absolute-positioned coins (still used by pyramidCoin function)
+.parsec-pyramid__coin {
+  position: absolute;
+  text-align: center;
+  pointer-events: auto;
+  cursor: crosshair;
+  transition: transform 0.5s ease, opacity 0.5s ease;
+
+  &:hover {
+    transform: translate(-50%, -50%) scale(1.4) !important;
+    z-index: 20;
+  }
+}
+
+.parsec-pyramid__coin--apex {
+  filter: brightness(1.3);
+
+  .parsec-pyramid__symbol {
+    font-size: 1em;
+    color: rgb(255 255 255 / 90%);
+  }
+}
+
+.parsec-pyramid__symbol {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-sm;
+  color: rgb(255 255 255 / 70%);
+  letter-spacing: 0.05em;
+}
+
+.parsec-pyramid__price {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 40%);
+}
+
+.parsec-pyramid__change {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-pyramid__line {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+// Featured winners — right side detail
+.parsec-pyramid__feature {
+  position: absolute;
+  pointer-events: auto;
+
+  &--right {
+    top: 8%;
+    right: 3%;
+    text-align: right;
+  }
+}
+
+.parsec-pyramid__feature-coin {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 50%);
+  padding: 2px 0;
+}
+
+.parsec-pyramid__feature-symbol {
+  font-weight: $font-weight-bold;
+  color: rgb(255 255 255 / 70%);
+}
+
+.parsec-pyramid__feature-change {
+  font-weight: $font-weight-semibold;
+}
+
+// Stablecoin Ship — liquidity vessel, bottom-left corner
+.parsec-ship {
+  position: absolute;
+  bottom: 2px;
+  left: 3%;
+  width: 9%;
+  min-width: 120px;
+  pointer-events: auto;
+  animation: parsec-ship-float 6s ease-in-out infinite;
+  cursor: grab;
+  user-select: none;
+  z-index: 7;
+
+  &:active { cursor: grabbing; animation: none; }
+}
+
+@keyframes parsec-ship-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+.parsec-ship__hull {
+  position: relative;
+  background: linear-gradient(180deg, rgb(15 23 42 / 80%) 0%, rgb(15 23 42 / 95%) 100%);
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-bottom: 3px solid rgb(59 130 246 / 25%);
+  border-radius: $border-radius-xl $border-radius-xl 40% 40%;
+  padding: $spacing-1 $spacing-2 $spacing-2;
+  backdrop-filter: blur(8px);
+}
+
+.parsec-ship__mast {
+  text-align: center;
+  padding: $spacing-1 0;
+  border-bottom: 1px solid rgb(255 255 255 / 5%);
+  margin-bottom: $spacing-1;
+}
+
+.parsec-ship__flag {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-base;
+  color: rgb(59 130 246 / 80%);
+  letter-spacing: 0.03em;
+}
+
+.parsec-ship__flag-label {
+  font-size: 0.45em;
+  letter-spacing: 0.2em;
+  color: rgb(255 255 255 / 25%);
+  text-transform: uppercase;
+}
+
+.parsec-ship__deck {
+  display: flex;
+  gap: 1px;
+  min-height: 18px;
+  align-items: stretch;
+}
+
+.parsec-ship__cargo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 4px;
+  border-radius: $border-radius-sm;
+  background: rgb(59 130 246 / 8%);
+  border: 1px solid rgb(59 130 246 / 10%);
+  min-width: 0;
+  overflow: hidden;
+  cursor: crosshair;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgb(59 130 246 / 18%);
+    border-color: rgb(59 130 246 / 30%);
+    transform: translateY(-2px);
+  }
+
+  &--gold {
+    background: rgb(245 158 11 / 8%);
+    border-color: rgb(245 158 11 / 15%);
+
+    &:hover {
+      background: rgb(245 158 11 / 18%);
+      border-color: rgb(245 158 11 / 35%);
+    }
+
+    .parsec-ship__cargo-symbol {
+      color: #f59e0b;
+      font-size: 0.8em;
+    }
+
+    .parsec-ship__cargo-cap {
+      font-size: 0.6em;
+      color: rgb(245 158 11 / 40%);
+    }
+  }
+}
+
+.parsec-ship__cargo-symbol {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: 0.6em;
+  color: rgb(59 130 246 / 70%);
+  white-space: nowrap;
+}
+
+.parsec-ship__cargo-cap {
+  font-size: 0.5em;
+  color: rgb(255 255 255 / 25%);
+  white-space: nowrap;
+}
+
+// ── Top 10 Assets — vertical column down the left side ──────────
+.parsec-fleet-column {
+  position: absolute;
+  top: 8%;
+  left: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: auto;
+  z-index: 9;
+  cursor: grab;
+  user-select: none;
+  background: rgb(0 0 0 / 40%);
+  border: 1px solid rgb(255 255 255 / 6%);
+  border-radius: 8px;
+  padding: 6px;
+  backdrop-filter: blur(2px);
+
+  &:active { cursor: grabbing; }
+}
+
+.parsec-fleet-column__header {
+  font-family: $font-family-mono;
+  font-size: 0.6em;
+  font-weight: $font-weight-bold;
+  color: rgb(255 255 255 / 30%);
+  letter-spacing: 0.2em;
+  text-align: center;
+  padding-bottom: 3px;
+  border-bottom: 1px solid rgb(255 255 255 / 6%);
+  margin-bottom: 2px;
+}
+
+.parsec-fleet-column__coin {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px;
+  border-radius: $border-radius-sm;
+  cursor: crosshair;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgb(255 255 255 / 8%);
+  }
+
+  &--algo {
+    background: rgb(16 185 129 / 6%);
+
+    &:hover {
+      background: rgb(16 185 129 / 12%);
+    }
+  }
+}
+
+.parsec-fleet-column__rank {
+  font-family: $font-family-mono;
+  font-size: 0.55em;
+  color: rgb(255 255 255 / 25%);
+  min-width: 14px;
+  text-align: right;
+}
+
+.parsec-fleet-column__icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+
+  &--fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgb(255 255 255 / 10%);
+    color: rgb(255 255 255 / 60%);
+    font-size: 0.6em;
+    font-weight: 700;
+    font-family: $font-family-mono;
+  }
+}
+
+.parsec-fleet-column__symbol {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: 0.75em;
+  color: rgb(255 255 255 / 80%);
+  min-width: 40px;
+
+  .parsec-fleet-column__coin--algo & {
+    color: rgb(16 185 129 / 85%);
+  }
+}
+
+.parsec-fleet-column__price {
+  font-family: $font-family-mono;
+  font-size: 0.65em;
+  color: rgb(255 255 255 / 45%);
+  min-width: 55px;
+  text-align: right;
+}
+
+.parsec-fleet-column__change {
+  font-family: $font-family-mono;
+  font-size: 0.6em;
+  font-weight: $font-weight-semibold;
+  min-width: 45px;
+  text-align: right;
+}
+
+// Legacy top3 styles (kept for backward compat if referenced elsewhere)
+.parsec-fleet-top3__price {
+  font-family: $font-family-mono;
+  font-size: 0.7em;
+  color: rgb(255 255 255 / 50%);
+}
+
+.parsec-fleet-top3__change {
+  font-family: $font-family-mono;
+  font-size: 0.6em;
+  font-weight: $font-weight-semibold;
+}
+
+// Legacy fleet styles removed — replaced by parsec-fleet-column
+
+// Remove old badge styles — replaced by fleet
+.parsec-ship__badge {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3px 8px;
+  background: rgb(255 255 255 / 3%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: $border-radius-md;
+  white-space: nowrap;
+
+  &--right {
+    right: -115%;
+  }
+
+  &--left {
+    left: -115%;
+
+    &:nth-child(2) { // second left badge — stack below
+      left: -115%;
+      top: calc(50% + 36px);
+    }
+  }
+
+  &--algo {
+    background: rgb(16 185 129 / 6%);
+    border-color: rgb(16 185 129 / 20%);
+  }
+}
+
+.parsec-ship__badge-label {
+  font-size: 0.4em;
+  letter-spacing: 0.15em;
+  color: rgb(16 185 129 / 40%);
+  text-transform: uppercase;
+}
+
+.parsec-ship__badge-symbol {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: 0.7em;
+  color: rgb(255 255 255 / 70%);
+
+  .parsec-ship__badge--algo & {
+    color: rgb(16 185 129 / 80%);
+  }
+}
+
+.parsec-ship__badge-price {
+  font-family: $font-family-mono;
+  font-size: 0.6em;
+  color: rgb(255 255 255 / 50%);
+}
+
+.parsec-ship__badge-change {
+  font-family: $font-family-mono;
+  font-size: 0.5em;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-ship__waterline {
+  position: absolute;
+  bottom: -6px;
+  left: 10%;
+  right: 10%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, rgb(59 130 246 / 20%), rgb(59 130 246 / 30%), rgb(59 130 246 / 20%), transparent);
+  border-radius: 50%;
+}
+
+.parsec-pyramid__ticker {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.parsec-pyramid__ticker-coin {
+  position: absolute;
+  font-family: $font-family-mono;
+  font-weight: $font-weight-semibold;
+  pointer-events: auto;
+  cursor: crosshair;
+  transition: top 1s ease, color 0.5s ease;
+  user-select: none;
+  opacity: 0.5;
+
+  &:hover {
+    opacity: 1;
+    font-size: 14px !important;
+    z-index: 20;
+  }
+}
+
+// Coin info panel — hover detail card
+.parsec-coinpanel {
+  position: fixed;
+  z-index: 100;
+  background: rgb(10 15 26 / 95%);
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: $border-radius-xl;
+  padding: $spacing-3 $spacing-4;
+  backdrop-filter: blur(16px);
+  min-width: 160px;
+  pointer-events: none;
+  animation: parsec-panel-in 0.15s ease;
+}
+
+@keyframes parsec-panel-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.parsec-coinpanel__header {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-2;
+  margin-bottom: $spacing-1;
+}
+
+.parsec-coinpanel__symbol {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-base;
+  color: #fff;
+}
+
+.parsec-coinpanel__name {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 35%);
+  text-transform: capitalize;
+}
+
+.parsec-coinpanel__price {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  font-size: $font-size-lg;
+  color: #fff;
+  margin-bottom: 2px;
+}
+
+.parsec-coinpanel__change {
+  font-family: $font-family-mono;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-sm;
+  margin-bottom: $spacing-2;
+}
+
+.parsec-coinpanel__cap {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 30%);
+  margin-bottom: $spacing-2;
+}
+
+.parsec-coinpanel__links {
+  display: flex;
+  gap: $spacing-3;
+  pointer-events: auto;
+}
+
+// Crypto glyph overlay
+.parsec-matrix__glyph-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.parsec-matrix__crypto-glyph {
+  position: absolute;
+  font-family: $font-family-mono;
+  font-weight: $font-weight-bold;
+  pointer-events: auto;
+  cursor: crosshair;
+  transition: top 1.5s ease, color 0.5s ease, text-shadow 0.5s ease, transform 0.4s ease, opacity 0.5s ease;
+  user-select: none;
+  will-change: transform, top, opacity;
+
+  &:hover {
+    opacity: 1 !important;
+    text-shadow: 0 0 24px currentcolor, 0 0 48px currentcolor !important;
+    transform: scale(1.3) !important;
+  }
+
+  &--volatile {
+    animation: parsec-glyph-pulse 2s ease-in-out infinite;
+  }
+}
+
+.parsec-matrix__glyph-symbol {
+  display: block;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.05em;
+}
+
+.parsec-matrix__glyph-price {
+  display: block;
+  font-size: 0.6em;
+  opacity: 0.7;
+  font-weight: $font-weight-medium;
+}
+
+.parsec-matrix__glyph-change {
+  display: block;
+  font-size: 0.5em;
+  font-weight: $font-weight-semibold;
+}
+
+@keyframes parsec-glyph-pulse {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.4); }
+}
+
+// Price tooltip
+.parsec-matrix__tooltip {
+  position: fixed;
+  z-index: 50;
+  background: rgb(0 0 0 / 85%);
+  border: 1px solid rgb(16 255 90 / 30%);
+  border-radius: $border-radius-lg;
+  padding: $spacing-2 $spacing-3;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+  backdrop-filter: blur(8px);
+  min-width: 120px;
+}
+
+.parsec-matrix__tooltip-symbol {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-bold;
+  color: rgb(16 255 90 / 70%);
+  letter-spacing: 0.15em;
+}
+
+.parsec-matrix__tooltip-price {
+  font-size: $font-size-lg;
+  font-weight: $font-weight-bold;
+  color: #fff;
+  margin: 2px 0;
+}
+
+.parsec-matrix__tooltip-change {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-matrix__tooltip-cap {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 35%);
+  margin-top: 2px;
+}
+
+// Network activity feed (blue pill)
+.parsec-matrix__netfeed {
+  width: 100%;
+  max-width: 420px;
+  margin-bottom: $spacing-4;
+  background: rgb(0 0 0 / 60%);
+  border: 1px solid rgb(59 130 246 / 15%);
+  border-radius: $border-radius-xl;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+
+.parsec-matrix__netfeed-header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-2 $spacing-3;
+  border-bottom: 1px solid rgb(255 255 255 / 5%);
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  color: rgb(255 255 255 / 40%);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.parsec-matrix__netfeed-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  animation: parsec-dot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes parsec-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.parsec-matrix__netlog {
+  padding: $spacing-2 $spacing-3;
+  max-height: 180px;
+  overflow-y: auto;
+  font-family: $font-family-mono;
+  font-size: 0.7rem;
+  line-height: 1.6;
+
+  &::-webkit-scrollbar { width: 3px; }
+  &::-webkit-scrollbar-thumb { background: rgb(255 255 255 / 10%); border-radius: 3px; }
+}
+
+.parsec-matrix__netlog-line {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: rgb(255 255 255 / 50%);
+}
+
+.parsec-matrix__diag-usd-total {
+  font-size: $font-size-sm;
+  color: rgb(16 185 129 / 70%);
+  margin-bottom: $spacing-3;
+}
+
+.parsec-matrix__diag-breakdown {
+  border: 1px solid rgb(255 255 255 / 5%);
+  border-radius: $border-radius-md;
+  padding: $spacing-2;
+  margin-bottom: $spacing-3;
+}
+
+.parsec-matrix__diag-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 40%);
+
+  span:last-child {
+    font-family: $font-family-mono;
+    color: rgb(255 255 255 / 60%);
+  }
+
+  &--reward span:last-child {
+    color: $color-success;
+  }
+}
+
+.parsec-matrix__diag-portfolio {
+  font-size: $font-size-base;
+  font-weight: $font-weight-bold;
+  color: #10b981;
+  text-align: center;
+  padding: $spacing-2 0;
+  margin-bottom: $spacing-2;
+  border-top: 1px solid rgb(16 185 129 / 15%);
+  border-bottom: 1px solid rgb(16 185 129 / 15%);
+}
+
+.parsec-matrix__diag-badge {
+  font-size: 0.7em;
+  color: $color-warning;
+  margin-left: $spacing-1;
+}
+
+.parsec-matrix__diag-asset-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+}
+
+.parsec-matrix__diag-usd {
+  font-size: 0.75em;
+  color: rgb(16 185 129 / 50%);
+}
+
+// Diagnostics cards (blue pill)
+.parsec-matrix__diag {
+  width: 100%;
+  max-width: 460px;
+  margin-bottom: $spacing-4;
+
+  &--defi, &--market {
+    background: rgb(0 0 0 / 30%);
+    border: 1px solid rgb(255 255 255 / 6%);
+    border-radius: 8px;
+    padding: $spacing-4;
+  }
+}
+
+.parsec-matrix__diag-section-title {
+  font-family: $font-family-mono;
+  font-size: 0.6em;
+  font-weight: $font-weight-bold;
+  color: rgb(255 255 255 / 30%);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: $spacing-2;
+  padding-bottom: $spacing-1;
+  border-bottom: 1px solid rgb(255 255 255 / 6%);
+}
+
+.parsec-matrix__diag-subsection {
+  font-family: $font-family-mono;
+  font-size: 0.55em;
+  color: rgb(59 130 246 / 60%);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-top: $spacing-3;
+  margin-bottom: $spacing-1;
+}
+
+.parsec-matrix__diag-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+}
+
+.parsec-matrix__diag-row-label {
+  color: rgb(255 255 255 / 45%);
+}
+
+.parsec-matrix__diag-row-value {
+  color: rgb(255 255 255 / 75%);
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-matrix__diag-loading {
+  text-align: center;
+  color: rgb(255 255 255 / 30%);
+  font-size: $font-size-xs;
+  letter-spacing: 0.1em;
+}
+
+// Divider between sections in red pill
+.parsec-matrix__divider {
+  color: rgb(255 255 255 / 25%);
+  font-size: $font-size-xs;
+  text-align: center;
+  margin: $spacing-4 0;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.parsec-matrix__diag-card {
+  background: rgb(0 0 0 / 60%);
+  border: 1px solid rgb(59 130 246 / 20%);
+  border-radius: $border-radius-xl;
+  padding: $spacing-4;
+  backdrop-filter: blur(12px);
+}
+
+.parsec-matrix__diag-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-2;
+}
+
+.parsec-matrix__diag-name {
+  font-weight: $font-weight-semibold;
+  color: #93c5fd;
+  font-size: $font-size-sm;
+}
+
+.parsec-matrix__diag-addr {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 35%);
+}
+
+.parsec-matrix__diag-balance {
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+  color: #fff;
+  margin-bottom: $spacing-1;
+}
+
+.parsec-matrix__diag-meta {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 30%);
+  margin-bottom: $spacing-3;
+}
+
+.parsec-matrix__diag-asset {
+  display: flex;
+  justify-content: space-between;
+  padding: $spacing-1 0;
+  font-size: $font-size-sm;
+  color: rgb(255 255 255 / 60%);
+  border-top: 1px solid rgb(255 255 255 / 5%);
+
+  span:last-child {
+    font-family: $font-family-mono;
+    color: rgb(255 255 255 / 80%);
+  }
+}
+
+.parsec-matrix__diag-warn {
+  color: $color-warning;
+  font-size: $font-size-xs;
+  margin-top: $spacing-2;
+}
+
+.parsec-matrix__diag-error {
+  color: $color-danger;
+  font-size: $font-size-xs;
+  text-align: center;
+}
+
+// Chain selector (red pill — new user)
+.parsec-matrix__chain-section {
+  width: 100%;
+  max-width: 320px;
+  margin-bottom: $spacing-4;
+}
+
+.parsec-matrix__chain-title {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 40%);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-bottom: $spacing-3;
+  text-align: center;
+}
+
+.parsec-matrix__chain-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.parsec-matrix__chain-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: $spacing-3 $spacing-4;
+  background: rgb(0 0 0 / 50%);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: $border-radius-xl;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: rgb(239 68 68 / 40%);
+    background: rgb(239 68 68 / 8%);
+  }
+
+  &--disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+
+    &:hover {
+      border-color: rgb(255 255 255 / 10%);
+      background: rgb(0 0 0 / 50%);
+    }
+  }
+}
+
+.parsec-matrix__chain-name {
+  font-weight: $font-weight-semibold;
+  color: #fff;
+  font-size: $font-size-sm;
+}
+
+.parsec-matrix__chain-format {
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 35%);
+  font-family: $font-family-mono;
+}
+
+.parsec-matrix__chain-item--import {
+  border-color: rgb(16 255 90 / 25%) !important;
+
+  &:hover {
+    border-color: rgb(16 255 90 / 50%) !important;
+    background: rgb(16 255 90 / 8%) !important;
+  }
+
+  .parsec-matrix__chain-name {
+    color: rgb(16 255 90 / 80%);
+  }
+}
+
+.parsec-matrix__add-wallet {
+  margin-top: $spacing-6;
+  width: 100%;
+  max-width: 320px;
+}
+
+.parsec-matrix__add-wallet-divider {
+  text-align: center;
+  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 20%);
+  letter-spacing: 0.1em;
+  margin-bottom: $spacing-3;
+  position: relative;
+
+  &::before,
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 25%;
+    height: 1px;
+    background: rgb(255 255 255 / 10%);
+  }
+
+  &::before { left: 0; }
+  &::after { right: 0; }
+}
+
+// ==========================================================================
+// STANDARD VIEWS
+// ==========================================================================
+
 // Shared view structure
 .parsec-view {
   max-width: 480px;
@@ -61,7 +1638,6 @@
   margin-bottom: $spacing-4;
   background: linear-gradient(135deg, $color-primary 0%, $color-success 100%);
   background-clip: text;
-  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -87,6 +1663,14 @@
   gap: $spacing-3;
   width: 100%;
   max-width: 320px;
+}
+
+.parsec-onboarding__divider {
+  text-align: center;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  margin: $spacing-2 0;
+  letter-spacing: 0.1em;
 }
 
 .parsec-onboarding__footer {
@@ -251,6 +1835,29 @@
   margin-bottom: $spacing-2;
 }
 
+.parsec-dashboard__logout {
+  color: $color-danger !important;
+  font-size: $font-size-xs;
+  letter-spacing: 0.05em;
+
+  &:hover {
+    background: rgba($color-danger, 0.1) !important;
+  }
+}
+
+.parsec-dashboard__brand-row {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-3;
+}
+
+.parsec-dashboard__price-tag {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  font-weight: $font-weight-medium;
+}
+
 .parsec-dashboard__account {
   display: flex;
   align-items: center;
@@ -338,6 +1945,12 @@
 .parsec-dashboard__balance-value {
   font-size: $font-size-3xl;
   font-weight: $font-weight-bold;
+}
+
+.parsec-dashboard__balance-usd {
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  margin-top: 2px;
 }
 
 .parsec-dashboard__balance-min {
@@ -530,6 +2143,104 @@
 
 .parsec-swap__quote {
   margin-top: $spacing-4;
+}
+
+.parsec-swap__to-container {
+  min-height: 2.5rem;
+}
+
+.parsec-swap__pool-list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.parsec-swap__pool-card {
+  padding: $spacing-3;
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-lg;
+  cursor: pointer;
+  transition: all 0.15s ease;
+
+  &:hover {
+    border-color: rgba($color-warning, 0.4);
+    background: rgba($color-warning, 0.04);
+  }
+
+  &--selected {
+    border-color: $color-warning;
+    background: rgba($color-warning, 0.08);
+    box-shadow: 0 0 8px rgba($color-warning, 0.1);
+  }
+}
+
+.parsec-swap__pool-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.parsec-swap__pool-card-name {
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-sm;
+}
+
+.parsec-swap__pool-card-id {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-swap__pool-card-price {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: $color-warning;
+  margin-bottom: 2px;
+}
+
+.parsec-swap__pool-card-liq {
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-swap__loading {
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  padding: $spacing-2 0;
+}
+
+.parsec-swap__quote-card {
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-xl;
+  padding: $spacing-4;
+  margin-bottom: $spacing-3;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+
+  &--best {
+    border-color: $color-success;
+    box-shadow: 0 0 12px rgba($color-success, 0.15);
+  }
+}
+
+.parsec-swap__quote-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-2;
+}
+
+.parsec-swap__quote-dex {
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: var(--bp-text-color, $color-gray-900);
+}
+
+.parsec-swap__quote-action {
+  width: 100%;
+  margin-top: $spacing-3;
 }
 
 // ==========================================================================

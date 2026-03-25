@@ -1,8 +1,25 @@
 mod bankon_vault;
+mod pmvpn;
+mod parsec_search;
+mod parsec_mesh;
+mod parsec_throttle;
+mod parsec_sandbox;
+mod parsec_validate;
 
 use bankon_vault::VaultState;
 use bankon_vault::commands::*;
 use bankon_vault::tomb_commands::*;
+use pmvpn::PmvpnState;
+use pmvpn::commands::*;
+use parsec_search::SearchState;
+use parsec_search::commands::*;
+use parsec_mesh::MeshState;
+use parsec_mesh::commands::*;
+use parsec_throttle::ThrottleState;
+use parsec_throttle::commands::*;
+use parsec_sandbox::SandboxState;
+use parsec_sandbox::commands::*;
+use parsec_validate::commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -16,7 +33,18 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_os::init())
         .manage(VaultState::default())
+        .manage(PmvpnState::default())
+        .manage(SearchState::default())
+        .manage(MeshState::default())
+        .manage(ThrottleState::default())
+        .manage(SandboxState::default())
         .invoke_handler(tauri::generate_handler![
+            // pmvpn — wallet-authenticated SSH
+            pmvpn_connect,
+            pmvpn_disconnect,
+            pmvpn_send_data,
+            pmvpn_resize,
+            pmvpn_sign_challenge,
             // bankon_vault — file-based encrypted vault
             vault_status,
             vault_create,
@@ -35,6 +63,52 @@ pub fn run() {
             tomb_close,
             tomb_slam,
             tomb_status,
+            // parsec_search — PostgreSQL + pgvectorscale search engine
+            search_connect,
+            search_disconnect,
+            search_health,
+            search_index,
+            search_index_batch,
+            search_query,
+            search_delete,
+            search_delete_filter,
+            // parsec_mesh — P2P mesh (client = server) with IPFS handoffs
+            mesh_init,
+            mesh_start_server,
+            mesh_resources,
+            mesh_throttle,
+            mesh_set_budget,
+            mesh_resource_cost,
+            mesh_ipfs_add,
+            mesh_ipfs_get,
+            mesh_ipfs_status,
+            mesh_ipfs_pins,
+            // parsec_throttle — resource-aware API rate limiting
+            throttle_init,
+            throttle_check,
+            throttle_stats,
+            throttle_update_config,
+            throttle_reset_source,
+            throttle_reset_all,
+            // parsec_sandbox — dApp filesystem access (1-10 participant choice)
+            sandbox_init,
+            sandbox_level_info,
+            sandbox_all_levels,
+            sandbox_grant,
+            sandbox_revoke,
+            sandbox_update_level,
+            sandbox_check,
+            sandbox_get_permission,
+            sandbox_list_permissions,
+            sandbox_audit_log,
+            sandbox_dapp_path,
+            // parsec_validate — Rust-side chain address validators
+            validate_address_algorand,
+            validate_address_bitcoin,
+            validate_address_evm,
+            validate_address_solana,
+            validate_address_cosmos,
+            validate_address_any,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Parsec Wallet");
