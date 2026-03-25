@@ -1,7 +1,7 @@
 # Parsec Wallet — Development Plan
 
-> **Updated:** 2026-03-22
-> **Status:** Alpha — Algorand core functional, sovereign infrastructure modules landed
+> **Updated:** 2026-03-25
+> **Status:** Alpha — Matrix entry gate, x402 payments, AgenticPlace integration, tabbed diagnostics
 > **Vision:** The evolution of the cryptocurrency wallet. Sovereign, modular, Algorand-first. Every client is a server.
 
 ## Mission
@@ -14,9 +14,14 @@ Build Parsec as a sovereign universal wallet: Tauri desktop shell, zero-dependen
 
 ```
 Frontend (vanilla TypeScript + Blueprint CSS)
-├── src/views/          # View modules (onboarding, dashboard, send, receive, etc.)
-├── src/lib/            # Core modules (store, router, dom, keystore, vault, tomb)
+├── src/views/          # View modules (matrix, dashboard, send, receive, agents, identity, x402-confirm, etc.)
+├── src/lib/            # Core modules (store, router, dom, keystore, vault, tomb, prices)
 ├── src/lib/algorand/   # Chain pack: account, transactions, assets, client
+├── src/lib/x402/       # AgenticPlace integration: types, oracle, bridge, payment, discount, client
+├── src/lib/pouch/      # Chain adapter system: algorand (live), ethereum (live), bitcoin (stub)
+├── src/lib/dex/        # SpinTrade DEX aggregator: tinyman-onchain, tinyman-api
+├── src/lib/pmvpn/      # Private Mesh VPN: auth, connector, store, terminal
+├── src/assets/matrix/  # WebGL textures: glyphs.png (16x16 katakana atlas), noise.png
 └── src/types/          # TypeScript types
 
 Backend (Rust via Tauri IPC)
@@ -91,6 +96,57 @@ Backend (Rust via Tauri IPC)
 - [x] Swap "To" field populated from live on-chain pool data
 - [x] Security audit: 5 critical fixes (mnemonic zeroing, CSP, session isolation)
 - [x] BANKON license applied, README rewritten
+
+### Phase B2 — Matrix Overhaul (2026-03-25)
+
+- [x] Matrix rain: Shadertoy-faithful glyph rendering (iChannel0/iChannel1 textures, 256x256 POT)
+- [x] Glitch spin intro: 360° rotation + chromatic aberration + scanline tear on load (1.5s) and pill transitions (0.8s)
+- [x] Pyramid: brick steps from single apex (#1 daily gainer) to wide base, gainers right, losers left
+- [x] Top 10 by market cap: vertical column on left side with icons + abbreviated mcap ($1.34T, $460.2B, $91M)
+- [x] Stablecoin basket: ship on bottom-left, draggable
+- [x] Featured "just because" assets: configurable via VITE_JUST_BECAUSE env var (default: POL,ALGO,ETH,BEAM,ZIL)
+- [x] All floating glyphs constrained to right side (65-97%), left side reserved for top 10 + ship
+- [x] Featured zigzag layout: 73%/88% x-position, 11% vertical spacing between each
+- [x] Drag-and-drop: PARSEC brand, pills, ship, top 10 column, fleet — all draggable via makeDraggable()
+- [x] PARSEC click → full-screen pill choice (blue/red, nothing else, return to landing)
+- [x] Blue pill: slow calm rain (0.04 + 6% market activity), full sentiment color preserved
+- [x] Blue pill: hides all market overlays (pyramid, top 10, ship, glyphs) — pure rain + diagnostics
+- [x] Blue pill: 6 tabbed diagnostics (Global, Gas & Fees, Chain Health, Network, DeFi TVL, Portfolio)
+- [x] Blue pill: Tab key cycles tabs, auto-refresh every 20s
+- [x] Blue pill: Global tab = Tank view (market cap, BTC/ETH/ALGO, TVL trends, gas, blocks, F&G, top chains)
+- [x] Blue pill: Gas tab = live gas from 6 EVM chains + Algorand + ETH cost estimates (transfer/swap/mint)
+- [x] Blue pill: Chain Health = top 15 chains by TVL + Algorand protocol breakdown
+- [x] Blue pill: Network = Algorand round/block/consensus + ETH block + Fear & Greed
+- [x] Blue pill: DeFi TVL = global + Algorand TVL with 24h/7d/30d trends + stablecoin supply
+- [x] Blue pill: compact two-column CSS grid layout (0.65em rows, 96vw width)
+- [x] Blue pill: glyphs turn red (selling/diagnostics context)
+- [x] Red pill: wallet login + Create New Wallet + Import Wallet + back to landing
+- [x] Red pill: glyphs show natural market colors (green if up, red if down)
+- [x] Glyph colors re-render on pill transitions
+- [x] CoinGecko image field added to CoinPrice (coin icons in pyramid cards + fleet)
+- [x] Pyramid cards: icon + symbol + price + change, hover scale 1.3x + border glow, touch support
+
+### Phase B3 — x402 / AgenticPlace Integration (2026-03-25)
+
+- [x] x402 types module: ERC-8004, identity, payment types (no viem dependency)
+- [x] x402 constants: BANKON ASA 203977300, ERC-8004 addresses (17+ chains), CAIP-2 networks
+- [x] PriceOracle: Algorand DEX pricing via Vestige API (replaces CoinGecko-only for ALGO/ASA)
+- [x] BANKON holder discount: checkBankonHolder() — 50% off x402 fees, 5-min cache
+- [x] Vault-secured x402 bridge: buildAlgorandX402Signer() — ephemeral key retrieval, sign, discard
+- [x] x402 payment flow: x402Fetch() — handles 402 responses, discount, sign, retry
+- [x] AgenticPlace HTTP client: discovery (70K+ agents), oracle, facilitator, BANKON identity
+- [x] x402-confirm view: payment approval dialog with ALGO conversion + discount badge
+- [x] Agents view: search/browse agents from AgenticPlace discovery API
+- [x] Identity view: BANKON holder status, ERC-8004 IDNFT, access tiers, token info
+- [x] Dashboard: Identity + Agents buttons added
+- [x] Pouch chains.ts: Algorand signMessage() wired via vault bridge
+- [x] Pouch chains.ts: Ethereum module enabled (key gen/import, signing deferred to viem)
+
+### Phase B4 — Documentation (2026-03-25)
+
+- [x] docs.html: 37 docs served via marked.js (architecture, x402, Blueprint.js, Tauri plugins)
+- [x] x402-integration.md: complete integration guide (types, oracle, bridge, payment, views)
+- [x] Hash routing: docs.html#dev-plan, docs.html#x402-integration, etc.
 
 ## Roadmap
 
