@@ -272,8 +272,9 @@ export function matrixView(): HTMLElement {
     setUniform('u_pill', pillUniform);
     setUniform('u_zoom', zoom);
     setUniform('u_mouse', mouseX, mouseY);
-    // Blue pill: calm slow rain regardless of market volatility
-    const effectiveActivity = choice === 'blue' ? 0.08 : activityUniform;
+    // Blue pill: calm but aware — dampened activity, full sentiment preserved
+    // The observer sees the market's direction without the noise
+    const effectiveActivity = choice === 'blue' ? 0.08 + activityUniform * 0.15 : activityUniform;
     setUniform('u_activity', effectiveActivity);
     setUniform('u_sentiment', sentimentUniform);
     setUniform('u_dragX', dragRotX);
