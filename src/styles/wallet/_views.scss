@@ -49,13 +49,14 @@
   // Matrix rain stays visible behind — semi-transparent overlay
   &--fullscreen {
     inset: 0;
+    padding: $spacing-3 $spacing-4;
     background: rgb(0 0 0 / 50%);
     pointer-events: auto;
     overflow-y: auto;
 
     // Text glow for readability against rain
     * {
-      text-shadow: 0 0 8px rgb(0 0 0 / 80%);
+      text-shadow: 0 0 6px rgb(0 0 0 / 70%);
     }
   }
 }
@@ -249,25 +250,27 @@
 // ── Blue pill tab bar ──
 .parsec-matrix__blue-tabs {
   display: flex;
-  gap: 2px;
+  gap: 1px;
   width: 100%;
-  max-width: 700px;
-  margin-bottom: $spacing-4;
+  max-width: 96vw;
+  margin-bottom: $spacing-2;
   border-bottom: 1px solid rgb(59 130 246 / 15%);
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
 }
 
 .parsec-matrix__blue-tab {
-  padding: 8px 16px;
+  padding: 5px 12px;
   font-family: $font-family-mono;
-  font-size: 0.7em;
+  font-size: 0.6em;
   font-weight: $font-weight-semibold;
   color: rgb(255 255 255 / 35%);
-  letter-spacing: 0.08em;
+  letter-spacing: 0.06em;
   cursor: pointer;
   border-bottom: 2px solid transparent;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   user-select: none;
+  white-space: nowrap;
 
   &:hover {
     color: rgb(255 255 255 / 60%);
@@ -283,16 +286,15 @@
 
 .parsec-matrix__blue-content {
   width: 100%;
-  max-width: 700px;
-  min-height: 300px;
+  max-width: 96vw;
 }
 
 .parsec-matrix__netfeed--compact {
-  max-height: 80px;
+  max-height: 60px;
   overflow-y: auto;
-  margin-bottom: $spacing-3;
-  opacity: 0.7;
-  font-size: 0.85em;
+  margin-bottom: $spacing-2;
+  opacity: 0.6;
+  font-size: 0.75em;
 }
 
 .parsec-matrix__pills {
@@ -372,20 +374,20 @@
 }
 
 .parsec-matrix__choice-label {
-  font-size: $font-size-xs;
+  font-size: 0.65em;
   font-weight: $font-weight-bold;
   letter-spacing: 0.2em;
-  margin-bottom: $spacing-3;
+  margin-bottom: $spacing-1;
 
   &--red { color: #fca5a5; }
   &--blue { color: #93c5fd; }
 }
 
 .parsec-matrix__lead {
-  color: rgb(255 255 255 / 60%);
-  font-size: $font-size-sm;
-  margin-bottom: $spacing-6;
-  max-width: 360px;
+  color: rgb(255 255 255 / 50%);
+  font-size: 0.6em;
+  margin-bottom: $spacing-2;
+  max-width: 500px;
   text-align: center;
 }
 
@@ -1424,61 +1426,82 @@
 // Diagnostics cards (blue pill)
 .parsec-matrix__diag {
   width: 100%;
-  max-width: 460px;
-  margin-bottom: $spacing-4;
+  max-width: 96vw;
+  margin-bottom: $spacing-2;
 
   &--defi, &--market {
-    background: rgb(0 0 0 / 30%);
-    border: 1px solid rgb(255 255 255 / 6%);
-    border-radius: 8px;
-    padding: $spacing-4;
+    background: rgb(0 0 0 / 25%);
+    border: 1px solid rgb(255 255 255 / 5%);
+    border-radius: 6px;
+    padding: $spacing-3;
+
+    // Two-column grid inside each diagnostics panel
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px $spacing-6;
+
+    @media (width <= 600px) {
+      grid-template-columns: 1fr;
+    }
   }
 }
 
+// Section titles span full width across both grid columns
 .parsec-matrix__diag-section-title {
+  grid-column: 1 / -1;
   font-family: $font-family-mono;
-  font-size: 0.6em;
+  font-size: 0.55em;
   font-weight: $font-weight-bold;
-  color: rgb(255 255 255 / 30%);
+  color: rgb(59 130 246 / 40%);
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  margin-bottom: $spacing-2;
-  padding-bottom: $spacing-1;
-  border-bottom: 1px solid rgb(255 255 255 / 6%);
+  margin-bottom: 2px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid rgb(59 130 246 / 10%);
 }
 
 .parsec-matrix__diag-subsection {
+  grid-column: 1 / -1;
   font-family: $font-family-mono;
-  font-size: 0.55em;
-  color: rgb(59 130 246 / 60%);
-  letter-spacing: 0.15em;
+  font-size: 0.5em;
+  color: rgb(59 130 246 / 50%);
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  margin-top: $spacing-3;
-  margin-bottom: $spacing-1;
+  margin-top: $spacing-2;
+  padding-top: 2px;
+  border-top: 1px solid rgb(59 130 246 / 8%);
 }
 
 .parsec-matrix__diag-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 2px 0;
+  padding: 1px 0;
   font-family: $font-family-mono;
-  font-size: $font-size-xs;
+  font-size: 0.65em;
+  line-height: 1.4;
 }
 
 .parsec-matrix__diag-row-label {
-  color: rgb(255 255 255 / 45%);
+  color: rgb(255 255 255 / 40%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 55%;
 }
 
 .parsec-matrix__diag-row-value {
   color: rgb(255 255 255 / 75%);
   font-weight: $font-weight-semibold;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .parsec-matrix__diag-loading {
+  grid-column: 1 / -1;
   text-align: center;
-  color: rgb(255 255 255 / 30%);
-  font-size: $font-size-xs;
+  color: rgb(255 255 255 / 25%);
+  font-size: 0.6em;
   letter-spacing: 0.1em;
 }
 
