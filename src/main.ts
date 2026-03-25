@@ -21,6 +21,11 @@ import { addAssetView } from './views/add-asset';
 import { swapView } from './views/swap';
 import { docsView } from './views/docs';
 import { settingsView } from './views/settings';
+import { pmvpnView } from './views/pmvpn';
+import { x402ConfirmView } from './views/x402-confirm';
+import { agentsView } from './views/agents';
+import { identityView } from './views/identity';
+import './styles/pmvpn.scss';
 
 // Register all views
 registerView('matrix', matrixView);
@@ -37,6 +42,10 @@ registerView('add-asset', addAssetView);
 registerView('swap', swapView);
 registerView('docs', docsView);
 registerView('settings', settingsView);
+registerView('pmvpn', pmvpnView);
+registerView('x402-confirm', x402ConfirmView);
+registerView('agents', agentsView);
+registerView('identity', identityView);
 
 // Mount
 const root = document.getElementById('root');

@@ -74,7 +74,11 @@ export type AppView =
   | 'add-asset'
   | 'swap'
   | 'docs'
-  | 'settings';
+  | 'settings'
+  | 'pmvpn'
+  | 'x402-confirm'
+  | 'agents'
+  | 'identity';
 
 export interface WalletState {
   view: AppView;

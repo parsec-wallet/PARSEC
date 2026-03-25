@@ -41,10 +41,53 @@ export function swapView(): HTMLElement {
   let selectedFromIdx = 0;
   let selectedToAsset: DexAsset | null = null;
   let inputAmount = '';
-
+  let slippageBps = 50; // Default 0.5% (50 basis points)
 
   const quoteContainer = el('div', { cls: 'parsec-swap__quote' });
   const toSelectContainer = el('div', { cls: 'parsec-swap__to-container' });
+
+  // Custom slippage control
+  const slippageOptions = [10, 25, 50, 100, 200]; // 0.1%, 0.25%, 0.5%, 1%, 2%
+  const slippageLabel = el('span', { cls: 'parsec-swap__slippage-value', text: '0.5%' });
+  const customSlippageInput = input({
+    type: 'number',
+    placeholder: 'Custom %',
+    cls: 'bp5-input parsec-swap__slippage-custom',
+    onInput: (v) => {
+      const pct = parseFloat(v);
+      if (!isNaN(pct) && pct > 0 && pct <= 50) {
+        slippageBps = Math.round(pct * 100);
+        slippageLabel.textContent = `${pct}%`;
+        // Deselect preset buttons
+        slippageRow.querySelectorAll('.parsec-swap__slippage-btn').forEach(b =>
+          b.classList.remove('parsec-swap__slippage-btn--active'));
+      }
+    },
+  });
+
+  const slippageRow = el('div', { cls: 'parsec-swap__slippage', children: [
+    el('span', { cls: 'parsec-label', text: 'Slippage Tolerance: ' }),
+    slippageLabel,
+    el('div', { cls: 'parsec-swap__slippage-presets', children:
+      slippageOptions.map(bps => {
+        const pct = (bps / 100).toFixed(bps < 100 ? 2 : 1);
+        const isDefault = bps === 50;
+        return btn(`${pct}%`, {
+          minimal: true,
+          cls: `parsec-swap__slippage-btn ${isDefault ? 'parsec-swap__slippage-btn--active' : ''}`,
+          onClick: (e: Event) => {
+            slippageBps = bps;
+            slippageLabel.textContent = `${pct}%`;
+            (customSlippageInput as HTMLInputElement).value = '';
+            slippageRow.querySelectorAll('.parsec-swap__slippage-btn').forEach(b =>
+              b.classList.remove('parsec-swap__slippage-btn--active'));
+            (e.currentTarget as HTMLElement).classList.add('parsec-swap__slippage-btn--active');
+          },
+        });
+      }),
+    }),
+    customSlippageInput,
+  ]});
 
   // From select
   const fromSelect = document.createElement('select');
@@ -140,7 +183,7 @@ export function swapView(): HTMLElement {
     quoteContainer.appendChild(el('div', { cls: 'parsec-empty', text: 'Fetching quotes from all sources...' }));
 
     const quotes = await fetchAllQuotes(
-      fromAsset.assetId, selectedToAsset.assetId, baseAmount, 50, state.settings.network
+      fromAsset.assetId, selectedToAsset.assetId, baseAmount, slippageBps, state.settings.network
     );
 
     quoteContainer.innerHTML = '';
@@ -170,6 +213,7 @@ export function swapView(): HTMLElement {
           row('Min Received', `${minDisplay} ${toAsset.unitName}`),
           row('Impact', `${q.priceImpact.toFixed(2)}%`),
           row('Fee', '0.3%'),
+          row('Slippage', `${(slippageBps / 100).toFixed(slippageBps < 100 ? 2 : 1)}%`),
           btn(isBest ? 'Swap via ' + q.dex : 'Use this quote', {
             intent: isBest ? 'primary' : 'none',
             large: isBest,
@@ -232,6 +276,7 @@ export function swapView(): HTMLElement {
           amountInput,
           el('label', { cls: 'parsec-label', text: 'To (available pools)' }),
           toSelectContainer,
+          slippageRow,
         ],
       }),
       btn('Find Best Price', { intent: 'primary', large: true, cls: 'parsec-send__submit', onClick: fetchQuotes }),

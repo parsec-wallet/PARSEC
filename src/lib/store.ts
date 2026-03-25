@@ -132,6 +132,9 @@ class Store {
       }
     });
 
+    // Disconnect all pmVPN sessions
+    import('./pmvpn/connector').then(c => c.disconnectAll()).catch(() => {});
+
     this.navigate('matrix');
   }
 

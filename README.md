@@ -6,9 +6,11 @@ Sovereign Algorand wallet. Your keys. Your coins. No compromises.
 
 ## What Is Parsec
 
-Parsec is a desktop and web wallet for Algorand built on cypherpunk principles. No React, no frameworks, no runtime dependencies beyond algosdk. Vanilla TypeScript frontend with Blueprint.js CSS. Rust backend via Tauri with bankon_vault encrypted key storage.
+Parsec is a sovereign universal wallet built on cypherpunk2048 principles. No React, no frameworks, no runtime dependencies beyond algosdk. Vanilla TypeScript frontend with Blueprint.js CSS. Rust backend via Tauri with bankon_vault encrypted key storage.
 
-Parsec never holds your private key or mnemonic. Keys are encrypted on your device with your passphrase. bankon_vault is recommended but optional — the web version works standalone.
+Every Parsec node is both client and server. P2P mesh with IPFS content handoffs. PostgreSQL + pgvectorscale for search (no Elasticsearch). Resource-aware throttling maps CPU, bandwidth, and electricity to crypto exchange value. dApp filesystem access controlled by participant choice on a 1-10 scale.
+
+Parsec never holds your private key or mnemonic. Keys are encrypted on your device with your passphrase. bankon_vault is recommended but optional — the web version works standalone. All security is open source.
 
 ## Features
 
@@ -26,6 +28,11 @@ Parsec never holds your private key or mnemonic. Keys are encrypted on your devi
 - **In-wallet docs** — quickstart, FAQ, security model, asset guide
 - **Network switching** — mainnet, testnet, betanet
 - **Input classifier** — live detection and validation of pasted secrets
+- **pmVPN** — wallet-authenticated SSH terminal for remote machine access
+- **parsec_search** — sovereign search via PostgreSQL + pgvectorscale (no Elasticsearch)
+- **parsec_mesh** — every client is a server; IPFS content-addressed handoffs
+- **parsec_throttle** — resource-aware rate limiting (CPU, bandwidth, electricity mapping)
+- **parsec_sandbox** — dApp filesystem permissions on 1-10 participant choice scale
 
 ## Quick Start
 
@@ -101,15 +108,25 @@ src/                          # Frontend — vanilla TypeScript
 
 src-tauri/                    # Backend — Rust
 ├── src/
-│   ├── lib.rs                # Tauri app + command registration
+│   ├── lib.rs                # Tauri app (6 states, 66 IPC commands)
 │   ├── main.rs               # Entry point
-│   └── bankon_vault/         # Modular encrypted vault
-│       ├── mod.rs            # Session state (zeroize on drop)
-│       ├── crypto.rs         # Argon2id + AES-256-GCM
-│       ├── store.rs          # File-based vault storage
-│       ├── commands.rs       # 9 Tauri IPC commands
-│       ├── tomb.rs           # Tomb CLI wrapper
-│       └── tomb_commands.rs  # 7 Tomb IPC commands
+│   ├── bankon_vault/         # Encrypted vault (16 commands)
+│   │   ├── crypto.rs         # Argon2id + AES-256-GCM
+│   │   ├── store.rs          # File-based vault storage
+│   │   ├── tomb.rs           # Tomb CLI wrapper (Linux cold storage)
+│   │   └── commands.rs + tomb_commands.rs
+│   ├── pmvpn/                # Wallet-authenticated SSH (5 commands)
+│   ├── parsec_search/        # PostgreSQL + pgvectorscale (8 commands)
+│   │   ├── pool.rs           # Connection pool + extension detection
+│   │   ├── schema.rs         # Auto-migrating tables
+│   │   └── search.rs         # Hybrid text + vector search
+│   ├── parsec_mesh/          # P2P mesh + IPFS handoffs (10 commands)
+│   │   ├── ipfs.rs           # Kubo HTTP API integration
+│   │   ├── peer.rs           # Discovery + reputation
+│   │   ├── resource.rs       # CPU/bandwidth/electricity mapping
+│   │   └── server.rs         # Embedded axum server
+│   ├── parsec_throttle/      # Rate limiting + energy cost (6 commands)
+│   └── parsec_sandbox/       # dApp filesystem 1-10 scale (11 commands)
 ├── Cargo.toml
 └── tauri.conf.json
 ```
@@ -125,6 +142,10 @@ src-tauri/                    # Backend — Rust
 - **CSP hardened** — no unsafe-inline, no unsafe-eval, whitelisted endpoints only
 - **Cold storage** — optional Tomb encrypted volumes with USB key separation (Linux)
 - **Watch-only** — explicit flag, signing blocked at view level
+- **Sovereign search** — PostgreSQL + pgvectorscale hybrid search (replaces Elasticsearch)
+- **P2P mesh** — every client is a server; content handoffs via IPFS CIDs
+- **Resource throttling** — CPU/bandwidth/electricity mapped to real cost; token bucket rate limiting
+- **dApp sandbox** — filesystem access on 1-10 participant choice scale, full audit log
 
 ## Development
 

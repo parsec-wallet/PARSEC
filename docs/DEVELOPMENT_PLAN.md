@@ -1,14 +1,14 @@
 # Parsec Wallet — Development Plan
 
-> **Updated:** 2026-03-17
-> **Status:** Alpha — Algorand core functional, security hardened
-> **Vision:** The evolution of the cryptocurrency wallet. Sovereign, modular, Algorand-first.
+> **Updated:** 2026-03-22
+> **Status:** Alpha — Algorand core functional, sovereign infrastructure modules landed
+> **Vision:** The evolution of the cryptocurrency wallet. Sovereign, modular, Algorand-first. Every client is a server.
 
 ## Mission
 
-Build Parsec as a sovereign universal wallet: Tauri desktop shell, zero-dependency vanilla TypeScript frontend, Rust backend, bankon_vault encrypted storage with optional Tomb cold storage, extensible chain packs. Algorand native first-class support, SpinTrade DEX inside the wallet.
+Build Parsec as a sovereign universal wallet: Tauri desktop shell, zero-dependency vanilla TypeScript frontend, Rust backend, bankon_vault encrypted storage with optional Tomb cold storage, extensible chain packs. Algorand native first-class support, SpinTrade DEX inside the wallet. Every Parsec node is both client and server — P2P mesh with IPFS content handoffs, resource-aware throttling, and participant-controlled dApp sandboxing.
 
-**Policy:** Parsec never holds the user's private key or mnemonic. bankon_vault is recommended but optional. User controls their keys.
+**Policy:** Parsec never holds the user's private key or mnemonic. bankon_vault is recommended but optional. User controls their keys. All security is open source per cypherpunk2048 standard.
 
 ## Architecture
 
@@ -26,7 +26,23 @@ Backend (Rust via Tauri IPC)
 │   ├── commands.rs     # 9 Tauri IPC commands
 │   ├── tomb.rs         # Tomb CLI wrapper (Linux cold storage)
 │   └── tomb_commands.rs # 7 Tomb Tauri IPC commands
-└── lib.rs              # Tauri app entry
+├── pmvpn/              # Wallet-authenticated SSH (5 commands)
+├── parsec_search/      # PostgreSQL + pgvectorscale search engine (8 commands)
+│   ├── pool.rs         # Connection pool + extension detection
+│   ├── schema.rs       # Auto-migrating schema (documents, chains, peers, metrics)
+│   ├── search.rs       # Hybrid full-text + vector similarity search
+│   └── commands.rs     # Tauri IPC
+├── parsec_mesh/        # P2P mesh — every client is a server (10 commands)
+│   ├── ipfs.rs         # IPFS content-addressed handoffs (Kubo HTTP API)
+│   ├── peer.rs         # Peer discovery + reputation
+│   ├── resource.rs     # CPU/bandwidth/electricity mapping + throttle computation
+│   ├── server.rs       # Embedded axum HTTP server
+│   └── commands.rs     # Tauri IPC
+├── parsec_throttle/    # Resource-aware API rate limiting (6 commands)
+│   └── commands.rs     # Token bucket + energy cost tracking
+├── parsec_sandbox/     # dApp filesystem access control 1-10 scale (11 commands)
+│   └── commands.rs     # Participant-choice permissions + audit log
+└── lib.rs              # Tauri app entry (6 managed states, 66 IPC commands)
 ```
 
 ## What's Built (Phase A+B complete)
@@ -150,13 +166,68 @@ public/private key pairs across all chains. True sovereign holding.
 - [ ] Network registry (per parsec-wallet/chainlist)
 - [ ] Hardware wallet integration (Ledger, Trezor)
 
-### Phase I — Sovereign Infrastructure (Strategic)
+### Phase I — Sovereign Infrastructure
 Informed by: parsec-wallet/hypercore, parsec-wallet/earthstar, parsec-wallet/agregore-browser
 
-- [ ] Sovereign sync (offline-first wallet state)
+**Module: parsec_search** — PostgreSQL + pgvectorscale (replaces Elasticsearch)
+- [x] Connection pool with auto-detection of pgvector/pgvectorscale extensions
+- [x] Auto-migrating schema (parsec_documents, parsec_chains, parsec_peers, parsec_dapp_permissions, parsec_throttle_metrics)
+- [x] Hybrid search: full-text (tsvector/tsquery GIN) + vector similarity (DiskANN or HNSW fallback)
+- [x] Document CRUD with upsert, batch indexing, filtered delete
+- [x] Chain registry table (allchainz: RPC URLs, explorer URLs, address format, native asset)
+- [x] 8 Tauri IPC commands: search_connect, search_disconnect, search_health, search_index, search_index_batch, search_query, search_delete, search_delete_filter
+- [ ] Embedding generation pipeline (local model or delegated)
+- [ ] TimescaleDB hypertable for metrics (auto-enabled if available)
+
+**Module: parsec_mesh** — Client = Server + IPFS Handoffs
+- [x] Embedded axum HTTP server (every Parsec node serves /parsec/v1/* endpoints)
+- [x] IPFS integration via local Kubo HTTP API (add, get, pin, unpin, list, repo stats)
+- [x] Content-addressed handoffs with CID + origin signature
+- [x] Peer discovery via PostgreSQL registry
+- [x] Resource mapping: CPU cores, RAM, disk, bandwidth up/down, power draw (watts), electricity cost/kWh
+- [x] Electricity-to-crypto exchange formula: resource_value = power_draw × hours × cost_kwh / 1000
+- [x] Resource budget (configurable max bandwidth, CPU, storage, power share)
+- [x] Peer reputation tracking (0.0–1.0)
+- [x] 10 Tauri IPC commands
+- [ ] IPFS DHT peer discovery (supplement PostgreSQL registry)
+- [ ] Hypercore append-only log for wallet event journaling
+- [ ] Earthstar-style private, offline-first sync
+
+**Module: parsec_throttle** — Resource-Aware API Rate Limiting
+- [x] Token bucket rate limiter with dynamic refill rates
+- [x] Per-source and global rate limiting
+- [x] Energy cost tracking per request (milliwatt-hours)
+- [x] Bandwidth-proportional token consumption
+- [x] Dynamic adjustment based on resource snapshot (CPU, bandwidth, power)
+- [x] 6 Tauri IPC commands
+- [ ] Persistent metrics to PostgreSQL (parsec_throttle_metrics table)
+- [ ] Rate limit headers on mesh server responses
+
+**Module: parsec_sandbox** — dApp Filesystem Access (1-10 Participant Choice)
+- [x] 10-level permission scale:
+  - Level 1: Contract calls only — zero filesystem
+  - Level 2: Read own sandbox
+  - Level 3: Read/write sandbox (10MB)
+  - Level 4: Read/write sandbox (100MB)
+  - Level 5: + shared read-only directory
+  - Level 6: + IPFS get
+  - Level 7: + IPFS pin
+  - Level 8: + read user-selected files (dialog)
+  - Level 9: + write user-selected files (dialog)
+  - Level 10: Full — peer relay + search index
+- [x] Path traversal prevention, storage quotas, expiry timestamps
+- [x] Full audit log of every access check
+- [x] No silent escalation — participant always chooses
+- [x] 11 Tauri IPC commands
+- [ ] Persist permissions to PostgreSQL (parsec_dapp_permissions table)
+- [ ] Frontend permission slider UI
+- [ ] Permission request dialog (dApp → user prompt)
+
+**Still planned:**
+- [ ] Sovereign sync (offline-first wallet state via Earthstar)
 - [ ] Distributed backup (Hypercore-style append-only log)
-- [ ] P2P wallet discovery
 - [ ] Tomb FIDO2 passkey support
+- [ ] QR-based peer exchange
 
 ## Design Principles
 
@@ -166,6 +237,11 @@ Informed by: parsec-wallet/hypercore, parsec-wallet/earthstar, parsec-wallet/agr
 4. **Chain-pack architecture** — each chain is a modular adapter
 5. **User sovereignty** — Parsec never holds keys, bankon_vault recommended not required
 6. **Extract ideas, not code** — learn from parsec-wallet org + ailgo repos, reimplement clean
+7. **Client is server** — every node serves the mesh; no centralized infrastructure
+8. **Resource honesty** — CPU, bandwidth, storage, electricity mapped to real cost; throttled accordingly
+9. **Participant choice** — dApp permissions on a 1-10 scale, no silent escalation
+10. **PostgreSQL over Elasticsearch** — web2 PostgreSQL is abundant, has good bandwidth; pgvectorscale gives us vector search without a separate search cluster
+11. **Open source security** — all security-critical code is open, per cypherpunk2048 standard
 
 ## Reference Corpus
 

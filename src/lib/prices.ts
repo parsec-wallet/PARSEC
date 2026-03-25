@@ -8,6 +8,7 @@ export interface CoinPrice {
   usd: number;
   marketCap: number;
   change24h: number;
+  image: string;
 }
 
 let cache: CoinPrice[] | null = null;
@@ -33,6 +34,7 @@ export async function fetchPrices(): Promise<CoinPrice[]> {
       usd: Number(coin.current_price || 0),
       marketCap: Number(coin.market_cap || 0),
       change24h: Number(coin.price_change_percentage_24h || 0),
+      image: String(coin.image || ''),
     })).filter(c => c.id && c.usd > 0);
 
     lastFetch = Date.now();

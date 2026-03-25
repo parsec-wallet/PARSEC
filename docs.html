@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parsec Wallet — Documentation</title>
+  <meta name="description" content="Parsec Wallet technical documentation: sovereign wallet, x402 payments, BANKON identity, Algorand-first">
+
+  <!-- marked.js — Markdown → HTML renderer -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+  <style>
+    :root {
+      --primary-bg: #0a0e14;
+      --secondary-bg: #141a22;
+      --sidebar-bg: #0f1319;
+      --accent-color: #00cc00;
+      --accent-dim: #008800;
+      --text-color: #d4dde8;
+      --text-secondary: #6b7a8d;
+      --heading-color: #ffffff;
+      --border-color: #1e2a36;
+      --code-bg: #0a0e14;
+      --code-border: #1a2230;
+      --link-color: #4fa8ff;
+      --table-stripe: #111820;
+      --warn-color: #e6a817;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+      background: var(--primary-bg);
+      color: var(--text-color);
+      line-height: 1.65;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ────────────────────────────── */
+    #sidebar {
+      width: 280px;
+      min-width: 280px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border-color);
+      padding: 20px 0;
+      overflow-y: auto;
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      z-index: 10;
+      transition: transform 0.3s;
+    }
+
+    #sidebar-header {
+      padding: 0 20px 16px;
+      border-bottom: 1px solid var(--border-color);
+      margin-bottom: 12px;
+    }
+
+    #sidebar-header h2 {
+      color: var(--accent-color);
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      font-family: inherit;
+    }
+
+    #sidebar-header small {
+      color: var(--text-secondary);
+      font-size: 11px;
+      display: block;
+      margin-top: 4px;
+    }
+
+    .nav-section {
+      padding: 10px 20px 4px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: var(--accent-dim);
+      letter-spacing: 1.5px;
+    }
+
+    .nav-item {
+      display: block;
+      padding: 6px 20px 6px 28px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      cursor: pointer;
+      border-left: 2px solid transparent;
+      transition: all 0.15s;
+    }
+
+    .nav-item:hover {
+      color: var(--text-color);
+      background: rgba(0,204,0,0.04);
+    }
+
+    .nav-item.active {
+      color: var(--accent-color);
+      border-left-color: var(--accent-color);
+      background: rgba(0,204,0,0.06);
+    }
+
+    /* ── Content ────────────────────────────── */
+    #content {
+      margin-left: 280px;
+      padding: 40px 60px 80px;
+      max-width: 900px;
+      flex: 1;
+    }
+
+    #doc-body h1 {
+      font-size: 28px;
+      color: var(--heading-color);
+      margin: 0 0 8px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    #doc-body h2 {
+      font-size: 20px;
+      color: var(--heading-color);
+      margin: 32px 0 12px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    #doc-body h3 {
+      font-size: 16px;
+      color: var(--accent-color);
+      margin: 24px 0 8px;
+    }
+
+    #doc-body p { margin: 0 0 12px; }
+    #doc-body ul, #doc-body ol { margin: 0 0 12px; padding-left: 24px; }
+    #doc-body li { margin: 2px 0; }
+    #doc-body a { color: var(--link-color); text-decoration: none; }
+    #doc-body a:hover { text-decoration: underline; }
+    #doc-body hr { border: none; border-top: 1px solid var(--border-color); margin: 32px 0; }
+    #doc-body strong { color: var(--heading-color); }
+    #doc-body blockquote {
+      border-left: 3px solid var(--accent-dim);
+      padding: 8px 16px;
+      margin: 0 0 16px;
+      background: rgba(0,204,0,0.03);
+      color: var(--text-secondary);
+    }
+
+    #doc-body code {
+      font-family: inherit;
+      font-size: 13px;
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 3px;
+      padding: 1px 5px;
+    }
+
+    #doc-body pre {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 6px;
+      padding: 14px;
+      overflow-x: auto;
+      margin: 0 0 16px;
+      line-height: 1.5;
+    }
+
+    #doc-body pre code {
+      background: none;
+      border: none;
+      padding: 0;
+      font-size: 12px;
+      color: var(--text-color);
+    }
+
+    #doc-body table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0 0 16px;
+      font-size: 13px;
+    }
+
+    #doc-body th {
+      background: var(--sidebar-bg);
+      color: var(--heading-color);
+      font-weight: 600;
+      text-align: left;
+      padding: 8px 10px;
+      border: 1px solid var(--border-color);
+    }
+
+    #doc-body td {
+      padding: 6px 10px;
+      border: 1px solid var(--border-color);
+    }
+
+    #doc-body tr:nth-child(even) {
+      background: var(--table-stripe);
+    }
+
+    /* ── Mobile ─────────────────────────────── */
+    #menu-toggle {
+      display: none;
+      position: fixed;
+      top: 12px; left: 12px;
+      z-index: 20;
+      background: var(--secondary-bg);
+      border: 1px solid var(--border-color);
+      color: var(--accent-color);
+      font-size: 18px;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    @media (max-width: 768px) {
+      #sidebar { transform: translateX(-100%); }
+      #sidebar.open { transform: translateX(0); }
+      #content { margin-left: 0; padding: 60px 20px 80px; }
+      #menu-toggle { display: block; }
+    }
+
+    /* ── Loading ────────────────────────────── */
+    .loading {
+      color: var(--text-secondary);
+      font-style: italic;
+      padding: 40px 0;
+    }
+
+    /* ── Back to top ────────────────────────── */
+    #back-top {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: var(--secondary-bg);
+      border: 1px solid var(--border-color);
+      color: var(--accent-color);
+      font-size: 18px;
+      width: 40px; height: 40px;
+      border-radius: 4px;
+      cursor: pointer;
+      display: none;
+      font-family: inherit;
+    }
+  </style>
+</head>
+
+<body>
+
+<button id="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">///</button>
+
+<nav id="sidebar">
+  <div id="sidebar-header">
+    <h2>PARSEC DOCS</h2>
+    <small>Sovereign Wallet Documentation</small>
+    <small id="doc-count"></small>
+  </div>
+  <div id="nav-links"></div>
+</nav>
+
+<main id="content">
+  <div id="doc-body" class="loading">Loading documentation...</div>
+</main>
+
+<button id="back-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">^</button>
+
+<script>
+// ── Document Registry ──────────────────────────
+const DOCS = [
+  // ── Architecture ──────────────────────────────
+  { id: 'announcement', file: './docs/announcement.md', title: 'Parsec — The Wallet Layer', section: 'Architecture' },
+  { id: 'dev-plan', file: './docs/DEVELOPMENT_PLAN.md', title: 'Development Plan', section: 'Architecture' },
+  { id: 'todo-index', file: './docs/TODO-INDEX.md', title: 'TODO Index', section: 'Architecture' },
+
+  // ── x402 / AgenticPlace ───────────────────────
+  { id: 'x402-integration', file: './docs/x402-integration.md', title: 'x402 Integration Guide', section: 'x402 / AgenticPlace' },
+
+  // ── Guides ────────────────────────────────────
+  { id: 'github-actions', file: './docs/GITHUB_ACTIONS_TRIGGER_GUIDE.md', title: 'GitHub Actions CI/CD', section: 'Guides' },
+
+  // ── Blueprint.js (UI Framework) ───────────────
+  { id: 'bp-overview', file: './docs/third-party-api-docs/blueprint.js-api/docs_blueprint.md', title: 'Blueprint.js Overview', section: 'Blueprint.js' },
+  { id: 'bp-quickstart', file: './docs/third-party-api-docs/blueprint.js-api/docs_blueprint.quick-start.md', title: 'Quick Start', section: 'Blueprint.js' },
+  { id: 'bp-getting-started', file: './docs/third-party-api-docs/blueprint.js-api/docs_blueprint_getting-started.md', title: 'Getting Started', section: 'Blueprint.js' },
+  { id: 'bp-vanilla-js', file: './docs/third-party-api-docs/blueprint.js-api/docs_blueprint_getting-started.vanilla-js-apis.md', title: 'Vanilla JS APIs', section: 'Blueprint.js' },
+  { id: 'bp-typescript', file: './docs/third-party-api-docs/blueprint.js-api/docs_blueprint_getting-started.typescript.md', title: 'TypeScript Usage', section: 'Blueprint.js' },
+  { id: 'bp-principles', file: './docs/third-party-api-docs/blueprint.js-api/docs_blueprint_principles.md', title: 'Design Principles', section: 'Blueprint.js' },
+  { id: 'bp-api-contract', file: './docs/third-party-api-docs/blueprint.js-api/docs_blueprint_principles.api-contract.md', title: 'API Contract', section: 'Blueprint.js' },
+
+  // ── Tauri (Desktop Shell) ─────────────────────
+  { id: 'tauri-backend', file: './docs/third-party-api-docs/tauri-backend-api/index.md', title: 'Tauri Backend Index', section: 'Tauri' },
+  { id: 'tauri-modules', file: './docs/third-party-api-docs/tauri-backend-api/tauri/latest/tauri_modules.md', title: 'Tauri Modules', section: 'Tauri' },
+  { id: 'tauri-macros', file: './docs/third-party-api-docs/tauri-backend-api/tauri/latest/tauri_macros.md', title: 'Tauri Macros', section: 'Tauri' },
+  { id: 'tauri-cargo', file: './docs/third-party-api-docs/tauri-backend-api/tauri/latest/tauri_cargo-features.md', title: 'Cargo Features', section: 'Tauri' },
+  { id: 'tauri-frontend', file: './docs/third-party-api-docs/tauri-frontend-api/index.md', title: 'Frontend API Index', section: 'Tauri' },
+  { id: 'tauri-fe-ref', file: './docs/third-party-api-docs/tauri-frontend-api/reference.md', title: 'Frontend Reference', section: 'Tauri' },
+  { id: 'tauri-fe-core', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/api/namespacecore.md', title: 'Core Namespace', section: 'Tauri' },
+  { id: 'tauri-fe-app', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/api/namespaceapp.md', title: 'App Namespace', section: 'Tauri' },
+  { id: 'tauri-fe-event', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/api/namespaceevent.md', title: 'Event Namespace', section: 'Tauri' },
+  { id: 'tauri-fe-window', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/api/namespacewindow.md', title: 'Window Namespace', section: 'Tauri' },
+  { id: 'tauri-fe-path', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/api/namespacepath.md', title: 'Path Namespace', section: 'Tauri' },
+  { id: 'tauri-fe-dialog', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/dialog.md', title: 'Dialog Plugin', section: 'Tauri' },
+  { id: 'tauri-fe-fs', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/fs.md', title: 'Filesystem Plugin', section: 'Tauri' },
+  { id: 'tauri-fe-http', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/http.md', title: 'HTTP Plugin', section: 'Tauri' },
+  { id: 'tauri-fe-store', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/store.md', title: 'Store Plugin', section: 'Tauri' },
+  { id: 'tauri-fe-stronghold', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/stronghold.md', title: 'Stronghold Plugin', section: 'Tauri' },
+  { id: 'tauri-fe-shell', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/shell.md', title: 'Shell Plugin', section: 'Tauri' },
+  { id: 'tauri-fe-os', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/os.md', title: 'OS Plugin', section: 'Tauri' },
+  { id: 'tauri-fe-process', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/process.md', title: 'Process Plugin', section: 'Tauri' },
+  { id: 'tauri-fe-clipboard', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/clipboard-manager.md', title: 'Clipboard Plugin', section: 'Tauri' },
+  { id: 'tauri-fe-biometric', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/biometric.md', title: 'Biometric Plugin', section: 'Tauri' },
+  { id: 'tauri-fe-websocket', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/websocket.md', title: 'WebSocket Plugin', section: 'Tauri' },
+  { id: 'tauri-fe-deeplink', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/deep-link.md', title: 'Deep Link Plugin', section: 'Tauri' },
+  { id: 'tauri-fe-notification', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/notification.md', title: 'Notification Plugin', section: 'Tauri' },
+  { id: 'tauri-fe-updater', file: './docs/third-party-api-docs/tauri-frontend-api/reference/javascript/updater.md', title: 'Updater Plugin', section: 'Tauri' },
+];
+
+// ── Render sidebar ──────────────────────────────
+function renderNav(activeId) {
+  const nav = document.getElementById('nav-links');
+  let html = '';
+  let currentSection = '';
+
+  for (const doc of DOCS) {
+    if (doc.section !== currentSection) {
+      currentSection = doc.section;
+      html += `<div class="nav-section">${currentSection}</div>`;
+    }
+    const active = doc.id === activeId ? ' active' : '';
+    html += `<a class="nav-item${active}" data-id="${doc.id}" onclick="loadDoc('${doc.id}')">${doc.title}</a>`;
+  }
+
+  nav.innerHTML = html;
+  document.getElementById('doc-count').textContent = `${DOCS.length} documents`;
+}
+
+// ── Load and render a document ──────────────────
+async function loadDoc(id) {
+  const doc = DOCS.find(d => d.id === id);
+  if (!doc) return;
+
+  const body = document.getElementById('doc-body');
+  body.innerHTML = '<p class="loading">Loading...</p>';
+
+  try {
+    const res = await fetch(doc.file);
+    if (!res.ok) throw new Error(`${res.status}`);
+    const md = await res.text();
+    body.innerHTML = marked.parse(md);
+  } catch (err) {
+    body.innerHTML = `<h1>Error</h1><p>Could not load ${doc.file}: ${err.message}</p>
+      <p>If running locally, start the Vite dev server: <code>npm run dev</code></p>`;
+  }
+
+  renderNav(id);
+  window.location.hash = id;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Close mobile sidebar
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+// ── Scroll-to-top button visibility ─────────────
+window.addEventListener('scroll', () => {
+  document.getElementById('back-top').style.display = window.scrollY > 300 ? 'block' : 'none';
+});
+
+// ── Initialize ──────────────────────────────────
+const hashId = window.location.hash.slice(1);
+const startDoc = DOCS.find(d => d.id === hashId) ? hashId : DOCS[0].id;
+loadDoc(startDoc);
+</script>
+
+</body>
+</html>

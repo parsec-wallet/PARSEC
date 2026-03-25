@@ -118,6 +118,15 @@ export function dashboardView(): HTMLElement {
     ],
   });
 
+  // x402 / AgenticPlace actions
+  const x402Actions = el('div', {
+    cls: 'parsec-dashboard__actions parsec-dashboard__x402-actions',
+    children: [
+      btn('Identity', { outlined: true, icon: 'id-number', onClick: () => store.navigate('identity') }),
+      btn('Agents', { outlined: true, icon: 'search', onClick: () => store.navigate('agents') }),
+    ],
+  });
+
   const assetsEl = el('div', { cls: 'parsec-dashboard__assets' });
   const addAssetBtn = btn('Add Asset', { outlined: true, icon: 'plus', cls: 'parsec-dashboard__add-asset', onClick: () => store.navigate('add-asset') });
   const txHeader = el('h3', { cls: 'parsec-section-title', text: 'Recent Transactions' });
@@ -125,7 +134,7 @@ export function dashboardView(): HTMLElement {
 
   const children = [header, publicKey, networkBadge];
   if (faucetLink) children.push(faucetLink);
-  children.push(balanceEl, actions, assetsEl, addAssetBtn, txHeader, txList);
+  children.push(balanceEl, actions, x402Actions, assetsEl, addAssetBtn, txHeader, txList);
   container.append(...children);
 
   loadDashboardData(account.address, network, balanceEl, assetsEl, txList);
