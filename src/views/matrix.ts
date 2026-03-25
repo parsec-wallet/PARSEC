@@ -441,17 +441,25 @@ export function matrixView(): HTMLElement {
       const glyph: CryptoGlyph = { coin, x, y, size: baseSize };
       cryptoGlyphs.push(glyph);
 
-      // Color — featured coins get richer color, others subtle
+      // Color — blue pill = red glyphs (selling), otherwise normal market colors
       const featuredBoost = isFeatured ? 1.4 : 1.0;
-      const color = coin.change24h > 0.3
-        ? `rgba(16,255,90,${baseOpacity * featuredBoost})`
-        : coin.change24h < -0.3
-          ? `rgba(255,80,80,${baseOpacity * featuredBoost})`
-          : `rgba(200,210,220,${baseOpacity * 0.5 * featuredBoost})`;
+      let color: string;
+      let changeColor: string;
+      if (choice === 'blue') {
+        // Blue pill = selling/diagnostics = red glyphs
+        color = `rgba(255,80,80,${baseOpacity * featuredBoost})`;
+        changeColor = '#ef4444';
+      } else {
+        // Landing + red pill = normal market color (green if up, red if down)
+        color = coin.change24h > 0.3
+          ? `rgba(16,255,90,${baseOpacity * featuredBoost})`
+          : coin.change24h < -0.3
+            ? `rgba(255,80,80,${baseOpacity * featuredBoost})`
+            : `rgba(200,210,220,${baseOpacity * 0.5 * featuredBoost})`;
+        changeColor = coin.change24h >= 0 ? '#10b981' : '#ef4444';
+      }
 
-      // Price display inline with symbol
       const changeSign = coin.change24h >= 0 ? '+' : '';
-      const changeColor = coin.change24h >= 0 ? '#10b981' : '#ef4444';
 
       const glyphEl = el('div', {
         cls: `parsec-matrix__crypto-glyph ${volFactor > 0.3 ? 'parsec-matrix__crypto-glyph--volatile' : ''}`,
@@ -961,6 +969,8 @@ export function matrixView(): HTMLElement {
     pillUniform = p === 'red' ? 1.0 : p === 'blue' ? 2.0 : 0.0;
     // Glitch spin on every transition
     triggerGlitchSpin(0.8);
+    // Re-render glyphs so colors update for pill context
+    createGlyphs();
 
     if (p === 'none') {
       // Landing — hide panel, show everything
