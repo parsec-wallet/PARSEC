@@ -285,6 +285,122 @@ Informed by: parsec-wallet/hypercore, parsec-wallet/earthstar, parsec-wallet/agr
 - [ ] Tomb FIDO2 passkey support
 - [ ] QR-based peer exchange
 
+### Phase J — x402 Payments & Agent Economy
+Informed by: x402-demo/modules/bankon-payments, x402-demo/erc8004, x402-demo/facilitator
+
+Parsec is the wallet interface for the AgenticPlace agent economy.
+
+- [x] x402 types: ERC-8004 agent identity, payment requirements, access tiers (no viem dep)
+- [x] x402 constants: BANKON ASA 203977300 (10M supply), ERC-8004 on 17+ chains, CAIP-2 networks
+- [x] PriceOracle: Vestige DEX API for ALGO/USD + any ASA price (replaces CoinGecko-only)
+- [x] BANKON holder discount: 50% off x402 fees, cached 5 min per address
+- [x] Vault-secured x402 bridge: ephemeral key from Rust vault → algosdk signer → sign → discard
+- [x] x402 payment flow: 402 response → parse requirement → check discount → sign → retry
+- [x] AgenticPlace HTTP client: discovery (70K+ agents), oracle, facilitator, BANKON identity
+- [x] x402-confirm view: payment approval with ALGO conversion + BANKON discount badge
+- [x] Agents view: search/browse 70K+ agents from AgenticPlace discovery API
+- [x] Identity view: BANKON status, ERC-8004 IDNFT, access tiers (Visitor→Imperator)
+- [ ] End-to-end x402 test: Parsec → MindX paywall → Facilitator settlement
+- [ ] Reputation feedback after payment (ReputationRegistryClient → ERC-8004)
+- [ ] Venalicarii/Mercatores marketplace integration
+- [ ] SPINTRADE DEX pair browser in wallet
+
+### Phase K — AlgoDeployer Tokenomics
+Location: x402-demo/algodeployer/
+
+Modular smart contracts for the AgenticPlace token economy. All Algorand contracts in PuyaTs.
+
+**SHAMBA LUV (LUV9) — EVM Reflection Token**
+- [x] ShambaLuv.sol: 100Q supply, 5% buy/sell (3% reflection, 1% liquidity, 1% team)
+- [x] All 5 LUV8 bugs fixed (name, router approval, slippage, threshold logic, proxy bypass)
+- [x] 0% wallet-to-wallet (EOA code.length check), fees only lower, admin hierarchy
+- [ ] Foundry tests: `forge build && forge test`
+- [ ] Deploy LUV9 on Polygon (replace LUV8 at 0x1035760d...)
+- [ ] Multi-chain deployment via CREATE2
+
+**BONA FIDE — Binary Reputation (Algorand)**
+- [x] bonafide.algo.ts: 1T ASA, clawback, binary (hold 1 or 0), penalty doubling ($1→$2→$4...)
+- [x] Ghost vote: consensus = permanently dead, can never re-apply
+- [x] Fee allocation: applicant chooses wallets + splits, or redemption escrow
+- [x] fee_redemption.algo.ts: tiered redemption (10%@90d, 25%@180d, 50%@365d, 100%@730d)
+- [ ] Create BONA FIDE ASA on Algorand testnet
+- [ ] Deploy BonafideController via AlgoKit
+- [ ] Wire to SmartOracle for USD→ALGO fee conversion
+
+**Liquidity Locker + Fee Controller**
+- [x] liquidity_locker.algo.ts: LP lock, 90-day minimum for BONA FIDE, auto-extend toggle
+- [x] fee_controller.algo.ts: SPINTRADE 3/1/1 split, lock team wallet (irreversible), fees only down
+- [ ] Deploy on Algorand localnet
+- [ ] Wire locker → BONA FIDE controller (issue on lock, clawback on day 89)
+
+**aLUV — Algorand Reflection Token (ARC-200)**
+- [x] aluv_token.algo.ts: ARC-200 with reflection engine (Algorand ASAs can't do reflection)
+- [x] reflection_engine.algo.ts: shared index math (O(1) per claim, no holder iteration)
+- [x] aluv_bridge.algo.ts: lock-and-mint bridge (EVM→Algorand), replay prevention, rate limiting
+- [ ] Compile via Puya compiler
+- [ ] Deploy on Algorand localnet
+- [ ] Wire bridge relayer via SmartOracle command channel
+
+**Documentation**
+- [x] EXPLANATION.md: why Algorand can't do reflection, ARC-200 solution, BONA FIDE model
+- [x] USAGE.md: code examples for every contract method
+- [x] BONAFIDE.md: penalty escalation, ghost, fee allocation, liquidity lock lifecycle
+- [x] SHAMBALUV.md: LUV9 spec, fee structure, wallet-to-wallet, cross-chain
+- [x] LIQUIDITY-LOCKER.md: 90-day BONA FIDE lifecycle, auto-extend, keeper bot
+- [x] FEE-CONTROLLER.md: 3/1/1 split, lock team wallet, lock liquidity to locker
+- [x] BRIDGE.md: EVM↔Algorand lock-and-mint, relayer, rate limiting
+
+### Phase L — Interchain Weave Protocol
+Location: x402-demo/algodeployer/interchain/
+
+Neither sidechain nor crosschain. Interchain weaves — direct value transfer with golden ratio fee.
+
+**Core Contracts (Solidity, Foundry)**
+- [x] PhiFeeCalculator.sol: phi (1.618...) fee math, 61.8/38.2 revenue split
+- [x] GasStation.sol: multi-chain gas oracle, staleness checks, batch updates
+- [x] InterchainWeaver.sol: weave router (value + phi_fee), relayer receive, revenue split
+- [x] InterchainRegistry.sol: chain config, route discovery, 14+ chains expandable to 2510+
+- [x] InterchainDeployer.sol: multi-chain deploy, cost estimation, CREATE2 prediction
+- [x] PhiFeeCalculator.t.sol: 13 tests + fuzz (phi precision, scaling, overflow, split)
+- [x] GasStation.t.sol: 9 tests (update, batch, auth, staleness, quote, realistic Polygon)
+- [ ] `forge test` — all tests pass on Anvil
+- [ ] Fork test against Polygon mainnet
+- [ ] Deploy to Base Sepolia (first livenet)
+- [ ] Deploy to Polygon mainnet
+
+**Algorand Settlement**
+- [x] interchain_settler.algo.ts: settlement finality (3.3s, no forks), phi fee in ALGO
+- [x] interchain_oracle.algo.ts: gas prices for all chains via SmartOracle
+- [ ] Deploy on Algorand testnet
+- [ ] Wire relayer (SmartOracle command channel)
+
+**Deployment Orchestration (TypeScript)**
+- [x] types.ts: phi constants, 14 known chains, xERC20/ERC-8004 addresses
+- [x] cost-calculator.ts: phi-based multi-chain cost estimation + formatted display
+- [x] gas-estimator.ts: multi-chain gas fetcher, 60s cache
+- [x] chain-registry.ts: AllChainz integration (2510+ chains)
+- [x] deploy-orchestrator.ts: Anvil test → estimate → confirm → deploy → verify
+
+**Documentation**
+- [x] INTERCHAIN.md: weave protocol spec, chain registry, settlement layer
+- [x] EXPLANATION.md: why phi, how weaving works, vs bridges, self-balancing liquidity
+- [x] TECHNICAL.md: every constant, struct, function, gas cost, overflow analysis, security
+- [x] USAGE.md: code examples for every contract + deployer + Algorand settler
+- [x] DEPLOYMENT.md: Anvil → fork test → estimate → deploy (cheapest first)
+
+### Phase M — DAIO Governance Integration
+Informed by: x402-demo/DAIO/contracts/, x402-demo/modules/daio/
+
+Future: credential-gated proposals, staked proposals, cross-proposal credit.
+
+- [ ] AI seat in Development, Marketing, Community groups
+- [ ] Proposal requires holding funds/assets to complete (credential from holding)
+- [ ] Passed proposals receive payment (incentivized goals)
+- [ ] Credit token issuance from collection of proposals
+- [ ] Wire DAIO governance into Parsec (proposal submission from wallet)
+- [ ] Constitutional tithe (15%) enforcement
+- [ ] 2/3 consensus within groups, 2/3 of groups overall
+
 ## Design Principles
 
 1. **Minimal code, maximum impact** — no unnecessary abstractions
@@ -307,12 +423,54 @@ Wallet R&D corpus: BitPay/Copay, Safe multisig, MetaMask, Keplr, xchainjs, Hyper
 ### ailgo org (https://github.com/ailgo) — 101+ repos
 Algorand reference library: js-algorand-sdk, AlgoKit, Pera, use-wallet, vibekit, Tinyman, Tauri
 
+### AgenticPlace / x402-demo
+- **discovery-api**: 70K+ agents across 15+ EVM chains, PostgreSQL + pgvector
+- **server-hono (MindX)**: x402-paywalled API (weather, oracle, mint)
+- **facilitator**: x402 payment verification + settlement
+- **erc8004**: ERC-8004 IdentityRegistry + ReputationRegistry SDK (17+ chains)
+- **modules/bankon-payments**: PriceOracle, FeeSchedule, PaymentManager, Venalicarii
+- **modules/smarttime**: SmartTime + SmartOracle (Algorand blocktime + DEX prices)
+- **modules/algorand**: AlgorandAgentWallet (algosdk v3)
+- **modules/bonafide**: BONAFIDE reputation bridge (tabularium, fides, sponsio)
+- **modules/daio**: DAIO governance (controller, access, comitia, boardroom)
+- **DAIO/contracts**: 90+ Solidity contracts (governance, identity, THOT, bonding, bridge)
+- **algodeployer**: ShambaLuv LUV9, BONA FIDE, aLUV, interchain weave protocol
+
 ### Key External References
 - [Algorand Developer Docs](https://developer.algorand.org)
 - [ARC Standards](https://arc.algorand.foundation)
 - [Tomb Encrypted Volumes](https://dyne.org/docs/tomb/)
 - [Tauri 2.0](https://v2.tauri.app)
 - [Tinyman Protocol](https://docs.tinyman.org)
+- [DeFi Llama API](https://defillama.com/docs/api)
+- [CoinGecko Markets API](https://www.coingecko.com/en/api/documentation)
+- [Vestige DEX API](https://free-api.vestige.fi)
+- [ERC-8004 Standard](https://eips.ethereum.org/EIPS/eip-8004)
+- [x402 Protocol](https://x402.org)
+- [xERC20 Standard](https://www.xerc20.com)
+- [Foundry Book](https://book.getfoundry.sh)
+- [PuyaTs (Algorand TypeScript)](https://github.com/algorandfoundation/puya-ts)
+
+## Phase Summary
+
+| Phase | Name | Status | Files |
+|-------|------|--------|-------|
+| A | Core Wallet | Complete | 20+ views, vault, keystore |
+| B | Matrix + DEX | Complete | matrix.ts, swap.ts, prices.ts |
+| B2 | Matrix Overhaul | Complete | matrix.ts (1800+ lines), _views.scss |
+| B3 | x402 Integration | Complete | 8 files in src/lib/x402/ + 3 views |
+| B4 | Documentation | Complete | docs.html + 37 docs |
+| C | Input Validation | 95% | import-wallet.ts, validate.ts |
+| D | SpinTrade DEX | 80% | swap.ts, dex/ (multi-hop pending) |
+| E | Wallet Interop | Planned | WalletConnect, ARC-1, ARC-25 |
+| F | Advanced Algorand | Planned | Rekeying, multisig, ARC-19 |
+| G | Extensions | Planned | ASA minter, NFT minter, plugins |
+| H | Multi-Chain | 15% | Ethereum key gen done, signing pending |
+| I | Infrastructure | 70% | 4 Rust modules built, persistence pending |
+| J | x402 Payments | 85% | Module complete, e2e test pending |
+| K | AlgoDeployer | 70% | Contracts written, deployment pending |
+| L | Interchain | 60% | Contracts + tests written, Anvil pending |
+| M | DAIO Governance | Planned | Credential-gated proposals, AI seats |
 
 ---
 
