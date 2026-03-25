@@ -272,9 +272,9 @@ export function matrixView(): HTMLElement {
     setUniform('u_pill', pillUniform);
     setUniform('u_zoom', zoom);
     setUniform('u_mouse', mouseX, mouseY);
-    // Blue pill: calm but aware — dampened activity, full sentiment preserved
-    // The observer sees the market's direction without the noise
-    const effectiveActivity = choice === 'blue' ? 0.08 + activityUniform * 0.15 : activityUniform;
+    // Blue pill: slow contemplative drift — barely responds to market noise
+    // Sentiment color still shows direction, but the pace is meditative
+    const effectiveActivity = choice === 'blue' ? 0.04 + activityUniform * 0.06 : activityUniform;
     setUniform('u_activity', effectiveActivity);
     setUniform('u_sentiment', sentimentUniform);
     setUniform('u_dragX', dragRotX);
@@ -1073,30 +1073,8 @@ export function matrixView(): HTMLElement {
     panel.appendChild(defiBox);
     loadDefiDiagnostics(defiBox, netLog);
 
-    // ── Market Overview (from CoinGecko prices already loaded) ──
-    if (prices.length > 0) {
-      logNet(netLog, 'PRICE', `${prices.length} coins tracked — CoinGecko free tier`);
-      const topMover = [...prices].sort((a, b) => Math.abs(b.change24h) - Math.abs(a.change24h))[0];
-      if (topMover) {
-        const dir = topMover.change24h >= 0 ? '+' : '';
-        logNet(netLog, 'MOVER', `${topMover.symbol} ${dir}${topMover.change24h.toFixed(2)}% (24h)`);
-      }
-
-      const marketBox = el('div', { cls: 'parsec-matrix__diag parsec-matrix__diag--market' });
-      const breadth = getMarketBreadth(prices);
-      const totalCap = prices.reduce((s, c) => s + c.marketCap, 0);
-      const btc = prices.find(p => p.symbol === 'BTC');
-      const btcDom = btc ? ((btc.marketCap / totalCap) * 100).toFixed(1) : '—';
-
-      marketBox.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'MARKET OVERVIEW' }));
-      marketBox.appendChild(diagRow('Total Market Cap', formatMarketCap(totalCap)));
-      marketBox.appendChild(diagRow('BTC Dominance', `${btcDom}%`));
-      marketBox.appendChild(diagRow('Green / Red / Flat', `${breadth.greenPct}% / ${breadth.redPct}% / ${breadth.flatPct}%`));
-      marketBox.appendChild(diagRow('Volatility Index', `${(getMarketActivity(prices) * 100).toFixed(0)}%`));
-      marketBox.appendChild(diagRow('Sentiment', sentimentUniform > 0 ? `Bullish (${(sentimentUniform * 100).toFixed(0)}%)` : sentimentUniform < 0 ? `Bearish (${(Math.abs(sentimentUniform) * 100).toFixed(0)}%)` : 'Neutral'));
-
-      panel.appendChild(marketBox);
-    }
+    // Blue pill is about infrastructure, not prices
+    logNet(netLog, 'DIAG', 'Blockchain infrastructure diagnostics');
 
     // ── Portfolio Diagnostics (if accounts exist) ──
     if (state.accounts.length > 0) {
@@ -1127,7 +1105,7 @@ export function matrixView(): HTMLElement {
 
   async function loadDefiDiagnostics(container: HTMLElement, netLog: HTMLElement) {
     container.innerHTML = '';
-    container.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'DEFI LIQUIDITY' }));
+    container.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'BLOCKCHAIN DIAGNOSTICS' }));
 
     // ── DeFi Llama: Total TVL ──
     try {
@@ -1195,7 +1173,7 @@ export function matrixView(): HTMLElement {
         }
 
         if (totalStable > 0) {
-          container.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Stablecoin Supply' }));
+          container.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Stablecoin Liquidity Infrastructure' }));
           container.appendChild(diagRow('Total Stablecoins', formatMarketCap(totalStable)));
 
           stableList.sort((a, b) => b.mcap - a.mcap);
@@ -1222,6 +1200,102 @@ export function matrixView(): HTMLElement {
         logNet(netLog, 'OK', `Round ${round.toLocaleString()} · ${blockTime.toFixed(1)}s block`);
       }
     } catch { logNet(netLog, 'WARN', 'Algorand status unavailable'); }
+
+    // ── DeFi Llama: Top chains by TVL ──
+    try {
+      logNet(netLog, 'FETCH', 'DeFi Llama — chain TVL rankings');
+      const chainsRes = await fetch('https://api.llama.fi/v2/chains', { signal: AbortSignal.timeout(8000) });
+      if (chainsRes.ok) {
+        const chains = await chainsRes.json() as Array<{ name: string; tvl: number }>;
+        const top = chains.filter(c => c.tvl > 0).sort((a, b) => b.tvl - a.tvl).slice(0, 8);
+        if (top.length > 0) {
+          container.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Chain TVL Rankings' }));
+          top.forEach((c, i) => container.appendChild(diagRow(`${i + 1}. ${c.name}`, formatMarketCap(c.tvl))));
+          logNet(netLog, 'OK', `Top chain: ${top[0].name} (${formatMarketCap(top[0].tvl)})`);
+        }
+      }
+    } catch { logNet(netLog, 'WARN', 'Chain rankings unavailable'); }
+
+    // ── Multi-Chain Gas Fees ──
+    // Polygon
+    try {
+      logNet(netLog, 'FETCH', 'Polygon gas price');
+      const polyRes = await fetch('https://polygon-rpc.com', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_gasPrice', params: [], id: 1 }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (polyRes.ok) {
+        const polyData = await polyRes.json() as { result?: string };
+        if (polyData.result) {
+          const gwei = parseInt(polyData.result, 16) / 1e9;
+          container.appendChild(diagRow('Polygon Gas', `${gwei.toFixed(1)} gwei`));
+          logNet(netLog, 'OK', `Polygon gas: ${gwei.toFixed(1)} gwei`);
+        }
+      }
+    } catch { /* skip */ }
+
+    // Base
+    try {
+      const baseRes = await fetch('https://mainnet.base.org', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_gasPrice', params: [], id: 1 }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (baseRes.ok) {
+        const baseData = await baseRes.json() as { result?: string };
+        if (baseData.result) {
+          const gwei = parseInt(baseData.result, 16) / 1e9;
+          container.appendChild(diagRow('Base Gas', `${gwei.toFixed(3)} gwei`));
+          logNet(netLog, 'OK', `Base gas: ${gwei.toFixed(3)} gwei`);
+        }
+      }
+    } catch { /* skip */ }
+
+    // Algorand tx fee (fixed)
+    container.appendChild(diagRow('Algorand Tx Fee', '0.001 ALGO (~$0.0002)'));
+
+    // ── ETH Gas Price ──
+    try {
+      logNet(netLog, 'FETCH', 'Ethereum gas price');
+      const gasRes = await fetch('https://eth.llamarpc.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_gasPrice', params: [], id: 1 }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (gasRes.ok) {
+        const gasData = await gasRes.json() as { result?: string };
+        if (gasData.result) {
+          const gweiPrice = parseInt(gasData.result, 16) / 1e9;
+          container.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Ethereum Gas' }));
+          container.appendChild(diagRow('Gas Price', `${gweiPrice.toFixed(1)} gwei`));
+          const ethPrice = prices.find(p => p.symbol === 'ETH');
+          if (ethPrice) {
+            const txCostUsd = (gweiPrice * 21000 / 1e9) * ethPrice.usd;
+            container.appendChild(diagRow('Simple Transfer', `$${txCostUsd.toFixed(2)}`));
+            const swapCostUsd = (gweiPrice * 150000 / 1e9) * ethPrice.usd;
+            container.appendChild(diagRow('DEX Swap (~150k gas)', `$${swapCostUsd.toFixed(2)}`));
+          }
+          logNet(netLog, 'OK', `ETH gas: ${gweiPrice.toFixed(1)} gwei`);
+        }
+      }
+    } catch { logNet(netLog, 'WARN', 'ETH gas unavailable'); }
+
+    // ── Bitcoin Fear & Greed Index ──
+    try {
+      logNet(netLog, 'FETCH', 'Fear & Greed Index');
+      const fgRes = await fetch('https://api.alternative.me/fng/?limit=1', { signal: AbortSignal.timeout(5000) });
+      if (fgRes.ok) {
+        const fgData = await fgRes.json() as { data: Array<{ value: string; value_classification: string }> };
+        if (fgData.data && fgData.data[0]) {
+          const fg = fgData.data[0];
+          container.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Market Sentiment' }));
+          container.appendChild(diagRow('Fear & Greed Index', `${fg.value} — ${fg.value_classification}`));
+          logNet(netLog, 'OK', `Fear & Greed: ${fg.value} (${fg.value_classification})`);
+        }
+      }
+    } catch { logNet(netLog, 'WARN', 'Fear & Greed unavailable'); }
   }
 
   async function loadDiagnostics(container: HTMLElement, accounts: { address: string; name: string }[], network: NetworkId, netLog?: HTMLElement) {
