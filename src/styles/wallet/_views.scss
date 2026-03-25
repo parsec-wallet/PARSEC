@@ -46,12 +46,17 @@
   }
 
   // Full-screen mode: pill choice, diagnostics, or wallet login
+  // Matrix rain stays visible behind — semi-transparent overlay
   &--fullscreen {
     inset: 0;
-    background: rgb(0 0 0 / 85%);
-    backdrop-filter: blur(12px);
+    background: rgb(0 0 0 / 50%);
     pointer-events: auto;
     overflow-y: auto;
+
+    // Text glow for readability against rain
+    * {
+      text-shadow: 0 0 8px rgb(0 0 0 / 80%);
+    }
   }
 }
 
@@ -939,6 +944,14 @@
   font-size: 0.65em;
   color: rgb(255 255 255 / 45%);
   min-width: 55px;
+  text-align: right;
+}
+
+.parsec-fleet-column__mcap {
+  font-family: $font-family-mono;
+  font-size: 0.55em;
+  color: rgb(255 255 255 / 30%);
+  min-width: 45px;
   text-align: right;
 }
 

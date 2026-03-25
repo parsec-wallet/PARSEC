@@ -171,6 +171,8 @@ export function matrixView(): HTMLElement {
   let pillUniform = 0;
   let activityUniform = 0.15; // calm default — mesmerizing slow
   let sentimentUniform = 0.0; // -1 bear/red to +1 bull/green
+  let glitchUniform = 0.0;    // 0 = normal, >0 = glitch intensity (spin + distort)
+  let spinAngle = 0.0;        // current spin angle (radians, 0 to 2π for full spin)
 
   function setUniform(name: string, ...values: number[]) {
     if (!gl || !program) return;
@@ -236,6 +238,8 @@ export function matrixView(): HTMLElement {
 
     resize(); window.addEventListener('resize', resize);
     startTime = performance.now(); frame();
+    // Intro: glitch spin on first load
+    triggerGlitchSpin(1.5);
   }
 
   function resize() {
@@ -272,11 +276,54 @@ export function matrixView(): HTMLElement {
     setUniform('u_sentiment', sentimentUniform);
     setUniform('u_dragX', dragRotX);
     setUniform('u_dragY', dragRotY);
-    setUniform('u_breadth', breadth.greenPct / 100.0); // 0=all red, 1=all green
+    setUniform('u_breadth', breadth.greenPct / 100.0);
+    setUniform('u_glitch', glitchUniform);
+    setUniform('u_spin', spinAngle);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     driftGlyphs(t);
     raf = requestAnimationFrame(frame);
+  }
+
+  // ── Glitch Spin Sequence ──────────────────────────────────────
+  // Full 360° spin of the rain, then glitch flash to snap back.
+  // Triggered on load (intro) and on pill choice transitions.
+  function triggerGlitchSpin(duration = 1.2) {
+    const spinStart = performance.now();
+    const spinDuration = duration * 1000; // ms for full spin
+    const glitchStart = spinDuration * 0.85; // glitch begins at 85% of spin
+    const glitchDuration = spinDuration * 0.15;
+
+    function animateSpin() {
+      const elapsed = performance.now() - spinStart;
+      const progress = Math.min(elapsed / spinDuration, 1.0);
+
+      // Spin: ease-in-out full rotation (0 → 2π)
+      const eased = progress < 0.5
+        ? 2 * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+      spinAngle = eased * Math.PI * 2;
+
+      // Glitch: intense distortion at the end of spin, then snap to zero
+      if (elapsed >= glitchStart) {
+        const glitchProgress = (elapsed - glitchStart) / glitchDuration;
+        // Sharp peak then decay: triangle wave
+        glitchUniform = glitchProgress < 0.5
+          ? glitchProgress * 2.0   // ramp up to 1.0
+          : (1.0 - glitchProgress) * 2.0; // ramp down to 0.0
+      } else {
+        glitchUniform = 0.0;
+      }
+
+      if (progress < 1.0) {
+        requestAnimationFrame(animateSpin);
+      } else {
+        // Reset — clean landing
+        spinAngle = 0.0;
+        glitchUniform = 0.0;
+      }
+    }
+    requestAnimationFrame(animateSpin);
   }
 
   function cancelAnimation() {
@@ -292,8 +339,16 @@ export function matrixView(): HTMLElement {
   const GLYPH_SLOTS = 10;
   let glyphRotationTimer: ReturnType<typeof setInterval> | null = null;
 
-  // Featured chains — top 3 by market cap from the major set, displayed prominently
+  // ── Featured assets: algorithm-driven majors + "just because" from config ──
+  // Majors: top movers selected by algorithm (highest 24h gain)
   const MAJOR_SYMBOLS = new Set(['BTC', 'ETH', 'AVAX', 'ADA', 'ALGO', 'POL', 'XRP', 'SOL', 'DOT']);
+
+  // "Just because": user's personal picks, configurable via VITE_JUST_BECAUSE env var
+  // Default: POL,ALGO,ETH,BEAM,ZIL — override in .env: VITE_JUST_BECAUSE=POL,ALGO,ETH,BEAM,ZIL,LINK
+  const JUST_BECAUSE_DEFAULT = 'POL,ALGO,ETH,BEAM,ZIL';
+  const justBecauseEnv = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_JUST_BECAUSE || JUST_BECAUSE_DEFAULT;
+  const JUST_BECAUSE = new Set(justBecauseEnv.split(',').map(s => s.trim().toUpperCase()).filter(Boolean));
+
   const FEATURED_SYMBOLS = new Set<string>();
 
   function createGlyphs() {
@@ -304,12 +359,18 @@ export function matrixView(): HTMLElement {
     const pool = [...prices];
     const selected: CoinPrice[] = [];
 
-    // Top 3 gainers from the major set — the ones moving right now
+    // "Just because" — always featured, separate from algorithm
     FEATURED_SYMBOLS.clear();
-    const majors = pool.filter(c => MAJOR_SYMBOLS.has(c.symbol)).sort((a, b) => b.change24h - a.change24h).slice(0, 3);
-    for (const m of majors) FEATURED_SYMBOLS.add(m.symbol);
+    const justBecauseCoins = pool.filter(c => JUST_BECAUSE.has(c.symbol));
+    for (const c of justBecauseCoins) FEATURED_SYMBOLS.add(c.symbol);
 
-    // Always include the top 3 featured
+    // Algorithm: top movers from majors (excluding "just because" to avoid duplicates)
+    const otherMajors = pool.filter(c => MAJOR_SYMBOLS.has(c.symbol) && !JUST_BECAUSE.has(c.symbol))
+      .sort((a, b) => b.change24h - a.change24h).slice(0, 3);
+    for (const m of otherMajors) FEATURED_SYMBOLS.add(m.symbol);
+    const majors = [...justBecauseCoins, ...otherMajors];
+
+    // Always include all featured
     for (const coin of majors) {
       if (!selected.includes(coin)) selected.push(coin);
     }
@@ -327,26 +388,24 @@ export function matrixView(): HTMLElement {
 
     // Grid-based placement — track occupied zones to prevent overlap
     const occupied: { x: number; y: number }[] = [];
+    const minGap = 0.14; // 14% of screen between icons — generous spacing
+
     function findOpenSpot(preferred?: { x: number; y: number }): { x: number; y: number } {
-      const minGap = 0.1; // 10% of screen between icons — no overlap
       if (preferred) {
         const tooClose = occupied.some(o => Math.abs(o.x - preferred.x) < minGap && Math.abs(o.y - preferred.y) < minGap);
         if (!tooClose) { occupied.push(preferred); return preferred; }
       }
       for (let attempt = 0; attempt < 50; attempt++) {
-        const tx = 0.03 + Math.random() * 0.94;
-        const ty = Math.random() * 0.72 + 0.05; // cap at 77% — below is ship/fleet zone
-        // Skip center panel — wide exclusion so pills are never obscured
-        if (tx > 0.2 && tx < 0.8 && ty > 0.1 && ty < 0.8) continue;
-        // Skip bottom zone (ship + fleet area)
-        if (ty > 0.72) continue;
+        // Right side only (65%-97%) — left side reserved for top 10 + stablecoin basket
+        const tx = 0.65 + Math.random() * 0.32;
+        const ty = 0.06 + Math.random() * 0.64; // 6%-70%
         // Skip if too close to any existing glyph
         const collision = occupied.some(o => Math.abs(o.x - tx) < minGap && Math.abs(o.y - ty) < minGap);
         if (!collision) { occupied.push({ x: tx, y: ty }); return { x: tx, y: ty }; }
       }
-      // Fallback — edges only
-      const fx = Math.random() > 0.5 ? 0.02 + Math.random() * 0.15 : 0.83 + Math.random() * 0.15;
-      const fy = 0.05 + Math.random() * 0.5;
+      // Fallback — right column
+      const fx = 0.80 + Math.random() * 0.17;
+      const fy = 0.06 + Math.random() * 0.55;
       occupied.push({ x: fx, y: fy });
       return { x: fx, y: fy };
     }
@@ -357,11 +416,14 @@ export function matrixView(): HTMLElement {
       const volFactor = Math.min(1.0, vol / 5.0);
       const isFeatured = FEATURED_SYMBOLS.has(coin.symbol);
 
-      // Featured: top-left area. Others: find open spot.
+      // Featured: spread down the right side column with generous spacing
+      // Staggered: alternate between x=0.72 and x=0.88, descend vertically
       let pos: { x: number; y: number };
       if (isFeatured) {
         const fIdx = [...FEATURED_SYMBOLS].indexOf(coin.symbol);
-        pos = findOpenSpot({ x: 0.04 + fIdx * 0.09, y: 0.06 });
+        const fx = fIdx % 2 === 0 ? 0.73 : 0.88; // zigzag left-right within right zone
+        const fy = 0.06 + fIdx * 0.11;            // 11% vertical gap between each
+        pos = findOpenSpot({ x: fx, y: fy });
       } else {
         pos = findOpenSpot();
       }
@@ -681,6 +743,7 @@ export function matrixView(): HTMLElement {
             iconEl,
             el('span', { cls: 'parsec-fleet-column__symbol', text: coin.symbol }),
             el('span', { cls: 'parsec-fleet-column__price', text: formatPrice(coin.usd) }),
+            el('span', { cls: 'parsec-fleet-column__mcap', text: formatMarketCap(coin.marketCap) }),
             el('span', { cls: 'parsec-fleet-column__change', text: `${sign}${coin.change24h.toFixed(1)}%`, attrs: { style: `color:${color}` } }),
           ],
         });
@@ -894,18 +957,36 @@ export function matrixView(): HTMLElement {
 
   function setPill(p: PillChoice) {
     choice = p;
+    // Shader pill tint: 0 = green (landing/choose), 1 = red, 2 = blue
     pillUniform = p === 'red' ? 1.0 : p === 'blue' ? 2.0 : 0.0;
+    // Glitch spin on every transition
+    triggerGlitchSpin(0.8);
 
     if (p === 'none') {
-      // Landing — hide panel, show brand
+      // Landing — hide panel, show everything
       panel.style.display = 'none';
       panel.classList.remove('parsec-matrix__panel--fullscreen');
       brandEl.style.display = '';
+      pyramidLayer.style.display = '';
+      glyphLayer.style.display = '';
+      // Restore pyramid bricks that were hidden
+      const pyramidBody = pyramidLayer.querySelector('.parsec-pyramid__body') as HTMLElement;
+      const pyramidLines = pyramidLayer.querySelectorAll('.parsec-pyramid__line');
+      if (pyramidBody) pyramidBody.style.display = '';
+      pyramidLines.forEach(l => (l as HTMLElement).style.display = '');
     } else {
-      // Any other state — full-screen panel, hide brand
+      // Pill choice / blue / red — panel over rain
+      // Hide pyramid but keep floating glyphs (right side) and top 10 column (left side)
       panel.style.display = '';
       panel.classList.add('parsec-matrix__panel--fullscreen');
       brandEl.style.display = 'none';
+      // Hide pyramid bricks only — keep top 10 column, ship, and glyphs
+      const pyramidBody = pyramidLayer.querySelector('.parsec-pyramid__body') as HTMLElement;
+      const pyramidLines = pyramidLayer.querySelectorAll('.parsec-pyramid__line');
+      if (pyramidBody) pyramidBody.style.display = 'none';
+      pyramidLines.forEach(l => (l as HTMLElement).style.display = 'none');
+      // Glyphs (floating assets) and top 10 column stay visible
+      glyphLayer.style.display = '';
     }
 
     renderPanel();
@@ -1444,6 +1525,8 @@ uniform float u_dragY;
 uniform float u_breadth;
 uniform sampler2D u_glyphs;
 uniform sampler2D u_noise;
+uniform float u_glitch;   // 0 = normal, 0-1 = glitch intensity
+uniform float u_spin;     // 0-2π spin rotation angle
 
 // ── Text: sample a random character from the 16x16 glyph atlas ──
 // Faithful to Shadertoy ldccW4 text() function
@@ -1491,22 +1574,56 @@ vec3 rain(vec2 fragCoord) {
 
 void main() {
   vec2 fc = gl_FragCoord.xy;
+  vec2 res = u_resolution;
   float z = u_zoom;
 
-  // Scale coordinates by zoom
-  vec2 scaled = fc / z;
+  // ── Spin: rotate rain coordinates around screen center ──
+  vec2 center = res * 0.5;
+  vec2 p = fc - center;
+  float cs = cos(u_spin), sn = sin(u_spin);
+  vec2 rotated = vec2(p.x * cs - p.y * sn, p.x * sn + p.y * cs) + center;
 
-  // The classic matrix: text * rain
-  vec3 col = text(scaled) * rain(scaled);
+  // Scale coordinates by zoom
+  vec2 scaled = rotated / z;
+
+  // ── Glitch: chromatic split + scanline tear ──
+  float g = u_glitch;
+  vec3 col;
+  if (g > 0.01) {
+    // Chromatic aberration — split RGB channels
+    float shift = g * 12.0;
+    float r = text(scaled + vec2(shift, 0.0)) * rain(scaled + vec2(shift, 0.0)).r;
+    float gn = text(scaled) * rain(scaled).g;
+    float b = text(scaled - vec2(shift, 0.0)) * rain(scaled - vec2(shift, 0.0)).b;
+    col = vec3(r, gn, b);
+
+    // Scanline tear — horizontal displacement
+    float tearLine = fract(u_time * 3.7 + g * 5.0);
+    float tearDist = abs(fc.y / res.y - tearLine);
+    if (tearDist < 0.02 * g) {
+      col = col.grb; // channel swap on tear line
+      scaled.x += g * 40.0; // horizontal shift
+      col += text(scaled) * rain(scaled) * 0.3;
+    }
+
+    // Flash — bright pulse at peak glitch
+    col += vec3(g * g * 0.4);
+
+    // Character scramble — extra noise in glyph selection
+    col *= 0.7 + 0.3 * fract(sin(dot(fc, vec2(12.9898, 78.233)) + u_time * 100.0) * 43758.5453);
+  } else {
+    // Normal: the classic matrix expression
+    col = text(scaled) * rain(scaled);
+  }
 
   // Mouse glow — subtle cursor awareness
-  vec2 mp = u_mouse * u_resolution;
-  float md = length(fc - mp) / max(u_resolution.x, u_resolution.y);
+  vec2 mp = u_mouse * res;
+  float md = length(fc - mp) / max(res.x, res.y);
   float mglow = smoothstep(0.2, 0.0, md) * 0.08;
   col += col * mglow * 3.0;
 
   // Vignette — darken edges
-  vec2 uv = fc / u_resolution;
+  vec2 uv = fc / res;
   col *= 1.0 - 0.5 * pow(length(uv - 0.5) * 1.5, 2.5);
 
   // Subtle scanlines
