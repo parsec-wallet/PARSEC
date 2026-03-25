@@ -987,18 +987,22 @@ export function matrixView(): HTMLElement {
       const pyramidLines = pyramidLayer.querySelectorAll('.parsec-pyramid__line');
       if (pyramidBody) pyramidBody.style.display = '';
       pyramidLines.forEach(l => (l as HTMLElement).style.display = '');
-    } else {
-      // Pill choice / blue / red — panel over rain
-      // Hide pyramid but keep floating glyphs (right side) and top 10 column (left side)
+    } else if (p === 'blue') {
+      // Blue pill — pure diagnostics: hide EVERYTHING except rain
       panel.style.display = '';
       panel.classList.add('parsec-matrix__panel--fullscreen');
       brandEl.style.display = 'none';
-      // Hide pyramid bricks only — keep top 10 column, ship, and glyphs
+      pyramidLayer.style.display = 'none';
+      glyphLayer.style.display = 'none';
+    } else {
+      // Pill choice / red — hide pyramid bricks, keep top 10 + ship + glyphs
+      panel.style.display = '';
+      panel.classList.add('parsec-matrix__panel--fullscreen');
+      brandEl.style.display = 'none';
       const pyramidBody = pyramidLayer.querySelector('.parsec-pyramid__body') as HTMLElement;
       const pyramidLines = pyramidLayer.querySelectorAll('.parsec-pyramid__line');
       if (pyramidBody) pyramidBody.style.display = 'none';
       pyramidLines.forEach(l => (l as HTMLElement).style.display = 'none');
-      // Glyphs (floating assets) and top 10 column stay visible
       glyphLayer.style.display = '';
     }
 
@@ -1050,10 +1054,18 @@ export function matrixView(): HTMLElement {
 
   function renderBluePill() {
     panel.appendChild(el('div', { cls: 'parsec-matrix__choice-label parsec-matrix__choice-label--blue', text: 'BLUE PILL — DIAGNOSTICS' }));
-    panel.appendChild(el('p', { cls: 'parsec-matrix__lead', text: 'Network intelligence. DeFi liquidity. No signing authority.' }));
+    panel.appendChild(el('p', { cls: 'parsec-matrix__lead', text: 'Gas fees. Block times. Chain health. No signing authority.' }));
+
     const state = store.get();
 
-    // ── Network Activity Feed ──
+    // Two-column layout
+    const layout = el('div', { cls: 'parsec-matrix__blue-layout' });
+    panel.appendChild(layout);
+
+    // ── Left: Network log + Portfolio ──
+    const leftCol = el('div', { cls: 'parsec-matrix__blue-col' });
+    layout.appendChild(leftCol);
+
     const netFeed = el('div', { cls: 'parsec-matrix__netfeed' });
     const netLog = el('div', { cls: 'parsec-matrix__netlog' });
     netFeed.appendChild(el('div', { cls: 'parsec-matrix__netfeed-header', children: [
@@ -1061,26 +1073,18 @@ export function matrixView(): HTMLElement {
       el('span', { text: 'Network Activity' }),
     ]}));
     netFeed.appendChild(netLog);
-    panel.appendChild(netFeed);
+    leftCol.appendChild(netFeed);
 
     logNet(netLog, 'INIT', `Parsec v0.1.0 — ${state.settings.network}`);
     logNet(netLog, 'NODE', `Algod: ${state.settings.network}-api.algonode.cloud`);
     logNet(netLog, 'NODE', `Indexer: ${state.settings.network}-idx.algonode.cloud`);
-
-    // ── DeFi Llama + Market Diagnostics ──
-    const defiBox = el('div', { cls: 'parsec-matrix__diag parsec-matrix__diag--defi' });
-    defiBox.appendChild(el('div', { cls: 'parsec-matrix__diag-loading', text: 'Fetching DeFi data...' }));
-    panel.appendChild(defiBox);
-    loadDefiDiagnostics(defiBox, netLog);
-
-    // Blue pill is about infrastructure, not prices
     logNet(netLog, 'DIAG', 'Blockchain infrastructure diagnostics');
 
-    // ── Portfolio Diagnostics (if accounts exist) ──
+    // Portfolio in left column (if accounts exist)
     if (state.accounts.length > 0) {
       const diagBox = el('div', { cls: 'parsec-matrix__diag' });
-      diagBox.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'PORTFOLIO DIAGNOSTICS' }));
-      panel.appendChild(diagBox);
+      diagBox.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'ON-CHAIN PORTFOLIO' }));
+      leftCol.appendChild(diagBox);
       loadDiagnostics(diagBox, state.accounts, state.settings.network, netLog);
 
       const diagRefresh = setInterval(() => {
@@ -1089,9 +1093,18 @@ export function matrixView(): HTMLElement {
         loadDiagnostics(diagBox, state.accounts, state.settings.network, netLog);
       }, 30000);
     } else {
-      logNet(netLog, 'WAIT', 'No accounts — import a public address for portfolio data');
-      panel.appendChild(btn('Import Watch-Only Address', { outlined: true, cls: 'parsec-matrix__action', onClick: () => { cancelAnimation(); store.navigate('import-wallet'); } }));
+      logNet(netLog, 'WAIT', 'No accounts — import for on-chain data');
+      leftCol.appendChild(btn('Import Watch-Only Address', { outlined: true, cls: 'parsec-matrix__action', onClick: () => { cancelAnimation(); store.navigate('import-wallet'); } }));
     }
+
+    // ── Right: Blockchain diagnostics ──
+    const rightCol = el('div', { cls: 'parsec-matrix__blue-col' });
+    layout.appendChild(rightCol);
+
+    const defiBox = el('div', { cls: 'parsec-matrix__diag parsec-matrix__diag--defi' });
+    defiBox.appendChild(el('div', { cls: 'parsec-matrix__diag-loading', text: 'Querying chains...' }));
+    rightCol.appendChild(defiBox);
+    loadDefiDiagnostics(defiBox, netLog);
 
     backButton();
   }

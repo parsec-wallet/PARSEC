@@ -225,6 +225,27 @@
   margin-bottom: $spacing-6;
 }
 
+// ── Blue Pill two-column diagnostics layout ──────────────
+.parsec-matrix__blue-layout {
+  display: flex;
+  gap: $spacing-6;
+  width: 100%;
+  max-width: 900px;
+  align-items: flex-start;
+
+  @media (width <= 768px) {
+    flex-direction: column;
+  }
+}
+
+.parsec-matrix__blue-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+}
+
 .parsec-matrix__pills {
   display: flex;
   gap: $spacing-8;
