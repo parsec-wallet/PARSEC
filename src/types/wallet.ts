@@ -78,7 +78,8 @@ export type AppView =
   | 'pmvpn'
   | 'x402-confirm'
   | 'agents'
-  | 'identity';
+  | 'identity'
+  | 'connect-approve';
 
 export interface WalletState {
   view: AppView;
