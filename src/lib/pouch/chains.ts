@@ -5,6 +5,31 @@
 import type { WalletModule, CreatedWallet, ImportedWallet, PublicSurface } from './types';
 import { generateAccount, recoverAccount, validateMnemonic } from '../algorand/account';
 import { signBytesWithVault } from '../x402/bridge';
+import { keccak_256 } from '@noble/hashes/sha3.js';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
+
+// ── EIP-55 Checksum Address ────────────────────────────────────
+function toChecksumAddress(address: string): string {
+  const addr = address.toLowerCase().replace('0x', '');
+  const hashBytes = keccak_256(new TextEncoder().encode(addr));
+  const hash = Array.from(hashBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  let checksummed = '0x';
+  for (let i = 0; i < addr.length; i++) {
+    checksummed += parseInt(hash[i], 16) >= 8 ? addr[i].toUpperCase() : addr[i];
+  }
+  return checksummed;
+}
+
+// ── Ethereum address from private key ──────────────────────────
+// Standard: privkey → secp256k1 uncompressed pubkey → keccak256(pubkey[1:]) → last 20 bytes
+function deriveEthAddress(privateKeyBytes: Uint8Array): string {
+  const uncompressedPubKey = secp256k1.getPublicKey(privateKeyBytes, false);
+  // Skip the 0x04 prefix byte, hash the remaining 64 bytes
+  const hash = keccak_256(uncompressedPubKey.slice(1));
+  const addressBytes = hash.slice(hash.length - 20);
+  const rawAddress = '0x' + Array.from(addressBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+  return toChecksumAddress(rawAddress);
+}
 
 // ── Algorand Module (LIVE) ────────────────────────────────────
 
@@ -78,12 +103,8 @@ export const ethereumModule: WalletModule = {
     // Generate 32 random bytes as private key (0x-prefixed hex)
     const randomBytes = crypto.getRandomValues(new Uint8Array(32));
     const privateKey = '0x' + Array.from(randomBytes).map(b => b.toString(16).padStart(2, '0')).join('');
-    // Derive address requires keccak256 — defer to vault storage.
-    // The address will be set when the key is imported into the signing layer.
-    // For now, use a placeholder derived from the key hash.
-    const hashBuffer = await crypto.subtle.digest('SHA-256', randomBytes);
-    const hashArray = new Uint8Array(hashBuffer);
-    const address = '0x' + Array.from(hashArray.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join('');
+    // Derive address: keccak256(privateKey), take last 20 bytes, EIP-55 checksum
+    const address = deriveEthAddress(randomBytes);
     return {
       walletId: `eth_${Date.now().toString(36)}`,
       chainId: 'ethereum',
@@ -99,12 +120,9 @@ export const ethereumModule: WalletModule = {
     }
     if (format === 'private-key') {
       if (!secret.startsWith('0x') || secret.length !== 66) throw new Error('Invalid private key (expected 0x + 64 hex chars)');
-      // Derive address from private key — needs keccak256 (viem).
-      // Store the key, address resolution happens at signing time.
+      // Derive address from private key via keccak256 + EIP-55 checksum
       const keyBytes = new Uint8Array(secret.slice(2).match(/.{2}/g)!.map(b => parseInt(b, 16)));
-      const hashBuffer = await crypto.subtle.digest('SHA-256', keyBytes);
-      const hashArray = new Uint8Array(hashBuffer);
-      const address = '0x' + Array.from(hashArray.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join('');
+      const address = deriveEthAddress(keyBytes);
       return { walletId: `eth_${Date.now().toString(36)}`, chainId: 'ethereum', address, watchOnly: false };
     }
     throw new Error(`Unsupported import format: ${format}`);

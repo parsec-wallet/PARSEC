@@ -16,9 +16,13 @@
     "lint:css": "stylelint \"src/**/*.scss\" --fix",
     "lint:css:production": "stylelint \"src/**/*.scss\" --config .stylelintrc.production.cjs",
     "lint:css:ci": "stylelint \"src/**/*.scss\" --config .stylelintrc.production.cjs --formatter compact",
-    "prepare": "husky install"
+    "prepare": "husky install",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@noble/curves": "^2.0.1",
+    "@noble/hashes": "^2.0.1",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
     "@xterm/addon-fit": "^0.11.0",
@@ -36,7 +40,8 @@
     "stylelint-config-standard-scss": "^15.0.1",
     "stylelint-scss": "^6.12.1",
     "typescript": "~5.6.2",
-    "vite": "^6.0.3"
+    "vite": "^6.0.3",
+    "vitest": "^4.1.2"
   },
   "lint-staged": {
     "src/**/*.scss": [

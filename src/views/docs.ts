@@ -4,7 +4,7 @@
 import { el, btn } from '../lib/dom';
 import { store } from '../lib/store';
 
-type DocSection = 'quickstart' | 'faq' | 'security' | 'assets' | 'about';
+type DocSection = 'quickstart' | 'faq' | 'security' | 'assets' | 'spintrade' | 'about';
 
 export function docsView(): HTMLElement {
   let activeSection: DocSection = 'quickstart';
@@ -19,6 +19,7 @@ export function docsView(): HTMLElement {
       { id: 'faq', label: 'FAQ' },
       { id: 'security', label: 'Security' },
       { id: 'assets', label: 'Assets' },
+      { id: 'spintrade', label: 'SpinTrade' },
       { id: 'about', label: 'About' },
     ];
     for (const s of sections) {
@@ -162,6 +163,35 @@ const SECTIONS: Record<DocSection, () => HTMLElement> = {
     ],
   }),
 
+  spintrade: () => el('div', {
+    cls: 'parsec-docs__section',
+    children: [
+      el('h3', { text: 'SpinTrade DEX Aggregator' }),
+      el('p', { text: 'SpinTrade queries multiple Algorand AMMs in parallel, finds the best price, and lets you choose your swap path. All on-chain modules read data directly from Algod and Indexer — zero third-party API dependencies.' }),
+
+      el('h4', { text: 'DEX Sources' }),
+      el('p', { text: 'Tinyman v2 (on-chain) — primary sovereign source. Pact (on-chain) — second AMM with different liquidity. Both enabled by default. Tinyman API module available but disabled (centralized data source).' }),
+
+      el('h4', { text: 'Multi-Hop Routing' }),
+      el('p', { text: 'When no direct pool exists between two ASAs, SpinTrade routes through ALGO: ASA_A → ALGO → ASA_B. Both hops are fetched from all DEX sources. The aggregator compares direct vs multi-hop and returns whichever gives better output. Cross-DEX routing is supported (e.g. hop 1 via Pact, hop 2 via Tinyman).' }),
+
+      el('h4', { text: 'Slippage Tolerance' }),
+      el('p', { text: 'Presets: 0.1%, 0.25%, 0.5% (default), 1%, 2%. Custom values up to 50%. Applied as basis points — 50 bps = 0.5%. The swap reverts on-chain if price moves beyond your tolerance.' }),
+
+      el('h4', { text: 'Fees' }),
+      el('p', { text: 'DEX fee: 0.3% per hop (standard AMM fee). Multi-hop swaps incur 0.6% total (two hops). Algorand transaction fees: 0.001 ALGO per transaction in the swap group. SpinTrade charges no additional fee.' }),
+
+      el('h4', { text: 'Swap History' }),
+      el('p', { text: 'All successful swaps are saved locally (localStorage). Last 10 displayed at the bottom of the swap view. Records include: pair, DEX source, hop count, tx ID, and timestamp. No data is transmitted — history is device-local only. Max 100 records, oldest trimmed automatically.' }),
+
+      el('h4', { text: 'Pool Discovery' }),
+      el('p', { text: 'Available output assets are shown as pool cards with live price and liquidity data. Pools are discovered by searching recent AMM transactions on the blockchain, then reading pool account balances for reserves. Known high-liquidity pairs (ALGO, USDC, USDt, goBTC, goETH) are always included as fallback.' }),
+
+      el('h4', { text: 'Quote Card' }),
+      el('p', { text: 'Each quote shows: route (direct or multi-hop), expected output, exchange rate, minimum received after slippage, price impact, fee breakdown, and slippage tolerance. Review all fields before confirming. The swap button shows hop count for multi-hop routes.' }),
+    ],
+  }),
+
   about: () => el('div', {
     cls: 'parsec-docs__section',
     children: [
@@ -181,7 +211,7 @@ const SECTIONS: Record<DocSection, () => HTMLElement> = {
       el('p', { text: 'Parsec Paper Export is a free offline Bitcoin wallet generator forked from bitaddress.org. Single self-contained HTML file — 937KB, zero remote dependencies. Generate, print, and verify Bitcoin wallets offline. All wallet types: single, paper, bulk, brain, vanity, split. Cypherpunk2048 Standard.' }),
 
       el('h4', { text: 'Roadmap' }),
-      el('p', { text: 'Algorand first. Bitcoin via Paper Export and future Core integration. Multi-chain sovereign holdings: BTC, LTC, XMR, ETH, SOL. SpinTrade DEX. WalletConnect (ARC-25). ASA/NFT minter extensions. Wallet Pouch architecture for multi-chain identity.' }),
+      el('p', { text: 'Algorand first. Bitcoin via Paper Export and future Core integration. Multi-chain sovereign holdings: BTC, LTC, XMR, ETH, SOL. SpinTrade DEX aggregator (shipped — Tinyman + Pact, multi-hop routing, swap history). WalletConnect (ARC-25). ASA/NFT minter extensions. Wallet Pouch architecture for multi-chain identity.' }),
 
       el('h4', { text: 'Contact' }),
       el('p', { text: 'github@deltav.exchange' }),

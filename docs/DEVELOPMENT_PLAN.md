@@ -1,7 +1,7 @@
 # Parsec Wallet — Development Plan
 
-> **Updated:** 2026-03-25
-> **Status:** Alpha — Matrix entry gate, x402 payments, AgenticPlace integration, tabbed diagnostics
+> **Updated:** 2026-03-26
+> **Status:** Alpha — Matrix entry gate, x402 payments, interchain weave (45/45 tests), ShambaLuv (30/30 tests), multi-hop DEX
 > **Vision:** The evolution of the cryptocurrency wallet. Sovereign, modular, Algorand-first. Every client is a server.
 
 ## Mission
@@ -170,7 +170,9 @@ Informed by: ailgo/tinyman-amm-contracts-v2, Tinyman JS SDK docs
 - [x] Atomic group transaction execution (input transfer + app call)
 - [x] 0.5% default slippage with min output calculation
 - [x] Swap button on dashboard
-- [ ] Multi-hop routing (ASA→ALGO→ASA) for better rates
+- [x] Multi-hop routing (ASA→ALGO→ASA) — fetchBestQuote() checks direct + multi-hop in parallel
+- [x] Multi-hop execution — executeMultiHopSwap() handles 1-hop and 2-hop paths
+- [x] Swap view: route display (direct vs 2-hop), compound fee (0.6% for 2-hop), hop breakdown
 - [ ] Swap history tracking
 - [ ] Custom slippage setting
 
@@ -314,7 +316,7 @@ Modular smart contracts for the AgenticPlace token economy. All Algorand contrac
 - [x] ShambaLuv.sol: 100Q supply, 5% buy/sell (3% reflection, 1% liquidity, 1% team)
 - [x] All 5 LUV8 bugs fixed (name, router approval, slippage, threshold logic, proxy bypass)
 - [x] 0% wallet-to-wallet (EOA code.length check), fees only lower, admin hierarchy
-- [ ] Foundry tests: `forge build && forge test`
+- [x] Foundry tests: 30/30 pass on Anvil (metadata, fees, exemptions, reflection, router, fuzz)
 - [ ] Deploy LUV9 on Polygon (replace LUV8 at 0x1035760d...)
 - [ ] Multi-chain deployment via CREATE2
 
@@ -358,12 +360,13 @@ Neither sidechain nor crosschain. Interchain weaves — direct value transfer wi
 **Core Contracts (Solidity, Foundry)**
 - [x] PhiFeeCalculator.sol: phi (1.618...) fee math, 61.8/38.2 revenue split
 - [x] GasStation.sol: multi-chain gas oracle, staleness checks, batch updates
-- [x] InterchainWeaver.sol: weave router (value + phi_fee), relayer receive, revenue split
+- [x] InterchainWeaver.sol: proof-gated escrow (NOT bridge), ECDSA settlement verification, reclaim timeout, delivery confirmation, multi-signer threshold
 - [x] InterchainRegistry.sol: chain config, route discovery, 14+ chains expandable to 2510+
 - [x] InterchainDeployer.sol: multi-chain deploy, cost estimation, CREATE2 prediction
-- [x] PhiFeeCalculator.t.sol: 13 tests + fuzz (phi precision, scaling, overflow, split)
-- [x] GasStation.t.sol: 9 tests (update, batch, auth, staleness, quote, realistic Polygon)
-- [ ] `forge test` — all tests pass on Anvil
+- [x] PhiFeeCalculator.t.sol: 15 tests + fuzz (phi precision, scaling, overflow, split)
+- [x] GasStation.t.sol: 11 tests (update, batch, auth, staleness, quote, realistic Polygon)
+- [x] InterchainWeaver.t.sol: 19 tests (escrow, proof verification, reclaim, delivery, signer mgmt)
+- [x] `forge test` — 45/45 pass on Anvil
 - [ ] Fork test against Polygon mainnet
 - [ ] Deploy to Base Sepolia (first livenet)
 - [ ] Deploy to Polygon mainnet
@@ -383,9 +386,9 @@ Neither sidechain nor crosschain. Interchain weaves — direct value transfer wi
 
 **Documentation**
 - [x] INTERCHAIN.md: weave protocol spec, chain registry, settlement layer
-- [x] EXPLANATION.md: why phi, how weaving works, vs bridges, self-balancing liquidity
-- [x] TECHNICAL.md: every constant, struct, function, gas cost, overflow analysis, security
-- [x] USAGE.md: code examples for every contract + deployer + Algorand settler
+- [x] EXPLANATION.md: 5-phase weave flow, escrow vs pool vs vault, proof gate, limitations, path to decentralization
+- [x] TECHNICAL.md: 7 contracts specified verbosely, 45 tests documented, security model, trust assumptions
+- [x] USAGE.md: code examples for every operation including proof generation, reclaim, delivery confirmation
 - [x] DEPLOYMENT.md: Anvil → fork test → estimate → deploy (cheapest first)
 
 ### Phase M — DAIO Governance Integration
@@ -453,24 +456,24 @@ Algorand reference library: js-algorand-sdk, AlgoKit, Pera, use-wallet, vibekit,
 
 ## Phase Summary
 
-| Phase | Name | Status | Files |
-|-------|------|--------|-------|
-| A | Core Wallet | Complete | 20+ views, vault, keystore |
-| B | Matrix + DEX | Complete | matrix.ts, swap.ts, prices.ts |
-| B2 | Matrix Overhaul | Complete | matrix.ts (1800+ lines), _views.scss |
-| B3 | x402 Integration | Complete | 8 files in src/lib/x402/ + 3 views |
-| B4 | Documentation | Complete | docs.html + 37 docs |
-| C | Input Validation | 95% | import-wallet.ts, validate.ts |
-| D | SpinTrade DEX | 80% | swap.ts, dex/ (multi-hop pending) |
-| E | Wallet Interop | Planned | WalletConnect, ARC-1, ARC-25 |
-| F | Advanced Algorand | Planned | Rekeying, multisig, ARC-19 |
-| G | Extensions | Planned | ASA minter, NFT minter, plugins |
-| H | Multi-Chain | 15% | Ethereum key gen done, signing pending |
-| I | Infrastructure | 70% | 4 Rust modules built, persistence pending |
-| J | x402 Payments | 85% | Module complete, e2e test pending |
-| K | AlgoDeployer | 70% | Contracts written, deployment pending |
-| L | Interchain | 60% | Contracts + tests written, Anvil pending |
-| M | DAIO Governance | Planned | Credential-gated proposals, AI seats |
+| Phase | Name | Status | Tests | Key Deliverable |
+|-------|------|--------|-------|-----------------|
+| A | Core Wallet | Complete | — | 20+ views, vault, keystore |
+| B | Matrix + DEX | Complete | — | WebGL rain, pyramid, pills |
+| B2 | Matrix Overhaul | Complete | — | Glitch spin, tabbed diagnostics, drag-and-drop, glyph atlas |
+| B3 | x402 Integration | Complete | — | 8 files in src/lib/x402/ + 3 views |
+| B4 | Documentation | Complete | — | docs.html (37 docs), dev plan (477 lines) |
+| C | Input Validation | 95% | — | Classifier, live feedback, watch-only |
+| D | SpinTrade DEX | 95% | — | Multi-hop ASA→ALGO→ASA, quote aggregator |
+| E | Wallet Interop | Planned | — | WalletConnect, ARC-1, ARC-25 |
+| F | Advanced Algorand | Planned | — | Rekeying, multisig, ARC-19, history export |
+| G | Extensions | Planned | — | ASA minter, NFT minter, plugins |
+| H | Multi-Chain | 15% | — | Ethereum key gen done, viem signing pending |
+| I | Infrastructure | 70% | — | 4 Rust modules (66 IPC commands), persistence pending |
+| J | x402 Payments | 85% | — | Module complete, e2e test pending |
+| K | AlgoDeployer | 80% | 30/30 | LUV9 tested, BONA FIDE written, Puya pending |
+| L | Interchain | 85% | 45/45 | True interchain (proof-gated escrow), docs rewritten |
+| M | DAIO Governance | Planned | — | Credential-gated proposals, AI seats |
 
 ---
 
