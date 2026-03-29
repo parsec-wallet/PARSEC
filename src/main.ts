@@ -61,6 +61,16 @@ if (root) {
   mountRouter(root);
 }
 
+// Global loading overlay — responds to store.isLoading
+const loadingOverlay = document.createElement('div');
+loadingOverlay.className = 'parsec-loading-overlay';
+loadingOverlay.innerHTML = '<div class="parsec-loading-spinner"></div>';
+document.body.appendChild(loadingOverlay);
+
+store.subscribe((state) => {
+  loadingOverlay.classList.toggle('parsec-loading-overlay--active', state.isLoading);
+});
+
 // Auto-lock: reset timer on any user activity
 for (const event of ['click', 'keydown', 'input', 'mousemove'] as const) {
   document.addEventListener(event, () => store.onActivity(), { passive: true });

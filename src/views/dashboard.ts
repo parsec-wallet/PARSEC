@@ -25,9 +25,14 @@ export function dashboardView(): HTMLElement {
     const id = chainPriceId[state.settings.network] || 'algorand';
     const coin = coinPrices.find(p => p.id === id);
     if (coin) {
-      const changeColor = coin.change24h >= 0 ? '#10b981' : '#ef4444';
       const sign = coin.change24h >= 0 ? '+' : '';
-      priceTag.innerHTML = `${coin.symbol} ${formatPrice(coin.usd)} <span style="color:${changeColor};font-size:0.8em">${sign}${coin.change24h.toFixed(1)}%</span>`;
+      const changeCls = coin.change24h >= 0 ? 'parsec-dashboard__change--up' : 'parsec-dashboard__change--down';
+      priceTag.textContent = '';
+      priceTag.appendChild(document.createTextNode(`${coin.symbol} ${formatPrice(coin.usd)} `));
+      const changeSpan = document.createElement('span');
+      changeSpan.className = `parsec-dashboard__change ${changeCls}`;
+      changeSpan.textContent = `${sign}${coin.change24h.toFixed(1)}%`;
+      priceTag.appendChild(changeSpan);
     } else {
       priceTag.textContent = '$';
     }
