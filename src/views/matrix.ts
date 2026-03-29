@@ -840,41 +840,6 @@ export function matrixView(): HTMLElement {
     return cardEl;
   }
 
-  function pyramidCoin(coin: CoinPrice, xPct: number, yPct: number, scale: number, isApex: boolean, opacity = 1): HTMLElement {
-    const isUp = coin.change24h >= 0;
-    const color = isUp ? '#10b981' : '#ef4444';
-    const sign = isUp ? '+' : '';
-    const cls = isApex ? 'parsec-pyramid__coin parsec-pyramid__coin--apex' : 'parsec-pyramid__coin';
-
-    const coinEl = el('div', {
-      cls,
-      attrs: {
-        style: `left:${xPct}%;top:${yPct}%;transform:translate(-50%,-50%) scale(${scale});opacity:${opacity}`,
-      },
-      children: [
-        el('div', { cls: 'parsec-pyramid__symbol', text: coin.symbol }),
-        el('div', { cls: 'parsec-pyramid__price', text: formatPrice(coin.usd) }),
-        el('div', { cls: 'parsec-pyramid__change', text: `${sign}${coin.change24h.toFixed(1)}%`, attrs: { style: `color:${color}` } }),
-      ],
-    });
-
-    // Hover info panel — expands on hover, pushes neighbors away
-    coinEl.addEventListener('mouseenter', () => {
-      // Show expanded info card
-      showCoinPanel(coin, coinEl);
-      // Push nearby pyramid coins away for isolation
-      coinEl.style.zIndex = '50';
-      coinEl.style.transform = `translate(-50%,-50%) scale(${scale * 1.5})`;
-    });
-    coinEl.addEventListener('mouseleave', () => {
-      hideCoinPanel();
-      coinEl.style.zIndex = '';
-      coinEl.style.transform = `translate(-50%,-50%) scale(${scale})`;
-    });
-
-    return coinEl;
-  }
-
   // ── Hover info panel — detailed coin card ──────────────────
 
   let activeCoinPanel: HTMLElement | null = null;
@@ -1501,6 +1466,12 @@ export function matrixView(): HTMLElement {
         }
       }
     } catch { /* skip */ }
+
+    // Deep diagnostics button — expands to full macro view (gas, chains, sentiment, predictions)
+    box.appendChild(btn('Deep Diagnostics', {
+      minimal: true, cls: 'parsec-matrix__action',
+      onClick: () => loadDefiDiagnostics(box, netLog),
+    }));
   }
 
   // ── Blue Pill Tab: Portfolio ──
@@ -1523,7 +1494,9 @@ export function matrixView(): HTMLElement {
     ]});
   }
 
-  // Legacy loadDefiDiagnostics replaced by tabbed diagnostics
+  // DeFi diagnostics — full macro perspective: liquidity, volume, sentiment, gas, predictions
+  // Called from DeFi tab "Deep Diagnostics" button or standalone
+  // Uses DeFi Llama free API for TVL, protocols, stablecoins, gas, Fear & Greed
   async function loadDefiDiagnostics(container: HTMLElement, netLog: HTMLElement) {
     container.innerHTML = '';
     container.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'BLOCKCHAIN DIAGNOSTICS' }));
