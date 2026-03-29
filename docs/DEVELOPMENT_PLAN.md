@@ -1,7 +1,7 @@
 # Parsec Wallet — Development Plan
 
-> **Updated:** 2026-03-26
-> **Status:** Alpha — Matrix entry gate, x402 payments, interchain weave (45/45 tests), ShambaLuv (30/30 tests), multi-hop DEX
+> **Updated:** 2026-03-29
+> **Status:** Alpha — Matrix entry gate, x402 payments, multi-chain builder (8 families), Mausoleum vault, aORC contracts (4 compiled, testnet-verified), PROOF.md attestation, deployer pipeline
 > **Vision:** The evolution of the cryptocurrency wallet. Sovereign, modular, Algorand-first. Every client is a server.
 
 ## Mission
@@ -14,11 +14,12 @@ Build Parsec as a sovereign universal wallet: Tauri desktop shell, zero-dependen
 
 ```
 Frontend (vanilla TypeScript + Blueprint CSS)
-├── src/views/          # View modules (matrix, dashboard, send, receive, agents, identity, x402-confirm, etc.)
+├── src/views/          # View modules (matrix, dashboard, send, receive, agents, identity, x402-confirm, admin-keygen, mausoleum, etc.)
 ├── src/lib/            # Core modules (store, router, dom, keystore, vault, tomb, prices)
 ├── src/lib/algorand/   # Chain pack: account, transactions, assets, client
 ├── src/lib/x402/       # AgenticPlace integration: types, oracle, bridge, payment, discount, client
-├── src/lib/pouch/      # Chain adapter system: algorand (live), ethereum (live), bitcoin (stub)
+├── src/lib/pouch/      # Chain adapter system: algorand, ethereum, bitcoin, litecoin, monero, zilliqa, cardano, arweave
+├── src/lib/builder/    # Multi-chain tx builder: types, multichain, walletconnect, registry, isolation
 ├── src/lib/dex/        # SpinTrade DEX aggregator: tinyman-onchain, tinyman-api
 ├── src/lib/pmvpn/      # Private Mesh VPN: auth, connector, store, terminal
 ├── src/assets/matrix/  # WebGL textures: glyphs.png (16x16 katakana atlas), noise.png
@@ -179,10 +180,11 @@ Informed by: ailgo/tinyman-amm-contracts-v2, Tinyman JS SDK docs
 ### Phase E — Wallet Interop & Standards
 Informed by: ailgo/use-wallet, ailgo/peraconnect, ARC-1, ARC-25
 
-- [ ] WalletConnect v1/v2 support (ARC-25)
+- [x] WalletConnect v2 module (src/lib/builder/walletconnect.ts) — multi-family, Algorand + EVM
+- [x] ParsecConnect browser SDK (modules/parsec-connect.js) — Pera-compatible signTransaction
+- [x] parsec_connect Rust WebSocket server (localhost:9876) — JSON-RPC 2.0
 - [ ] ARC-1 transaction signing API compliance
 - [ ] dApp connection interface (QR code + deep link)
-- [ ] Watch-only mode (view balance without signing keys)
 
 ### Phase F — Advanced Algorand Features
 Informed by: ailgo/pera-wallet, developer.algorand.org
@@ -211,15 +213,43 @@ Informed by: parsec-wallet org, Atomic Wallet key pair model, MetaMask/Phantom p
 Parsec absorbs from existing wallets — participant has complete handling of
 public/private key pairs across all chains. True sovereign holding.
 
-- [ ] Chain-pack adapter architecture (per parsec-wallet/xchainjs-lib-1 patterns)
-- [ ] Bitcoin (BTC) — UTXO model, Bech32, full private key control
-- [ ] Litecoin (LTC) — Scrypt PoW, Bech32
-- [ ] Monero (XMR) — privacy-first, view keys + spend keys
-- [ ] Ethereum (ETH) — EVM, BIP-39, 0x checksum, ERC-20
+- [x] Chain-pack adapter architecture — 8 chain families with isolation layer
+- [x] Multi-chain builder: ParsecTxBuilder → chain router → family builder → isolation check
+- [x] Chain registry: 2500+ EVM chains from allchain API + chainid.network CDN + static fallback
+- [x] Isolation layer: cryptographic boundaries per family, vault signing, external signer sandboxing
+- [x] Ethereum (ETH) — key gen live, vault signing via @noble/curves secp256k1 (no ethers dep)
+- [x] Bitcoin (BTC) — UTXO model, builder path, signing stub (needs bitcoinjs-lib)
+- [x] Litecoin (LTC) — UTXO family, builder path, signing stub
+- [x] Monero (XMR) — CryptoNote family, ring signature model, signing stub (needs monero WASM)
+- [x] Zilliqa (ZIL) — Schnorr/secp256k1 family, signing stub (needs @zilliqa-js/crypto)
+- [x] Cardano (ADA) — Ed25519-BIP32 family, eUTXO model, signing stub (needs cardano-serialization-lib)
+- [x] Arweave (AR) — RSA-4096 family, vault signing LIVE via WebCrypto RSA-PSS (zero deps)
+- [x] EVM L2/L3/sidechains — Polygon, Arbitrum, Optimism, Base, zkSync, etc. via EVM family
+- [x] MetaMask injection sandboxing (EIP-1193 passthrough, PARSEC never touches key)
 - [ ] Solana (SOL) — ed25519, SPL tokens
-- [ ] Each chain: create, import, send, receive, private key export
+- [ ] Each chain: send, receive, private key export
 - [ ] Atomic-style key pair display (participant sees all their keys)
-- [ ] bankon_vault holds all chain keys in one encrypted Tomb volume
+- [x] bankon_vault holds all chain keys in one encrypted Tomb volume
+- [x] Mausoleum: visual vault manager + cipher threshold dashboard + WebGL 3D crypto horizon
+- [x] Admin key ceremony: 6-phase airgapped generation with network isolation probes
+- [x] PROOF.md: formal encryption attestation (5 theorems, 10 cipher proofs, Bremermann limit)
+
+### Phase H2 — aORC Contract Suite (agenticplace.pythai.net)
+
+- [x] AgenticMinter — generic NFT minting (563 TEAL, testnet App 757891101)
+- [x] AgenticRegistry — blockchain verification registry with box storage (1331 TEAL, testnet App 757891112)
+- [x] BonaFideController — clawback-controlled reputation token issuance/revocation (1008 TEAL, testnet App 757895044)
+- [x] TypeMinter — type-aware minting: aNFT/dNFT/iNFT/THOT with per-type on-chain logic (1613 TEAL, testnet App 757895349)
+  - aNFT: immutable agent identity, box-registered
+  - dNFT: dynamic, metadata update log tracked, owner-only
+  - iNFT: intelligent, directive address + autonomy + intelligence level stored on-chain
+  - THOT: knowledge tensor, CID uniqueness enforced (one THOT per SHA-256(CID))
+- [x] deployer.html — tabbed deployment center: contracts, ASA creator, ABI explorer, settings, access tiers
+- [x] deployer.php — ARC-56 ABI server, deployment records, ASA presets, history
+- [x] deploy.html — TEAL embedded + algod.compile() + 7-step flow (Minter + Registry + BONA FIDE)
+- [x] deploy.ts — CLI deployment: all contracts + BONA FIDE ASA creation + verify
+- [x] testnet-skills.md — reusable deployment skills (faucet, compile, deploy, verify)
+- [ ] Mainnet deployment (blocked: deployer needs 12+ ALGO funded)
 - [ ] USB cold storage for multi-chain key files
 - [ ] Network registry (per parsec-wallet/chainlist)
 - [ ] Hardware wallet integration (Ledger, Trezor)
