@@ -195,6 +195,56 @@
   color: $color-success;
 }
 
+.parsec-tx-row--deploy .parsec-tx-row__type {
+  color: $color-primary;
+}
+
+.parsec-tx-row--deploy .parsec-tx-row__amount {
+  color: $color-primary;
+}
+
+.parsec-tx-row--appcall .parsec-tx-row__type {
+  color: $color-info;
+}
+
+.parsec-tx-row--appcall .parsec-tx-row__amount {
+  color: $color-info;
+}
+
+.parsec-tx-row--neutral .parsec-tx-row__type {
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-tx-row__detail {
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  font-family: $font-family-mono;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parsec-tx-row__links {
+  display: flex;
+  gap: $spacing-2;
+  margin-top: 2px;
+}
+
+.parsec-tx-link {
+  font-size: 10px;
+  font-family: $font-family-mono;
+  color: $color-primary;
+  text-decoration: none;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 1;
+    text-decoration: underline;
+  }
+}
+
 // Toast
 .parsec-toast-container {
   position: fixed;
