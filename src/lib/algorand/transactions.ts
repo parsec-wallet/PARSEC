@@ -14,20 +14,25 @@ export async function sendPayment(
 ): Promise<{ txId: string; confirmedRound: number }> {
   const client = getAlgodClient(network);
   const account = algosdk.mnemonicToSecretKey(mnemonic.trim());
-  const suggestedParams = await client.getTransactionParams().do();
+  try {
+    const suggestedParams = await client.getTransactionParams().do();
 
-  const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-    sender: account.addr,
-    receiver,
-    amount: amountMicroAlgos,
-    note: note ? new TextEncoder().encode(note) : undefined,
-    suggestedParams,
-  });
+    const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      sender: account.addr,
+      receiver,
+      amount: amountMicroAlgos,
+      note: note ? new TextEncoder().encode(note) : undefined,
+      suggestedParams,
+    });
 
-  const signedTxn = txn.signTxn(account.sk);
-  const { txid } = await client.sendRawTransaction(signedTxn).do();
-  const result = await algosdk.waitForConfirmation(client, txid, 4);
-  return { txId: txid, confirmedRound: Number(result.confirmedRound || 0) };
+    const signedTxn = txn.signTxn(account.sk);
+    const { txid } = await client.sendRawTransaction(signedTxn).do();
+    const result = await algosdk.waitForConfirmation(client, txid, 10);
+    return { txId: txid, confirmedRound: Number(result.confirmedRound || 0) };
+  } finally {
+    // Zero secret key bytes — defense against memory scraping
+    account.sk.fill(0);
+  }
 }
 
 /** Send ASA transfer */
@@ -41,21 +46,25 @@ export async function sendAssetTransfer(
 ): Promise<{ txId: string; confirmedRound: number }> {
   const client = getAlgodClient(network);
   const account = algosdk.mnemonicToSecretKey(mnemonic.trim());
-  const suggestedParams = await client.getTransactionParams().do();
+  try {
+    const suggestedParams = await client.getTransactionParams().do();
 
-  const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-    sender: account.addr,
-    receiver,
-    amount,
-    assetIndex: assetId,
-    note: note ? new TextEncoder().encode(note) : undefined,
-    suggestedParams,
-  });
+    const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+      sender: account.addr,
+      receiver,
+      amount,
+      assetIndex: assetId,
+      note: note ? new TextEncoder().encode(note) : undefined,
+      suggestedParams,
+    });
 
-  const signedTxn = txn.signTxn(account.sk);
-  const { txid } = await client.sendRawTransaction(signedTxn).do();
-  const result = await algosdk.waitForConfirmation(client, txid, 4);
-  return { txId: txid, confirmedRound: Number(result.confirmedRound || 0) };
+    const signedTxn = txn.signTxn(account.sk);
+    const { txid } = await client.sendRawTransaction(signedTxn).do();
+    const result = await algosdk.waitForConfirmation(client, txid, 10);
+    return { txId: txid, confirmedRound: Number(result.confirmedRound || 0) };
+  } finally {
+    account.sk.fill(0);
+  }
 }
 
 /** Fetch recent transactions */
