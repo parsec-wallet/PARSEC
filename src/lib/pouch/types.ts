@@ -4,7 +4,8 @@
 
 // ── Chain Module Interface ────────────────────────────────────
 
-export type ChainId = 'bitcoin' | 'ethereum' | 'algorand' | 'solana' | 'litecoin' | 'monero' | string;
+export type ChainFamily = 'algorand' | 'evm' | 'utxo' | 'cryptonote' | 'zilliqa' | 'cardano' | 'arweave';
+export type ChainId = 'bitcoin' | 'ethereum' | 'algorand' | 'solana' | 'litecoin' | 'monero' | 'zilliqa' | 'cardano' | 'arweave' | string;
 
 export interface WalletModule {
   chainId: ChainId;
@@ -61,11 +62,13 @@ export type ExposureLevel = 'cold' | 'warm' | 'public';
 export interface ChainWalletRef {
   walletId: string;
   chainId: ChainId;
+  chainFamily?: ChainFamily;
   label: string;
   purpose: WalletPurpose;
   visibility: Visibility;
   address: string;
   watchOnly: boolean;
+  signingAuthority?: 'vault' | 'metamask' | 'walletconnect' | 'external' | 'watch-only';
   publicSurfaces: PublicSurface[];
 }
 

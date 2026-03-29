@@ -26,6 +26,8 @@ import { x402ConfirmView } from './views/x402-confirm';
 import { agentsView } from './views/agents';
 import { identityView } from './views/identity';
 import { connectApproveView, setConnectPending } from './views/connect-approve';
+import { adminKeygenView } from './views/admin-keygen';
+import { mausoleumView } from './views/mausoleum';
 import { connectStart } from './lib/connect';
 import type { SignRequest } from './lib/connect';
 import './styles/pmvpn.scss';
@@ -50,6 +52,8 @@ registerView('x402-confirm', x402ConfirmView);
 registerView('agents', agentsView);
 registerView('identity', identityView);
 registerView('connect-approve', connectApproveView);
+registerView('admin-keygen', adminKeygenView);
+registerView('mausoleum', mausoleumView);
 
 // Mount
 const root = document.getElementById('root');

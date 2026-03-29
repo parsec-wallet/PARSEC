@@ -79,7 +79,9 @@ export type AppView =
   | 'x402-confirm'
   | 'agents'
   | 'identity'
-  | 'connect-approve';
+  | 'connect-approve'
+  | 'admin-keygen'
+  | 'mausoleum';
 
 export interface WalletState {
   view: AppView;

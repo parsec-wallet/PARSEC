@@ -2483,3 +2483,708 @@
   padding-top: $spacing-6;
   border-top: 1px solid rgba($color-danger, 0.3);
 }
+
+// ==========================================================================
+// ADMIN KEY CEREMONY — Airgapped Generation
+// ==========================================================================
+
+.parsec-admin-keygen {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: $spacing-4 $spacing-5;
+}
+
+.parsec-admin-keygen__header {
+  margin-bottom: $spacing-3;
+}
+
+.parsec-admin-keygen__title-block {
+  text-align: center;
+  margin-bottom: $spacing-5;
+}
+
+.parsec-admin-keygen__title {
+  font-size: $font-size-2xl;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: $spacing-1;
+}
+
+.parsec-admin-keygen__subtitle {
+  color: $color-dark-text-muted;
+  font-size: $font-size-sm;
+}
+
+// ── Phase Indicator ──
+
+.parsec-admin-keygen__phases {
+  display: flex;
+  gap: 2px;
+  margin-bottom: $spacing-6;
+}
+
+.parsec-admin-keygen__phase {
+  flex: 1;
+  text-align: center;
+  padding: $spacing-1 $spacing-2;
+  font-size: $font-size-xs;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-radius: 4px;
+  transition: all 0.3s;
+
+  &--done {
+    background: rgba($color-success, 0.2);
+    color: $color-success;
+  }
+
+  &--active {
+    background: rgba($color-primary, 0.25);
+    color: $color-primary-light;
+    box-shadow: 0 0 8px rgba($color-primary, 0.3);
+  }
+
+  &--pending {
+    background: rgba($color-dark-border, 0.3);
+    color: $color-dark-text-muted;
+  }
+}
+
+// ── Panel ──
+
+.parsec-admin-keygen__panel {
+  background: rgba($color-dark-bg-secondary, 0.6);
+  border: 1px solid $color-dark-border;
+  border-radius: 12px;
+  padding: $spacing-5;
+  backdrop-filter: blur(8px);
+
+  h3 {
+    font-size: $font-size-lg;
+    font-weight: 600;
+    margin-bottom: $spacing-3;
+  }
+
+  &--center {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: $spacing-3;
+  }
+
+  .bp5-button {
+    margin-top: $spacing-3;
+  }
+}
+
+.parsec-admin-keygen__info {
+  color: $color-dark-text-muted;
+  font-size: $font-size-sm;
+  margin-bottom: $spacing-4;
+  line-height: 1.5;
+}
+
+// ── Diagnostics Grid ──
+
+.parsec-admin-keygen__diag-grid {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin-bottom: $spacing-4;
+}
+
+.parsec-admin-keygen__diag-item {
+  padding: $spacing-2 $spacing-3;
+  border-radius: 8px;
+  border-left: 3px solid transparent;
+  background: rgba($color-black, 0.2);
+  transition: all 0.2s;
+
+  &.parsec-diag--pass {
+    border-left-color: $color-success;
+  }
+
+  &.parsec-diag--fail {
+    border-left-color: $color-danger;
+    background: rgba($color-danger, 0.08);
+  }
+
+  &.parsec-diag--warn {
+    border-left-color: $color-warning;
+  }
+
+  &.parsec-diag--checking {
+    border-left-color: $color-info;
+    animation: parsec-pulse 1.5s ease infinite;
+  }
+}
+
+.parsec-admin-keygen__diag-head {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  margin-bottom: $spacing-1;
+
+  .bp5-icon {
+    font-size: 14px;
+  }
+
+  .parsec-diag--pass & .bp5-icon { color: $color-success; }
+  .parsec-diag--fail & .bp5-icon { color: $color-danger; }
+  .parsec-diag--warn & .bp5-icon { color: $color-warning; }
+  .parsec-diag--checking & .bp5-icon { color: $color-info; }
+}
+
+.parsec-admin-keygen__diag-name {
+  font-weight: 600;
+  font-size: $font-size-sm;
+}
+
+.parsec-admin-keygen__diag-badge {
+  font-size: $font-size-xs;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba($color-danger, 0.15);
+  color: $color-danger;
+  letter-spacing: 0.05em;
+  margin-left: auto;
+}
+
+.parsec-admin-keygen__diag-detail {
+  font-size: $font-size-xs;
+  color: $color-dark-text-muted;
+  font-family: $font-family-mono;
+  line-height: 1.4;
+}
+
+.parsec-admin-keygen__diag-loading {
+  text-align: center;
+  padding: $spacing-4;
+  color: $color-info;
+  font-style: italic;
+}
+
+// ── Alerts ──
+
+.parsec-admin-keygen__alert {
+  padding: $spacing-3 $spacing-4;
+  border-radius: 8px;
+  margin: $spacing-3 0;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+
+  strong {
+    display: block;
+    margin-bottom: $spacing-1;
+  }
+
+  p {
+    margin: 0;
+  }
+
+  &--danger {
+    background: rgba($color-danger, 0.1);
+    border: 1px solid rgba($color-danger, 0.3);
+    color: $color-danger;
+
+    strong { color: $color-danger; }
+    p { color: rgba($color-danger, 0.85); }
+  }
+
+  &--success {
+    background: rgba($color-success, 0.1);
+    border: 1px solid rgba($color-success, 0.3);
+
+    strong { color: $color-success; }
+    p { color: rgba($color-success, 0.85); }
+  }
+}
+
+// ── Address Display ──
+
+.parsec-admin-keygen__address {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-1;
+  padding: $spacing-3;
+  background: rgba($color-black, 0.3);
+  border-radius: 8px;
+  margin-bottom: $spacing-3;
+}
+
+.parsec-admin-keygen__address-label {
+  font-size: $font-size-xs;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: $color-dark-text-muted;
+}
+
+.parsec-admin-keygen__address-value {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  word-break: break-all;
+  text-align: center;
+  color: $color-success;
+}
+
+// ── Mnemonic Words (ceremony variant) ──
+
+.parsec-admin-keygen__words {
+  border: 2px solid rgba($color-danger, 0.3);
+  border-radius: 10px;
+  padding: $spacing-3;
+  background: rgba($color-danger, 0.03);
+  margin: $spacing-3 0;
+}
+
+.parsec-admin-keygen__fingerprint {
+  text-align: center;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: $color-dark-text-muted;
+  margin: $spacing-2 0 $spacing-4;
+}
+
+// ── Verify Phase ──
+
+.parsec-admin-keygen__verify-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  margin-bottom: $spacing-2;
+
+  label {
+    font-weight: 600;
+    font-size: $font-size-sm;
+    min-width: 90px;
+  }
+}
+
+.parsec-admin-keygen__verify-input {
+  flex: 1;
+}
+
+.parsec-admin-keygen__verify-feedback {
+  margin-top: $spacing-2;
+}
+
+// ── Encrypt Phase ──
+
+.parsec-admin-keygen__pass-input {
+  width: 100%;
+  margin-bottom: $spacing-2;
+}
+
+// ── Complete Phase ──
+
+.parsec-admin-keygen__complete-icon {
+  .bp5-icon {
+    font-size: 48px;
+    color: $color-success;
+  }
+}
+
+.parsec-admin-keygen__summary {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  text-align: left;
+  width: 100%;
+  max-width: 400px;
+  margin: $spacing-3 0;
+}
+
+.parsec-admin-keygen__summary-item {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  font-size: $font-size-sm;
+
+  .bp5-icon-tick-circle { color: $color-success; }
+  .bp5-icon-error { color: $color-danger; }
+}
+
+// ── Spinner ──
+
+.parsec-admin-keygen__spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid rgba($color-primary, 0.2);
+  border-top-color: $color-primary;
+  border-radius: 50%;
+  animation: parsec-spin 0.8s linear infinite;
+  margin: $spacing-4 auto;
+}
+
+@keyframes parsec-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes parsec-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+// ==========================================================================
+// MAUSOLEUM — bankon-vault Visual Manager + Crypto Horizon
+// cypherpunk2048 standard: minimal, dark, precise, mathematical
+// ==========================================================================
+
+.parsec-mausoleum {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: $spacing-4 $spacing-5;
+  position: relative;
+}
+
+.parsec-mausoleum__header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  margin-bottom: $spacing-4;
+}
+
+.parsec-mausoleum__title {
+  font-size: $font-size-xl;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.parsec-mausoleum__subtitle {
+  color: $color-dark-text-muted;
+  font-size: $font-size-xs;
+  margin-left: auto;
+  font-family: $font-family-mono;
+}
+
+// ── Tabs ──
+
+.parsec-mausoleum__tabs {
+  display: flex;
+  gap: $spacing-1;
+  margin-bottom: $spacing-4;
+  border-bottom: 1px solid rgba($color-dark-border, 0.4);
+  padding-bottom: $spacing-2;
+}
+
+// ── Panel ──
+
+.parsec-mausoleum__panel {
+  background: rgba($color-dark-bg-secondary, 0.4);
+  border: 1px solid rgba($color-dark-border, 0.5);
+  border-radius: 10px;
+  padding: $spacing-4;
+  backdrop-filter: blur(6px);
+}
+
+.parsec-mausoleum__intro {
+  color: $color-dark-text-muted;
+  font-size: $font-size-sm;
+  margin-bottom: $spacing-4;
+  line-height: 1.5;
+}
+
+.parsec-mausoleum__divider {
+  height: 1px;
+  background: rgba($color-dark-border, 0.3);
+  margin: $spacing-4 0;
+}
+
+// ── Tomb Status Cards ──
+
+.parsec-mausoleum__status-card {
+  padding: $spacing-3;
+  border-radius: 8px;
+  margin-bottom: $spacing-3;
+  border: 1px solid rgba($color-dark-border, 0.3);
+
+  &--ok {
+    border-left: 3px solid $color-success;
+
+    .bp5-icon { color: $color-success; }
+  }
+
+  &--error {
+    border-left: 3px solid $color-danger;
+    background: rgba($color-danger, 0.05);
+
+    .bp5-icon { color: $color-danger; }
+  }
+}
+
+.parsec-mausoleum__status-head {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  margin-bottom: $spacing-1;
+}
+
+.parsec-mausoleum__status-detail {
+  font-size: $font-size-xs;
+  font-family: $font-family-mono;
+  color: $color-dark-text-muted;
+  margin-left: 22px;
+}
+
+.parsec-mausoleum__tomb-card {
+  padding: $spacing-4;
+  border-radius: 10px;
+  margin-bottom: $spacing-3;
+  border: 1px solid rgba($color-dark-border, 0.3);
+
+  h4 {
+    font-size: $font-size-base;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    margin-bottom: $spacing-2;
+  }
+
+  &--open {
+    border-color: rgba($color-success, 0.4);
+
+    h4 { color: $color-success; }
+  }
+
+  &--closed {
+    border-color: rgba($color-warning, 0.3);
+
+    h4 { color: $color-warning; }
+  }
+
+  &--none {
+    border-style: dashed;
+    text-align: center;
+
+    h4 { color: $color-dark-text-muted; }
+  }
+}
+
+.parsec-mausoleum__tomb-path {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: $color-dark-text-muted;
+  margin-bottom: $spacing-3;
+}
+
+.parsec-mausoleum__tomb-controls {
+  display: flex;
+  gap: $spacing-2;
+  flex-wrap: wrap;
+}
+
+.parsec-mausoleum__form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin-top: $spacing-2;
+}
+
+// ── USB Drives ──
+
+.parsec-mausoleum__usb-card {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-2 $spacing-3;
+  border-radius: 6px;
+  background: rgba($color-black, 0.2);
+  margin-bottom: $spacing-1;
+
+  .bp5-icon { color: $color-info; font-size: 18px; }
+
+  strong { font-size: $font-size-sm; }
+}
+
+.parsec-mausoleum__usb-detail {
+  font-size: $font-size-xs;
+  font-family: $font-family-mono;
+  color: $color-dark-text-muted;
+}
+
+// ── Cipher Threshold Cards ──
+
+.parsec-mausoleum__cipher-card {
+  padding: $spacing-3;
+  border-radius: 8px;
+  margin-bottom: $spacing-2;
+  border: 1px solid rgba($color-dark-border, 0.25);
+  background: rgba($color-black, 0.15);
+  cursor: pointer;
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: rgba($color-primary, 0.3);
+  }
+
+  &--selected {
+    border-color: rgba($color-primary, 0.5);
+    background: rgba($color-primary, 0.05);
+    box-shadow: 0 0 12px rgba($color-primary, 0.1);
+  }
+
+  &--quantum-warn {
+    border-right: 2px solid rgba($color-danger, 0.4);
+  }
+}
+
+.parsec-mausoleum__cipher-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-2;
+
+  strong { font-size: $font-size-sm; }
+}
+
+.parsec-mausoleum__cipher-family {
+  font-size: $font-size-xs;
+  color: $color-dark-text-muted;
+  font-family: $font-family-mono;
+}
+
+.parsec-mausoleum__cipher-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: $spacing-2;
+}
+
+.parsec-mausoleum__bar-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+}
+
+.parsec-mausoleum__bar-label {
+  font-size: 10px;
+  color: $color-dark-text-muted;
+  width: 60px;
+  text-align: right;
+  font-family: $font-family-mono;
+}
+
+.parsec-mausoleum__bar-track {
+  flex: 1;
+  height: 4px;
+  background: rgba($color-dark-border, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.parsec-mausoleum__bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.parsec-mausoleum__bar-value {
+  font-size: 10px;
+  font-family: $font-family-mono;
+  font-weight: 600;
+  width: 50px;
+  color: $color-dark-text-muted;
+}
+
+.parsec-mausoleum__cipher-usage {
+  font-size: $font-size-xs;
+  color: $color-dark-text-muted;
+  font-style: italic;
+}
+
+.parsec-mausoleum__cipher-detail {
+  margin-top: $spacing-2;
+  padding-top: $spacing-2;
+  border-top: 1px solid rgba($color-dark-border, 0.2);
+  font-size: $font-size-xs;
+  font-family: $font-family-mono;
+  line-height: 1.7;
+  color: $color-dark-text-muted;
+}
+
+.parsec-mausoleum__cipher-notes {
+  margin-top: $spacing-1;
+  padding: $spacing-2;
+  background: rgba($color-black, 0.2);
+  border-radius: 4px;
+  font-style: italic;
+  color: rgba($color-dark-text-muted, 0.8);
+}
+
+// ── 3D Horizon ──
+
+.parsec-mausoleum__cipher-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: $spacing-3;
+
+  .bp5-button {
+    font-size: $font-size-xs;
+    padding: 2px 8px;
+    min-height: 24px;
+  }
+}
+
+.parsec-mausoleum__horizon-canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid rgba($color-dark-border, 0.3);
+  margin-bottom: $spacing-3;
+}
+
+.parsec-mausoleum__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2 $spacing-4;
+  margin-bottom: $spacing-4;
+}
+
+.parsec-mausoleum__legend-item {
+  display: flex;
+  align-items: center;
+  gap: $spacing-1;
+  font-size: $font-size-xs;
+  color: $color-dark-text-muted;
+}
+
+.parsec-mausoleum__legend-dot {
+  width: 10px;
+  height: 3px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+// ── Stats Row ──
+
+.parsec-mausoleum__stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: $spacing-2;
+  text-align: center;
+}
+
+.parsec-mausoleum__stat-label {
+  font-size: 9px;
+  font-family: $font-family-mono;
+  color: $color-dark-text-muted;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+
+.parsec-mausoleum__stat-value {
+  font-size: $font-size-sm;
+  font-weight: 700;
+  font-family: $font-family-mono;
+  color: $color-success;
+
+  &--danger {
+    color: $color-danger;
+  }
+}
