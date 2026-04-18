@@ -62,3 +62,7 @@ libc = "0.2"
 
 # parsec_validate — Algorand SHA-512/256 checksum + chain address validation
 sha2 = "0.10"
+
+# chain_btc — Bitcoin chain pack (BIP-32/39/44/84 HD keys, P2WPKH/P2SH-P2WPKH/P2PKH)
+bitcoin = { version = "0.32", features = ["rand-std"] }
+bip39 = "2.1"

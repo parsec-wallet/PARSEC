@@ -6,6 +6,7 @@ mod parsec_throttle;
 mod parsec_sandbox;
 mod parsec_validate;
 mod parsec_connect;
+mod chain_btc;
 
 use bankon_vault::VaultState;
 use bankon_vault::commands::*;
@@ -23,6 +24,7 @@ use parsec_sandbox::commands::*;
 use parsec_validate::commands::*;
 use parsec_connect::ConnectState;
 use parsec_connect::commands::*;
+use chain_btc::commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -121,6 +123,10 @@ pub fn run() {
             validate_address_solana,
             validate_address_cosmos,
             validate_address_any,
+            // chain_btc — Bitcoin chain pack (scaffold: derivation + addresses only)
+            chain_btc_generate_mnemonic,
+            chain_btc_validate_mnemonic,
+            chain_btc_derive_address,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Parsec Wallet");
