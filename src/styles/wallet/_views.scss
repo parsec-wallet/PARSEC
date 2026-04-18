@@ -775,6 +775,95 @@
   pointer-events: none;
 }
 
+// Streaming icons running up the green edge and down the red edge
+.parsec-pyramid__stream {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.parsec-pyramid__stream-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  animation-name: parsec-pyramid-stream;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+  will-change: transform, opacity;
+
+  img {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: block;
+    filter: drop-shadow(0 0 3px rgb(255 255 255 / 40%));
+  }
+}
+
+.parsec-pyramid__stream-fallback {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  font-family: $font-family-mono;
+}
+
+.parsec-pyramid__stream--up .parsec-pyramid__stream-item img {
+  filter: drop-shadow(0 0 4px rgb(16 185 129 / 50%));
+}
+
+.parsec-pyramid__stream--down .parsec-pyramid__stream-item img {
+  filter: drop-shadow(0 0 4px rgb(239 68 68 / 50%));
+}
+
+@keyframes parsec-pyramid-stream {
+  0% {
+    transform: translate(var(--from-x, 0), var(--from-y, 0)) scale(0.6);
+    opacity: 0;
+  }
+
+  8% {
+    transform:
+      translate(
+        calc(var(--from-x, 0) + (var(--to-x, 0) - var(--from-x, 0)) * 0.08),
+        calc(var(--from-y, 0) + (var(--to-y, 0) - var(--from-y, 0)) * 0.08)
+      )
+      scale(0.9);
+    opacity: 0.85;
+  }
+
+  92% {
+    transform:
+      translate(
+        calc(var(--from-x, 0) + (var(--to-x, 0) - var(--from-x, 0)) * 0.92),
+        calc(var(--from-y, 0) + (var(--to-y, 0) - var(--from-y, 0)) * 0.92)
+      )
+      scale(0.9);
+    opacity: 0.85;
+  }
+
+  100% {
+    transform: translate(var(--to-x, 0), var(--to-y, 0)) scale(0.6);
+    opacity: 0;
+  }
+}
+
+// Hover isolation — dim the row so the focused card breathes
+.parsec-pyramid__row:has(.parsec-pyramid__card:hover) {
+  .parsec-pyramid__card:not(:hover) {
+    opacity: 0.4;
+    filter: blur(0.5px);
+    transition: opacity 0.2s ease, filter 0.2s ease;
+  }
+}
+
 // Featured winners — right side detail
 .parsec-pyramid__feature {
   position: absolute;
