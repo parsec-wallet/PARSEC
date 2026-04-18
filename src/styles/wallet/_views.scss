@@ -2326,6 +2326,90 @@
 }
 
 // ==========================================================================
+// ONRAMP — fiat → ALGO provider picker
+// ==========================================================================
+
+.parsec-onramp__address {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-4;
+  margin: $spacing-4 0;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  border-radius: $border-radius-lg;
+}
+
+.parsec-onramp__address-label {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-onramp__address-value {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  word-break: break-all;
+  text-align: center;
+  color: var(--bp-text-color, $color-gray-900);
+}
+
+.parsec-onramp__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: $spacing-3;
+  margin-top: $spacing-3;
+}
+
+.parsec-onramp__card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: $spacing-4;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  border: 1px solid var(--bp-divider-color, rgb(0 0 0 / 10%));
+  border-radius: $border-radius-lg;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: var(--bp-intent-primary, #{$color-primary});
+    transform: translateY(-2px);
+  }
+}
+
+.parsec-onramp__card-header {
+  margin-bottom: $spacing-3;
+}
+
+.parsec-onramp__card-name {
+  font-weight: $font-weight-bold;
+  font-size: $font-size-base;
+  color: var(--bp-text-color, $color-gray-900);
+}
+
+.parsec-onramp__card-tagline {
+  margin-top: $spacing-1;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-onramp__card-link {
+  display: inline-block;
+  font-weight: $font-weight-semibold;
+  color: var(--bp-intent-primary, #{$color-primary});
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+.parsec-onramp__note {
+  margin-top: $spacing-5;
+  text-align: center;
+}
+
+// ==========================================================================
 // SWAP
 // ==========================================================================
 

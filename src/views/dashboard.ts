@@ -120,6 +120,7 @@ export function dashboardView(): HTMLElement {
       btn('Send', { intent: 'primary', icon: 'arrow-top-right', onClick: () => store.navigate('send') }),
       btn('Swap', { intent: 'warning', icon: 'swap-horizontal', onClick: () => store.navigate('swap') }),
       btn('Receive', { intent: 'success', icon: 'arrow-bottom-left', onClick: () => store.navigate('receive') }),
+      btn('Buy', { outlined: true, icon: 'dollar', onClick: () => store.navigate('onramp') }),
     ],
   });
 

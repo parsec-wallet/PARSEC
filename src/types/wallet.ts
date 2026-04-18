@@ -76,6 +76,7 @@ export type AppView =
   | 'receive'
   | 'add-asset'
   | 'swap'
+  | 'onramp'
   | 'docs'
   | 'settings'
   | 'pmvpn'
