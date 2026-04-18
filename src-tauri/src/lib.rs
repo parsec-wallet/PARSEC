@@ -7,6 +7,7 @@ mod parsec_sandbox;
 mod parsec_validate;
 mod parsec_connect;
 mod chain_btc;
+mod chain_ltc;
 
 use bankon_vault::VaultState;
 use bankon_vault::commands::*;
@@ -25,6 +26,7 @@ use parsec_validate::commands::*;
 use parsec_connect::ConnectState;
 use parsec_connect::commands::*;
 use chain_btc::commands::*;
+use chain_ltc::commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -131,6 +133,12 @@ pub fn run() {
             chain_btc_create_account,
             chain_btc_derive_from_vault,
             chain_btc_sign_psbt,
+            // chain_ltc — Litecoin (BIP-44 coin type 2', ltc1… native segwit)
+            chain_ltc_derive_address,
+            chain_ltc_import_account,
+            chain_ltc_create_account,
+            chain_ltc_derive_from_vault,
+            chain_ltc_sign_psbt,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Parsec Wallet");
