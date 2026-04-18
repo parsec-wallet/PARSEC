@@ -5,8 +5,9 @@ import { el, btn, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { microAlgosToAlgo } from '../lib/algorand/account';
 import { formatAssetAmount } from '../lib/algorand/assets';
-import { sendPayment, sendAssetTransfer } from '../lib/algorand/transactions';
+import { sendPayment, sendAssetTransfer, isValidAddress } from '../lib/algorand/transactions';
 import { keystoreRetrieve } from '../lib/keystore';
+import { getAlgodClient } from '../lib/algorand/client';
 
 export function confirmSendView(): HTMLElement {
   const state = store.get();
@@ -14,6 +15,13 @@ export function confirmSendView(): HTMLElement {
   const pending = store.getPendingSend();
 
   if (!account || !pending) { store.navigate('dashboard'); return el('div'); }
+
+  // M1: Re-validate receiver address before displaying confirmation
+  if (!isValidAddress(pending.receiver)) {
+    toast('Invalid receiver address detected', 'danger');
+    store.navigate('send');
+    return el('div');
+  }
 
   const isAlgo = pending.assetId === null;
   const displayAmount = isAlgo
@@ -67,6 +75,16 @@ export function confirmSendView(): HTMLElement {
               store.set({ isLoading: true });
               let mnemonic: string | null = null;
               try {
+                // M2: Re-fetch fee from chain before signing (may have changed since review)
+                const currentParams = await getAlgodClient(state.settings.network).getTransactionParams().do();
+                const currentFee = Math.max(Number(currentParams.fee) || 1000, 1000);
+                if (currentFee > pending.fee * 2) {
+                  store.set({ isLoading: false });
+                  toast(`Network fee increased significantly (${microAlgosToAlgo(currentFee, 4)} ALGO). Please re-submit.`, 'warning');
+                  store.navigate('send');
+                  return;
+                }
+
                 mnemonic = await keystoreRetrieve(account.address, passphrase);
                 if (!mnemonic) { toast('Could not retrieve key. Re-unlock.', 'danger'); store.set({ isLoading: false }); store.navigate('unlock'); return; }
 

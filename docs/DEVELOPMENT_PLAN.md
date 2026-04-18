@@ -1,7 +1,7 @@
 # Parsec Wallet — Development Plan
 
-> **Updated:** 2026-03-22
-> **Status:** Alpha — Algorand core functional, sovereign infrastructure modules landed
+> **Updated:** 2026-03-29
+> **Status:** Alpha — Matrix entry gate, x402 payments, multi-chain builder (8 families), Mausoleum vault, aORC contracts (4 compiled, testnet-verified), PROOF.md attestation, deployer pipeline
 > **Vision:** The evolution of the cryptocurrency wallet. Sovereign, modular, Algorand-first. Every client is a server.
 
 ## Mission
@@ -14,9 +14,15 @@ Build Parsec as a sovereign universal wallet: Tauri desktop shell, zero-dependen
 
 ```
 Frontend (vanilla TypeScript + Blueprint CSS)
-├── src/views/          # View modules (onboarding, dashboard, send, receive, etc.)
-├── src/lib/            # Core modules (store, router, dom, keystore, vault, tomb)
+├── src/views/          # View modules (matrix, dashboard, send, receive, agents, identity, x402-confirm, admin-keygen, mausoleum, etc.)
+├── src/lib/            # Core modules (store, router, dom, keystore, vault, tomb, prices)
 ├── src/lib/algorand/   # Chain pack: account, transactions, assets, client
+├── src/lib/x402/       # AgenticPlace integration: types, oracle, bridge, payment, discount, client
+├── src/lib/pouch/      # Chain adapter system: algorand, ethereum, bitcoin, litecoin, monero, zilliqa, cardano, arweave
+├── src/lib/builder/    # Multi-chain tx builder: types, multichain, walletconnect, registry, isolation
+├── src/lib/dex/        # SpinTrade DEX aggregator: tinyman-onchain, tinyman-api
+├── src/lib/pmvpn/      # Private Mesh VPN: auth, connector, store, terminal
+├── src/assets/matrix/  # WebGL textures: glyphs.png (16x16 katakana atlas), noise.png
 └── src/types/          # TypeScript types
 
 Backend (Rust via Tauri IPC)
@@ -92,6 +98,57 @@ Backend (Rust via Tauri IPC)
 - [x] Security audit: 5 critical fixes (mnemonic zeroing, CSP, session isolation)
 - [x] BANKON license applied, README rewritten
 
+### Phase B2 — Matrix Overhaul (2026-03-25)
+
+- [x] Matrix rain: Shadertoy-faithful glyph rendering (iChannel0/iChannel1 textures, 256x256 POT)
+- [x] Glitch spin intro: 360° rotation + chromatic aberration + scanline tear on load (1.5s) and pill transitions (0.8s)
+- [x] Pyramid: brick steps from single apex (#1 daily gainer) to wide base, gainers right, losers left
+- [x] Top 10 by market cap: vertical column on left side with icons + abbreviated mcap ($1.34T, $460.2B, $91M)
+- [x] Stablecoin basket: ship on bottom-left, draggable
+- [x] Featured "just because" assets: configurable via VITE_JUST_BECAUSE env var (default: POL,ALGO,ETH,BEAM,ZIL)
+- [x] All floating glyphs constrained to right side (65-97%), left side reserved for top 10 + ship
+- [x] Featured zigzag layout: 73%/88% x-position, 11% vertical spacing between each
+- [x] Drag-and-drop: PARSEC brand, pills, ship, top 10 column, fleet — all draggable via makeDraggable()
+- [x] PARSEC click → full-screen pill choice (blue/red, nothing else, return to landing)
+- [x] Blue pill: slow calm rain (0.04 + 6% market activity), full sentiment color preserved
+- [x] Blue pill: hides all market overlays (pyramid, top 10, ship, glyphs) — pure rain + diagnostics
+- [x] Blue pill: 6 tabbed diagnostics (Global, Gas & Fees, Chain Health, Network, DeFi TVL, Portfolio)
+- [x] Blue pill: Tab key cycles tabs, auto-refresh every 20s
+- [x] Blue pill: Global tab = Tank view (market cap, BTC/ETH/ALGO, TVL trends, gas, blocks, F&G, top chains)
+- [x] Blue pill: Gas tab = live gas from 6 EVM chains + Algorand + ETH cost estimates (transfer/swap/mint)
+- [x] Blue pill: Chain Health = top 15 chains by TVL + Algorand protocol breakdown
+- [x] Blue pill: Network = Algorand round/block/consensus + ETH block + Fear & Greed
+- [x] Blue pill: DeFi TVL = global + Algorand TVL with 24h/7d/30d trends + stablecoin supply
+- [x] Blue pill: compact two-column CSS grid layout (0.65em rows, 96vw width)
+- [x] Blue pill: glyphs turn red (selling/diagnostics context)
+- [x] Red pill: wallet login + Create New Wallet + Import Wallet + back to landing
+- [x] Red pill: glyphs show natural market colors (green if up, red if down)
+- [x] Glyph colors re-render on pill transitions
+- [x] CoinGecko image field added to CoinPrice (coin icons in pyramid cards + fleet)
+- [x] Pyramid cards: icon + symbol + price + change, hover scale 1.3x + border glow, touch support
+
+### Phase B3 — x402 / AgenticPlace Integration (2026-03-25)
+
+- [x] x402 types module: ERC-8004, identity, payment types (no viem dependency)
+- [x] x402 constants: BANKON ASA 203977300, ERC-8004 addresses (17+ chains), CAIP-2 networks
+- [x] PriceOracle: Algorand DEX pricing via Vestige API (replaces CoinGecko-only for ALGO/ASA)
+- [x] BANKON holder discount: checkBankonHolder() — 50% off x402 fees, 5-min cache
+- [x] Vault-secured x402 bridge: buildAlgorandX402Signer() — ephemeral key retrieval, sign, discard
+- [x] x402 payment flow: x402Fetch() — handles 402 responses, discount, sign, retry
+- [x] AgenticPlace HTTP client: discovery (70K+ agents), oracle, facilitator, BANKON identity
+- [x] x402-confirm view: payment approval dialog with ALGO conversion + discount badge
+- [x] Agents view: search/browse agents from AgenticPlace discovery API
+- [x] Identity view: BANKON holder status, ERC-8004 IDNFT, access tiers, token info
+- [x] Dashboard: Identity + Agents buttons added
+- [x] Pouch chains.ts: Algorand signMessage() wired via vault bridge
+- [x] Pouch chains.ts: Ethereum module enabled (key gen/import, signing deferred to viem)
+
+### Phase B4 — Documentation (2026-03-25)
+
+- [x] docs.html: 37 docs served via marked.js (architecture, x402, Blueprint.js, Tauri plugins)
+- [x] x402-integration.md: complete integration guide (types, oracle, bridge, payment, views)
+- [x] Hash routing: docs.html#dev-plan, docs.html#x402-integration, etc.
+
 ## Roadmap
 
 ### Phase C — Input Recognition & Validation
@@ -114,17 +171,20 @@ Informed by: ailgo/tinyman-amm-contracts-v2, Tinyman JS SDK docs
 - [x] Atomic group transaction execution (input transfer + app call)
 - [x] 0.5% default slippage with min output calculation
 - [x] Swap button on dashboard
-- [ ] Multi-hop routing (ASA→ALGO→ASA) for better rates
+- [x] Multi-hop routing (ASA→ALGO→ASA) — fetchBestQuote() checks direct + multi-hop in parallel
+- [x] Multi-hop execution — executeMultiHopSwap() handles 1-hop and 2-hop paths
+- [x] Swap view: route display (direct vs 2-hop), compound fee (0.6% for 2-hop), hop breakdown
 - [ ] Swap history tracking
 - [ ] Custom slippage setting
 
 ### Phase E — Wallet Interop & Standards
 Informed by: ailgo/use-wallet, ailgo/peraconnect, ARC-1, ARC-25
 
-- [ ] WalletConnect v1/v2 support (ARC-25)
+- [x] WalletConnect v2 module (src/lib/builder/walletconnect.ts) — multi-family, Algorand + EVM
+- [x] ParsecConnect browser SDK (modules/parsec-connect.js) — Pera-compatible signTransaction
+- [x] parsec_connect Rust WebSocket server (localhost:9876) — JSON-RPC 2.0
 - [ ] ARC-1 transaction signing API compliance
 - [ ] dApp connection interface (QR code + deep link)
-- [ ] Watch-only mode (view balance without signing keys)
 
 ### Phase F — Advanced Algorand Features
 Informed by: ailgo/pera-wallet, developer.algorand.org
@@ -153,15 +213,43 @@ Informed by: parsec-wallet org, Atomic Wallet key pair model, MetaMask/Phantom p
 Parsec absorbs from existing wallets — participant has complete handling of
 public/private key pairs across all chains. True sovereign holding.
 
-- [ ] Chain-pack adapter architecture (per parsec-wallet/xchainjs-lib-1 patterns)
-- [ ] Bitcoin (BTC) — UTXO model, Bech32, full private key control
-- [ ] Litecoin (LTC) — Scrypt PoW, Bech32
-- [ ] Monero (XMR) — privacy-first, view keys + spend keys
-- [ ] Ethereum (ETH) — EVM, BIP-39, 0x checksum, ERC-20
+- [x] Chain-pack adapter architecture — 8 chain families with isolation layer
+- [x] Multi-chain builder: ParsecTxBuilder → chain router → family builder → isolation check
+- [x] Chain registry: 2500+ EVM chains from allchain API + chainid.network CDN + static fallback
+- [x] Isolation layer: cryptographic boundaries per family, vault signing, external signer sandboxing
+- [x] Ethereum (ETH) — key gen live, vault signing via @noble/curves secp256k1 (no ethers dep)
+- [x] Bitcoin (BTC) — UTXO model, builder path, signing stub (needs bitcoinjs-lib)
+- [x] Litecoin (LTC) — UTXO family, builder path, signing stub
+- [x] Monero (XMR) — CryptoNote family, ring signature model, signing stub (needs monero WASM)
+- [x] Zilliqa (ZIL) — Schnorr/secp256k1 family, signing stub (needs @zilliqa-js/crypto)
+- [x] Cardano (ADA) — Ed25519-BIP32 family, eUTXO model, signing stub (needs cardano-serialization-lib)
+- [x] Arweave (AR) — RSA-4096 family, vault signing LIVE via WebCrypto RSA-PSS (zero deps)
+- [x] EVM L2/L3/sidechains — Polygon, Arbitrum, Optimism, Base, zkSync, etc. via EVM family
+- [x] MetaMask injection sandboxing (EIP-1193 passthrough, PARSEC never touches key)
 - [ ] Solana (SOL) — ed25519, SPL tokens
-- [ ] Each chain: create, import, send, receive, private key export
+- [ ] Each chain: send, receive, private key export
 - [ ] Atomic-style key pair display (participant sees all their keys)
-- [ ] bankon_vault holds all chain keys in one encrypted Tomb volume
+- [x] bankon_vault holds all chain keys in one encrypted Tomb volume
+- [x] Mausoleum: visual vault manager + cipher threshold dashboard + WebGL 3D crypto horizon
+- [x] Admin key ceremony: 6-phase airgapped generation with network isolation probes
+- [x] PROOF.md: formal encryption attestation (5 theorems, 10 cipher proofs, Bremermann limit)
+
+### Phase H2 — aORC Contract Suite (agenticplace.pythai.net)
+
+- [x] AgenticMinter — generic NFT minting (563 TEAL, testnet App 757891101)
+- [x] AgenticRegistry — blockchain verification registry with box storage (1331 TEAL, testnet App 757891112)
+- [x] BonaFideController — clawback-controlled reputation token issuance/revocation (1008 TEAL, testnet App 757895044)
+- [x] TypeMinter — type-aware minting: aNFT/dNFT/iNFT/THOT with per-type on-chain logic (1613 TEAL, testnet App 757895349)
+  - aNFT: immutable agent identity, box-registered
+  - dNFT: dynamic, metadata update log tracked, owner-only
+  - iNFT: intelligent, directive address + autonomy + intelligence level stored on-chain
+  - THOT: knowledge tensor, CID uniqueness enforced (one THOT per SHA-256(CID))
+- [x] deployer.html — tabbed deployment center: contracts, ASA creator, ABI explorer, settings, access tiers
+- [x] deployer.php — ARC-56 ABI server, deployment records, ASA presets, history
+- [x] deploy.html — TEAL embedded + algod.compile() + 7-step flow (Minter + Registry + BONA FIDE)
+- [x] deploy.ts — CLI deployment: all contracts + BONA FIDE ASA creation + verify
+- [x] testnet-skills.md — reusable deployment skills (faucet, compile, deploy, verify)
+- [ ] Mainnet deployment (blocked: deployer needs 12+ ALGO funded)
 - [ ] USB cold storage for multi-chain key files
 - [ ] Network registry (per parsec-wallet/chainlist)
 - [ ] Hardware wallet integration (Ledger, Trezor)
@@ -229,6 +317,123 @@ Informed by: parsec-wallet/hypercore, parsec-wallet/earthstar, parsec-wallet/agr
 - [ ] Tomb FIDO2 passkey support
 - [ ] QR-based peer exchange
 
+### Phase J — x402 Payments & Agent Economy
+Informed by: x402-demo/modules/bankon-payments, x402-demo/erc8004, x402-demo/facilitator
+
+Parsec is the wallet interface for the AgenticPlace agent economy.
+
+- [x] x402 types: ERC-8004 agent identity, payment requirements, access tiers (no viem dep)
+- [x] x402 constants: BANKON ASA 203977300 (10M supply), ERC-8004 on 17+ chains, CAIP-2 networks
+- [x] PriceOracle: Vestige DEX API for ALGO/USD + any ASA price (replaces CoinGecko-only)
+- [x] BANKON holder discount: 50% off x402 fees, cached 5 min per address
+- [x] Vault-secured x402 bridge: ephemeral key from Rust vault → algosdk signer → sign → discard
+- [x] x402 payment flow: 402 response → parse requirement → check discount → sign → retry
+- [x] AgenticPlace HTTP client: discovery (70K+ agents), oracle, facilitator, BANKON identity
+- [x] x402-confirm view: payment approval with ALGO conversion + BANKON discount badge
+- [x] Agents view: search/browse 70K+ agents from AgenticPlace discovery API
+- [x] Identity view: BANKON status, ERC-8004 IDNFT, access tiers (Visitor→Imperator)
+- [ ] End-to-end x402 test: Parsec → MindX paywall → Facilitator settlement
+- [ ] Reputation feedback after payment (ReputationRegistryClient → ERC-8004)
+- [ ] Venalicarii/Mercatores marketplace integration
+- [ ] SPINTRADE DEX pair browser in wallet
+
+### Phase K — AlgoDeployer Tokenomics
+Location: x402-demo/algodeployer/
+
+Modular smart contracts for the AgenticPlace token economy. All Algorand contracts in PuyaTs.
+
+**SHAMBA LUV (LUV9) — EVM Reflection Token**
+- [x] ShambaLuv.sol: 100Q supply, 5% buy/sell (3% reflection, 1% liquidity, 1% team)
+- [x] All 5 LUV8 bugs fixed (name, router approval, slippage, threshold logic, proxy bypass)
+- [x] 0% wallet-to-wallet (EOA code.length check), fees only lower, admin hierarchy
+- [x] Foundry tests: 30/30 pass on Anvil (metadata, fees, exemptions, reflection, router, fuzz)
+- [ ] Deploy LUV9 on Polygon (replace LUV8 at 0x1035760d...)
+- [ ] Multi-chain deployment via CREATE2
+
+**BONA FIDE — Binary Reputation (Algorand)**
+- [x] bonafide.algo.ts: 1T ASA, clawback, binary (hold 1 or 0), penalty doubling ($1→$2→$4...)
+- [x] Ghost vote: consensus = permanently dead, can never re-apply
+- [x] Fee allocation: applicant chooses wallets + splits, or redemption escrow
+- [x] fee_redemption.algo.ts: tiered redemption (10%@90d, 25%@180d, 50%@365d, 100%@730d)
+- [ ] Create BONA FIDE ASA on Algorand testnet
+- [ ] Deploy BonafideController via AlgoKit
+- [ ] Wire to SmartOracle for USD→ALGO fee conversion
+
+**Liquidity Locker + Fee Controller**
+- [x] liquidity_locker.algo.ts: LP lock, 90-day minimum for BONA FIDE, auto-extend toggle
+- [x] fee_controller.algo.ts: SPINTRADE 3/1/1 split, lock team wallet (irreversible), fees only down
+- [ ] Deploy on Algorand localnet
+- [ ] Wire locker → BONA FIDE controller (issue on lock, clawback on day 89)
+
+**aLUV — Algorand Reflection Token (ARC-200)**
+- [x] aluv_token.algo.ts: ARC-200 with reflection engine (Algorand ASAs can't do reflection)
+- [x] reflection_engine.algo.ts: shared index math (O(1) per claim, no holder iteration)
+- [x] aluv_bridge.algo.ts: lock-and-mint bridge (EVM→Algorand), replay prevention, rate limiting
+- [ ] Compile via Puya compiler
+- [ ] Deploy on Algorand localnet
+- [ ] Wire bridge relayer via SmartOracle command channel
+
+**Documentation**
+- [x] EXPLANATION.md: why Algorand can't do reflection, ARC-200 solution, BONA FIDE model
+- [x] USAGE.md: code examples for every contract method
+- [x] BONAFIDE.md: penalty escalation, ghost, fee allocation, liquidity lock lifecycle
+- [x] SHAMBALUV.md: LUV9 spec, fee structure, wallet-to-wallet, cross-chain
+- [x] LIQUIDITY-LOCKER.md: 90-day BONA FIDE lifecycle, auto-extend, keeper bot
+- [x] FEE-CONTROLLER.md: 3/1/1 split, lock team wallet, lock liquidity to locker
+- [x] BRIDGE.md: EVM↔Algorand lock-and-mint, relayer, rate limiting
+
+### Phase L — Interchain Weave Protocol
+Location: x402-demo/algodeployer/interchain/
+
+Neither sidechain nor crosschain. Interchain weaves — direct value transfer with golden ratio fee.
+
+**Core Contracts (Solidity, Foundry)**
+- [x] PhiFeeCalculator.sol: phi (1.618...) fee math, 61.8/38.2 revenue split
+- [x] GasStation.sol: multi-chain gas oracle, staleness checks, batch updates
+- [x] InterchainWeaver.sol: proof-gated escrow (NOT bridge), ECDSA settlement verification, reclaim timeout, delivery confirmation, multi-signer threshold
+- [x] InterchainRegistry.sol: chain config, route discovery, 14+ chains expandable to 2510+
+- [x] InterchainDeployer.sol: multi-chain deploy, cost estimation, CREATE2 prediction
+- [x] PhiFeeCalculator.t.sol: 15 tests + fuzz (phi precision, scaling, overflow, split)
+- [x] GasStation.t.sol: 11 tests (update, batch, auth, staleness, quote, realistic Polygon)
+- [x] InterchainWeaver.t.sol: 19 tests (escrow, proof verification, reclaim, delivery, signer mgmt)
+- [x] `forge test` — 45/45 pass on Anvil
+- [ ] Fork test against Polygon mainnet
+- [ ] Deploy to Base Sepolia (first livenet)
+- [ ] Deploy to Polygon mainnet
+
+**Algorand Settlement**
+- [x] interchain_settler.algo.ts: settlement finality (3.3s, no forks), phi fee in ALGO
+- [x] interchain_oracle.algo.ts: gas prices for all chains via SmartOracle
+- [ ] Deploy on Algorand testnet
+- [ ] Wire relayer (SmartOracle command channel)
+
+**Deployment Orchestration (TypeScript)**
+- [x] types.ts: phi constants, 14 known chains, xERC20/ERC-8004 addresses
+- [x] cost-calculator.ts: phi-based multi-chain cost estimation + formatted display
+- [x] gas-estimator.ts: multi-chain gas fetcher, 60s cache
+- [x] chain-registry.ts: AllChainz integration (2510+ chains)
+- [x] deploy-orchestrator.ts: Anvil test → estimate → confirm → deploy → verify
+
+**Documentation**
+- [x] INTERCHAIN.md: weave protocol spec, chain registry, settlement layer
+- [x] EXPLANATION.md: 5-phase weave flow, escrow vs pool vs vault, proof gate, limitations, path to decentralization
+- [x] TECHNICAL.md: 7 contracts specified verbosely, 45 tests documented, security model, trust assumptions
+- [x] USAGE.md: code examples for every operation including proof generation, reclaim, delivery confirmation
+- [x] DEPLOYMENT.md: Anvil → fork test → estimate → deploy (cheapest first)
+
+### Phase M — DAIO Governance Integration
+Informed by: x402-demo/DAIO/contracts/, x402-demo/modules/daio/
+
+Future: credential-gated proposals, staked proposals, cross-proposal credit.
+
+- [ ] AI seat in Development, Marketing, Community groups
+- [ ] Proposal requires holding funds/assets to complete (credential from holding)
+- [ ] Passed proposals receive payment (incentivized goals)
+- [ ] Credit token issuance from collection of proposals
+- [ ] Wire DAIO governance into Parsec (proposal submission from wallet)
+- [ ] Constitutional tithe (15%) enforcement
+- [ ] 2/3 consensus within groups, 2/3 of groups overall
+
 ## Design Principles
 
 1. **Minimal code, maximum impact** — no unnecessary abstractions
@@ -251,12 +456,54 @@ Wallet R&D corpus: BitPay/Copay, Safe multisig, MetaMask, Keplr, xchainjs, Hyper
 ### ailgo org (https://github.com/ailgo) — 101+ repos
 Algorand reference library: js-algorand-sdk, AlgoKit, Pera, use-wallet, vibekit, Tinyman, Tauri
 
+### AgenticPlace / x402-demo
+- **discovery-api**: 70K+ agents across 15+ EVM chains, PostgreSQL + pgvector
+- **server-hono (MindX)**: x402-paywalled API (weather, oracle, mint)
+- **facilitator**: x402 payment verification + settlement
+- **erc8004**: ERC-8004 IdentityRegistry + ReputationRegistry SDK (17+ chains)
+- **modules/bankon-payments**: PriceOracle, FeeSchedule, PaymentManager, Venalicarii
+- **modules/smarttime**: SmartTime + SmartOracle (Algorand blocktime + DEX prices)
+- **modules/algorand**: AlgorandAgentWallet (algosdk v3)
+- **modules/bonafide**: BONAFIDE reputation bridge (tabularium, fides, sponsio)
+- **modules/daio**: DAIO governance (controller, access, comitia, boardroom)
+- **DAIO/contracts**: 90+ Solidity contracts (governance, identity, THOT, bonding, bridge)
+- **algodeployer**: ShambaLuv LUV9, BONA FIDE, aLUV, interchain weave protocol
+
 ### Key External References
 - [Algorand Developer Docs](https://developer.algorand.org)
 - [ARC Standards](https://arc.algorand.foundation)
 - [Tomb Encrypted Volumes](https://dyne.org/docs/tomb/)
 - [Tauri 2.0](https://v2.tauri.app)
 - [Tinyman Protocol](https://docs.tinyman.org)
+- [DeFi Llama API](https://defillama.com/docs/api)
+- [CoinGecko Markets API](https://www.coingecko.com/en/api/documentation)
+- [Vestige DEX API](https://free-api.vestige.fi)
+- [ERC-8004 Standard](https://eips.ethereum.org/EIPS/eip-8004)
+- [x402 Protocol](https://x402.org)
+- [xERC20 Standard](https://www.xerc20.com)
+- [Foundry Book](https://book.getfoundry.sh)
+- [PuyaTs (Algorand TypeScript)](https://github.com/algorandfoundation/puya-ts)
+
+## Phase Summary
+
+| Phase | Name | Status | Tests | Key Deliverable |
+|-------|------|--------|-------|-----------------|
+| A | Core Wallet | Complete | — | 20+ views, vault, keystore |
+| B | Matrix + DEX | Complete | — | WebGL rain, pyramid, pills |
+| B2 | Matrix Overhaul | Complete | — | Glitch spin, tabbed diagnostics, drag-and-drop, glyph atlas |
+| B3 | x402 Integration | Complete | — | 8 files in src/lib/x402/ + 3 views |
+| B4 | Documentation | Complete | — | docs.html (37 docs), dev plan (477 lines) |
+| C | Input Validation | 95% | — | Classifier, live feedback, watch-only |
+| D | SpinTrade DEX | 95% | — | Multi-hop ASA→ALGO→ASA, quote aggregator |
+| E | Wallet Interop | Planned | — | WalletConnect, ARC-1, ARC-25 |
+| F | Advanced Algorand | Planned | — | Rekeying, multisig, ARC-19, history export |
+| G | Extensions | Planned | — | ASA minter, NFT minter, plugins |
+| H | Multi-Chain | 15% | — | Ethereum key gen done, viem signing pending |
+| I | Infrastructure | 70% | — | 4 Rust modules (66 IPC commands), persistence pending |
+| J | x402 Payments | 85% | — | Module complete, e2e test pending |
+| K | AlgoDeployer | 80% | 30/30 | LUV9 tested, BONA FIDE written, Puya pending |
+| L | Interchain | 85% | 45/45 | True interchain (proof-gated escrow), docs rewritten |
+| M | DAIO Governance | Planned | — | Credential-gated proposals, AI seats |
 
 ---
 

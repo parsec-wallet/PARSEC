@@ -139,6 +139,31 @@ export function sendView(): HTMLElement {
               baseAmount = Math.round(parsed * Math.pow(10, selectedDecimals));
             }
 
+            // M4: Balance check — prevent sending more than available
+            if (state.accountInfo) {
+              if (selectedAssetId === null) {
+                // ALGO: must keep min balance (0.1 ALGO = 100000 microAlgos) + fee
+                const available = state.accountInfo.amount - state.accountInfo.minBalance - fee;
+                if (baseAmount > available) {
+                  toast(`Insufficient ALGO. Available: ${microAlgosToAlgo(Math.max(0, available))} (${microAlgosToAlgo(state.accountInfo.minBalance)} reserved)`, 'danger');
+                  return;
+                }
+              } else {
+                // ASA: check asset balance
+                const asset = state.accountInfo.assets.find(a => a.assetId === selectedAssetId);
+                if (!asset || asset.amount < baseAmount) {
+                  toast(`Insufficient ${selectedUnitName} balance`, 'danger');
+                  return;
+                }
+                // Also check ALGO for fee
+                const algoAvailable = state.accountInfo.amount - state.accountInfo.minBalance - fee;
+                if (algoAvailable < 0) {
+                  toast(`Insufficient ALGO for transaction fee (need ${microAlgosToAlgo(fee)})`, 'danger');
+                  return;
+                }
+              }
+            }
+
             const pending: PendingSend = {
               receiver,
               amount: baseAmount,

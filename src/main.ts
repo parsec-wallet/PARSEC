@@ -25,6 +25,11 @@ import { pmvpnView } from './views/pmvpn';
 import { x402ConfirmView } from './views/x402-confirm';
 import { agentsView } from './views/agents';
 import { identityView } from './views/identity';
+import { connectApproveView, setConnectPending } from './views/connect-approve';
+import { adminKeygenView } from './views/admin-keygen';
+import { mausoleumView } from './views/mausoleum';
+import { connectStart } from './lib/connect';
+import type { SignRequest } from './lib/connect';
 import './styles/pmvpn.scss';
 
 // Register all views
@@ -46,6 +51,9 @@ registerView('pmvpn', pmvpnView);
 registerView('x402-confirm', x402ConfirmView);
 registerView('agents', agentsView);
 registerView('identity', identityView);
+registerView('connect-approve', connectApproveView);
+registerView('admin-keygen', adminKeygenView);
+registerView('mausoleum', mausoleumView);
 
 // Mount
 const root = document.getElementById('root');
@@ -53,7 +61,41 @@ if (root) {
   mountRouter(root);
 }
 
+// Global loading overlay — responds to store.isLoading
+const loadingOverlay = document.createElement('div');
+loadingOverlay.className = 'parsec-loading-overlay';
+loadingOverlay.innerHTML = '<div class="parsec-loading-spinner"></div>';
+document.body.appendChild(loadingOverlay);
+
+store.subscribe((state) => {
+  loadingOverlay.classList.toggle('parsec-loading-overlay--active', state.isLoading);
+});
+
 // Auto-lock: reset timer on any user activity
 for (const event of ['click', 'keydown', 'input', 'mousemove'] as const) {
   document.addEventListener(event, () => store.onActivity(), { passive: true });
 }
+
+// Listen for dApp sign requests from the connect WebSocket server
+// When a dApp requests signing, navigate to the approval view
+import { listen } from '@tauri-apps/api/event';
+listen<SignRequest>('parsec-connect-sign-request', (event) => {
+  const state = store.get();
+  // Only show if wallet is unlocked (has accounts)
+  if (state.accounts.length > 0) {
+    setConnectPending(event.payload);
+    store.navigate('connect-approve');
+  }
+});
+
+// Auto-start connect server when wallet unlocks (if user has accounts)
+store.subscribe((state) => {
+  if (state.accounts.length > 0 && state.view === 'dashboard') {
+    const address = state.accounts[state.activeAccountIndex]?.address;
+    if (address) {
+      connectStart(address).catch(() => {
+        // Connect server may already be running or unavailable — that's fine
+      });
+    }
+  }
+});

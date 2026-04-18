@@ -171,6 +171,8 @@ export function matrixView(): HTMLElement {
   let pillUniform = 0;
   let activityUniform = 0.15; // calm default — mesmerizing slow
   let sentimentUniform = 0.0; // -1 bear/red to +1 bull/green
+  let glitchUniform = 0.0;    // 0 = normal, >0 = glitch intensity (spin + distort)
+  let spinAngle = 0.0;        // current spin angle (radians, 0 to 2π for full spin)
 
   function setUniform(name: string, ...values: number[]) {
     if (!gl || !program) return;
@@ -236,6 +238,8 @@ export function matrixView(): HTMLElement {
 
     resize(); window.addEventListener('resize', resize);
     startTime = performance.now(); frame();
+    // Intro: glitch spin on first load
+    triggerGlitchSpin(1.5);
   }
 
   function resize() {
@@ -268,15 +272,61 @@ export function matrixView(): HTMLElement {
     setUniform('u_pill', pillUniform);
     setUniform('u_zoom', zoom);
     setUniform('u_mouse', mouseX, mouseY);
-    setUniform('u_activity', activityUniform);
+    // Blue pill: slow contemplative drift — barely responds to market noise
+    // Sentiment color still shows direction, but the pace is meditative
+    const effectiveActivity = choice === 'blue' ? 0.04 + activityUniform * 0.06 : activityUniform;
+    setUniform('u_activity', effectiveActivity);
     setUniform('u_sentiment', sentimentUniform);
     setUniform('u_dragX', dragRotX);
     setUniform('u_dragY', dragRotY);
-    setUniform('u_breadth', breadth.greenPct / 100.0); // 0=all red, 1=all green
+    setUniform('u_breadth', breadth.greenPct / 100.0);
+    setUniform('u_glitch', glitchUniform);
+    setUniform('u_spin', spinAngle);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
     driftGlyphs(t);
     raf = requestAnimationFrame(frame);
+  }
+
+  // ── Glitch Spin Sequence ──────────────────────────────────────
+  // Full 360° spin of the rain, then glitch flash to snap back.
+  // Triggered on load (intro) and on pill choice transitions.
+  function triggerGlitchSpin(duration = 1.2) {
+    const spinStart = performance.now();
+    const spinDuration = duration * 1000; // ms for full spin
+    const glitchStart = spinDuration * 0.85; // glitch begins at 85% of spin
+    const glitchDuration = spinDuration * 0.15;
+
+    function animateSpin() {
+      const elapsed = performance.now() - spinStart;
+      const progress = Math.min(elapsed / spinDuration, 1.0);
+
+      // Spin: ease-in-out full rotation (0 → 2π)
+      const eased = progress < 0.5
+        ? 2 * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+      spinAngle = eased * Math.PI * 2;
+
+      // Glitch: intense distortion at the end of spin, then snap to zero
+      if (elapsed >= glitchStart) {
+        const glitchProgress = (elapsed - glitchStart) / glitchDuration;
+        // Sharp peak then decay: triangle wave
+        glitchUniform = glitchProgress < 0.5
+          ? glitchProgress * 2.0   // ramp up to 1.0
+          : (1.0 - glitchProgress) * 2.0; // ramp down to 0.0
+      } else {
+        glitchUniform = 0.0;
+      }
+
+      if (progress < 1.0) {
+        requestAnimationFrame(animateSpin);
+      } else {
+        // Reset — clean landing
+        spinAngle = 0.0;
+        glitchUniform = 0.0;
+      }
+    }
+    requestAnimationFrame(animateSpin);
   }
 
   function cancelAnimation() {
@@ -292,8 +342,16 @@ export function matrixView(): HTMLElement {
   const GLYPH_SLOTS = 10;
   let glyphRotationTimer: ReturnType<typeof setInterval> | null = null;
 
-  // Featured chains — top 3 by market cap from the major set, displayed prominently
+  // ── Featured assets: algorithm-driven majors + "just because" from config ──
+  // Majors: top movers selected by algorithm (highest 24h gain)
   const MAJOR_SYMBOLS = new Set(['BTC', 'ETH', 'AVAX', 'ADA', 'ALGO', 'POL', 'XRP', 'SOL', 'DOT']);
+
+  // "Just because": user's personal picks, configurable via VITE_JUST_BECAUSE env var
+  // Default: POL,ALGO,ETH,BEAM,ZIL — override in .env: VITE_JUST_BECAUSE=POL,ALGO,ETH,BEAM,ZIL,LINK
+  const JUST_BECAUSE_DEFAULT = 'POL,ALGO,ETH,BEAM,ZIL';
+  const justBecauseEnv = (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_JUST_BECAUSE || JUST_BECAUSE_DEFAULT;
+  const JUST_BECAUSE = new Set(justBecauseEnv.split(',').map(s => s.trim().toUpperCase()).filter(Boolean));
+
   const FEATURED_SYMBOLS = new Set<string>();
 
   function createGlyphs() {
@@ -304,12 +362,18 @@ export function matrixView(): HTMLElement {
     const pool = [...prices];
     const selected: CoinPrice[] = [];
 
-    // Top 3 gainers from the major set — the ones moving right now
+    // "Just because" — always featured, separate from algorithm
     FEATURED_SYMBOLS.clear();
-    const majors = pool.filter(c => MAJOR_SYMBOLS.has(c.symbol)).sort((a, b) => b.change24h - a.change24h).slice(0, 3);
-    for (const m of majors) FEATURED_SYMBOLS.add(m.symbol);
+    const justBecauseCoins = pool.filter(c => JUST_BECAUSE.has(c.symbol));
+    for (const c of justBecauseCoins) FEATURED_SYMBOLS.add(c.symbol);
 
-    // Always include the top 3 featured
+    // Algorithm: top movers from majors (excluding "just because" to avoid duplicates)
+    const otherMajors = pool.filter(c => MAJOR_SYMBOLS.has(c.symbol) && !JUST_BECAUSE.has(c.symbol))
+      .sort((a, b) => b.change24h - a.change24h).slice(0, 3);
+    for (const m of otherMajors) FEATURED_SYMBOLS.add(m.symbol);
+    const majors = [...justBecauseCoins, ...otherMajors];
+
+    // Always include all featured
     for (const coin of majors) {
       if (!selected.includes(coin)) selected.push(coin);
     }
@@ -327,26 +391,24 @@ export function matrixView(): HTMLElement {
 
     // Grid-based placement — track occupied zones to prevent overlap
     const occupied: { x: number; y: number }[] = [];
+    const minGap = 0.14; // 14% of screen between icons — generous spacing
+
     function findOpenSpot(preferred?: { x: number; y: number }): { x: number; y: number } {
-      const minGap = 0.1; // 10% of screen between icons — no overlap
       if (preferred) {
         const tooClose = occupied.some(o => Math.abs(o.x - preferred.x) < minGap && Math.abs(o.y - preferred.y) < minGap);
         if (!tooClose) { occupied.push(preferred); return preferred; }
       }
       for (let attempt = 0; attempt < 50; attempt++) {
-        const tx = 0.03 + Math.random() * 0.94;
-        const ty = Math.random() * 0.72 + 0.05; // cap at 77% — below is ship/fleet zone
-        // Skip center panel — wide exclusion so pills are never obscured
-        if (tx > 0.2 && tx < 0.8 && ty > 0.1 && ty < 0.8) continue;
-        // Skip bottom zone (ship + fleet area)
-        if (ty > 0.72) continue;
+        // Right side only (65%-97%) — left side reserved for top 10 + stablecoin basket
+        const tx = 0.65 + Math.random() * 0.32;
+        const ty = 0.06 + Math.random() * 0.64; // 6%-70%
         // Skip if too close to any existing glyph
         const collision = occupied.some(o => Math.abs(o.x - tx) < minGap && Math.abs(o.y - ty) < minGap);
         if (!collision) { occupied.push({ x: tx, y: ty }); return { x: tx, y: ty }; }
       }
-      // Fallback — edges only
-      const fx = Math.random() > 0.5 ? 0.02 + Math.random() * 0.15 : 0.83 + Math.random() * 0.15;
-      const fy = 0.05 + Math.random() * 0.5;
+      // Fallback — right column
+      const fx = 0.80 + Math.random() * 0.17;
+      const fy = 0.06 + Math.random() * 0.55;
       occupied.push({ x: fx, y: fy });
       return { x: fx, y: fy };
     }
@@ -357,11 +419,14 @@ export function matrixView(): HTMLElement {
       const volFactor = Math.min(1.0, vol / 5.0);
       const isFeatured = FEATURED_SYMBOLS.has(coin.symbol);
 
-      // Featured: top-left area. Others: find open spot.
+      // Featured: spread down the right side column with generous spacing
+      // Staggered: alternate between x=0.72 and x=0.88, descend vertically
       let pos: { x: number; y: number };
       if (isFeatured) {
         const fIdx = [...FEATURED_SYMBOLS].indexOf(coin.symbol);
-        pos = findOpenSpot({ x: 0.04 + fIdx * 0.09, y: 0.06 });
+        const fx = fIdx % 2 === 0 ? 0.73 : 0.88; // zigzag left-right within right zone
+        const fy = 0.06 + fIdx * 0.11;            // 11% vertical gap between each
+        pos = findOpenSpot({ x: fx, y: fy });
       } else {
         pos = findOpenSpot();
       }
@@ -379,17 +444,25 @@ export function matrixView(): HTMLElement {
       const glyph: CryptoGlyph = { coin, x, y, size: baseSize };
       cryptoGlyphs.push(glyph);
 
-      // Color — featured coins get richer color, others subtle
+      // Color — blue pill = red glyphs (selling), otherwise normal market colors
       const featuredBoost = isFeatured ? 1.4 : 1.0;
-      const color = coin.change24h > 0.3
-        ? `rgba(16,255,90,${baseOpacity * featuredBoost})`
-        : coin.change24h < -0.3
-          ? `rgba(255,80,80,${baseOpacity * featuredBoost})`
-          : `rgba(200,210,220,${baseOpacity * 0.5 * featuredBoost})`;
+      let color: string;
+      let changeColor: string;
+      if (choice === 'blue') {
+        // Blue pill = selling/diagnostics = red glyphs
+        color = `rgba(255,80,80,${baseOpacity * featuredBoost})`;
+        changeColor = '#ef4444';
+      } else {
+        // Landing + red pill = normal market color (green if up, red if down)
+        color = coin.change24h > 0.3
+          ? `rgba(16,255,90,${baseOpacity * featuredBoost})`
+          : coin.change24h < -0.3
+            ? `rgba(255,80,80,${baseOpacity * featuredBoost})`
+            : `rgba(200,210,220,${baseOpacity * 0.5 * featuredBoost})`;
+        changeColor = coin.change24h >= 0 ? '#10b981' : '#ef4444';
+      }
 
-      // Price display inline with symbol
       const changeSign = coin.change24h >= 0 ? '+' : '';
-      const changeColor = coin.change24h >= 0 ? '#10b981' : '#ef4444';
 
       const glyphEl = el('div', {
         cls: `parsec-matrix__crypto-glyph ${volFactor > 0.3 ? 'parsec-matrix__crypto-glyph--volatile' : ''}`,
@@ -681,6 +754,7 @@ export function matrixView(): HTMLElement {
             iconEl,
             el('span', { cls: 'parsec-fleet-column__symbol', text: coin.symbol }),
             el('span', { cls: 'parsec-fleet-column__price', text: formatPrice(coin.usd) }),
+            el('span', { cls: 'parsec-fleet-column__mcap', text: formatMarketCap(coin.marketCap) }),
             el('span', { cls: 'parsec-fleet-column__change', text: `${sign}${coin.change24h.toFixed(1)}%`, attrs: { style: `color:${color}` } }),
           ],
         });
@@ -764,41 +838,6 @@ export function matrixView(): HTMLElement {
     });
 
     return cardEl;
-  }
-
-  function pyramidCoin(coin: CoinPrice, xPct: number, yPct: number, scale: number, isApex: boolean, opacity = 1): HTMLElement {
-    const isUp = coin.change24h >= 0;
-    const color = isUp ? '#10b981' : '#ef4444';
-    const sign = isUp ? '+' : '';
-    const cls = isApex ? 'parsec-pyramid__coin parsec-pyramid__coin--apex' : 'parsec-pyramid__coin';
-
-    const coinEl = el('div', {
-      cls,
-      attrs: {
-        style: `left:${xPct}%;top:${yPct}%;transform:translate(-50%,-50%) scale(${scale});opacity:${opacity}`,
-      },
-      children: [
-        el('div', { cls: 'parsec-pyramid__symbol', text: coin.symbol }),
-        el('div', { cls: 'parsec-pyramid__price', text: formatPrice(coin.usd) }),
-        el('div', { cls: 'parsec-pyramid__change', text: `${sign}${coin.change24h.toFixed(1)}%`, attrs: { style: `color:${color}` } }),
-      ],
-    });
-
-    // Hover info panel — expands on hover, pushes neighbors away
-    coinEl.addEventListener('mouseenter', () => {
-      // Show expanded info card
-      showCoinPanel(coin, coinEl);
-      // Push nearby pyramid coins away for isolation
-      coinEl.style.zIndex = '50';
-      coinEl.style.transform = `translate(-50%,-50%) scale(${scale * 1.5})`;
-    });
-    coinEl.addEventListener('mouseleave', () => {
-      hideCoinPanel();
-      coinEl.style.zIndex = '';
-      coinEl.style.transform = `translate(-50%,-50%) scale(${scale})`;
-    });
-
-    return coinEl;
   }
 
   // ── Hover info panel — detailed coin card ──────────────────
@@ -894,18 +933,42 @@ export function matrixView(): HTMLElement {
 
   function setPill(p: PillChoice) {
     choice = p;
+    // Shader pill tint: 0 = green (landing/choose), 1 = red, 2 = blue
     pillUniform = p === 'red' ? 1.0 : p === 'blue' ? 2.0 : 0.0;
+    // Glitch spin on every transition
+    triggerGlitchSpin(0.8);
+    // Re-render glyphs so colors update for pill context
+    createGlyphs();
 
     if (p === 'none') {
-      // Landing — hide panel, show brand
+      // Landing — hide panel, show everything
       panel.style.display = 'none';
       panel.classList.remove('parsec-matrix__panel--fullscreen');
       brandEl.style.display = '';
-    } else {
-      // Any other state — full-screen panel, hide brand
+      pyramidLayer.style.display = '';
+      glyphLayer.style.display = '';
+      // Restore pyramid bricks that were hidden
+      const pyramidBody = pyramidLayer.querySelector('.parsec-pyramid__body') as HTMLElement;
+      const pyramidLines = pyramidLayer.querySelectorAll('.parsec-pyramid__line');
+      if (pyramidBody) pyramidBody.style.display = '';
+      pyramidLines.forEach(l => (l as HTMLElement).style.display = '');
+    } else if (p === 'blue') {
+      // Blue pill — pure diagnostics: hide EVERYTHING except rain
       panel.style.display = '';
       panel.classList.add('parsec-matrix__panel--fullscreen');
       brandEl.style.display = 'none';
+      pyramidLayer.style.display = 'none';
+      glyphLayer.style.display = 'none';
+    } else {
+      // Pill choice / red — hide pyramid bricks, keep top 10 + ship + glyphs
+      panel.style.display = '';
+      panel.classList.add('parsec-matrix__panel--fullscreen');
+      brandEl.style.display = 'none';
+      const pyramidBody = pyramidLayer.querySelector('.parsec-pyramid__body') as HTMLElement;
+      const pyramidLines = pyramidLayer.querySelectorAll('.parsec-pyramid__line');
+      if (pyramidBody) pyramidBody.style.display = 'none';
+      pyramidLines.forEach(l => (l as HTMLElement).style.display = 'none');
+      glyphLayer.style.display = '';
     }
 
     renderPanel();
@@ -955,73 +1018,473 @@ export function matrixView(): HTMLElement {
   }
 
   function renderBluePill() {
-    panel.appendChild(el('div', { cls: 'parsec-matrix__choice-label parsec-matrix__choice-label--blue', text: 'BLUE PILL — DIAGNOSTICS' }));
-    panel.appendChild(el('p', { cls: 'parsec-matrix__lead', text: 'Network intelligence. DeFi liquidity. No signing authority.' }));
     const state = store.get();
 
-    // ── Network Activity Feed ──
-    const netFeed = el('div', { cls: 'parsec-matrix__netfeed' });
+    // Header + back always visible
+    panel.appendChild(el('div', { cls: 'parsec-matrix__choice-label parsec-matrix__choice-label--blue', text: 'BLUE PILL — DIAGNOSTICS' }));
+
+    // Network log — always visible at top, compact
     const netLog = el('div', { cls: 'parsec-matrix__netlog' });
+    const netFeed = el('div', { cls: 'parsec-matrix__netfeed parsec-matrix__netfeed--compact' });
     netFeed.appendChild(el('div', { cls: 'parsec-matrix__netfeed-header', children: [
       el('span', { cls: 'parsec-matrix__netfeed-dot' }),
-      el('span', { text: 'Network Activity' }),
+      el('span', { text: 'Network' }),
     ]}));
     netFeed.appendChild(netLog);
     panel.appendChild(netFeed);
 
     logNet(netLog, 'INIT', `Parsec v0.1.0 — ${state.settings.network}`);
-    logNet(netLog, 'NODE', `Algod: ${state.settings.network}-api.algonode.cloud`);
-    logNet(netLog, 'NODE', `Indexer: ${state.settings.network}-idx.algonode.cloud`);
+    logNet(netLog, 'NODE', `${state.settings.network}-api.algonode.cloud`);
 
-    // ── DeFi Llama + Market Diagnostics ──
-    const defiBox = el('div', { cls: 'parsec-matrix__diag parsec-matrix__diag--defi' });
-    defiBox.appendChild(el('div', { cls: 'parsec-matrix__diag-loading', text: 'Fetching DeFi data...' }));
-    panel.appendChild(defiBox);
-    loadDefiDiagnostics(defiBox, netLog);
+    // ── Tabs ──
+    const tabs = [
+      { id: 'global', label: 'Global' },
+      { id: 'gas', label: 'Gas & Fees' },
+      { id: 'chains', label: 'Chain Health' },
+      { id: 'network', label: 'Network' },
+      { id: 'defi', label: 'DeFi TVL' },
+      { id: 'portfolio', label: 'Portfolio' },
+    ];
 
-    // ── Market Overview (from CoinGecko prices already loaded) ──
-    if (prices.length > 0) {
-      logNet(netLog, 'PRICE', `${prices.length} coins tracked — CoinGecko free tier`);
-      const topMover = [...prices].sort((a, b) => Math.abs(b.change24h) - Math.abs(a.change24h))[0];
-      if (topMover) {
-        const dir = topMover.change24h >= 0 ? '+' : '';
-        logNet(netLog, 'MOVER', `${topMover.symbol} ${dir}${topMover.change24h.toFixed(2)}% (24h)`);
+    const tabBar = el('div', { cls: 'parsec-matrix__blue-tabs' });
+    const tabContent = el('div', { cls: 'parsec-matrix__blue-content' });
+    let activeTab = 'global';
+
+    function renderTab(tabId: string) {
+      activeTab = tabId;
+      tabContent.innerHTML = '';
+
+      // Update tab active states
+      tabBar.querySelectorAll('.parsec-matrix__blue-tab').forEach(t => {
+        (t as HTMLElement).classList.toggle('parsec-matrix__blue-tab--active', t.getAttribute('data-tab') === tabId);
+      });
+
+      const box = el('div', { cls: 'parsec-matrix__diag parsec-matrix__diag--defi' });
+      tabContent.appendChild(box);
+
+      if (tabId === 'global') loadGlobalTab(box, netLog);
+      else if (tabId === 'gas') loadGasTab(box, netLog);
+      else if (tabId === 'chains') loadChainsTab(box, netLog);
+      else if (tabId === 'network') loadNetworkTab(box, netLog);
+      else if (tabId === 'defi') loadDefiTab(box, netLog);
+      else if (tabId === 'portfolio') loadPortfolioTab(box, netLog, state);
+    }
+
+    tabs.forEach(tab => {
+      tabBar.appendChild(el('div', {
+        cls: `parsec-matrix__blue-tab ${tab.id === activeTab ? 'parsec-matrix__blue-tab--active' : ''}`,
+        text: tab.label,
+        attrs: { 'data-tab': tab.id },
+        onClick: () => renderTab(tab.id),
+      }));
+    });
+
+    panel.appendChild(tabBar);
+    panel.appendChild(tabContent);
+
+    // Tab key cycles through tabs
+    const tabHandler = (e: KeyboardEvent) => {
+      if (e.key === 'Tab' && choice === 'blue') {
+        e.preventDefault();
+        const idx = tabs.findIndex(t => t.id === activeTab);
+        const next = tabs[(idx + (e.shiftKey ? tabs.length - 1 : 1)) % tabs.length];
+        renderTab(next.id);
       }
+    };
+    window.addEventListener('keydown', tabHandler);
 
-      const marketBox = el('div', { cls: 'parsec-matrix__diag parsec-matrix__diag--market' });
-      const breadth = getMarketBreadth(prices);
+    // Auto-refresh: reload active tab every 20s — relentless, consistent, flowing
+    const diagLoop = setInterval(() => {
+      if (choice !== 'blue') { clearInterval(diagLoop); window.removeEventListener('keydown', tabHandler); return; }
+      logNet(netLog, 'SYNC', `refreshing ${activeTab}`);
+      renderTab(activeTab);
+    }, 20000);
+
+    // Load initial tab — Global overview
+    renderTab('global');
+
+    // Back button always at bottom
+    backButton();
+  }
+
+  // ── Blue Pill Tab: Global Overview (The Tank View) ──
+  async function loadGlobalTab(box: HTMLElement, netLog: HTMLElement) {
+    box.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'GLOBAL CRYPTO OVERVIEW' }));
+
+    const now = new Date();
+    box.appendChild(diagRow('Timestamp', now.toISOString().replace('T', ' ').slice(0, 19) + ' UTC'));
+
+    // Market from CoinGecko (already loaded)
+    if (prices.length > 0) {
       const totalCap = prices.reduce((s, c) => s + c.marketCap, 0);
       const btc = prices.find(p => p.symbol === 'BTC');
-      const btcDom = btc ? ((btc.marketCap / totalCap) * 100).toFixed(1) : '—';
+      const eth = prices.find(p => p.symbol === 'ETH');
+      const algo = prices.find(p => p.symbol === 'ALGO');
+      const breadth = getMarketBreadth(prices);
 
-      marketBox.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'MARKET OVERVIEW' }));
-      marketBox.appendChild(diagRow('Total Market Cap', formatMarketCap(totalCap)));
-      marketBox.appendChild(diagRow('BTC Dominance', `${btcDom}%`));
-      marketBox.appendChild(diagRow('Green / Red / Flat', `${breadth.greenPct}% / ${breadth.redPct}% / ${breadth.flatPct}%`));
-      marketBox.appendChild(diagRow('Volatility Index', `${(getMarketActivity(prices) * 100).toFixed(0)}%`));
-      marketBox.appendChild(diagRow('Sentiment', sentimentUniform > 0 ? `Bullish (${(sentimentUniform * 100).toFixed(0)}%)` : sentimentUniform < 0 ? `Bearish (${(Math.abs(sentimentUniform) * 100).toFixed(0)}%)` : 'Neutral'));
-
-      panel.appendChild(marketBox);
+      box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Market' }));
+      box.appendChild(diagRow('Total Market Cap', formatMarketCap(totalCap)));
+      if (btc) {
+        box.appendChild(diagRow('BTC', `${formatPrice(btc.usd)} (${btc.change24h >= 0 ? '+' : ''}${btc.change24h.toFixed(1)}%) — ${((btc.marketCap / totalCap) * 100).toFixed(1)}% dom`));
+      }
+      if (eth) {
+        box.appendChild(diagRow('ETH', `${formatPrice(eth.usd)} (${eth.change24h >= 0 ? '+' : ''}${eth.change24h.toFixed(1)}%)`));
+      }
+      if (algo) {
+        box.appendChild(diagRow('ALGO', `${formatPrice(algo.usd)} (${algo.change24h >= 0 ? '+' : ''}${algo.change24h.toFixed(1)}%)`));
+      }
+      box.appendChild(diagRow('Green / Red / Flat', `${breadth.greenPct}% / ${breadth.redPct}% / ${breadth.flatPct}%`));
+      box.appendChild(diagRow('Volatility', `${(getMarketActivity(prices) * 100).toFixed(0)}%`));
+      box.appendChild(diagRow('Coins Tracked', `${prices.length}`));
+      logNet(netLog, 'OK', `Market: ${formatMarketCap(totalCap)} — ${breadth.greenPct}% green`);
     }
 
-    // ── Portfolio Diagnostics (if accounts exist) ──
-    if (state.accounts.length > 0) {
-      const diagBox = el('div', { cls: 'parsec-matrix__diag' });
-      diagBox.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'PORTFOLIO DIAGNOSTICS' }));
-      panel.appendChild(diagBox);
-      loadDiagnostics(diagBox, state.accounts, state.settings.network, netLog);
+    // Global TVL
+    try {
+      logNet(netLog, 'FETCH', 'Global TVL');
+      const res = await fetch('https://api.llama.fi/v2/historicalChainTvl', { signal: AbortSignal.timeout(8000) });
+      if (res.ok) {
+        const data = await res.json() as Array<{ date: number; tvl: number }>;
+        const latest = data[data.length - 1];
+        const week = data[data.length - 8];
+        const month = data[data.length - 31];
+        box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'DeFi' }));
+        box.appendChild(diagRow('Global TVL', formatMarketCap(latest.tvl)));
+        if (week) box.appendChild(diagRow('7d TVL Change', `${((latest.tvl - week.tvl) / week.tvl * 100) >= 0 ? '+' : ''}${((latest.tvl - week.tvl) / week.tvl * 100).toFixed(1)}%`));
+        if (month) box.appendChild(diagRow('30d TVL Change', `${((latest.tvl - month.tvl) / month.tvl * 100) >= 0 ? '+' : ''}${((latest.tvl - month.tvl) / month.tvl * 100).toFixed(1)}%`));
+        logNet(netLog, 'OK', `TVL: ${formatMarketCap(latest.tvl)}`);
+      }
+    } catch { /* skip */ }
 
-      const diagRefresh = setInterval(() => {
-        if (choice !== 'blue') { clearInterval(diagRefresh); return; }
-        logNet(netLog, 'SYNC', 'auto-refresh');
-        loadDiagnostics(diagBox, state.accounts, state.settings.network, netLog);
-      }, 30000);
-    } else {
-      logNet(netLog, 'WAIT', 'No accounts — import a public address for portfolio data');
-      panel.appendChild(btn('Import Watch-Only Address', { outlined: true, cls: 'parsec-matrix__action', onClick: () => { cancelAnimation(); store.navigate('import-wallet'); } }));
+    // Gas snapshot (ETH only for global view)
+    try {
+      logNet(netLog, 'FETCH', 'ETH gas');
+      const res = await fetch('https://eth.llamarpc.com', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_gasPrice', params: [], id: 1 }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        const data = await res.json() as { result?: string };
+        if (data.result) {
+          const gwei = parseInt(data.result, 16) / 1e9;
+          box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Infrastructure' }));
+          box.appendChild(diagRow('ETH Gas', `${gwei.toFixed(1)} gwei`));
+          box.appendChild(diagRow('ALGO Tx Fee', '0.001 ALGO'));
+          logNet(netLog, 'OK', `Gas: ${gwei.toFixed(1)} gwei`);
+        }
+      }
+    } catch { /* skip */ }
+
+    // Algorand round
+    try {
+      const algodUrl = `https://${store.get().settings.network}-api.algonode.cloud`;
+      const res = await fetch(`${algodUrl}/v2/status`, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        const status = await res.json() as Record<string, unknown>;
+        const round = Number(status['last-round'] || 0);
+        box.appendChild(diagRow('Algorand Round', round.toLocaleString()));
+        logNet(netLog, 'OK', `Round ${round.toLocaleString()}`);
+      }
+    } catch { /* skip */ }
+
+    // Ethereum block
+    try {
+      const res = await fetch('https://eth.llamarpc.com', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        const data = await res.json() as { result?: string };
+        if (data.result) {
+          box.appendChild(diagRow('ETH Block', parseInt(data.result, 16).toLocaleString()));
+        }
+      }
+    } catch { /* skip */ }
+
+    // Fear & Greed
+    try {
+      logNet(netLog, 'FETCH', 'Sentiment');
+      const res = await fetch('https://api.alternative.me/fng/?limit=1', { signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        const data = await res.json() as { data: Array<{ value: string; value_classification: string }> };
+        if (data.data?.[0]) {
+          box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Sentiment' }));
+          box.appendChild(diagRow('Fear & Greed', `${data.data[0].value} — ${data.data[0].value_classification}`));
+          logNet(netLog, 'OK', `F&G: ${data.data[0].value}`);
+        }
+      }
+    } catch { /* skip */ }
+
+    // Top 5 chains by TVL (compact)
+    try {
+      const res = await fetch('https://api.llama.fi/v2/chains', { signal: AbortSignal.timeout(8000) });
+      if (res.ok) {
+        const chains = await res.json() as Array<{ name: string; tvl: number }>;
+        const top = chains.filter(c => c.tvl > 0).sort((a, b) => b.tvl - a.tvl).slice(0, 5);
+        box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Top Chains' }));
+        top.forEach((c, i) => box.appendChild(diagRow(`${i + 1}. ${c.name}`, formatMarketCap(c.tvl))));
+      }
+    } catch { /* skip */ }
+  }
+
+  // ── Blue Pill Tab: Gas & Fees ──
+  async function loadGasTab(box: HTMLElement, netLog: HTMLElement) {
+    box.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'GAS FEES ACROSS CHAINS' }));
+    box.appendChild(el('div', { cls: 'parsec-matrix__diag-loading', text: 'Querying gas prices...' }));
+
+    const chains: Array<{ name: string; rpc: string; unit: string; decimals: number }> = [
+      { name: 'Ethereum', rpc: 'https://eth.llamarpc.com', unit: 'gwei', decimals: 1 },
+      { name: 'Polygon', rpc: 'https://polygon-rpc.com', unit: 'gwei', decimals: 1 },
+      { name: 'Base', rpc: 'https://mainnet.base.org', unit: 'gwei', decimals: 3 },
+      { name: 'Arbitrum', rpc: 'https://arb1.arbitrum.io/rpc', unit: 'gwei', decimals: 3 },
+      { name: 'Optimism', rpc: 'https://mainnet.optimism.io', unit: 'gwei', decimals: 3 },
+      { name: 'BSC', rpc: 'https://bsc-dataseed1.binance.org', unit: 'gwei', decimals: 1 },
+    ];
+
+    // Clear loading
+    const results: HTMLElement[] = [];
+
+    for (const chain of chains) {
+      try {
+        logNet(netLog, 'FETCH', `${chain.name} gas`);
+        const res = await fetch(chain.rpc, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_gasPrice', params: [], id: 1 }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (res.ok) {
+          const data = await res.json() as { result?: string };
+          if (data.result) {
+            const gwei = parseInt(data.result, 16) / 1e9;
+            results.push(diagRow(chain.name, `${gwei.toFixed(chain.decimals)} ${chain.unit}`));
+            logNet(netLog, 'OK', `${chain.name}: ${gwei.toFixed(chain.decimals)} gwei`);
+          }
+        }
+      } catch {
+        results.push(diagRow(chain.name, 'unavailable'));
+      }
     }
 
-    backButton();
+    // Algorand fixed fee
+    results.push(diagRow('Algorand', '0.001 ALGO (fixed)'));
+    logNet(netLog, 'OK', 'Algorand: 0.001 ALGO (fixed)');
+
+    box.innerHTML = '';
+    box.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'GAS FEES ACROSS CHAINS' }));
+    results.forEach(r => box.appendChild(r));
+
+    // ETH transaction cost estimates
+    const ethPrice = prices.find(p => p.symbol === 'ETH');
+    if (ethPrice && results.length > 0) {
+      const ethGasText = results[0]?.querySelector('.parsec-matrix__diag-row-value')?.textContent || '';
+      const ethGwei = parseFloat(ethGasText);
+      if (ethGwei > 0) {
+        box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Ethereum Cost Estimates' }));
+        const transfer = (ethGwei * 21000 / 1e9) * ethPrice.usd;
+        const swap = (ethGwei * 150000 / 1e9) * ethPrice.usd;
+        const mint = (ethGwei * 250000 / 1e9) * ethPrice.usd;
+        box.appendChild(diagRow('Simple Transfer (21k)', `$${transfer.toFixed(2)}`));
+        box.appendChild(diagRow('DEX Swap (150k)', `$${swap.toFixed(2)}`));
+        box.appendChild(diagRow('NFT Mint (250k)', `$${mint.toFixed(2)}`));
+      }
+    }
+  }
+
+  // ── Blue Pill Tab: Chain Health ──
+  async function loadChainsTab(box: HTMLElement, netLog: HTMLElement) {
+    box.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'CHAIN TVL RANKINGS' }));
+    box.appendChild(el('div', { cls: 'parsec-matrix__diag-loading', text: 'Querying DeFi Llama...' }));
+
+    try {
+      logNet(netLog, 'FETCH', 'Chain TVL rankings');
+      const res = await fetch('https://api.llama.fi/v2/chains', { signal: AbortSignal.timeout(8000) });
+      if (res.ok) {
+        const chains = await res.json() as Array<{ name: string; tvl: number }>;
+        const top = chains.filter(c => c.tvl > 0).sort((a, b) => b.tvl - a.tvl).slice(0, 15);
+        box.innerHTML = '';
+        box.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'CHAIN TVL RANKINGS' }));
+        top.forEach((c, i) => box.appendChild(diagRow(`${i + 1}. ${c.name}`, formatMarketCap(c.tvl))));
+        logNet(netLog, 'OK', `${top.length} chains ranked`);
+      }
+    } catch {
+      box.innerHTML = '';
+      box.appendChild(diagRow('Chain data', 'unavailable'));
+    }
+
+    // Algorand protocols
+    try {
+      logNet(netLog, 'FETCH', 'Algorand protocols');
+      const res = await fetch('https://api.llama.fi/protocols', { signal: AbortSignal.timeout(10000) });
+      if (res.ok) {
+        const protocols = await res.json() as Array<{ name: string; tvl: number; chains: string[]; category: string }>;
+        const algoProtos = protocols
+          .filter(p => p.chains && p.chains.includes('Algorand') && p.tvl > 0)
+          .sort((a, b) => b.tvl - a.tvl).slice(0, 8);
+        if (algoProtos.length > 0) {
+          box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Algorand Protocols' }));
+          algoProtos.forEach(p => box.appendChild(diagRow(`${p.name} (${p.category})`, formatMarketCap(p.tvl))));
+          logNet(netLog, 'OK', `${algoProtos.length} Algorand protocols`);
+        }
+      }
+    } catch { /* skip */ }
+  }
+
+  // ── Blue Pill Tab: Network Status ──
+  async function loadNetworkTab(box: HTMLElement, netLog: HTMLElement) {
+    box.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'NETWORK STATUS' }));
+
+    // Algorand
+    try {
+      logNet(netLog, 'FETCH', 'Algorand status');
+      const algodUrl = `https://${store.get().settings.network}-api.algonode.cloud`;
+      const res = await fetch(`${algodUrl}/v2/status`, { signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        const status = await res.json() as Record<string, unknown>;
+        const round = Number(status['last-round'] || 0);
+        const blockTime = Number(status['time-since-last-round'] || 0) / 1e9;
+        const catchupTime = Number(status['catchup-time'] || 0) / 1e9;
+        box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Algorand' }));
+        box.appendChild(diagRow('Latest Round', round.toLocaleString()));
+        box.appendChild(diagRow('Last Block', `${blockTime.toFixed(1)}s ago`));
+        box.appendChild(diagRow('Consensus', 'Pure Proof-of-Stake'));
+        box.appendChild(diagRow('Finality', 'Instant (~3.3s, no forks)'));
+        box.appendChild(diagRow('Tx Fee', '0.001 ALGO'));
+        if (catchupTime > 0) box.appendChild(diagRow('Catchup', `${catchupTime.toFixed(0)}s remaining`));
+        logNet(netLog, 'OK', `Round ${round.toLocaleString()}`);
+      }
+    } catch { box.appendChild(diagRow('Algorand', 'unavailable')); }
+
+    // Ethereum block
+    try {
+      logNet(netLog, 'FETCH', 'Ethereum block');
+      const res = await fetch('https://eth.llamarpc.com', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) {
+        const data = await res.json() as { result?: string };
+        if (data.result) {
+          const block = parseInt(data.result, 16);
+          box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Ethereum' }));
+          box.appendChild(diagRow('Latest Block', block.toLocaleString()));
+          box.appendChild(diagRow('Block Time', '~12s'));
+          box.appendChild(diagRow('Consensus', 'Proof-of-Stake (post-Merge)'));
+          box.appendChild(diagRow('Finality', '~15 min (2 epochs)'));
+          logNet(netLog, 'OK', `ETH block ${block.toLocaleString()}`);
+        }
+      }
+    } catch { /* skip */ }
+
+    // Fear & Greed
+    try {
+      logNet(netLog, 'FETCH', 'Fear & Greed');
+      const res = await fetch('https://api.alternative.me/fng/?limit=1', { signal: AbortSignal.timeout(5000) });
+      if (res.ok) {
+        const data = await res.json() as { data: Array<{ value: string; value_classification: string }> };
+        if (data.data?.[0]) {
+          box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Sentiment' }));
+          box.appendChild(diagRow('Fear & Greed', `${data.data[0].value} — ${data.data[0].value_classification}`));
+          logNet(netLog, 'OK', `F&G: ${data.data[0].value}`);
+        }
+      }
+    } catch { /* skip */ }
+  }
+
+  // ── Blue Pill Tab: DeFi TVL ──
+  async function loadDefiTab(box: HTMLElement, netLog: HTMLElement) {
+    box.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'DEFI TOTAL VALUE LOCKED' }));
+    box.appendChild(el('div', { cls: 'parsec-matrix__diag-loading', text: 'Querying DeFi Llama...' }));
+
+    // Global TVL
+    try {
+      logNet(netLog, 'FETCH', 'Global TVL');
+      const res = await fetch('https://api.llama.fi/v2/historicalChainTvl', { signal: AbortSignal.timeout(8000) });
+      if (res.ok) {
+        const data = await res.json() as Array<{ date: number; tvl: number }>;
+        const latest = data[data.length - 1];
+        const prev = data[data.length - 2];
+        const week = data[data.length - 8];
+        const month = data[data.length - 31];
+        box.innerHTML = '';
+        box.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'DEFI TOTAL VALUE LOCKED' }));
+        box.appendChild(diagRow('Global TVL', formatMarketCap(latest.tvl)));
+        if (prev) {
+          const d = ((latest.tvl - prev.tvl) / prev.tvl * 100);
+          box.appendChild(diagRow('24h Change', `${d >= 0 ? '+' : ''}${d.toFixed(2)}%`));
+        }
+        if (week) {
+          const w = ((latest.tvl - week.tvl) / week.tvl * 100);
+          box.appendChild(diagRow('7d Change', `${w >= 0 ? '+' : ''}${w.toFixed(2)}%`));
+        }
+        if (month) {
+          const m = ((latest.tvl - month.tvl) / month.tvl * 100);
+          box.appendChild(diagRow('30d Change', `${m >= 0 ? '+' : ''}${m.toFixed(2)}%`));
+        }
+        logNet(netLog, 'OK', `Global TVL: ${formatMarketCap(latest.tvl)}`);
+      }
+    } catch { box.appendChild(diagRow('TVL', 'unavailable')); }
+
+    // Algorand TVL
+    try {
+      logNet(netLog, 'FETCH', 'Algorand TVL');
+      const res = await fetch('https://api.llama.fi/v2/historicalChainTvl/Algorand', { signal: AbortSignal.timeout(8000) });
+      if (res.ok) {
+        const data = await res.json() as Array<{ date: number; tvl: number }>;
+        const latest = data[data.length - 1];
+        const week = data[data.length - 8];
+        box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Algorand' }));
+        box.appendChild(diagRow('Algorand TVL', formatMarketCap(latest.tvl)));
+        if (week) {
+          const w = ((latest.tvl - week.tvl) / week.tvl * 100);
+          box.appendChild(diagRow('7d Change', `${w >= 0 ? '+' : ''}${w.toFixed(2)}%`));
+        }
+        logNet(netLog, 'OK', `Algorand TVL: ${formatMarketCap(latest.tvl)}`);
+      }
+    } catch { /* skip */ }
+
+    // Stablecoin infrastructure
+    try {
+      logNet(netLog, 'FETCH', 'Stablecoin supply');
+      const res = await fetch('https://stablecoins.llama.fi/stablecoins?includePrices=true', { signal: AbortSignal.timeout(8000) });
+      if (res.ok) {
+        const data = await res.json() as { peggedAssets: Array<{ name: string; symbol: string; circulating: { peggedUSD?: number } | null }> };
+        let total = 0;
+        const list: Array<{ symbol: string; mcap: number }> = [];
+        for (const s of data.peggedAssets) {
+          const mcap = (s.circulating && typeof s.circulating.peggedUSD === 'number') ? s.circulating.peggedUSD : 0;
+          if (mcap > 0) { total += mcap; list.push({ symbol: s.symbol, mcap }); }
+        }
+        if (total > 0) {
+          box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Stablecoin Liquidity' }));
+          box.appendChild(diagRow('Total Supply', formatMarketCap(total)));
+          list.sort((a, b) => b.mcap - a.mcap);
+          list.slice(0, 5).forEach(s => box.appendChild(diagRow(s.symbol, formatMarketCap(s.mcap))));
+          logNet(netLog, 'OK', `Stablecoins: ${formatMarketCap(total)}`);
+        }
+      }
+    } catch { /* skip */ }
+
+    // Deep diagnostics button — expands to full macro view (gas, chains, sentiment, predictions)
+    box.appendChild(btn('Deep Diagnostics', {
+      minimal: true, cls: 'parsec-matrix__action',
+      onClick: () => loadDefiDiagnostics(box, netLog),
+    }));
+  }
+
+  // ── Blue Pill Tab: Portfolio ──
+  async function loadPortfolioTab(box: HTMLElement, netLog: HTMLElement, state: ReturnType<typeof store.get>) {
+    box.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'ON-CHAIN PORTFOLIO' }));
+
+    if (state.accounts.length === 0) {
+      box.appendChild(el('p', { cls: 'parsec-matrix__lead', text: 'No accounts. Import a public address.' }));
+      box.appendChild(btn('Import Watch-Only Address', { outlined: true, cls: 'parsec-matrix__action', onClick: () => { cancelAnimation(); store.navigate('import-wallet'); } }));
+      return;
+    }
+
+    loadDiagnostics(box, state.accounts, state.settings.network, netLog);
   }
 
   function diagRow(label: string, value: string): HTMLElement {
@@ -1031,9 +1494,12 @@ export function matrixView(): HTMLElement {
     ]});
   }
 
+  // DeFi diagnostics — full macro perspective: liquidity, volume, sentiment, gas, predictions
+  // Called from DeFi tab "Deep Diagnostics" button or standalone
+  // Uses DeFi Llama free API for TVL, protocols, stablecoins, gas, Fear & Greed
   async function loadDefiDiagnostics(container: HTMLElement, netLog: HTMLElement) {
     container.innerHTML = '';
-    container.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'DEFI LIQUIDITY' }));
+    container.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'BLOCKCHAIN DIAGNOSTICS' }));
 
     // ── DeFi Llama: Total TVL ──
     try {
@@ -1101,7 +1567,7 @@ export function matrixView(): HTMLElement {
         }
 
         if (totalStable > 0) {
-          container.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Stablecoin Supply' }));
+          container.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Stablecoin Liquidity Infrastructure' }));
           container.appendChild(diagRow('Total Stablecoins', formatMarketCap(totalStable)));
 
           stableList.sort((a, b) => b.mcap - a.mcap);
@@ -1128,6 +1594,102 @@ export function matrixView(): HTMLElement {
         logNet(netLog, 'OK', `Round ${round.toLocaleString()} · ${blockTime.toFixed(1)}s block`);
       }
     } catch { logNet(netLog, 'WARN', 'Algorand status unavailable'); }
+
+    // ── DeFi Llama: Top chains by TVL ──
+    try {
+      logNet(netLog, 'FETCH', 'DeFi Llama — chain TVL rankings');
+      const chainsRes = await fetch('https://api.llama.fi/v2/chains', { signal: AbortSignal.timeout(8000) });
+      if (chainsRes.ok) {
+        const chains = await chainsRes.json() as Array<{ name: string; tvl: number }>;
+        const top = chains.filter(c => c.tvl > 0).sort((a, b) => b.tvl - a.tvl).slice(0, 8);
+        if (top.length > 0) {
+          container.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Chain TVL Rankings' }));
+          top.forEach((c, i) => container.appendChild(diagRow(`${i + 1}. ${c.name}`, formatMarketCap(c.tvl))));
+          logNet(netLog, 'OK', `Top chain: ${top[0].name} (${formatMarketCap(top[0].tvl)})`);
+        }
+      }
+    } catch { logNet(netLog, 'WARN', 'Chain rankings unavailable'); }
+
+    // ── Multi-Chain Gas Fees ──
+    // Polygon
+    try {
+      logNet(netLog, 'FETCH', 'Polygon gas price');
+      const polyRes = await fetch('https://polygon-rpc.com', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_gasPrice', params: [], id: 1 }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (polyRes.ok) {
+        const polyData = await polyRes.json() as { result?: string };
+        if (polyData.result) {
+          const gwei = parseInt(polyData.result, 16) / 1e9;
+          container.appendChild(diagRow('Polygon Gas', `${gwei.toFixed(1)} gwei`));
+          logNet(netLog, 'OK', `Polygon gas: ${gwei.toFixed(1)} gwei`);
+        }
+      }
+    } catch { /* skip */ }
+
+    // Base
+    try {
+      const baseRes = await fetch('https://mainnet.base.org', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_gasPrice', params: [], id: 1 }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (baseRes.ok) {
+        const baseData = await baseRes.json() as { result?: string };
+        if (baseData.result) {
+          const gwei = parseInt(baseData.result, 16) / 1e9;
+          container.appendChild(diagRow('Base Gas', `${gwei.toFixed(3)} gwei`));
+          logNet(netLog, 'OK', `Base gas: ${gwei.toFixed(3)} gwei`);
+        }
+      }
+    } catch { /* skip */ }
+
+    // Algorand tx fee (fixed)
+    container.appendChild(diagRow('Algorand Tx Fee', '0.001 ALGO (~$0.0002)'));
+
+    // ── ETH Gas Price ──
+    try {
+      logNet(netLog, 'FETCH', 'Ethereum gas price');
+      const gasRes = await fetch('https://eth.llamarpc.com', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_gasPrice', params: [], id: 1 }),
+        signal: AbortSignal.timeout(5000),
+      });
+      if (gasRes.ok) {
+        const gasData = await gasRes.json() as { result?: string };
+        if (gasData.result) {
+          const gweiPrice = parseInt(gasData.result, 16) / 1e9;
+          container.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Ethereum Gas' }));
+          container.appendChild(diagRow('Gas Price', `${gweiPrice.toFixed(1)} gwei`));
+          const ethPrice = prices.find(p => p.symbol === 'ETH');
+          if (ethPrice) {
+            const txCostUsd = (gweiPrice * 21000 / 1e9) * ethPrice.usd;
+            container.appendChild(diagRow('Simple Transfer', `$${txCostUsd.toFixed(2)}`));
+            const swapCostUsd = (gweiPrice * 150000 / 1e9) * ethPrice.usd;
+            container.appendChild(diagRow('DEX Swap (~150k gas)', `$${swapCostUsd.toFixed(2)}`));
+          }
+          logNet(netLog, 'OK', `ETH gas: ${gweiPrice.toFixed(1)} gwei`);
+        }
+      }
+    } catch { logNet(netLog, 'WARN', 'ETH gas unavailable'); }
+
+    // ── Bitcoin Fear & Greed Index ──
+    try {
+      logNet(netLog, 'FETCH', 'Fear & Greed Index');
+      const fgRes = await fetch('https://api.alternative.me/fng/?limit=1', { signal: AbortSignal.timeout(5000) });
+      if (fgRes.ok) {
+        const fgData = await fgRes.json() as { data: Array<{ value: string; value_classification: string }> };
+        if (fgData.data && fgData.data[0]) {
+          const fg = fgData.data[0];
+          container.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Market Sentiment' }));
+          container.appendChild(diagRow('Fear & Greed Index', `${fg.value} — ${fg.value_classification}`));
+          logNet(netLog, 'OK', `Fear & Greed: ${fg.value} (${fg.value_classification})`);
+        }
+      }
+    } catch { logNet(netLog, 'WARN', 'Fear & Greed unavailable'); }
   }
 
   async function loadDiagnostics(container: HTMLElement, accounts: { address: string; name: string }[], network: NetworkId, netLog?: HTMLElement) {
@@ -1444,6 +2006,8 @@ uniform float u_dragY;
 uniform float u_breadth;
 uniform sampler2D u_glyphs;
 uniform sampler2D u_noise;
+uniform float u_glitch;   // 0 = normal, 0-1 = glitch intensity
+uniform float u_spin;     // 0-2π spin rotation angle
 
 // ── Text: sample a random character from the 16x16 glyph atlas ──
 // Faithful to Shadertoy ldccW4 text() function
@@ -1491,22 +2055,56 @@ vec3 rain(vec2 fragCoord) {
 
 void main() {
   vec2 fc = gl_FragCoord.xy;
+  vec2 res = u_resolution;
   float z = u_zoom;
 
-  // Scale coordinates by zoom
-  vec2 scaled = fc / z;
+  // ── Spin: rotate rain coordinates around screen center ──
+  vec2 center = res * 0.5;
+  vec2 p = fc - center;
+  float cs = cos(u_spin), sn = sin(u_spin);
+  vec2 rotated = vec2(p.x * cs - p.y * sn, p.x * sn + p.y * cs) + center;
 
-  // The classic matrix: text * rain
-  vec3 col = text(scaled) * rain(scaled);
+  // Scale coordinates by zoom
+  vec2 scaled = rotated / z;
+
+  // ── Glitch: chromatic split + scanline tear ──
+  float g = u_glitch;
+  vec3 col;
+  if (g > 0.01) {
+    // Chromatic aberration — split RGB channels
+    float shift = g * 12.0;
+    float r = text(scaled + vec2(shift, 0.0)) * rain(scaled + vec2(shift, 0.0)).r;
+    float gn = text(scaled) * rain(scaled).g;
+    float b = text(scaled - vec2(shift, 0.0)) * rain(scaled - vec2(shift, 0.0)).b;
+    col = vec3(r, gn, b);
+
+    // Scanline tear — horizontal displacement
+    float tearLine = fract(u_time * 3.7 + g * 5.0);
+    float tearDist = abs(fc.y / res.y - tearLine);
+    if (tearDist < 0.02 * g) {
+      col = col.grb; // channel swap on tear line
+      scaled.x += g * 40.0; // horizontal shift
+      col += text(scaled) * rain(scaled) * 0.3;
+    }
+
+    // Flash — bright pulse at peak glitch
+    col += vec3(g * g * 0.4);
+
+    // Character scramble — extra noise in glyph selection
+    col *= 0.7 + 0.3 * fract(sin(dot(fc, vec2(12.9898, 78.233)) + u_time * 100.0) * 43758.5453);
+  } else {
+    // Normal: the classic matrix expression
+    col = text(scaled) * rain(scaled);
+  }
 
   // Mouse glow — subtle cursor awareness
-  vec2 mp = u_mouse * u_resolution;
-  float md = length(fc - mp) / max(u_resolution.x, u_resolution.y);
+  vec2 mp = u_mouse * res;
+  float md = length(fc - mp) / max(res.x, res.y);
   float mglow = smoothstep(0.2, 0.0, md) * 0.08;
   col += col * mglow * 3.0;
 
   // Vignette — darken edges
-  vec2 uv = fc / u_resolution;
+  vec2 uv = fc / res;
   col *= 1.0 - 0.5 * pow(length(uv - 0.5) * 1.5, 2.5);
 
   // Subtle scanlines

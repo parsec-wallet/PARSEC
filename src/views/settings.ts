@@ -61,6 +61,11 @@ export function settingsView(): HTMLElement {
         },
       }),
       el('div', { cls: 'parsec-settings__section', children: [
+        el('h3', { cls: 'parsec-section-title', text: 'Security & Vault' }),
+        btn('Mausoleum', { outlined: true, icon: 'shield', onClick: () => store.navigate('mausoleum') }),
+        btn('Admin Key Ceremony', { outlined: true, icon: 'key', onClick: () => store.navigate('admin-keygen') }),
+      ]}),
+      el('div', { cls: 'parsec-settings__section', children: [
         btn('Lock Wallet', { outlined: true, icon: 'lock', onClick: () => { store.lock(); toast('Wallet locked', 'success'); } }),
       ]}),
       el('div', { cls: 'parsec-settings__danger', children: [

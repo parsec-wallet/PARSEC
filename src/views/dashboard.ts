@@ -25,9 +25,14 @@ export function dashboardView(): HTMLElement {
     const id = chainPriceId[state.settings.network] || 'algorand';
     const coin = coinPrices.find(p => p.id === id);
     if (coin) {
-      const changeColor = coin.change24h >= 0 ? '#10b981' : '#ef4444';
       const sign = coin.change24h >= 0 ? '+' : '';
-      priceTag.innerHTML = `${coin.symbol} ${formatPrice(coin.usd)} <span style="color:${changeColor};font-size:0.8em">${sign}${coin.change24h.toFixed(1)}%</span>`;
+      const changeCls = coin.change24h >= 0 ? 'parsec-dashboard__change--up' : 'parsec-dashboard__change--down';
+      priceTag.textContent = '';
+      priceTag.appendChild(document.createTextNode(`${coin.symbol} ${formatPrice(coin.usd)} `));
+      const changeSpan = document.createElement('span');
+      changeSpan.className = `parsec-dashboard__change ${changeCls}`;
+      changeSpan.textContent = `${sign}${coin.change24h.toFixed(1)}%`;
+      priceTag.appendChild(changeSpan);
     } else {
       priceTag.textContent = '$';
     }
@@ -301,42 +306,115 @@ function renderAssets(container: HTMLElement, info: AccountInfo, userAddress: st
   }
 }
 
+function txTypeLabel(tx: TransactionRecord, myAddress: string): { label: string; cls: string } {
+  const isSent = tx.sender === myAddress;
+  switch (tx.type) {
+    case 'pay': return { label: isSent ? 'Sent' : 'Received', cls: isSent ? 'sent' : 'received' };
+    case 'axfer':
+      if (tx.sender === tx.receiver) return { label: 'Opt-In', cls: 'neutral' };
+      return { label: isSent ? 'ASA Sent' : 'ASA Received', cls: isSent ? 'sent' : 'received' };
+    case 'appl':
+      if (tx.createdAppId) return { label: 'Deploy', cls: 'deploy' };
+      return { label: 'App Call', cls: 'appcall' };
+    case 'acfg':
+      if (tx.createdAssetId) return { label: 'Create ASA', cls: 'deploy' };
+      return { label: 'ASA Config', cls: 'neutral' };
+    case 'afrz': return { label: 'Freeze', cls: 'neutral' };
+    case 'keyreg': return { label: 'Key Reg', cls: 'neutral' };
+    default: return { label: String(tx.type).toUpperCase(), cls: 'neutral' };
+  }
+}
+
+function explorerUrl(txId: string, network: string): string {
+  if (network === 'testnet') return `https://testnet.explorer.perawallet.app/tx/${txId}`;
+  if (network === 'betanet') return `https://betanet.explorer.perawallet.app/tx/${txId}`;
+  return `https://explorer.perawallet.app/tx/${txId}`;
+}
+
+function appExplorerUrl(appId: number, network: string): string {
+  if (network === 'testnet') return `https://testnet.explorer.perawallet.app/application/${appId}`;
+  return `https://explorer.perawallet.app/application/${appId}`;
+}
+
+function assetExplorerUrl(assetId: number, network: string): string {
+  if (network === 'testnet') return `https://testnet.explorer.perawallet.app/asset/${assetId}`;
+  return `https://explorer.perawallet.app/asset/${assetId}`;
+}
+
 function renderTransactions(container: HTMLElement, txs: TransactionRecord[], myAddress: string, info: AccountInfo): void {
   container.innerHTML = '';
   if (txs.length === 0) { container.appendChild(el('div', { cls: 'parsec-empty', text: 'No transactions yet.' })); return; }
 
+  const network = store.get().settings.network;
+
   for (const tx of txs) {
     const isSent = tx.sender === myAddress;
-    const counterparty = isSent ? (tx.receiver || '—') : tx.sender;
-    const sign = isSent ? '-' : '+';
+    const { label, cls: typeCls } = txTypeLabel(tx, myAddress);
 
-    let amountText: string, unit: string;
+    // Counterparty
+    let counterparty = isSent ? (tx.receiver || '—') : tx.sender;
+    if (tx.type === 'appl' && tx.appId) counterparty = `App #${tx.appId}`;
+    if (tx.type === 'acfg' && tx.createdAssetId) counterparty = `ASA #${tx.createdAssetId}`;
+    const counterpartyShort = counterparty.length > 12 ? `${counterparty.slice(0, 6)}...${counterparty.slice(-4)}` : counterparty;
+
+    // Amount display
+    let amountText = '';
+    let unit = '';
+    const sign = isSent ? '-' : '+';
     if (tx.type === 'axfer' && tx.assetId) {
       const asset = info.assets.find(a => a.assetId === tx.assetId);
       amountText = formatAssetAmount(tx.amount, asset?.decimals);
       unit = asset?.unitName || `ASA#${tx.assetId}`;
-    } else if (tx.type === 'pay') {
+    } else if (tx.type === 'pay' && tx.amount > 0) {
       amountText = microAlgosToAlgo(tx.amount, 4);
       unit = 'ALGO';
-    } else {
-      amountText = '';
-      unit = tx.type.toUpperCase();
     }
 
-    const date = tx.roundTime ? new Date(tx.roundTime * 1000).toLocaleDateString() : '—';
-    container.appendChild(el('div', {
-      cls: `parsec-tx-row parsec-tx-row--${isSent ? 'sent' : 'received'}`,
-      children: [
-        el('div', {
-          cls: 'parsec-tx-row__info',
-          children: [
-            el('span', { cls: 'parsec-tx-row__type', text: isSent ? 'Sent' : 'Received' }),
-            el('span', { cls: 'parsec-tx-row__address', text: `${counterparty.slice(0, 6)}...${counterparty.slice(-4)}` }),
-            el('span', { cls: 'parsec-tx-row__date', text: date }),
-          ],
-        }),
-        el('div', { cls: 'parsec-tx-row__amount', text: amountText ? `${sign}${amountText} ${unit}` : unit }),
-      ],
-    }));
+    // Date + time
+    const date = tx.roundTime ? new Date(tx.roundTime * 1000).toLocaleString() : '—';
+
+    // Detail line (app ID, created asset, note preview, group)
+    const details: string[] = [];
+    if (tx.createdAppId) details.push(`Created App ${tx.createdAppId}`);
+    if (tx.createdAssetId) details.push(`Created ASA ${tx.createdAssetId}`);
+    if (tx.appId && !tx.createdAppId) details.push(`App ${tx.appId}`);
+    if (tx.fee > 1000) details.push(`Fee: ${microAlgosToAlgo(tx.fee, 4)}`);
+    if (tx.group) details.push('Group tx');
+    if (tx.note && tx.note.length > 0) {
+      const preview = tx.note.length > 40 ? tx.note.slice(0, 40) + '...' : tx.note;
+      details.push(preview);
+    }
+
+    // Explorer links
+    const links: HTMLElement[] = [
+      el('a', { text: 'tx', cls: 'parsec-tx-link', attrs: { href: explorerUrl(tx.id, network), target: '_blank', rel: 'noopener' } }),
+    ];
+    if (tx.createdAppId) {
+      links.push(el('a', { text: 'app', cls: 'parsec-tx-link', attrs: { href: appExplorerUrl(tx.createdAppId, network), target: '_blank', rel: 'noopener' } }));
+    }
+    if (tx.createdAssetId) {
+      links.push(el('a', { text: 'asset', cls: 'parsec-tx-link', attrs: { href: assetExplorerUrl(tx.createdAssetId, network), target: '_blank', rel: 'noopener' } }));
+    }
+    if (tx.appId && !tx.createdAppId) {
+      links.push(el('a', { text: 'app', cls: 'parsec-tx-link', attrs: { href: appExplorerUrl(tx.appId, network), target: '_blank', rel: 'noopener' } }));
+    }
+
+    const rowChildren: HTMLElement[] = [
+      el('div', {
+        cls: 'parsec-tx-row__info',
+        children: [
+          el('span', { cls: `parsec-tx-row__type parsec-tx-row__type--${typeCls}`, text: label }),
+          el('span', { cls: 'parsec-tx-row__address', text: counterpartyShort }),
+          el('span', { cls: 'parsec-tx-row__date', text: date }),
+          details.length > 0
+            ? el('span', { cls: 'parsec-tx-row__detail', text: details.join(' · ') })
+            : el('span'),
+          el('div', { cls: 'parsec-tx-row__links', children: links }),
+        ],
+      }),
+      el('div', { cls: 'parsec-tx-row__amount', text: amountText ? `${sign}${amountText} ${unit}` : label }),
+    ];
+
+    container.appendChild(el('div', { cls: `parsec-tx-row parsec-tx-row--${typeCls}`, children: rowChildren }));
   }
 }

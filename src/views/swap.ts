@@ -5,8 +5,10 @@ import { el, btn, input, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { microAlgosToAlgo } from '../lib/algorand/account';
 import { formatAssetAmount, DEFAULT_DECIMALS } from '../lib/algorand/assets';
-import { fetchAllPairs, fetchAllQuotes, executeSwapViaDex } from '../lib/dex/spintrade';
-import type { DexQuote, DexAsset } from '../lib/dex/types';
+import { fetchAllPairs, fetchBestQuote, executeMultiHopSwap } from '../lib/dex/spintrade';
+import type { MultiHopQuote } from '../lib/dex/spintrade';
+import type { DexAsset } from '../lib/dex/types';
+import { addSwapRecord, getSwapHistory, formatSwapDate } from '../lib/dex/history';
 import { keystoreRetrieve } from '../lib/keystore';
 
 export function swapView(): HTMLElement {
@@ -180,53 +182,56 @@ export function swapView(): HTMLElement {
     const baseAmount = Math.round(parsed * Math.pow(10, fromAsset.decimals));
 
     quoteContainer.innerHTML = '';
-    quoteContainer.appendChild(el('div', { cls: 'parsec-empty', text: 'Fetching quotes from all sources...' }));
+    quoteContainer.appendChild(el('div', { cls: 'parsec-empty', text: 'Fetching quotes (direct + multi-hop)...' }));
 
-    const quotes = await fetchAllQuotes(
+    // fetchBestQuote handles multi-hop automatically
+    const bestQuote = await fetchBestQuote(
       fromAsset.assetId, selectedToAsset.assetId, baseAmount, slippageBps, state.settings.network
     );
 
     quoteContainer.innerHTML = '';
-    if (quotes.length === 0) {
+    if (!bestQuote) {
       quoteContainer.appendChild(el('div', { cls: 'parsec-empty', text: 'No quotes available. Try a different pair or amount.' }));
-  
       return;
     }
 
-    // Show all quotes — best first
     const toAsset = selectedToAsset;
-    for (let i = 0; i < quotes.length; i++) {
-      const q = quotes[i];
-      const isBest = i === 0;
-      const outDisplay = formatAssetAmount(q.outputAmount, toAsset.decimals);
-      const minDisplay = formatAssetAmount(q.minOutput, toAsset.decimals);
+    const outDisplay = formatAssetAmount(bestQuote.outputAmount, toAsset.decimals);
+    const minDisplay = formatAssetAmount(bestQuote.minOutput, toAsset.decimals);
 
-      const card = el('div', {
-        cls: `parsec-swap__quote-card ${isBest ? 'parsec-swap__quote-card--best' : ''}`,
-        children: [
-          el('div', { cls: 'parsec-swap__quote-header', children: [
-            el('span', { cls: 'parsec-swap__quote-dex', text: q.dex }),
-            isBest ? el('span', { cls: 'parsec-badge', text: 'Best Price' }) : el('span'),
-          ]}),
-          row('You Receive', `${outDisplay} ${toAsset.unitName}`),
-          row('Rate', `1 ${fromAsset.unitName} = ${q.exchangeRate.toFixed(6)} ${toAsset.unitName}`),
-          row('Min Received', `${minDisplay} ${toAsset.unitName}`),
-          row('Impact', `${q.priceImpact.toFixed(2)}%`),
-          row('Fee', '0.3%'),
-          row('Slippage', `${(slippageBps / 100).toFixed(slippageBps < 100 ? 2 : 1)}%`),
-          btn(isBest ? 'Swap via ' + q.dex : 'Use this quote', {
-            intent: isBest ? 'primary' : 'none',
-            large: isBest,
-            cls: 'parsec-swap__quote-action',
-            onClick: () => doSwap(q),
-          }),
-        ],
-      });
-      quoteContainer.appendChild(card);
-    }
+    const routeLabel = bestQuote.isMultiHop
+      ? `${fromAsset.unitName} → ALGO → ${toAsset.unitName} (2 hops)`
+      : `${fromAsset.unitName} → ${toAsset.unitName} (direct)`;
+
+    const card = el('div', {
+      cls: 'parsec-swap__quote-card parsec-swap__quote-card--best',
+      children: [
+        el('div', { cls: 'parsec-swap__quote-header', children: [
+          el('span', { cls: 'parsec-swap__quote-dex', text: bestQuote.dex }),
+          el('span', { cls: 'parsec-badge', text: bestQuote.isMultiHop ? 'Multi-Hop' : 'Direct' }),
+        ]}),
+        row('Route', routeLabel),
+        row('You Receive', `${outDisplay} ${toAsset.unitName}`),
+        row('Rate', `1 ${fromAsset.unitName} = ${bestQuote.exchangeRate.toFixed(6)} ${toAsset.unitName}`),
+        row('Min Received', `${minDisplay} ${toAsset.unitName}`),
+        row('Impact', `${bestQuote.priceImpact.toFixed(2)}%`),
+        row('Fee', bestQuote.isMultiHop ? '0.6% (2x 0.3%)' : '0.3%'),
+        row('Slippage', `${(slippageBps / 100).toFixed(slippageBps < 100 ? 2 : 1)}%`),
+        bestQuote.isMultiHop ? el('div', { cls: 'parsec-swap__hops', children: [
+          el('div', { cls: 'parsec-swap__hop', text: `Hop 1: ${fromAsset.unitName} → ALGO via ${bestQuote.hops[0].dex}` }),
+          el('div', { cls: 'parsec-swap__hop', text: `Hop 2: ALGO → ${toAsset.unitName} via ${bestQuote.hops[1].dex}` }),
+        ]}) : el('span'),
+        btn('Swap' + (bestQuote.isMultiHop ? ' (2 hops)' : ''), {
+          intent: 'primary', large: true,
+          cls: 'parsec-swap__quote-action',
+          onClick: () => doSwap(bestQuote),
+        }),
+      ],
+    });
+    quoteContainer.appendChild(card);
   }
 
-  async function doSwap(quote: DexQuote) {
+  async function doSwap(quote: MultiHopQuote) {
     const passphrase = store.getPassphrase();
     if (!passphrase) { toast('Session expired.', 'danger'); store.navigate('unlock'); return; }
 
@@ -235,16 +240,26 @@ export function swapView(): HTMLElement {
 
     store.set({ isLoading: true });
     try {
-      // Find which module can execute (prefer on-chain)
-      const execDex = quote.dex.includes('on-chain') ? 'tinyman-onchain' : 'tinyman-onchain';
-      const { txId } = await executeSwapViaDex(
-        execDex, mnemonic,
-        quote.inputAssetId, quote.outputAssetId,
-        quote.inputAmount, quote.minOutput, quote.poolAddress,
-        state.settings.network,
-      );
+      const { txId, hops } = await executeMultiHopSwap(quote, mnemonic, state.settings.network);
+
+      // Record swap in history
+      const fromAsset = heldAssets[selectedFromIdx];
+      addSwapRecord({
+        inputAssetId: quote.inputAssetId,
+        inputSymbol: fromAsset.unitName,
+        inputAmount: quote.inputAmount,
+        outputAssetId: quote.outputAssetId,
+        outputSymbol: selectedToAsset?.unitName || `ASA#${quote.outputAssetId}`,
+        outputAmount: quote.outputAmount,
+        txId,
+        dex: quote.dex,
+        isMultiHop: quote.isMultiHop,
+        hops,
+        network: state.settings.network,
+      });
+
       store.set({ isLoading: false, accountInfo: null });
-      toast(`Swap complete! TX: ${txId.slice(0, 12)}...`, 'success');
+      toast(`Swap complete (${hops} hop${hops > 1 ? 's' : ''})! TX: ${txId.slice(0, 12)}...`, 'success');
       store.navigate('dashboard');
     } catch (err) {
       store.set({ isLoading: false });
@@ -281,6 +296,34 @@ export function swapView(): HTMLElement {
       }),
       btn('Find Best Price', { intent: 'primary', large: true, cls: 'parsec-send__submit', onClick: fetchQuotes }),
       quoteContainer,
+      renderSwapHistory(),
+    ],
+  });
+}
+
+function renderSwapHistory(): HTMLElement {
+  const history = getSwapHistory();
+  if (history.length === 0) return el('div');
+
+  return el('div', {
+    cls: 'parsec-swap__history',
+    children: [
+      el('h3', { cls: 'parsec-section-title', text: 'Swap History' }),
+      ...history.slice(0, 10).map(record =>
+        el('div', {
+          cls: 'parsec-swap__history-row',
+          children: [
+            el('span', { cls: 'parsec-swap__history-date', text: formatSwapDate(record.timestamp) }),
+            el('span', { cls: 'parsec-swap__history-pair', text: `${record.inputSymbol} → ${record.outputSymbol}` }),
+            el('span', { cls: 'parsec-swap__history-dex', text: record.isMultiHop ? `${record.hops} hops` : record.dex }),
+            el('span', {
+              cls: 'parsec-swap__history-tx',
+              text: record.txId.slice(0, 8) + '...',
+              attrs: { title: record.txId },
+            }),
+          ],
+        }),
+      ),
     ],
   });
 }

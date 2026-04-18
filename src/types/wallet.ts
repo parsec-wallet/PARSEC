@@ -38,6 +38,9 @@ export interface TransactionRecord {
   fee: number;
   note?: string;
   assetId?: number;
+  appId?: number;
+  createdAssetId?: number;
+  createdAppId?: number;
   confirmedRound?: number;
   roundTime?: number;
   group?: string;
@@ -78,7 +81,10 @@ export type AppView =
   | 'pmvpn'
   | 'x402-confirm'
   | 'agents'
-  | 'identity';
+  | 'identity'
+  | 'connect-approve'
+  | 'admin-keygen'
+  | 'mausoleum';
 
 export interface WalletState {
   view: AppView;

@@ -5,6 +5,7 @@ mod parsec_mesh;
 mod parsec_throttle;
 mod parsec_sandbox;
 mod parsec_validate;
+mod parsec_connect;
 
 use bankon_vault::VaultState;
 use bankon_vault::commands::*;
@@ -20,6 +21,8 @@ use parsec_throttle::commands::*;
 use parsec_sandbox::SandboxState;
 use parsec_sandbox::commands::*;
 use parsec_validate::commands::*;
+use parsec_connect::ConnectState;
+use parsec_connect::commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -38,6 +41,7 @@ pub fn run() {
         .manage(MeshState::default())
         .manage(ThrottleState::default())
         .manage(SandboxState::default())
+        .manage(ConnectState::default())
         .invoke_handler(tauri::generate_handler![
             // pmvpn — wallet-authenticated SSH
             pmvpn_connect,
@@ -102,6 +106,14 @@ pub fn run() {
             sandbox_list_permissions,
             sandbox_audit_log,
             sandbox_dapp_path,
+            // parsec_connect — dApp WebSocket bridge
+            connect_start,
+            connect_stop,
+            connect_sessions,
+            connect_pending_requests,
+            connect_approve_sign,
+            connect_reject_sign,
+            connect_disconnect_session,
             // parsec_validate — Rust-side chain address validators
             validate_address_algorand,
             validate_address_bitcoin,

@@ -195,6 +195,99 @@
   color: $color-success;
 }
 
+// ── Loading Overlay ──
+
+.parsec-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: $z-index-modal + 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba($color-black, 0.5);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+
+  &--active {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.parsec-loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba($color-white, 0.15);
+  border-top-color: $color-success;
+  border-radius: 50%;
+  animation: parsec-global-spin 0.7s linear infinite;
+}
+
+@keyframes parsec-global-spin {
+  to { transform: rotate(360deg); }
+}
+
+// ── Price Change (XSS-safe) ──
+
+.parsec-dashboard__change {
+  font-size: 0.8em;
+
+  &--up { color: $color-success; }
+  &--down { color: $color-danger; }
+}
+
+.parsec-tx-row--deploy .parsec-tx-row__type {
+  color: $color-primary;
+}
+
+.parsec-tx-row--deploy .parsec-tx-row__amount {
+  color: $color-primary;
+}
+
+.parsec-tx-row--appcall .parsec-tx-row__type {
+  color: $color-info;
+}
+
+.parsec-tx-row--appcall .parsec-tx-row__amount {
+  color: $color-info;
+}
+
+.parsec-tx-row--neutral .parsec-tx-row__type {
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-tx-row__detail {
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  font-family: $font-family-mono;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parsec-tx-row__links {
+  display: flex;
+  gap: $spacing-2;
+  margin-top: 2px;
+}
+
+.parsec-tx-link {
+  font-size: 10px;
+  font-family: $font-family-mono;
+  color: $color-primary;
+  text-decoration: none;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+
+  &:hover {
+    opacity: 1;
+    text-decoration: underline;
+  }
+}
+
 // Toast
 .parsec-toast-container {
   position: fixed;
