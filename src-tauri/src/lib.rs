@@ -127,6 +127,10 @@ pub fn run() {
             chain_btc_generate_mnemonic,
             chain_btc_validate_mnemonic,
             chain_btc_derive_address,
+            chain_btc_import_account,
+            chain_btc_create_account,
+            chain_btc_derive_from_vault,
+            chain_btc_sign_psbt,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Parsec Wallet");

@@ -16,6 +16,7 @@
 pub mod address;
 pub mod commands;
 pub mod keys;
+pub mod sign;
 
 use serde::{Deserialize, Serialize};
 
