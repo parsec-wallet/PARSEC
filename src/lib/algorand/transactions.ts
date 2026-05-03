@@ -3,6 +3,7 @@
 import algosdk from 'algosdk';
 import type { NetworkId, TransactionRecord } from '../../types/wallet';
 import { getAlgodClient, getIndexerClient } from './client';
+import { rateLimitedQuery } from './query-cache';
 
 /** Send ALGO payment */
 export async function sendPayment(
@@ -67,11 +68,25 @@ export async function sendAssetTransfer(
   }
 }
 
-/** Fetch recent transactions — all types including app calls and asset configs */
+/** Fetch recent transactions — all types including app calls and asset configs.
+ *  Cached briefly (15s) and dedup'd: rapid dashboard re-renders don't re-fetch. */
 export async function fetchTransactions(
   address: string,
   network: NetworkId,
   limit = 50
+): Promise<TransactionRecord[]> {
+  return rateLimitedQuery(
+    `indexer:${network}`,
+    `txns:${address}@${network}:${limit}`,
+    15_000,
+    () => doFetchTransactions(address, network, limit),
+  );
+}
+
+async function doFetchTransactions(
+  address: string,
+  network: NetworkId,
+  limit: number,
 ): Promise<TransactionRecord[]> {
   const indexer = getIndexerClient(network);
   const response = await indexer.searchForTransactions().address(address).limit(limit).do();

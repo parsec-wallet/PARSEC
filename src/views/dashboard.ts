@@ -5,6 +5,7 @@ import { store } from '../lib/store';
 import { fetchAccountInfo, microAlgosToAlgo } from '../lib/algorand/account';
 import { fetchTransactions } from '../lib/algorand/transactions';
 import { enrichAssets, formatAssetAmount, optOutFromAsset, lookupAsset } from '../lib/algorand/assets';
+import { resolveIpfsUrl } from '../lib/algorand/ipfs-gateway';
 import { keystoreRetrieve } from '../lib/keystore';
 import { startPriceUpdates, formatPrice } from '../lib/prices';
 import type { CoinPrice } from '../lib/prices';
@@ -121,6 +122,7 @@ export function dashboardView(): HTMLElement {
       btn('Swap', { intent: 'warning', icon: 'swap-horizontal', onClick: () => store.navigate('swap') }),
       btn('Receive', { intent: 'success', icon: 'arrow-bottom-left', onClick: () => store.navigate('receive') }),
       btn('Buy', { outlined: true, icon: 'dollar', onClick: () => store.navigate('onramp') }),
+      btn('NFD', { outlined: true, icon: 'tag', onClick: () => store.navigate('nfdominter') }),
     ],
   });
 
@@ -263,15 +265,34 @@ function renderAssets(container: HTMLElement, info: AccountInfo, userAddress: st
       ? `≈ $${(asset.amount / Math.pow(10, asset.decimals ?? 6)).toFixed(2)}`
       : '';
 
+    // NFT thumbnail when metadata is available
+    const nftThumb = asset.nft?.image
+      ? (() => {
+          const urls = resolveIpfsUrl(asset.nft!.image!);
+          const src = urls[0] || asset.nft!.image!;
+          return el('img', {
+            cls: 'parsec-asset-row__nft-thumb',
+            attrs: { src, alt: asset.nft!.name || '', loading: 'lazy', width: '32', height: '32' },
+          });
+        })()
+      : null;
+
+    const displayName = asset.nft?.name || asset.unitName || asset.name || `ASA #${asset.assetId}`;
+    const variantTag = asset.nft ? ` · ${asset.nft.arcVariant.toUpperCase()}` : '';
+
+    const infoChildren: HTMLElement[] = [];
+    if (nftThumb) infoChildren.push(nftThumb);
+    infoChildren.push(
+      el('span', { cls: 'parsec-asset-row__name', text: displayName }),
+      badges.length > 0 ? el('div', { cls: 'parsec-asset-row__badges', children: badges }) : el('span'),
+      el('div', { cls: 'parsec-asset-row__contract', text: `ASA ${asset.assetId} · Algorand${variantTag}` }),
+      el('div', { cls: 'parsec-asset-row__links', children: links }),
+    );
+
     const rowChildren: HTMLElement[] = [
       el('div', {
         cls: 'parsec-asset-row__info',
-        children: [
-          el('span', { cls: 'parsec-asset-row__name', text: asset.unitName || asset.name || `ASA #${asset.assetId}` }),
-          badges.length > 0 ? el('div', { cls: 'parsec-asset-row__badges', children: badges }) : el('span'),
-          el('div', { cls: 'parsec-asset-row__contract', text: `ASA ${asset.assetId} · Algorand` }),
-          el('div', { cls: 'parsec-asset-row__links', children: links }),
-        ],
+        children: infoChildren,
       }),
       el('div', {
         cls: 'parsec-asset-row__right',

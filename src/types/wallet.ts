@@ -18,6 +18,15 @@ export interface AccountInfo {
   round: number;
 }
 
+export interface NftMeta {
+  name?: string;
+  description?: string;
+  image?: string;
+  mimeType?: string;
+  traits: Record<string, string | number>;
+  arcVariant: 'arc-3' | 'arc-19' | 'arc-69' | 'unknown';
+}
+
 export interface AssetHolding {
   assetId: number;
   amount: number;
@@ -27,6 +36,7 @@ export interface AssetHolding {
   decimals?: number;
   hasFreezeAddr?: boolean;
   hasClawbackAddr?: boolean;
+  nft?: NftMeta;
 }
 
 export interface TransactionRecord {
@@ -77,6 +87,8 @@ export type AppView =
   | 'add-asset'
   | 'swap'
   | 'onramp'
+  | 'nfdominter'
+  | 'nfdominter-confirm'
   | 'docs'
   | 'settings'
   | 'pmvpn'

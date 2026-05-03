@@ -3,8 +3,11 @@
 // 6 decimal precision default for all assets.
 
 import algosdk from 'algosdk';
+import pMap from 'p-map';
 import type { AssetHolding, NetworkId } from '../../types/wallet';
 import { getAlgodClient, getIndexerClient } from './client';
+import { rateLimitedQuery } from './query-cache';
+import { resolveNftMetadata } from './nft-metadata';
 
 export const DEFAULT_DECIMALS = 6;
 
@@ -34,26 +37,32 @@ export interface AssetInfo {
   hasFreezeAddr: boolean;
   hasClawbackAddr: boolean;
   creator: string;
+  url?: string;
+  reserve?: string;
 }
 
-/** Look up asset info from the network */
+/** Look up asset info from the network. Cached + rate-limited per network. */
 export async function lookupAsset(assetId: number, network: NetworkId): Promise<AssetInfo | null> {
-  try {
-    const client = getAlgodClient(network);
-    const info = await client.getAssetByID(assetId).do();
-    const params = info.params;
-    return {
-      name: String(params?.name || `ASA #${assetId}`),
-      unitName: String(params?.unitName || ''),
-      decimals: Number(params?.decimals ?? DEFAULT_DECIMALS),
-      total: Number(params?.total || 0),
-      hasFreezeAddr: !!params?.freeze,
-      hasClawbackAddr: !!params?.clawback,
-      creator: String(params?.creator || ''),
-    };
-  } catch {
-    return null;
-  }
+  return rateLimitedQuery(`algod:${network}`, `asset:${assetId}@${network}`, 60_000, async () => {
+    try {
+      const client = getAlgodClient(network);
+      const info = await client.getAssetByID(assetId).do();
+      const params = info.params;
+      return {
+        name: String(params?.name || `ASA #${assetId}`),
+        unitName: String(params?.unitName || ''),
+        decimals: Number(params?.decimals ?? DEFAULT_DECIMALS),
+        total: Number(params?.total || 0),
+        hasFreezeAddr: !!params?.freeze,
+        hasClawbackAddr: !!params?.clawback,
+        creator: String(params?.creator || ''),
+        url: params?.url ? String(params.url) : undefined,
+        reserve: params?.reserve ? String(params.reserve) : undefined,
+      };
+    } catch {
+      return null;
+    }
+  });
 }
 
 /** Search for an asset by name or ID */
@@ -133,30 +142,37 @@ export async function optOutFromAsset(
   return { txId: txid };
 }
 
-/** Enrich asset holdings with metadata */
+/** Enrich asset holdings with metadata + NFT details. Parallelized with bounded concurrency. */
 export async function enrichAssets(assets: AssetHolding[], network: NetworkId): Promise<AssetHolding[]> {
-  const enriched: AssetHolding[] = [];
-
-  for (const asset of assets) {
+  return pMap(assets, async (asset) => {
     const known = KNOWN_ASSETS.find(k => k.assetId === asset.assetId && k.network === network);
     if (known) {
-      enriched.push({ ...asset, name: known.name, unitName: known.unitName, decimals: known.decimals });
-    } else if (!asset.unitName) {
-      const info = await lookupAsset(asset.assetId, network);
-      enriched.push({
-        ...asset,
-        name: info?.name,
-        unitName: info?.unitName,
-        decimals: info?.decimals ?? DEFAULT_DECIMALS,
-        hasFreezeAddr: info?.hasFreezeAddr,
-        hasClawbackAddr: info?.hasClawbackAddr,
-      });
-    } else {
-      enriched.push({ ...asset, decimals: asset.decimals ?? DEFAULT_DECIMALS });
+      return { ...asset, name: known.name, unitName: known.unitName, decimals: known.decimals };
     }
-  }
 
-  return enriched;
+    const info = await lookupAsset(asset.assetId, network);
+    const base: AssetHolding = {
+      ...asset,
+      name: info?.name ?? asset.name,
+      unitName: info?.unitName ?? asset.unitName,
+      decimals: info?.decimals ?? asset.decimals ?? DEFAULT_DECIMALS,
+      hasFreezeAddr: info?.hasFreezeAddr ?? asset.hasFreezeAddr,
+      hasClawbackAddr: info?.hasClawbackAddr ?? asset.hasClawbackAddr,
+    };
+
+    // NFT metadata is opportunistic — failure is non-fatal.
+    if (info?.url || info?.name) {
+      const nft = await resolveNftMetadata(asset.assetId, {
+        url: info.url,
+        reserve: info.reserve,
+        name: info.name,
+        unitName: info.unitName,
+      }, network).catch(() => null);
+      if (nft) base.nft = nft;
+    }
+
+    return base;
+  }, { concurrency: 8 });
 }
 
 /** Format an asset amount with proper decimals (default 6) */
