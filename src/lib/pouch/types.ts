@@ -5,7 +5,7 @@
 // ── Chain Module Interface ────────────────────────────────────
 
 export type ChainFamily = 'algorand' | 'evm' | 'utxo' | 'cryptonote' | 'zilliqa' | 'cardano' | 'arweave';
-export type ChainId = 'bitcoin' | 'ethereum' | 'algorand' | 'solana' | 'litecoin' | 'monero' | 'zilliqa' | 'cardano' | 'arweave' | string;
+export type ChainId = 'bitcoin' | 'ethereum' | 'algorand' | 'algorand-xchain' | 'solana' | 'litecoin' | 'monero' | 'zilliqa' | 'cardano' | 'arweave' | string;
 
 export interface WalletModule {
   chainId: ChainId;

@@ -80,6 +80,12 @@ export function onboardingView(): HTMLElement {
           icon: 'import',
           onClick: () => store.navigate('import-wallet'),
         }),
+        btn('Connect MetaMask (xchain)', {
+          large: true,
+          outlined: true,
+          icon: 'link',
+          onClick: () => store.navigate('xchain-connect'),
+        }),
       ],
     }));
   }

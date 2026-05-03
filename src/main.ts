@@ -29,6 +29,7 @@ import { identityView } from './views/identity';
 import { connectApproveView, setConnectPending } from './views/connect-approve';
 import { adminKeygenView } from './views/admin-keygen';
 import { mausoleumView } from './views/mausoleum';
+import { xchainConnectView } from './views/xchain-connect';
 import { connectStart } from './lib/connect';
 import type { SignRequest } from './lib/connect';
 import './styles/pmvpn.scss';
@@ -56,6 +57,7 @@ registerView('identity', identityView);
 registerView('connect-approve', connectApproveView);
 registerView('admin-keygen', adminKeygenView);
 registerView('mausoleum', mausoleumView);
+registerView('xchain-connect', xchainConnectView);
 
 // Mount
 const root = document.getElementById('root');

@@ -97,7 +97,8 @@ export type AppView =
   | 'identity'
   | 'connect-approve'
   | 'admin-keygen'
-  | 'mausoleum';
+  | 'mausoleum'
+  | 'xchain-connect';
 
 export interface WalletState {
   view: AppView;
