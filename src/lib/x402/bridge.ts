@@ -92,6 +92,132 @@ export async function buildAlgorandX402Signer(
   };
 }
 
+// ── xchain (EVM-controlled Algorand) x402 Signer ─────────────────
+
+/**
+ * Build an x402 signer for a MetaMask-controlled Algorand LogicSig account.
+ * No vault retrieval: the EVM key never enters parsec — MetaMask remains the
+ * sole custodian. Each `signTransaction` call routes through EIP-712.
+ */
+export async function buildXchainX402Signer(
+  algoAddress: string,
+  evmAddress: string,
+  network: NetworkId = 'testnet',
+): Promise<X402Signer> {
+  // Lazy imports to avoid pulling the EVM stack into non-xchain code paths.
+  const { detectInjectedProvider } = await import('../builder/isolation');
+  const { signTxnWithMetamask } = await import('../xchain/sign');
+
+  const provider = detectInjectedProvider();
+  if (!provider) throw new Error('No injected EVM wallet detected for xchain signer');
+
+  const client = getAlgodClient(network);
+
+  return {
+    address: algoAddress,
+    getAddresses: () => [algoAddress],
+
+    signTransaction: async (txnBytes: Uint8Array) => {
+      const decoded = algosdk.decodeUnsignedTransaction(txnBytes);
+      const signed = await signTxnWithMetamask(provider, evmAddress, [decoded], network);
+      return signed[0];
+    },
+
+    signTransactions: async (txns: Uint8Array[], indexesToSign?: number[]) => {
+      // Decode all, then sign as a group so MetaMask sees one EIP-712 prompt.
+      const decoded = txns.map((t) => algosdk.decodeUnsignedTransaction(t));
+      const signed = await signTxnWithMetamask(provider, evmAddress, decoded, network);
+      return signed.map((blob, i) => (indexesToSign && !indexesToSign.includes(i) ? null : blob));
+    },
+
+    getAlgodClient: () => client,
+
+    sendTransactions: async (signedTxns: Uint8Array[]) => {
+      const response = await client.sendRawTransaction(signedTxns).do();
+      return response.txid as string;
+    },
+
+    waitForConfirmation: async (txId: string, _network: string, waitRounds = 4) => {
+      const result = await algosdk.waitForConfirmation(client, txId, waitRounds);
+      return result as unknown as Record<string, unknown>;
+    },
+  };
+}
+
+// ── algorand-hd (ARC-52) x402 Signer ─────────────────────────────
+
+/**
+ * Build a vault-secured x402 signer for an ARC-52 HD-derived child key.
+ * The 24-word BIP-39 seed is retrieved briefly from bankon_vault, the
+ * extended root key is derived, the requested account/index signs, then
+ * the rootKey buffer is zeroed.
+ */
+export async function buildAlgorandHdX402Signer(
+  primaryAddress: string,
+  account: number,
+  keyIndex: number,
+  network: NetworkId = 'testnet',
+): Promise<X402Signer> {
+  const { rootKeyFromMnemonic } = await import('../algorand-hd/seed');
+  const { signTxn: hdSignTxn, deriveAlgo } = await import('../algorand-hd/derive');
+
+  const mnemonic = await keystoreRetrieve(primaryAddress, '');
+  if (!mnemonic) throw new Error(`No HD seed in vault for ${primaryAddress}`);
+
+  // Derive the child address up front to populate `address` / `getAddresses`.
+  const rootKeyForAddr = rootKeyFromMnemonic(mnemonic);
+  let childAddress: string;
+  try {
+    const k = await deriveAlgo(rootKeyForAddr, account, keyIndex);
+    childAddress = k.address;
+  } finally {
+    rootKeyForAddr.fill(0);
+  }
+
+  const client = getAlgodClient(network);
+
+  // sign helper that re-derives rootKey on each call and zeroes after.
+  async function signOne(prefixEncodedTx: Uint8Array): Promise<Uint8Array> {
+    const rootKey = rootKeyFromMnemonic(mnemonic!);
+    try {
+      return await hdSignTxn(rootKey, account, keyIndex, prefixEncodedTx);
+    } finally {
+      rootKey.fill(0);
+    }
+  }
+
+  return {
+    address: childAddress,
+    getAddresses: () => [childAddress],
+
+    signTransaction: signOne,
+
+    signTransactions: async (txns: Uint8Array[], indexesToSign?: number[]) => {
+      const out: (Uint8Array | null)[] = [];
+      for (let i = 0; i < txns.length; i++) {
+        if (indexesToSign && !indexesToSign.includes(i)) {
+          out.push(null);
+          continue;
+        }
+        out.push(await signOne(txns[i]));
+      }
+      return out;
+    },
+
+    getAlgodClient: () => client,
+
+    sendTransactions: async (signedTxns: Uint8Array[]) => {
+      const response = await client.sendRawTransaction(signedTxns).do();
+      return response.txid as string;
+    },
+
+    waitForConfirmation: async (txId: string, _network: string, waitRounds = 4) => {
+      const result = await algosdk.waitForConfirmation(client, txId, waitRounds);
+      return result as unknown as Record<string, unknown>;
+    },
+  };
+}
+
 // ── Algorand Message Signing ─────────────────────────────────────
 
 /**

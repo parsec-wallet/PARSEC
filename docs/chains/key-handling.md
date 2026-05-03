@@ -10,7 +10,8 @@ This doc maps each chain on Parsec's roadmap to a recommended library + derivati
 
 | Chain | Seed | Curve | Derivation | Recommended lib (JS) | Atomic uses | Parsec status |
 |---|---|---|---|---|---|---|
-| Algorand | 25-word native | Ed25519 | Single account, BIP32-Ed25519 optional | `algosdk` | *not in org* | **implemented** (`src/lib/algorand/`, Rust sign) |
+| Algorand | 25-word native | Ed25519 | Single account; HD via ARC-52 (opt-in) | `algosdk` (canonical) + `@algorandfoundation/xhd-wallet-api` (HD) | *not in org* | **implemented** (`src/lib/algorand/`, Rust sign) + **HD implemented** (`src/lib/algorand-hd/`, TS sign — Rust port deferred) |
+| Algorand (xchain) | none — EVM key controls | secp256k1 (EIP-712) | Deterministic LogicSig from EVM addr | `algo-x-evm-sdk` | *n/a* | **implemented** (`src/lib/xchain/`, MetaMask signs) |
 | Bitcoin | BIP-39 | secp256k1 | BIP-32 / BIP-44 / BIP-84 | `bitgo-utxo-lib` | ✓ `bitgo-utxo-lib` | planned |
 | Litecoin | BIP-39 | secp256k1 | BIP-44 (coin type 2) | `bitgo-utxo-lib` (LTC network) | ✓ same | planned |
 | Ethereum / EVM | BIP-39 | secp256k1 | BIP-44 m/44'/60'/0'/0/n | `ethers` (Rust: `alloy`) | *not in org* | planned |
@@ -23,7 +24,7 @@ This doc maps each chain on Parsec's roadmap to a recommended library + derivati
 
 - **Secrets in Rust only.** Key material is derived, used, and zeroed in Rust. The JS side sees only addresses, public keys, and derived identifiers. `bankon_vault` (Argon2id + AES-256-GCM, with optional Tomb LUKS volume on Linux) is the only at-rest store.
 - **Derivation in Rust.** We prefer Rust crates for the actual derivation (`bitcoin`, `secp256k1`, `ed25519-dalek`, `k256`, `curve25519-dalek`) rather than JS. The `reference/atomicwallet/` JS libs are kept for protocol/format study, not for runtime.
-- **No BIP-39 for Algorand.** Algorand uses a 25-word native mnemonic mapped directly to a 32-byte seed — never force BIP-39 across it.
+- **No BIP-39 for Algorand by default.** Algorand uses a 25-word native mnemonic mapped directly to a 32-byte seed — never *force* BIP-39 across it. ARC-52 (BIP32-Ed25519 over a 24-word BIP-39 seed) is exposed only as a parallel opt-in path via `algorand-hd` for users who specifically want HD multi-account or a DID/Identity-context key. The 25-word native flow remains the default and recommended path.
 - **Per-chain coin type.** BIP-44 coin types (SLIP-0044) are the source of truth. Parsec stores `derivationPath` per account so imports from other wallets stay reproducible.
 - **Per-account isolation.** Each chain account is a separate `.enc` file in the vault. Losing one never exposes another.
 

@@ -199,10 +199,14 @@ Informed by: ailgo/pera-wallet, developer.algorand.org
 - [ ] QR code generation for receive (algorand:// URI)
 
 ### Phase G — Modular Extensions
-Informed by: parsec-wallet/parsec-pod, ailgo/mint-arc19, ailgo/ExtendableDAO
+Informed by: parsec-wallet/parsec-pod, ailgo/mint-arc19, ailgo/ExtendableDAO, AlgoNode/algostack
 
 - [ ] ASA minter extension
 - [ ] NFT minter extension (ARC-19)
+- [x] **NFT metadata normalization (ARC-3 / ARC-19 / ARC-69)** — `src/lib/algorand/nft-metadata.ts` + `nft-arc19.ts`. Single normalized shape regardless of source ARC; pattern adapted from algostack's Medias module. Wired into `enrichAssets` and dashboard.
+- [x] **Query cache + dedup + rate-limit** — `src/lib/algorand/query-cache.ts`. Per-endpoint p-ratelimit, in-flight Promise dedup, TTL cache. Foundation for everything that touches indexer/algod. Pattern adapted from algostack's Query module.
+- [x] **IPFS gateway abstraction** — `src/lib/algorand/ipfs-gateway.ts`. Multi-gateway sequential fallback (algonode.xyz → ipfs.io → cf-ipfs → pinata). Future participant-controlled override via `parsec_mesh` Kubo (Phase I).
+- [x] **ARC-26 transaction-request URIs** — `src/lib/algorand/arc26.ts`. `algorand://...` encode/parse; receive view shows shareable URI; input classifier recognizes pasted URIs. Pattern adapted from `AlgoNode/algourl` (Go, public domain → TS reimpl).
 - [ ] Plugin/extension system architecture
 - [ ] DAO interaction module
 - [ ] Staking/governance participation
@@ -226,6 +230,8 @@ public/private key pairs across all chains. True sovereign holding.
 - [x] Arweave (AR) — RSA-4096 family, vault signing LIVE via WebCrypto RSA-PSS (zero deps)
 - [x] EVM L2/L3/sidechains — Polygon, Arbitrum, Optimism, Base, zkSync, etc. via EVM family
 - [x] MetaMask injection sandboxing (EIP-1193 passthrough, PARSEC never touches key)
+- [x] **xchain (EVM-controls-Algorand)** — `algo-x-evm-sdk`; MetaMask signs EIP-712, on-chain LogicSig verifies via `ecdsa_pk_recover`. Each EVM address maps to one Algorand LogicSig address. `chainId='algorand-xchain'`, `signingAuthority='metamask'`. Module: `src/lib/xchain/`, view: `src/views/xchain-connect.ts`.
+- [x] **algorand-hd (ARC-52 / BIP32-Ed25519)** — `@algorandfoundation/xhd-wallet-api`; 24-word BIP-39 seed → many sub-accounts (path `m/44'/283'/account'/0/index`) plus Identity-context keys (`m/44'/0'/...`) for DID/W3C-VC. Parallel to the canonical 25-word algosdk path — never disturbs the default. Module: `src/lib/algorand-hd/`, view: `src/views/arc52-create.ts`. Rust port (`chain_algo_hd`) deferred — vitest suite pinned against the lib's behavior makes the future port byte-exact.
 - [ ] Solana (SOL) — ed25519, SPL tokens
 - [ ] Each chain: send, receive, private key export
 - [ ] Atomic-style key pair display (participant sees all their keys)
