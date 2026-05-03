@@ -98,7 +98,8 @@ export type AppView =
   | 'connect-approve'
   | 'admin-keygen'
   | 'mausoleum'
-  | 'xchain-connect';
+  | 'xchain-connect'
+  | 'arc52-create';
 
 export interface WalletState {
   view: AppView;

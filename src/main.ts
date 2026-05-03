@@ -30,6 +30,7 @@ import { connectApproveView, setConnectPending } from './views/connect-approve';
 import { adminKeygenView } from './views/admin-keygen';
 import { mausoleumView } from './views/mausoleum';
 import { xchainConnectView } from './views/xchain-connect';
+import { arc52CreateView } from './views/arc52-create';
 import { connectStart } from './lib/connect';
 import type { SignRequest } from './lib/connect';
 import './styles/pmvpn.scss';
@@ -58,6 +59,7 @@ registerView('connect-approve', connectApproveView);
 registerView('admin-keygen', adminKeygenView);
 registerView('mausoleum', mausoleumView);
 registerView('xchain-connect', xchainConnectView);
+registerView('arc52-create', arc52CreateView);
 
 // Mount
 const root = document.getElementById('root');
