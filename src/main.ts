@@ -1,6 +1,13 @@
 // Parsec Wallet — Entry Point
 // Vanilla TypeScript. No frameworks. Blueprint CSS for styling.
 
+// Buffer polyfill for browser/Tauri webview — bip39 and xhd-wallet-api
+// (used by the algorand-hd ARC-52 module) call Buffer.from at runtime.
+import { Buffer as BufferPolyfill } from 'buffer';
+if (typeof globalThis.Buffer === 'undefined') {
+  (globalThis as unknown as { Buffer: typeof BufferPolyfill }).Buffer = BufferPolyfill;
+}
+
 import '@blueprintjs/core/lib/css/blueprint.css';
 import '@blueprintjs/icons/lib/css/blueprint-icons.css';
 import './styles/main.scss';
@@ -29,8 +36,6 @@ import { identityView } from './views/identity';
 import { connectApproveView, setConnectPending } from './views/connect-approve';
 import { adminKeygenView } from './views/admin-keygen';
 import { mausoleumView } from './views/mausoleum';
-import { xchainConnectView } from './views/xchain-connect';
-import { arc52CreateView } from './views/arc52-create';
 import { connectStart } from './lib/connect';
 import type { SignRequest } from './lib/connect';
 import './styles/pmvpn.scss';
@@ -58,8 +63,27 @@ registerView('identity', identityView);
 registerView('connect-approve', connectApproveView);
 registerView('admin-keygen', adminKeygenView);
 registerView('mausoleum', mausoleumView);
-registerView('xchain-connect', xchainConnectView);
-registerView('arc52-create', arc52CreateView);
+
+// Lazy-loaded views — pull in heavy crypto libs (libsodium for ARC-52,
+// algokit-utils for xchain) only when the user navigates to them. Without
+// this, libsodium's top-level await + bip39's Buffer use can block initial
+// app load and produce a blank screen.
+function lazyView(loader: () => Promise<() => HTMLElement>): () => HTMLElement {
+  return () => {
+    const placeholder = document.createElement('div');
+    placeholder.className = 'parsec-view parsec-view--loading';
+    placeholder.innerHTML = '<div class="bp5-spinner bp5-large"><div class="bp5-spinner-animation"></div></div>';
+    loader().then((factory) => {
+      const real = factory();
+      placeholder.replaceWith(real);
+    }).catch((err) => {
+      placeholder.innerHTML = `<div class="parsec-error">Failed to load view: ${err instanceof Error ? err.message : String(err)}</div>`;
+    });
+    return placeholder;
+  };
+}
+registerView('xchain-connect', lazyView(async () => (await import('./views/xchain-connect')).xchainConnectView));
+registerView('arc52-create', lazyView(async () => (await import('./views/arc52-create')).arc52CreateView));
 
 // Mount
 const root = document.getElementById('root');
