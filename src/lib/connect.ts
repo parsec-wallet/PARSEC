@@ -2,7 +2,7 @@
 // Controls the connect server and handles sign request approval/rejection.
 // (c) 2026 BANKON — GPL-3.0
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './platform';
 
 // --- Types ---
 

@@ -1,12 +1,21 @@
 // Parsec Wallet — Core Types
 
+import type { ChainId } from '../lib/pouch/types';
+
 export type NetworkId = 'mainnet' | 'testnet' | 'betanet';
 
+// One human identity = one WalletAccount with addresses on many chains.
+// `address` stays as the primary Algorand address for back-compat with all
+// existing read sites. `chains` is the authoritative per-chain mapping.
 export interface WalletAccount {
   address: string;
   name: string;
   createdAt: number;
   watchOnly?: boolean;
+  /** Per-chain address map. The store normalizes this on every set(); callers
+   * that mint fresh accounts can omit it and let the store backfill. */
+  chains?: Record<string, string>;
+  activeChain?: ChainId;
 }
 
 export interface AccountInfo {
@@ -99,7 +108,32 @@ export type AppView =
   | 'admin-keygen'
   | 'mausoleum'
   | 'xchain-connect'
-  | 'arc52-create';
+  | 'arc52-create'
+  | 'arweave-approve'
+  | 'arweave-ario-migrate'
+  | 'solana-create'
+  | 'ario-migrate-solana'
+  | 'arweave-create'
+  | 'ario-claim-pythai'
+  | 'bankon-hub'
+  | 'bankon-claim'
+  | 'bankon-name'
+  | 'bankon-resolve'
+  | 'bankon-admin'
+  | 'ario-hub'
+  | 'ario-claim'
+  | 'ario-name'
+  | 'ario-transfer'
+  | 'ario-resolve'
+  | 'name-mint'
+  | 'name-hub'
+  | 'name-claim'
+  | 'name-manage'
+  | 'name-resolve'
+  | 'market-hub'
+  | 'market-listing'
+  | 'market-create'
+  | 'market-auction';
 
 export interface WalletState {
   view: AppView;

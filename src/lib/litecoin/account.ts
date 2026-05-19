@@ -2,7 +2,7 @@
 // Same shape as Bitcoin's wrapper; LTC's differences (coin type 2', ltc
 // bech32 HRP, base58 prefixes L/M) all live in Rust.
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../platform';
 
 export type LtcNetwork = 'mainnet' | 'testnet';
 export type LtcAddressKind = 'native-segwit' | 'segwit-compat' | 'legacy';

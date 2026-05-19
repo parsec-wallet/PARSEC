@@ -2,7 +2,7 @@
 // Cold storage via encrypted volumes. Linux-only.
 // .tomb on disk, .tomb.key on USB pen = poor man's cold storage.
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './platform';
 import { isTauri } from './vault';
 
 export interface TombAvailability {

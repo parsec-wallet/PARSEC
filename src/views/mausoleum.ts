@@ -6,7 +6,7 @@
 
 import { el, btn, input, toast } from '../lib/dom';
 import { store } from '../lib/store';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../lib/platform';
 import { isTauri } from '../lib/vault';
 
 // ── Types from Rust IPC ──────────────────────────────────────

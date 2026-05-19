@@ -1,8 +1,145 @@
 # Parsec Wallet — TODO Index
 
+> **Quick start:** `npm install && npm run dev` → open http://localhost:1420
+> For Tauri desktop: `npm run tauri:dev`. Full options in [Production Deploy](./PRODUCTION_DEPLOY.md#running-the-ui-locally).
+>
 > **Related:**
 > - [Development Plan](./DEVELOPMENT_PLAN.md) — architecture, roadmap, completed work
+> - [Production Deploy](./PRODUCTION_DEPLOY.md) — running locally + contract deployment checklist
 > - [x402 Integration](./x402-integration.md) — AgenticPlace payment + identity layer
+> - [Snapshot Investigation](./snapshot-investigation.md) — ARIO Solana migration risk report (2026-05-16)
+
+## Session: 2026-05-16 (Phase Q)
+
+**Focus**: BNR spawn UI, AR.IO module parity (mirror of BANKON), named-NFT bindings (aORC stack), BANKON Marketspace (order book + auctions).
+
+### Completed — BNR spawn UI (Phase A)
+
+- [x] Build-time Lua bundle (`src/lib/bankon-names/lua-source.ts`) — concatenates the `bankon-names-process/` source via Vite `?raw` imports.
+- [x] Runtime BNR process-id override (`src/lib/bankon-names/process-id.ts`) — localStorage-backed `getBnrProcessId` / `setBnrProcessId` so the in-wallet spawn can publish without rewriting source.
+- [x] `bankon-admin` view (`src/views/bankon-admin.ts`) — two-mode (spawn / governance) plus a Marketspace tab that spawns the BMR through the same flow.
+- [x] Inline "Spawn registry" CTA on `bankon-hub` when unconfigured.
+- [x] Dashboard yellow callout on the BANKON row when setup is needed.
+- [x] Governance message builders in `src/lib/bankon-names/client.ts`: `getBnrInfo`, `buildSetPolicyInput`, `buildSetTreasuryInput`, `buildAddControllerInput`, `buildRemoveControllerInput`, `buildSetReservedInput`, `buildClearReservedInput`.
+- [x] CLI `scripts/spawn-bnr.mjs` kept as the maintainer fallback.
+
+### Completed — AR.IO parity (Phase B)
+
+- [x] AR.IO Registry helpers (`src/lib/arweave/ario.ts`): `getOwnedArnsRecords`, `getArnsName`, `getPrimaryArnsName`, `buildExtendArnsLeaseInput`, `buildPrimaryArnsRequestInput`, `buildIncreaseUndernameLimitInput`.
+- [x] ANT helpers (`src/lib/arweave/ant.ts`): `getAntInfo`, `getAntRecords`, `setAntUndername`, `removeAntRecord`, `transferAntOwnership`, `setAntController`, `primaryNameAcknowledge`.
+- [x] View `src/views/ario-hub.ts` — landing for AR.IO actions (balance + owned names + CTAs).
+- [x] Generalized `src/views/ario-claim.ts` (with `ario-claim-pythai` as a thin forwarder for the previous-round dashboard CTA).
+- [x] View `src/views/ario-name.ts` — full ArNS lifecycle: root @, undernames, extend, primary, transfer, controllers.
+- [x] View `src/views/ario-transfer.ts` — ARIO token send.
+- [x] View `src/views/ario-resolve.ts` — in-wallet ArNS resolver.
+- [x] Dashboard wiring — AR.IO Names + Transfer ARIO buttons alongside the migration CTA.
+
+### Completed — Named-NFT bindings (Phase C)
+
+- [x] aORC TypeScript clients in `src/lib/aorc/`: `ids.ts` (testnet/mainnet IDs), `types.ts`, `minter.ts` (generic ARC-3/19/69), `type-minter.ts` (aNFT/dNFT/iNFT/THOT + CID uniqueness check), `index.ts`.
+- [x] View `src/views/name-mint.ts` — unified mint flow for BANKON and ArNS names; uploads a binding proof to Arweave and writes a Set-Record on the name's owning process.
+- [x] Spec doc `docs/named-nft-binding.md`.
+- [x] Bind-an-NFT section added to both `bankon-name.ts` and `ario-name.ts`.
+
+### Completed — Marketspace (Phase D)
+
+- [x] BMR Lua contract `marketplace-process/` — state.lua + handlers/{governance,list,cancel,offer,auction,escrow,fees,settle}.lua + main.lua.
+- [x] Token-agnostic settle.lua with v1 signed Payment-Proof attestation (mirror of BNR's claim model).
+- [x] Spawn script `scripts/spawn-bmr.mjs` (CLI) + in-wallet spawn flow via `bankon-admin` Marketspace tab.
+- [x] BMR TS client (`src/lib/marketplace/`): `process-id.ts`, `lua-source.ts`, `client.ts` (read+write helpers), `escrow.ts` (composite name→BMR transfer), `index.ts`.
+- [x] Views `src/views/market-{hub,listing,create,auction}.ts` — full marketspace surface (fixed-price + auctions + escrow).
+- [x] Per-name "List for sale" section + Marketspace dashboard button.
+- [x] Branded **Marketspace** (per user direction); web mirror linked from the hub: `agenticplace.pythai.net/marketspace`.
+
+### Verification
+
+- [x] `npx tsc --noEmit` clean.
+- [x] `npx vitest run` 101/101 pass.
+- [x] `npm run build` succeeds; new chunks: `bankon-admin` (86.4 kB; bundles both BNR + BMR Lua sources), `name-mint` (12.5 kB), 4× market views, 5× ario views (`ario-hub`, `ario-claim`, `ario-name`, `ario-transfer`, `ario-resolve`).
+
+### Pending — operator setup
+
+- [ ] Spawn the BNR (from inside the wallet: Dashboard → BANKON Names → "Spawn registry").
+- [ ] Spawn the BMR (from inside the wallet: bankon-admin → Marketspace tab → "Spawn BMR").
+- [ ] Verify a name claim → bind manifest tx-id → list for sale → match a test buy → confirm Settle-Trade.
+- [ ] Publish the public Marketspace web mirror at `agenticplace.pythai.net/marketspace` (server side; out of scope here).
+
+---
+
+## Session: 2026-05-15 / 2026-05-16
+
+**Focus**: Arweave/AO foundation, permaweb deploy infra, ARIO Solana migration handler, pythai ArNS claim, sovereign **BANKON Names** namespace.
+
+### Completed — Arweave/AO foundation
+
+- [x] ANS-104 DataItem signing (`src/lib/arweave/ans104.ts`): encode/decode + sign/verify, Avro tag encoding, deep-hash sig data, vault-bridged `signDataItemFromVault`
+- [x] AO transport (`src/lib/arweave/ao.ts`): `aoMessage` / `aoResult` / `aoDryRun` / `aoSpawn` + standard tag scaffolds; CU = `cu.ardrive.io`
+- [x] Vault-bridged Arweave signer (`src/lib/arweave/signer.ts`): JWK held in a closure per session, RSA-PSS sign / verify / dispatch, dispose on disconnect
+- [x] `window.arweaveWallet` injected API (`src/lib/arweave/inject.ts`): ArConnect/Wander parity (connect, sign, signDataItem, dispatch, signMessage, encrypt-decrypt stubs); per-origin permission persistence
+- [x] dApp approval flow: new view `views/arweave-approve.ts` mirrors the connect-approve pattern
+- [x] WalletAccount multi-chain map: `chains: Record<ChainId, string>` on every account; helpers `getAccountAddress` / `setAccountAddress` in `lib/store.ts`
+- [x] 101/101 vitest pass after foundation; web build excludes static Tauri imports
+
+### Completed — Permaweb deploy
+
+- [x] Platform shim (`src/lib/platform.ts`): `isTauri` constant + dynamic `invoke` / `listen`. Migrated 13 callers (vault.ts, connect.ts, mesh.ts, validate.ts, throttle.ts, search.ts, sandbox.ts, tomb.ts, pmvpn/auth.ts, pmvpn/connector.ts, bitcoin/account.ts, litecoin/account.ts, views/mausoleum.ts)
+- [x] `permaweb-deploy@^3.4.0` devDep + scripts: `deploy:permaweb` (binds to `pythai`), `deploy:permaweb:txid` (initial deploy without ArNS binding)
+- [x] `npm run build` produces a Tauri-free web bundle; only runtime-guarded dynamic loads of `@tauri-apps/api`
+
+### Completed — Solana migration handler
+
+- [x] Solana chain module (`src/lib/solana/`): SLIP-0010 ed25519 derivation (path `m/44'/501'/0'/0'`), base58 address, ed25519 sign via `@noble/curves`
+- [x] Registered in `lib/pouch/chains.ts`
+- [x] View `views/solana-create.ts`: 24-word create flow, stores to vault, updates `account.chains.solana`
+- [x] View `views/ario-migrate-solana.ts`: reads BASE ARIO balance via MetaMask `eth_call balanceOf` on `0x138746adfa52909e5920def027f5a8dc1c7effb6`, surfaces Solana destination, hands off to `sol.ar.io`. Snapshot countdown to **June 1, 2026**.
+
+### Completed — pythai ArNS claim
+
+- [x] AR.IO Registry client (`src/lib/arweave/ario.ts`): `getArioBalance`, `getArnsRecord`, `getReservedName`, `getTokenCost`, `buildBuyNameInput`, `buildTransferArioInput`, `formatArio` / `parseArio`. Mainnet process = `qNvAoz0Tg...`.
+- [x] ANT helpers (`src/lib/arweave/ant.ts`): `getLatestAntModuleId`, `spawnAnt` (with confirmation polling), `setAntRootRecord`
+- [x] View `views/arweave-create.ts`: RSA-4096 in background, stores JWK in vault, 24-word cold backup
+- [x] View `views/ario-claim-pythai.ts`: preflight → confirm → spawn ANT → Buy-Name → bind manifest tx-id. Live cost preview (1-yr lease = 8,242.02 ARIO verified 2026-05-15)
+
+### Completed — BANKON Names (sovereign namespace)
+
+- [x] BNR Lua contract source (`bankon-names-process/`): state schema + 7 handler modules
+  - `claim.lua`: Buy-Name with token-agnostic `Payment-Method` + `Payment-Proof` tag pair (free / algorand / arweave-stake / bankon)
+  - `transfer.lua`: owner-only Transfer
+  - `records.lua`: Set-Record / Get-Record / Record / Resolve / Paginated-Records / Get-Owned-Records / Reserved-Name
+  - `lease.lua`: Extend-Lease (permabuy preserved)
+  - `primary.lua`: two-step Primary-Name-Request + Acknowledge + Get-Primary-Name
+  - `cost.lua`: Token-Cost / Cost-Details, configurable cost table per (intent, method, purchase-type)
+  - `governance.lua`: Set-Policy / Set-Treasury / Add-Controller / Remove-Controller (controller-only)
+  - `admin.lua`: bootstrap reserved names (bankon, parsec, pythai, cypherpunk, ar, ao, …), Set-Reserved / Clear-Reserved
+  - `Info` diagnostic handler in `main.lua` for client sanity-checks
+- [x] One-time spawn script `scripts/spawn-bnr.mjs`: bundles Lua, signs Spawn DataItem from `DEPLOY_KEY`, polls confirmation, writes `BNR_PROCESS_ID` to `src/lib/bankon-names/process-id.ts`. Idempotent with `--force` override.
+- [x] Parsec client (`src/lib/bankon-names/`): `process-id.ts` + `isBnrConfigured()` guard, `payment.ts` (discriminated-union PaymentProof + tag mapping), `client.ts` (read+write helpers mirroring `ario.ts`)
+- [x] Views: `bankon-hub.ts` (identity + owned-names + actions), `bankon-claim.ts` (search → configure → execute, single signed DataItem), `bankon-name.ts` (root @ + undernames + extend + primary + transfer), `bankon-resolve.ts` (in-wallet resolver)
+- [x] Public permaweb resolver SPA (`apps/bankon-resolver/`): standalone Vite project, 3.70 kB JS, reads name from `?name=` / `#hash` / pathname, dry-runs `Resolve` on the BNR via `cu.ardrive.io`, redirects to `https://<txid>.arweave.net`
+- [x] Build/deploy scripts: `build:resolver`, `deploy:resolver`
+- [x] Dashboard wiring: `BANKON Names` + `Resolve` row alongside the AR.IO row, conditional on having an Arweave address
+
+### Completed — Snapshot investigation
+
+- [x] `docs/snapshot-investigation.md`: June 1 date confirmed firm; Solana mint authority + reclaim-window length **not publicly disclosed** (flagged as medium risk); BASE bridge `0x138746...effb6` + relayer EOA `0x79B5B6F47F865194EAa02756883a003f06F7Ba6c` documented; risk table + pre-snapshot user action sequence captured
+
+### Verification
+
+- [x] `tsc --noEmit` clean across all rounds
+- [x] `vitest run` 101/101 pass (added `ans104.test.ts` roundtrip in round 1)
+- [x] `npm run build` succeeds; web bundle drops all static Tauri imports; new lazy chunks: `bankon-hub` `bankon-claim` `bankon-name` `bankon-resolve` `ario-claim-pythai` `ario-migrate-solana` `solana-create` `arweave-create` `arweave-approve` `arweave-ario-migrate`
+- [x] `npm run build:resolver` produces a dependency-free 3.70 kB SPA at `apps/bankon-resolver/dist/`
+
+### Pending — pre-June 1 user action
+
+- [ ] Run `scripts/spawn-bnr.mjs` once (mainnet) to instantiate the BNR; record the process id
+- [ ] Bridge a small test amount (e.g. 100 ARIO) BASE → AO to validate the relayer responds; then bridge ~10k for the pythai claim if proceeding via AO route
+- [ ] Claim `pythai` via `views/ario-claim-pythai.ts`; bind to deployment manifest tx-id
+- [ ] Deploy Parsec to Arweave via `npm run deploy:permaweb:txid` first, then re-deploy via `npm run deploy:permaweb` once pythai's ANT is owned
+- [ ] Complete sol.ar.io registration for the 99,600 ARIO BASE holding (deadline: June 1, 2026)
+- [ ] Deploy the BANKON Names resolver SPA via `npm run deploy:resolver`
+
+---
 
 ## Session: 2026-03-28 / 2026-03-29
 

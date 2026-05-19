@@ -2,25 +2,66 @@
 // Parsec never holds private keys. Sensitive data (passphrase, mnemonic)
 // is held in private class fields — never serialized, never in localStorage.
 
-import type { WalletState, AppView, PendingSend } from '../types/wallet';
+import type { WalletState, AppView, PendingSend, WalletAccount } from '../types/wallet';
+import type { ChainId } from './pouch/types';
+import { isTauri } from './vault';
+import { keystoreLock } from './keystore';
 
 type Listener = (state: WalletState) => void;
 
 const STORAGE_KEY = 'parsec-wallet-state';
+
+// Older persisted accounts predate the multi-chain `chains` map.
+// Backfill so every account has at least { algorand: <primary address> }.
+function migrateAccount(raw: unknown): WalletAccount {
+  const a = raw as Partial<WalletAccount> & { address: string };
+  const chains = (a.chains && typeof a.chains === 'object') ? { ...a.chains } : {};
+  if (a.address && !chains['algorand']) chains['algorand'] = a.address;
+  return {
+    address: a.address,
+    name: a.name ?? 'Account',
+    createdAt: a.createdAt ?? Date.now(),
+    watchOnly: a.watchOnly,
+    chains,
+    activeChain: a.activeChain ?? 'algorand',
+  };
+}
 
 function loadPersistedState(): Partial<WalletState> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
     const saved = JSON.parse(raw);
+    const accounts = Array.isArray(saved.accounts) ? saved.accounts.map(migrateAccount) : [];
     return {
-      accounts: saved.accounts || [],
+      accounts,
       activeAccountIndex: saved.activeAccountIndex || 0,
       settings: saved.settings || undefined,
     };
   } catch {
     return {};
   }
+}
+
+/** Get the address an account uses on a specific chain. Falls back to the
+ * primary `address` when the chain is unmapped (legacy Algorand-only accounts). */
+export function getAccountAddress(account: WalletAccount, chainId: ChainId): string | undefined {
+  if (account.chains && account.chains[chainId]) return account.chains[chainId];
+  if (chainId === 'algorand') return account.address;
+  return undefined;
+}
+
+/** Set the address an account uses on a specific chain. Returns a new
+ * WalletAccount — caller is responsible for persisting via store.set(). */
+export function setAccountAddress(
+  account: WalletAccount,
+  chainId: ChainId,
+  address: string,
+): WalletAccount {
+  return {
+    ...account,
+    chains: { ...account.chains, [chainId]: address },
+  };
 }
 
 function persistState(state: WalletState): void {
@@ -85,6 +126,11 @@ class Store {
   // --- State management ---
 
   set(partial: Partial<WalletState>): void {
+    // Normalize any incoming accounts so the chains map is always present.
+    // Callers (create-wallet, import-wallet) can stay schema-agnostic.
+    if (partial.accounts) {
+      partial = { ...partial, accounts: partial.accounts.map(migrateAccount) };
+    }
     this.state = { ...this.state, ...partial };
     persistState(this.state);
     this.notify();
@@ -126,11 +172,7 @@ class Store {
     this.set({ accountInfo: null, transactions: [] });
 
     // Lock the Tauri vault session if available
-    import('./vault').then(v => {
-      if (v.isTauri()) {
-        import('./keystore').then(k => k.keystoreLock());
-      }
-    });
+    if (isTauri()) keystoreLock();
 
     // Disconnect all pmVPN sessions
     import('./pmvpn/connector').then(c => c.disconnectAll()).catch(() => {});

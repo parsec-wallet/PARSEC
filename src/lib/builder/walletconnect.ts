@@ -70,7 +70,6 @@ export class ParsecWalletConnect {
   async init(): Promise<void> {
     if (!this.projectId) throw new Error('WalletConnect projectId required');
 
-    // @ts-expect-error — @walletconnect/sign-client is an optional runtime dependency
     const SignClient = await import('@walletconnect/sign-client') as unknown as WCSignClientInit;
 
     this.client = await SignClient.init({

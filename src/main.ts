@@ -11,79 +11,116 @@ if (typeof globalThis.Buffer === 'undefined') {
 import '@blueprintjs/core/lib/css/blueprint.css';
 import '@blueprintjs/icons/lib/css/blueprint-icons.css';
 import './styles/main.scss';
+import './styles/pmvpn.scss';
 
 import { registerView, mountRouter } from './lib/router';
 import { store } from './lib/store';
+
+// Eager — first-paint critical path. Together these cover every entry-point
+// state (no wallet, locked wallet, unlocked wallet) and the onboarding flow.
 import { matrixView } from './views/matrix';
 import { onboardingView } from './views/onboarding';
+import { unlockView } from './views/unlock';
+import { dashboardView } from './views/dashboard';
 import { createWalletView } from './views/create-wallet';
 import { verifyMnemonicView } from './views/verify-mnemonic';
 import { importWalletView } from './views/import-wallet';
-import { unlockView } from './views/unlock';
-import { dashboardView } from './views/dashboard';
-import { sendView } from './views/send';
-import { confirmSendView } from './views/confirm-send';
-import { receiveView } from './views/receive';
-import { addAssetView } from './views/add-asset';
-import { swapView } from './views/swap';
-import { onrampView } from './views/onramp';
-import { docsView } from './views/docs';
-import { settingsView } from './views/settings';
-import { pmvpnView } from './views/pmvpn';
-import { x402ConfirmView } from './views/x402-confirm';
-import { agentsView } from './views/agents';
-import { identityView } from './views/identity';
-import { connectApproveView, setConnectPending } from './views/connect-approve';
-import { adminKeygenView } from './views/admin-keygen';
-import { mausoleumView } from './views/mausoleum';
-import { connectStart } from './lib/connect';
+
 import type { SignRequest } from './lib/connect';
-import './styles/pmvpn.scss';
+import type { AppView } from './types/wallet';
 
-// Register all views
-registerView('matrix', matrixView);
-registerView('onboarding', onboardingView);
-registerView('create-wallet', createWalletView);
-registerView('verify-mnemonic', verifyMnemonicView);
-registerView('import-wallet', importWalletView);
-registerView('unlock', unlockView);
-registerView('dashboard', dashboardView);
-registerView('send', sendView);
-registerView('confirm-send', confirmSendView);
-registerView('receive', receiveView);
-registerView('add-asset', addAssetView);
-registerView('swap', swapView);
-registerView('onramp', onrampView);
-registerView('docs', docsView);
-registerView('settings', settingsView);
-registerView('pmvpn', pmvpnView);
-registerView('x402-confirm', x402ConfirmView);
-registerView('agents', agentsView);
-registerView('identity', identityView);
-registerView('connect-approve', connectApproveView);
-registerView('admin-keygen', adminKeygenView);
-registerView('mausoleum', mausoleumView);
-
-// Lazy-loaded views — pull in heavy crypto libs (libsodium for ARC-52,
-// algokit-utils for xchain) only when the user navigates to them. Without
-// this, libsodium's top-level await + bip39's Buffer use can block initial
-// app load and produce a blank screen.
+// ── Lazy view loader ──────────────────────────────────────────
+// Renders a placeholder synchronously (so the router never sees a Promise),
+// then swaps in the real view once the chunk resolves. Failed chunk loads
+// surface an inline error rather than a blank screen.
 function lazyView(loader: () => Promise<() => HTMLElement>): () => HTMLElement {
   return () => {
     const placeholder = document.createElement('div');
     placeholder.className = 'parsec-view parsec-view--loading';
-    placeholder.innerHTML = '<div class="bp5-spinner bp5-large"><div class="bp5-spinner-animation"></div></div>';
-    loader().then((factory) => {
-      const real = factory();
-      placeholder.replaceWith(real);
-    }).catch((err) => {
-      placeholder.innerHTML = `<div class="parsec-error">Failed to load view: ${err instanceof Error ? err.message : String(err)}</div>`;
-    });
+    placeholder.innerHTML = '<div class="parsec-view-loading__spinner" aria-hidden="true"></div>';
+    loader()
+      .then((factory) => {
+        const real = factory();
+        real.classList.add('parsec-view--enter');
+        placeholder.replaceWith(real);
+        // Drop the enter class after the next frame so the fade-in plays once.
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => real.classList.remove('parsec-view--enter'));
+        });
+      })
+      .catch((err) => {
+        placeholder.innerHTML = `<div class="parsec-error">Failed to load view: ${err instanceof Error ? err.message : String(err)}</div>`;
+      });
     return placeholder;
   };
 }
+
+// Register eager views
+registerView('matrix', matrixView);
+registerView('onboarding', onboardingView);
+registerView('unlock', unlockView);
+registerView('dashboard', dashboardView);
+registerView('create-wallet', createWalletView);
+registerView('verify-mnemonic', verifyMnemonicView);
+registerView('import-wallet', importWalletView);
+
+// Register lazy views — keep one entry per view so chunk-name hints are stable.
+registerView('send', lazyView(async () => (await import('./views/send')).sendView));
+registerView('confirm-send', lazyView(async () => (await import('./views/confirm-send')).confirmSendView));
+registerView('receive', lazyView(async () => (await import('./views/receive')).receiveView));
+registerView('add-asset', lazyView(async () => (await import('./views/add-asset')).addAssetView));
+registerView('settings', lazyView(async () => (await import('./views/settings')).settingsView));
+registerView('swap', lazyView(async () => (await import('./views/swap')).swapView));
+registerView('onramp', lazyView(async () => (await import('./views/onramp')).onrampView));
+registerView('docs', lazyView(async () => (await import('./views/docs')).docsView));
+registerView('identity', lazyView(async () => (await import('./views/identity')).identityView));
+registerView('agents', lazyView(async () => (await import('./views/agents')).agentsView));
+registerView('nfdominter', lazyView(async () => (await import('./views/nfdominter')).nfdominterView));
+registerView('nfdominter-confirm', lazyView(async () => (await import('./views/nfdominter-confirm')).nfdominterConfirmView));
+registerView('mausoleum', lazyView(async () => (await import('./views/mausoleum')).mausoleumView));
+registerView('admin-keygen', lazyView(async () => (await import('./views/admin-keygen')).adminKeygenView));
+registerView('pmvpn', lazyView(async () => (await import('./views/pmvpn')).pmvpnView));
+registerView('x402-confirm', lazyView(async () => (await import('./views/x402-confirm')).x402ConfirmView));
+registerView('connect-approve', lazyView(async () => (await import('./views/connect-approve')).connectApproveView));
 registerView('xchain-connect', lazyView(async () => (await import('./views/xchain-connect')).xchainConnectView));
 registerView('arc52-create', lazyView(async () => (await import('./views/arc52-create')).arc52CreateView));
+registerView('arweave-approve', lazyView(async () => (await import('./views/arweave-approve')).arweaveApproveView));
+registerView('arweave-ario-migrate', lazyView(async () => (await import('./views/arweave-ario-migrate')).arweaveArioMigrateView));
+registerView('solana-create', lazyView(async () => (await import('./views/solana-create')).solanaCreateView));
+registerView('ario-migrate-solana', lazyView(async () => (await import('./views/ario-migrate-solana')).arioMigrateSolanaView));
+registerView('arweave-create', lazyView(async () => (await import('./views/arweave-create')).arweaveCreateView));
+registerView('ario-claim-pythai', lazyView(async () => (await import('./views/ario-claim-pythai')).arioClaimPythaiView));
+registerView('bankon-hub', lazyView(async () => (await import('./views/bankon-hub')).bankonHubView));
+registerView('bankon-claim', lazyView(async () => (await import('./views/bankon-claim')).bankonClaimView));
+registerView('bankon-name', lazyView(async () => (await import('./views/bankon-name')).bankonNameView));
+registerView('bankon-resolve', lazyView(async () => (await import('./views/bankon-resolve')).bankonResolveView));
+registerView('bankon-admin', lazyView(async () => (await import('./views/bankon-admin')).bankonAdminView));
+registerView('ario-hub', lazyView(async () => (await import('./views/ario-hub')).arioHubView));
+registerView('ario-claim', lazyView(async () => (await import('./views/ario-claim')).arioClaimView));
+registerView('ario-name', lazyView(async () => (await import('./views/ario-name')).arioNameView));
+registerView('ario-transfer', lazyView(async () => (await import('./views/ario-transfer')).arioTransferView));
+registerView('ario-resolve', lazyView(async () => (await import('./views/ario-resolve')).arioResolveView));
+registerView('name-mint', lazyView(async () => (await import('./views/name-mint')).nameMintView));
+registerView('name-hub', lazyView(async () => {
+  await import('./lib/namespaces'); // ensure adapters self-register
+  return (await import('./views/name-hub')).nameHubView;
+}));
+registerView('name-claim', lazyView(async () => {
+  await import('./lib/namespaces');
+  return (await import('./views/name-claim')).nameClaimView;
+}));
+registerView('name-manage', lazyView(async () => {
+  await import('./lib/namespaces');
+  return (await import('./views/name-manage')).nameManageView;
+}));
+registerView('name-resolve', lazyView(async () => {
+  await import('./lib/namespaces');
+  return (await import('./views/name-resolve')).nameResolveView;
+}));
+registerView('market-hub', lazyView(async () => (await import('./views/market-hub')).marketHubView));
+registerView('market-listing', lazyView(async () => (await import('./views/market-listing')).marketListingView));
+registerView('market-create', lazyView(async () => (await import('./views/market-create')).marketCreateView));
+registerView('market-auction', lazyView(async () => (await import('./views/market-auction')).marketAuctionView));
 
 // Mount
 const root = document.getElementById('root');
@@ -106,26 +143,76 @@ for (const event of ['click', 'keydown', 'input', 'mousemove'] as const) {
   document.addEventListener(event, () => store.onActivity(), { passive: true });
 }
 
-// Listen for dApp sign requests from the connect WebSocket server
-// When a dApp requests signing, navigate to the approval view
-import { listen } from '@tauri-apps/api/event';
-listen<SignRequest>('parsec-connect-sign-request', (event) => {
-  const state = store.get();
-  // Only show if wallet is unlocked (has accounts)
-  if (state.accounts.length > 0) {
-    setConnectPending(event.payload);
-    store.navigate('connect-approve');
-  }
-});
+// ── Idle-time preload ────────────────────────────────────────
+// Once the user reaches the dashboard, prefetch the views they're most
+// likely to navigate to next so the lazy spinner is rarely visible.
+const PRELOAD_FROM_DASHBOARD: ReadonlyArray<() => Promise<unknown>> = [
+  () => import('./views/send'),
+  () => import('./views/confirm-send'),
+  () => import('./views/receive'),
+  () => import('./views/add-asset'),
+  () => import('./views/settings'),
+];
 
-// Auto-start connect server when wallet unlocks (if user has accounts)
-store.subscribe((state) => {
-  if (state.accounts.length > 0 && state.view === 'dashboard') {
-    const address = state.accounts[state.activeAccountIndex]?.address;
-    if (address) {
-      connectStart(address).catch(() => {
-        // Connect server may already be running or unavailable — that's fine
-      });
-    }
+const idle: (cb: () => void) => void =
+  typeof (window as unknown as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback === 'function'
+    ? (window as unknown as { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback
+    : (cb) => setTimeout(cb, 200);
+
+let preloaded: Set<AppView> = new Set();
+function preloadFor(view: AppView): void {
+  if (view !== 'dashboard' || preloaded.has(view)) return;
+  preloaded.add(view);
+  for (const load of PRELOAD_FROM_DASHBOARD) {
+    idle(() => { load().catch(() => { /* preload best-effort */ }); });
   }
-});
+}
+
+// ── Deferred Tauri IPC plumbing ──────────────────────────────
+// Wire the dApp sign-request listener and connect-server auto-start AFTER
+// first paint so they don't block initial render. Tauri-only paths are
+// gated through the platform shim so the permaweb-served web build never
+// pulls @tauri-apps/api into its chunk graph.
+function deferredInit(): void {
+  import('./lib/platform').then(async ({ isTauri, listen }) => {
+    if (!isTauri) return;
+    // Listen for dApp sign requests from the connect WebSocket server.
+    // When a request arrives, lazy-load connect-approve and navigate.
+    await listen<SignRequest>('parsec-connect-sign-request', (event) => {
+      const state = store.get();
+      if (state.accounts.length === 0) return;
+      import('./views/connect-approve').then(({ setConnectPending }) => {
+        setConnectPending(event.payload);
+        store.navigate('connect-approve');
+      });
+    });
+
+    // Auto-start connect server when the wallet reaches the dashboard.
+    const { connectStart } = await import('./lib/connect');
+    store.subscribe((state) => {
+      preloadFor(state.view);
+      if (state.accounts.length > 0 && state.view === 'dashboard') {
+        const address = state.accounts[state.activeAccountIndex]?.address;
+        if (address) connectStart(address).catch(() => { /* may already be running */ });
+      }
+    });
+  });
+
+  // Install window.arweaveWallet once the wallet is unlocked; dispose every
+  // active signer (but keep the API installed) when the wallet locks.
+  import('./lib/arweave/inject').then(({ installArweaveWalletAPI, disposeArweaveConnections }) => {
+    let lastUnlocked = false;
+    store.subscribe((state) => {
+      const unlocked = state.accounts.length > 0 && state.view !== 'matrix' && state.view !== 'unlock';
+      if (unlocked && !lastUnlocked) installArweaveWalletAPI();
+      if (!unlocked && lastUnlocked) disposeArweaveConnections();
+      lastUnlocked = unlocked;
+    });
+  });
+}
+
+if (document.readyState === 'complete') {
+  idle(deferredInit);
+} else {
+  window.addEventListener('load', () => idle(deferredInit), { once: true });
+}

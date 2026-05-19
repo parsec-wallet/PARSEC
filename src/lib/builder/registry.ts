@@ -169,6 +169,17 @@ const STATIC_CHAINS: ChainDescriptor[] = [
     explorerUrl: 'https://viewblock.io/arweave',
     enabled: true,
   },
+  {
+    chainId: 'arweave-hd',
+    family: 'arweave',
+    name: 'Arweave (HD)',
+    networkType: 'mainnet',
+    ticker: 'AR',
+    decimals: 12,
+    rpcUrl: 'https://arweave.net',
+    explorerUrl: 'https://viewblock.io/arweave',
+    enabled: true,
+  },
 
   // ── Core EVM (offline fallback) ──
   {

@@ -7,8 +7,7 @@
 // 3. Connect SSH with signed payload
 // 4. Manage terminal I/O
 
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { invoke, listen } from '../platform';
 import { fetchChallenge, signChallenge, buildAuthPayload } from './auth';
 import { pmvpnStore } from './store';
 import type { PmvpnHost } from './types';

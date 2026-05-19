@@ -2,7 +2,7 @@
 // Mirrors the Rust API in src-tauri/src/chain_btc/. No secret material
 // crosses this boundary; only addresses and metadata come back.
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../platform';
 
 export type BtcNetwork = 'mainnet' | 'testnet' | 'regtest';
 

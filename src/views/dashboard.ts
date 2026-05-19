@@ -1,13 +1,15 @@
 // Parsec Wallet — Dashboard View
 
 import { el, btn, toast } from '../lib/dom';
-import { store } from '../lib/store';
+import { store, getAccountAddress } from '../lib/store';
+import { listDashboardModules } from '../lib/dashboard';
+import type { DashboardContext } from '../lib/dashboard-modules';
 import { fetchAccountInfo, microAlgosToAlgo } from '../lib/algorand/account';
 import { fetchTransactions } from '../lib/algorand/transactions';
 import { enrichAssets, formatAssetAmount, optOutFromAsset, lookupAsset } from '../lib/algorand/assets';
 import { resolveIpfsUrl } from '../lib/algorand/ipfs-gateway';
 import { keystoreRetrieve } from '../lib/keystore';
-import { startPriceUpdates, formatPrice } from '../lib/prices';
+import { startPriceUpdates, formatPrice, fetchPrices } from '../lib/prices';
 import type { CoinPrice } from '../lib/prices';
 import type { AccountInfo, TransactionRecord, NetworkId } from '../types/wallet';
 
@@ -114,26 +116,21 @@ export function dashboardView(): HTMLElement {
     ],
   });
 
-  // Actions — participant choices after signature-based login
-  const actions = el('div', {
-    cls: 'parsec-dashboard__actions',
-    children: [
-      btn('Send', { intent: 'primary', icon: 'arrow-top-right', onClick: () => store.navigate('send') }),
-      btn('Swap', { intent: 'warning', icon: 'swap-horizontal', onClick: () => store.navigate('swap') }),
-      btn('Receive', { intent: 'success', icon: 'arrow-bottom-left', onClick: () => store.navigate('receive') }),
-      btn('Buy', { outlined: true, icon: 'dollar', onClick: () => store.navigate('onramp') }),
-      btn('NFD', { outlined: true, icon: 'tag', onClick: () => store.navigate('nfdominter') }),
-    ],
-  });
-
-  // x402 / AgenticPlace actions
-  const x402Actions = el('div', {
-    cls: 'parsec-dashboard__actions parsec-dashboard__x402-actions',
-    children: [
-      btn('Identity', { outlined: true, icon: 'id-number', onClick: () => store.navigate('identity') }),
-      btn('Agents', { outlined: true, icon: 'search', onClick: () => store.navigate('agents') }),
-    ],
-  });
+  // Action rows are now produced by registered DashboardModules. Adding a
+  // chain pack or domain pack contributes a new row without editing this
+  // file — see src/lib/dashboard/*.ts for the built-ins.
+  const ctx: DashboardContext = {
+    account,
+    getChainAddress: (chainId: string) => getAccountAddress(account, chainId),
+    network,
+    navigate: (view: string) => store.navigate(view as Parameters<typeof store.navigate>[0]),
+    refresh: () => loadDashboardData(account.address, network, balanceEl, assetsEl, txList),
+  };
+  const moduleRows: HTMLElement[] = [];
+  for (const mod of listDashboardModules()) {
+    const row = mod.render(ctx);
+    if (row) moduleRows.push(row);
+  }
 
   const assetsEl = el('div', { cls: 'parsec-dashboard__assets' });
   const addAssetBtn = btn('Add Asset', { outlined: true, icon: 'plus', cls: 'parsec-dashboard__add-asset', onClick: () => store.navigate('add-asset') });
@@ -142,7 +139,7 @@ export function dashboardView(): HTMLElement {
 
   const children = [header, publicKey, networkBadge];
   if (faucetLink) children.push(faucetLink);
-  children.push(balanceEl, actions, x402Actions, assetsEl, addAssetBtn, txHeader, txList);
+  children.push(balanceEl, ...moduleRows, assetsEl, addAssetBtn, txHeader, txList);
   container.append(...children);
 
   loadDashboardData(account.address, network, balanceEl, assetsEl, txList);
@@ -180,15 +177,13 @@ function renderBalance(container: HTMLElement, info: AccountInfo): void {
     val?.after(usdEl);
   }
   // Update USD from latest prices
-  import('../lib/prices').then(mod => {
-    mod.fetchPrices().then(pp => {
-      const algo = pp.find(p => p.id === 'algorand');
-      if (algo) {
-        usdEl.textContent = `≈ $${((info.amount / 1_000_000) * algo.usd).toFixed(2)}`;
-      } else {
-        usdEl.textContent = '$';
-      }
-    });
+  fetchPrices().then(pp => {
+    const algo = pp.find(p => p.id === 'algorand');
+    if (algo) {
+      usdEl.textContent = `≈ $${((info.amount / 1_000_000) * algo.usd).toFixed(2)}`;
+    } else {
+      usdEl.textContent = '$';
+    }
   });
 
   const min = container.querySelector('.parsec-dashboard__balance-min');
@@ -206,10 +201,10 @@ function renderAssets(container: HTMLElement, info: AccountInfo, userAddress: st
 
   // Fetch prices for USD display on each asset
   let coinPrices: CoinPrice[] = [];
-  import('../lib/prices').then(mod => mod.fetchPrices().then(p => {
+  fetchPrices().then(p => {
     coinPrices = p;
     updateAssetPrices();
-  }));
+  });
 
   // ALGO first — with price, links
   const algoUsdEl = el('span', { cls: 'parsec-asset-row__usd', text: '$' });

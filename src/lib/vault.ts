@@ -2,7 +2,7 @@
 // All vault operations go through Tauri invoke → Rust.
 // Secrets never persist in JS. They pass through briefly for signing only.
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './platform';
 
 export interface VaultStatus {
   exists: boolean;

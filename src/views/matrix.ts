@@ -10,11 +10,24 @@ import { hasVault } from '../lib/crypto';
 import { isTauri } from '../lib/vault';
 import { fetchAccountInfo, microAlgosToAlgo } from '../lib/algorand/account';
 import { enrichAssets, formatAssetAmount } from '../lib/algorand/assets';
-import { startPriceUpdates, formatPrice, formatMarketCap, getMarketActivity, getMarketSentiment, getMarketBreadth } from '../lib/prices';
+import { startPriceUpdates, fetchPricesByIds, formatPrice, formatMarketCap, getMarketActivity, getMarketSentiment, getMarketBreadth } from '../lib/prices';
 import type { CoinPrice } from '../lib/prices';
+
+// Favourites strip — coins the wallet pins under the TOP 10 column. Some
+// of these sit outside CoinGecko's top-100 mcap window (0g, ARIO, …) so
+// they need a separate by-id fetch. Order matters: rows render top-to-
+// bottom in this sequence.
+const FAVOURITE_COINS: ReadonlyArray<string> = [
+  'moonbeam',             // GLMR
+  'aave',                 // AAVE
+  'pyth-network',         // PYTH
+  'injective-protocol',   // INJ
+  'zero-gravity',         // 0G
+  'blast',                // BLAST
+  'ar-io-network',        // ARIO
+  'arweave',              // AR
+];
 import type { NetworkId } from '../types/wallet';
-import { PriceOracle } from '../lib/x402/oracle';
-import { truncateAddress } from '../lib/algorand/account';
 
 type PillChoice = 'none' | 'choose' | 'red' | 'blue';
 
@@ -769,6 +782,68 @@ export function matrixView(): HTMLElement {
         fleet.appendChild(row);
       });
 
+      // ── Favourites strip — appended after the TOP 10 rows ──
+      // Fire-and-forget: render rows as soon as CoinGecko responds.
+      // A slug that fails to resolve (e.g. a coin not on CoinGecko)
+      // is silently filtered out by fetchPricesByIds.
+      fetchPricesByIds([...FAVOURITE_COINS]).then((favs) => {
+        if (favs.length === 0) return;
+        // Preserve the order declared in FAVOURITE_COINS rather than CG's
+        // mcap-desc ordering so the user sees their list as written.
+        const byId = new Map(favs.map((c) => [c.id, c] as const));
+        const ordered = FAVOURITE_COINS
+          .map((id) => byId.get(id))
+          .filter((c): c is CoinPrice => Boolean(c));
+        if (ordered.length === 0) return;
+
+        fleet.appendChild(el('div', {
+          cls: 'parsec-fleet-column__header parsec-fleet-column__header--favs',
+          text: 'FAVOURITES',
+        }));
+
+        for (const coin of ordered) {
+          const sign = coin.change24h >= 0 ? '+' : '';
+          const color = coin.change24h >= 0 ? '#10b981' : '#ef4444';
+
+          let iconEl: HTMLElement;
+          if (coin.image) {
+            const img = document.createElement('img');
+            img.className = 'parsec-fleet-column__icon';
+            img.src = coin.image;
+            img.alt = coin.symbol;
+            img.width = 18;
+            img.height = 18;
+            img.loading = 'lazy';
+            img.onerror = () => { img.style.display = 'none'; };
+            iconEl = img;
+          } else {
+            iconEl = el('div', {
+              cls: 'parsec-fleet-column__icon parsec-fleet-column__icon--fallback',
+              text: coin.symbol.charAt(0),
+            });
+          }
+
+          const row = el('div', {
+            cls: 'parsec-fleet-column__coin parsec-fleet-column__coin--fav',
+            children: [
+              // No rank cell for favourites — keeps the row aligned via the
+              // existing flex layout. A blank span preserves the column.
+              el('span', { cls: 'parsec-fleet-column__rank parsec-fleet-column__rank--blank' }),
+              iconEl,
+              el('span', { cls: 'parsec-fleet-column__symbol', text: coin.symbol }),
+              el('span', { cls: 'parsec-fleet-column__price', text: formatPrice(coin.usd) }),
+              el('span', { cls: 'parsec-fleet-column__mcap', text: formatMarketCap(coin.marketCap) }),
+              el('span', { cls: 'parsec-fleet-column__change', text: `${sign}${coin.change24h.toFixed(1)}%`, attrs: { style: `color:${color}` } }),
+            ],
+          });
+
+          row.addEventListener('mouseenter', () => showCoinPanel(coin, row));
+          row.addEventListener('mouseleave', () => hideCoinPanel());
+
+          fleet.appendChild(row);
+        }
+      }).catch(() => { /* favourites are best-effort; ignore */ });
+
       makeDraggable(fleet);
       pyramidLayer.appendChild(fleet);
     }
@@ -916,11 +991,23 @@ export function matrixView(): HTMLElement {
   }
 
   // ── Hover info panel — detailed coin card ──────────────────
+  //
+  // The panel sits a few pixels above the trigger and stays up while the
+  // cursor is over EITHER the trigger or the panel. Trigger `mouseleave`
+  // schedules a 180ms hide; entering the panel cancels it. This is what
+  // makes the CoinGecko / Chart links reachable — without the deferral
+  // the panel is torn down the instant the cursor leaves the trigger.
 
   let activeCoinPanel: HTMLElement | null = null;
+  let pendingHide: ReturnType<typeof setTimeout> | null = null;
+
+  function cancelPendingHide() {
+    if (pendingHide) { clearTimeout(pendingHide); pendingHide = null; }
+  }
 
   function showCoinPanel(coin: CoinPrice, anchor: HTMLElement) {
-    hideCoinPanel();
+    cancelPendingHide();
+    if (activeCoinPanel) { activeCoinPanel.remove(); activeCoinPanel = null; }
     const isUp = coin.change24h >= 0;
     const sign = isUp ? '+' : '';
     const color = isUp ? '#10b981' : '#ef4444';
@@ -942,22 +1029,29 @@ export function matrixView(): HTMLElement {
       ],
     });
 
-    // Position near the anchor
+    // Append first so offsetHeight is real, then position 8px above the
+    // trigger. Fallback to a 120px offset when the layout hasn't run yet.
     const rect = anchor.getBoundingClientRect();
+    document.body.appendChild(panel);
+    activeCoinPanel = panel;
+
+    const h = panel.offsetHeight || 120;
     const panelX = Math.min(rect.left, window.innerWidth - 200);
-    const panelY = Math.max(rect.top - 120, 10);
+    const panelY = Math.max(rect.top - h - 8, 10);
     panel.style.left = `${panelX}px`;
     panel.style.top = `${panelY}px`;
 
-    document.body.appendChild(panel);
-    activeCoinPanel = panel;
+    // Keep the panel alive while the cursor is over it.
+    panel.addEventListener('mouseenter', cancelPendingHide);
+    panel.addEventListener('mouseleave', () => hideCoinPanel());
   }
 
-  function hideCoinPanel() {
-    if (activeCoinPanel) {
-      activeCoinPanel.remove();
-      activeCoinPanel = null;
-    }
+  function hideCoinPanel(delay = 180) {
+    cancelPendingHide();
+    pendingHide = setTimeout(() => {
+      if (activeCoinPanel) { activeCoinPanel.remove(); activeCoinPanel = null; }
+      pendingHide = null;
+    }, delay);
   }
 
   function pyramidLine(x1: number, y1: number, x2: number, y2: number, color: string): HTMLElement {
@@ -1951,106 +2045,28 @@ export function matrixView(): HTMLElement {
     store.set({ isLoading: false });
     if (ok) {
       store.setPassphrase(passphrase);
+      // Overwrite the local copy with null bytes before clearing the
+      // reference — the GC will eventually free the original string but
+      // we want the bytes in memory to be zeroed in the meantime.
+      passphrase = '\0'.repeat(passphrase.length);
       passphrase = '';
-      // Show compact wallet summary in the matrix instead of navigating away
-      renderWalletSummary();
+      await partAndEnter();
     } else {
       toast('Wrong passphrase', 'danger');
+      passphrase = '\0'.repeat(passphrase.length);
       passphrase = '';
     }
   }
 
-  async function renderWalletSummary() {
-    const state = store.get();
-    const account = state.accounts[state.activeAccountIndex];
-    if (!account) { cancelAnimation(); store.navigate('dashboard'); return; }
-
-    panel.innerHTML = '';
-    panel.appendChild(el('div', { cls: 'parsec-matrix__choice-label parsec-matrix__choice-label--red', text: 'RED PILL — LIVE' }));
-
-    // Logged in indicator
-    panel.appendChild(el('div', { cls: 'parsec-matrix__wallet-status', children: [
-      el('span', { cls: 'parsec-matrix__wallet-dot' }),
-      el('span', { text: 'LOGGED IN' }),
-    ]}));
-
-    // Address (click to copy)
-    const addrEl = el('div', {
-      cls: 'parsec-matrix__wallet-address',
-      text: truncateAddress(account.address),
-      attrs: { title: account.address },
-      onClick: () => { navigator.clipboard.writeText(account.address); toast('Address copied', 'success'); },
-    });
-    panel.appendChild(addrEl);
-
-    // Loading indicator
-    const summaryEl = el('div', { cls: 'parsec-matrix__wallet-summary', text: 'Loading balance...' });
-    panel.appendChild(summaryEl);
-
-    // Enter Wallet button
-    panel.appendChild(btn('Enter Wallet', {
-      intent: 'primary', large: true, cls: 'parsec-matrix__action parsec-matrix__action--red',
-      onClick: () => { cancelAnimation(); store.navigate('dashboard'); },
-    }));
-
-    backButton();
-
-    // Fetch balance + prices asynchronously
-    try {
-      const oracle = new PriceOracle();
-      const [info, algoUsd] = await Promise.all([
-        fetchAccountInfo(account.address, state.settings.network),
-        oracle.getAlgoUsd(),
-      ]);
-
-      const algoBalance = Number(info.amount) / 1_000_000;
-      const balanceUsd = algoBalance * algoUsd;
-
-      summaryEl.innerHTML = '';
-      summaryEl.appendChild(el('div', { cls: 'parsec-matrix__wallet-balance', children: [
-        el('div', { cls: 'parsec-matrix__wallet-balance-label', text: 'BALANCE' }),
-        el('div', { cls: 'parsec-matrix__wallet-balance-value', text: `${algoBalance.toFixed(6)} ALGO` }),
-        el('div', { cls: 'parsec-matrix__wallet-balance-usd', text: `≈ $${balanceUsd.toFixed(2)} USD` }),
-      ]}));
-
-      // Assets
-      if (info.assets && info.assets.length > 0) {
-        const enriched = await enrichAssets(info.assets, state.settings.network);
-        const assetList = el('div', { cls: 'parsec-matrix__wallet-assets' });
-        assetList.appendChild(el('div', { cls: 'parsec-matrix__wallet-assets-label', text: 'ASSETS' }));
-
-        for (const asset of enriched.slice(0, 8)) {
-          const name = asset.unitName || asset.name || `ASA #${asset.assetId}`;
-          const amount = asset.decimals
-            ? (asset.amount / Math.pow(10, asset.decimals)).toFixed(asset.decimals > 4 ? 4 : asset.decimals)
-            : String(asset.amount);
-
-          // Try to get USD price for this ASA
-          let usdStr = '';
-          try {
-            const price = await oracle.getAssetPrice(asset.assetId);
-            if (price.usd > 0) {
-              const val = (asset.amount / Math.pow(10, asset.decimals || 0)) * price.usd;
-              usdStr = `≈ $${val.toFixed(2)}`;
-            }
-          } catch { /* no price available */ }
-
-          assetList.appendChild(el('div', { cls: 'parsec-matrix__wallet-asset-row', children: [
-            el('span', { cls: 'parsec-matrix__wallet-asset-name', text: name }),
-            el('span', { cls: 'parsec-matrix__wallet-asset-amount', text: amount }),
-            usdStr ? el('span', { cls: 'parsec-matrix__wallet-asset-usd', text: usdStr }) : el('span'),
-          ]}));
-        }
-
-        if (enriched.length > 8) {
-          assetList.appendChild(el('div', { cls: 'parsec-matrix__wallet-asset-more', text: `+${enriched.length - 8} more` }));
-        }
-
-        summaryEl.appendChild(assetList);
-      }
-    } catch {
-      summaryEl.textContent = 'Could not fetch balance. Enter wallet for full view.';
-    }
+  // Animate the matrix screen apart, then hand off to the dashboard.
+  // The CSS animation runs 700ms; we keep WebGL rendering during the
+  // animation (so the rain visibly parts) and only cancel once we
+  // navigate so we never leave the canvas in an inconsistent state.
+  async function partAndEnter(): Promise<void> {
+    container.classList.add('parsec-matrix--parting');
+    await new Promise<void>((resolve) => setTimeout(resolve, 700));
+    cancelAnimation();
+    store.navigate('dashboard');
   }
 
   requestAnimationFrame(() => initGL());

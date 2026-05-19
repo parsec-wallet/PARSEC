@@ -13,6 +13,44 @@
   inset: 0;
   overflow: hidden;
   background: #000;
+
+  // Parting transition: triggered on successful unlock from the matrix
+  // screen. The two halves slide outward, the centre fades, and the
+  // dashboard underneath is revealed. Total duration ≈ 700ms.
+  &--parting {
+    pointer-events: none;
+    animation: parsec-matrix-fade 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  &--parting .parsec-matrix__canvas,
+  &--parting .parsec-matrix__overlay {
+    animation: parsec-matrix-part 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  // Floating widgets (pyramid, glyphs, brand, panel) ride the parting:
+  // they drift up and fade so they don't look pinned against the slit.
+  &--parting .parsec-matrix__panel,
+  &--parting .parsec-matrix__pyramid,
+  &--parting .parsec-matrix__glyph-layer,
+  &--parting .parsec-matrix__brand {
+    animation: parsec-matrix-lift 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+}
+
+@keyframes parsec-matrix-part {
+  0%   { clip-path: inset(0 0 0 0); opacity: 1; }
+  60%  { clip-path: inset(0 48% 0 48%); opacity: 0.7; }
+  100% { clip-path: inset(0 50% 0 50%); opacity: 0; }
+}
+
+@keyframes parsec-matrix-fade {
+  0%   { background: #000; }
+  100% { background: transparent; }
+}
+
+@keyframes parsec-matrix-lift {
+  0%   { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-24px); opacity: 0; }
 }
 
 .parsec-matrix__canvas {
@@ -1245,7 +1283,10 @@
   padding: $spacing-3 $spacing-4;
   backdrop-filter: blur(16px);
   min-width: 160px;
-  pointer-events: none;
+
+  // pointer-events: auto (default) — the panel must register hover events
+  // so the cursor can travel from the trigger onto the panel and into the
+  // CoinGecko / Chart links without the panel being torn down.
   animation: parsec-panel-in 0.15s ease;
 }
 

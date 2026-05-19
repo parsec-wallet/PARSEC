@@ -16,6 +16,41 @@ let lastFetch = 0;
 const CACHE_TTL = 60 * 1000;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
+/** Fetch a specific set of coins by CoinGecko id. Used for the favourites
+ *  strip — these may sit outside the top-100-by-mcap window returned by
+ *  fetchPrices(). Cached 60s per sorted-id-list key. */
+const byIdCache: Map<string, { at: number; data: CoinPrice[] }> = new Map();
+export async function fetchPricesByIds(ids: string[]): Promise<CoinPrice[]> {
+  if (ids.length === 0) return [];
+  const key = [...ids].sort().join(',');
+  const hit = byIdCache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL) return hit.data;
+
+  try {
+    const csv = encodeURIComponent(ids.join(','));
+    const response = await fetch(
+      `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${csv}&order=market_cap_desc&sparkline=false&price_change_percentage=24h`,
+      { signal: AbortSignal.timeout(10000) }
+    );
+    if (!response.ok) return hit?.data || [];
+    const data = await response.json() as Record<string, unknown>[];
+
+    const mapped = data.map(coin => ({
+      id: String(coin.id || ''),
+      symbol: String(coin.symbol || '').toUpperCase(),
+      usd: Number(coin.current_price || 0),
+      marketCap: Number(coin.market_cap || 0),
+      change24h: Number(coin.price_change_percentage_24h || 0),
+      image: String(coin.image || ''),
+    })).filter(c => c.id && c.usd > 0);
+
+    byIdCache.set(key, { at: Date.now(), data: mapped });
+    return mapped;
+  } catch {
+    return hit?.data || [];
+  }
+}
+
 /** Fetch top 100 coins by market cap from CoinGecko markets endpoint */
 export async function fetchPrices(): Promise<CoinPrice[]> {
   if (cache && Date.now() - lastFetch < CACHE_TTL) return cache;

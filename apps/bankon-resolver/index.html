@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BANKON Names — Resolver</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0a0a0a;
+      color: #e6e6e6;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+    .card {
+      max-width: 32rem;
+      width: 100%;
+      padding: 2rem;
+      background: #141414;
+      border: 1px solid #2a2a2a;
+      border-radius: 12px;
+    }
+    h1 { margin: 0 0 0.5rem 0; font-size: 1.5rem; letter-spacing: 0.04em; }
+    .tag { font-size: 0.85rem; color: #888; margin-bottom: 1.5rem; }
+    form { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+    input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      background: #1f1f1f;
+      border: 1px solid #333;
+      color: #fff;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    button {
+      padding: 0.75rem 1.25rem;
+      background: #c19a4b;
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+    button:hover { background: #d4ab5a; }
+    .result { background: #1c1c1c; padding: 1rem; border-radius: 6px; word-break: break-all; }
+    .result.error { border-left: 4px solid #a04646; }
+    .result.success { border-left: 4px solid #4ba066; }
+    .result a { color: #c19a4b; text-decoration: none; }
+    .result a:hover { text-decoration: underline; }
+    .key { color: #888; font-size: 0.8rem; }
+    .val { font-size: 0.95rem; margin-bottom: 0.5rem; }
+    footer { margin-top: 2rem; font-size: 0.75rem; color: #555; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>BANKON Names</h1>
+    <div class="tag">Sovereign Permaweb Resolver</div>
+    <form id="form">
+      <input id="name" type="text" placeholder="name (e.g. pythai)" autocomplete="off" autofocus />
+      <button type="submit">Resolve</button>
+    </form>
+    <div id="result"></div>
+    <footer>BNR &middot; <a id="bnr-link" href="#" style="color:#888;">view registry</a></footer>
+  </div>
+  <script type="module" src="./main.ts"></script>
+</body>
+</html>
