@@ -17,6 +17,15 @@ interface Entry {
 
 const forward = new Map<CacheKey, Entry>();
 const reverse = new Map<CacheKey, Entry>();
+const lookup = new Map<CacheKey, Entry>();
+
+// NFD lookup API per network. Mainnet and testnet have separate registries;
+// betanet has no NFD deployment so it shares the testnet endpoint.
+const NFD_API_BASE: Record<NetworkId, string> = {
+  mainnet: 'https://api.nf.domains',
+  testnet: 'https://api.testnet.nf.domains',
+  betanet: 'https://api.testnet.nf.domains',
+};
 
 function get(cache: Map<CacheKey, Entry>, key: CacheKey): Nfd | null | undefined {
   const entry = cache.get(key);
@@ -58,6 +67,45 @@ export async function resolveName(
   }
 }
 
+/**
+ * True existence check for a name — is it registered in the NFD registry,
+ * in ANY state?
+ *
+ * This is NOT resolveName(). resolveName() resolves a name to an *address*
+ * via the SDK and so reports an owned-but-bare name (one with no address
+ * records configured) as "not found" — which is wrong for an availability
+ * gate: such a name is taken and cannot be minted. `bankon.algo` is exactly
+ * that case.
+ *
+ * Here we hit the NFD lookup endpoint directly. HTTP 200 → the name is
+ * registered (state may be `owned`, `expired`, `forSale`, `reserved`, …);
+ * HTTP 404 → the name was never minted and is genuinely mintable.
+ *
+ * Throws on network/HTTP errors so a failed check is never silently treated
+ * as "available" — the caller must surface it and block the mint.
+ */
+export async function lookupNfd(
+  network: NetworkId,
+  name: string,
+): Promise<Nfd | null> {
+  const key: CacheKey = `${network}:${name}`;
+  const cached = get(lookup, key);
+  if (cached !== undefined) return cached;
+
+  const base = NFD_API_BASE[network] ?? NFD_API_BASE.mainnet;
+  const res = await fetch(`${base}/nfd/${encodeURIComponent(name)}?view=brief`);
+  if (res.status === 404) {
+    set(lookup, key, null);
+    return null;
+  }
+  if (!res.ok) {
+    throw new Error(`NFD lookup failed (HTTP ${res.status}) — cannot verify availability.`);
+  }
+  const nfd = (await res.json()) as Nfd;
+  set(lookup, key, nfd);
+  return nfd;
+}
+
 /** Return the primary NFD for an address, if any. */
 export async function resolveAddress(
   network: NetworkId,
@@ -80,6 +128,7 @@ export async function resolveAddress(
 export function invalidateNfdCaches(): void {
   forward.clear();
   reverse.clear();
+  lookup.clear();
 }
 
 /** Shorthand for the common "name or truncated address" display. */

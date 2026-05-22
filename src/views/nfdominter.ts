@@ -1,17 +1,18 @@
-// Parsec Wallet — NFDominter entry view.
-// Four tabs: Mint · Search · Mine · Manage. Each tab swaps its body into
-// the #parsec-nfdominter__body container without navigating — heavier
-// flows (review-and-sign) get their own AppView via store.navigate.
+// Parsec Wallet — NFDminter entry view.
+// Four tabs: Claim · Search · My Names · Subdomains. Each tab swaps its body
+// into the body container without navigating — heavier flows (review-and-
+// sign) get their own AppView via store.navigate. Tabs can also hand off to
+// one another (Search → Claim) through the `switchTab` callback.
 
 import { el, btn } from '../lib/dom';
 import { store } from '../lib/store';
 import { buildMintTab } from './nfdominter-mint';
-import { buildSearchTab } from './nfdominter-search';
-import { buildMineTab } from './nfdominter-manage';
+import { buildNamesTab } from './nfdominter-manage';
+import { buildSubdomainsTab } from './nfdominter-subdomains';
 
-type Tab = 'mint' | 'search' | 'mine' | 'manage';
+export type NfdominterTab = 'mint' | 'names' | 'subdomains';
 
-let activeTab: Tab = 'mint';
+let activeTab: NfdominterTab = 'mint';
 
 export function nfdominterView(): HTMLElement {
   const state = store.get();
@@ -21,32 +22,31 @@ export function nfdominterView(): HTMLElement {
     store.navigate('onboarding');
     return el('div');
   }
+  const network = state.settings.network;
 
   const body = el('div', { cls: 'parsec-nfdominter__body' });
 
-  const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'mint', label: 'Mint', icon: 'plus' },
-    { id: 'search', label: 'Search', icon: 'search' },
-    { id: 'mine', label: 'Mine', icon: 'tag' },
-    { id: 'manage', label: 'Manage', icon: 'cog' },
+  const tabs: { id: NfdominterTab; label: string; icon: string }[] = [
+    { id: 'mint', label: 'Claim', icon: 'search' },
+    { id: 'names', label: 'My Names', icon: 'tag' },
+    { id: 'subdomains', label: 'Subdomains', icon: 'diagram-tree' },
   ];
 
-  const tabButtons: Record<Tab, HTMLButtonElement> = {} as Record<Tab, HTMLButtonElement>;
+  const tabButtons: Record<NfdominterTab, HTMLButtonElement> = {} as Record<NfdominterTab, HTMLButtonElement>;
 
-  const renderBody = () => {
+  const switchTab = (tab: NfdominterTab): void => { activeTab = tab; renderBody(); };
+
+  const renderBody = (): void => {
     body.innerHTML = '';
     switch (activeTab) {
       case 'mint':
-        body.appendChild(buildMintTab(account.address, state.settings.network));
+        body.appendChild(buildMintTab(account.address, network));
         break;
-      case 'search':
-        body.appendChild(buildSearchTab(state.settings.network));
+      case 'names':
+        body.appendChild(buildNamesTab(account.address, network, switchTab));
         break;
-      case 'mine':
-        body.appendChild(buildMineTab(account.address, state.settings.network, 'mine'));
-        break;
-      case 'manage':
-        body.appendChild(buildMineTab(account.address, state.settings.network, 'manage'));
+      case 'subdomains':
+        body.appendChild(buildSubdomainsTab(account.address, network, switchTab));
         break;
     }
     for (const t of tabs) {
@@ -61,7 +61,7 @@ export function nfdominterView(): HTMLElement {
         minimal: true,
         icon: t.icon,
         cls: 'parsec-nfdominter__tab',
-        onClick: () => { activeTab = t.id; renderBody(); },
+        onClick: () => switchTab(t.id),
       });
       tabButtons[t.id] = b;
       return b;
@@ -72,17 +72,17 @@ export function nfdominterView(): HTMLElement {
     cls: 'parsec-view__header',
     children: [
       btn('Back', { minimal: true, icon: 'arrow-left', onClick: () => store.navigate('dashboard') }),
-      el('h2', { cls: 'parsec-view__title', text: 'NFDominter' }),
+      el('h2', { cls: 'parsec-view__title', text: 'NFDminter' }),
       el('span', {
-        cls: `parsec-network-badge parsec-network-badge--${state.settings.network}`,
-        text: state.settings.network.toUpperCase(),
+        cls: `parsec-network-badge parsec-network-badge--${network}`,
+        text: network.toUpperCase(),
       }),
     ],
   });
 
   const tagline = el('p', {
     cls: 'parsec-view__desc',
-    text: 'Mint and manage .algo names. Powered by NFD contracts on Algorand — hosted in Parsec by BANKON.',
+    text: 'Claim and manage .algo names. Powered by NFD contracts on Algorand.',
   });
 
   renderBody();

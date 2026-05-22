@@ -3,15 +3,19 @@
 import { el, btn, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
 import { listDashboardModules } from '../lib/dashboard';
+import { createWalletSwitcher } from '../lib/dashboard/wallet-switcher';
+import { getChainDescriptor } from '../lib/chains';
+import type { ChainId } from '../lib/pouch/types';
 import type { DashboardContext } from '../lib/dashboard-modules';
 import { fetchAccountInfo, microAlgosToAlgo } from '../lib/algorand/account';
 import { fetchTransactions } from '../lib/algorand/transactions';
 import { enrichAssets, formatAssetAmount, optOutFromAsset, lookupAsset } from '../lib/algorand/assets';
 import { resolveIpfsUrl } from '../lib/algorand/ipfs-gateway';
+import { resolveAddress } from '../lib/nfd';
 import { keystoreRetrieve } from '../lib/keystore';
-import { startPriceUpdates, formatPrice, fetchPrices } from '../lib/prices';
+import { formatPrice, fetchPrices, fetchPricesByIds } from '../lib/prices';
 import type { CoinPrice } from '../lib/prices';
-import type { AccountInfo, TransactionRecord, NetworkId } from '../types/wallet';
+import type { AccountInfo, TransactionRecord, NetworkId, WalletAccount } from '../types/wallet';
 
 export function dashboardView(): HTMLElement {
   const state = store.get();
@@ -20,13 +24,16 @@ export function dashboardView(): HTMLElement {
 
   const container = el('div', { cls: 'parsec-view parsec-dashboard' });
 
-  // Header — PARSEC + live ticking price
+  // Which chain this account is being viewed on — drives the price tag,
+  // the panel below, and (via the router) re-render on a chain switch.
+  const activeChain = (account.activeChain ?? 'algorand') as ChainId;
+
+  // Header — PARSEC + price for the active chain's native asset.
   const priceTag = el('span', { cls: 'parsec-dashboard__price-tag', text: '$...' });
+  const priceCoinId = getChainDescriptor(activeChain).priceId ?? 'algorand';
 
   function updatePriceTag(coinPrices: CoinPrice[]) {
-    const chainPriceId: Record<string, string> = { mainnet: 'algorand', testnet: 'algorand', betanet: 'algorand' };
-    const id = chainPriceId[state.settings.network] || 'algorand';
-    const coin = coinPrices.find(p => p.id === id);
+    const coin = coinPrices.find(p => p.id === priceCoinId);
     if (coin) {
       const sign = coin.change24h >= 0 ? '+' : '';
       const changeCls = coin.change24h >= 0 ? 'parsec-dashboard__change--up' : 'parsec-dashboard__change--down';
@@ -41,8 +48,8 @@ export function dashboardView(): HTMLElement {
     }
   }
 
-  // Live price — updates every 60s
-  startPriceUpdates(updatePriceTag);
+  // Fetch by explicit id — Arweave can sit outside the top-100 markets list.
+  fetchPricesByIds([priceCoinId]).then(updatePriceTag);
 
   const header = el('div', {
     cls: 'parsec-dashboard__header',
@@ -51,6 +58,7 @@ export function dashboardView(): HTMLElement {
         el('div', { cls: 'parsec-logo parsec-logo--small', text: 'PARSEC' }),
         priceTag,
       ]}),
+      createWalletSwitcher(),
       el('div', {
         cls: 'parsec-dashboard__nav',
         children: [
@@ -72,6 +80,13 @@ export function dashboardView(): HTMLElement {
     ],
   });
 
+  // Non-Algorand chains render a focused per-chain wallet panel. Algorand
+  // keeps the full dashboard below (balance + assets + transactions + modules).
+  if (activeChain !== 'algorand') {
+    container.append(header, renderChainPanel(account, activeChain));
+    return container;
+  }
+
   // Public Receive Key
   const addr = account.address;
   const keyText = el('span', { cls: 'parsec-pubkey__text', text: `${addr.slice(0, 6)} ···· ${addr.slice(-6)}` });
@@ -84,10 +99,18 @@ export function dashboardView(): HTMLElement {
   keyValue.addEventListener('mouseenter', () => { keyText.textContent = addr; keyValue.classList.add('parsec-pubkey--expanded'); });
   keyValue.addEventListener('mouseleave', () => { keyText.textContent = `${addr.slice(0, 6)} ···· ${addr.slice(-6)}`; keyValue.classList.remove('parsec-pubkey--expanded'); });
 
+  // Primary .algo name — a quiet mark of identity above the raw key. Shown
+  // only when the address actually carries one; clicking it copies the name.
+  const nfdLine = el('div', {
+    cls: 'parsec-pubkey__nfd',
+    attrs: { hidden: 'true', title: 'Your .algo name — click to copy' },
+  });
+
   const publicKey = el('div', {
     cls: 'parsec-dashboard__pubkey',
     children: [
       el('div', { cls: 'parsec-dashboard__pubkey-label', text: 'Public Receive Key' }),
+      nfdLine,
       keyValue,
     ],
   });
@@ -95,6 +118,23 @@ export function dashboardView(): HTMLElement {
   // Network badge
   const network = state.settings.network;
   const networkBadge = el('div', { cls: `parsec-network-badge parsec-network-badge--${network}`, text: network.toUpperCase() });
+
+  // Resolve the address's primary .algo name and reveal the identity line.
+  void resolveAddress(network, addr)
+    .then((nfd) => {
+      if (!nfd?.name) return;
+      nfdLine.innerHTML = '';
+      nfdLine.append(
+        el('span', { cls: 'parsec-pubkey__nfd-mark', text: '◆' }),
+        el('span', { cls: 'parsec-pubkey__nfd-name', text: nfd.name }),
+      );
+      nfdLine.removeAttribute('hidden');
+      nfdLine.addEventListener('click', () => {
+        navigator.clipboard.writeText(nfd.name);
+        toast('.algo name copied', 'success');
+      });
+    })
+    .catch(() => { /* no NFD / offline — the line stays hidden */ });
 
   // Testnet faucet
   const faucetLink = network === 'testnet'
@@ -144,6 +184,79 @@ export function dashboardView(): HTMLElement {
 
   loadDashboardData(account.address, network, balanceEl, assetsEl, txList);
   return container;
+}
+
+// Focused per-chain wallet panel for any non-Algorand chain: address card,
+// live balance, send + receive, and an explorer link. Algorand keeps the
+// full dashboard; other chains get this until they grow their own surfaces.
+function renderChainPanel(account: WalletAccount, chainId: ChainId): HTMLElement {
+  const desc = getChainDescriptor(chainId);
+  const addr = getAccountAddress(account, chainId) ?? '';
+
+  const badge = el('div', {
+    cls: 'parsec-network-badge parsec-network-badge--mainnet',
+    text: `${desc.label.toUpperCase()} · MAINNET`,
+  });
+
+  // Address card — click to copy, hover to expand (mirrors the Algorand view).
+  const keyText = el('span', { cls: 'parsec-pubkey__text', text: desc.truncate(addr) });
+  const keyValue = el('div', {
+    cls: 'parsec-dashboard__pubkey-value',
+    attrs: { title: 'Click to copy' },
+    children: [keyText],
+    onClick: () => { navigator.clipboard.writeText(addr); toast(`${desc.label} address copied`, 'success'); },
+  });
+  keyValue.addEventListener('mouseenter', () => { keyText.textContent = addr; keyValue.classList.add('parsec-pubkey--expanded'); });
+  keyValue.addEventListener('mouseleave', () => { keyText.textContent = desc.truncate(addr); keyValue.classList.remove('parsec-pubkey--expanded'); });
+  const addressCard = el('div', {
+    cls: 'parsec-dashboard__pubkey',
+    children: [
+      el('div', { cls: 'parsec-dashboard__pubkey-label', text: `${desc.label} Address` }),
+      keyValue,
+    ],
+  });
+
+  // Live balance.
+  const balanceValue = el('div', { cls: 'parsec-dashboard__balance-value', text: '…' });
+  const balanceEl = el('div', {
+    cls: 'parsec-dashboard__balance',
+    children: [
+      el('div', { cls: 'parsec-dashboard__balance-label', text: 'Balance' }),
+      balanceValue,
+    ],
+  });
+  if (desc.balance) {
+    desc.balance(addr)
+      .then((b) => { balanceValue.textContent = b.display; })
+      .catch(() => { balanceValue.textContent = 'Unavailable'; });
+  } else {
+    balanceValue.textContent = `— ${desc.unit}`;
+  }
+
+  const actions = el('div', {
+    cls: 'parsec-chain-panel__actions',
+    children: [
+      btn('Send', {
+        intent: 'primary', icon: 'arrow-right', disabled: !desc.sendView,
+        onClick: () => { if (desc.sendView) store.navigate(desc.sendView as Parameters<typeof store.navigate>[0]); },
+      }),
+      btn('Receive', {
+        outlined: true, icon: 'download',
+        onClick: () => { navigator.clipboard.writeText(addr); toast(`${desc.label} address copied`, 'success'); },
+      }),
+    ],
+  });
+
+  const explorer = el('a', {
+    cls: 'parsec-faucet-link',
+    text: 'View on explorer',
+    attrs: { href: desc.explorerUrl(addr), target: '_blank', rel: 'noopener' },
+  });
+
+  return el('div', {
+    cls: 'parsec-chain-panel',
+    children: [badge, addressCard, balanceEl, actions, explorer],
+  });
 }
 
 async function loadDashboardData(address: string, network: NetworkId, balanceEl: HTMLElement, assetsEl: HTMLElement, txList: HTMLElement): Promise<void> {

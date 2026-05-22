@@ -6,7 +6,7 @@
 // as those phases land — additions only, no breaking changes.
 
 export { arweaveHdModule } from './module';
-export { deriveJwkFromMnemonic } from './seed';
+export { deriveJwkFromMnemonic, deriveJwkInWorker } from './seed';
 export {
   addressFromJwk,
   base64urlToBytes,

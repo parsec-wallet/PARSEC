@@ -164,6 +164,24 @@ export async function signTxFromVault(
 }
 
 /**
+ * Send AR to a recipient. A value transfer is an empty-data transaction with
+ * `target` + `quantity` set — it reuses the build → sign → upload path, so
+ * the vault retrieval and JWK zeroing are identical to a data upload.
+ */
+export async function transferAr(
+  address: string,
+  passphrase: string,
+  target: string,
+  quantityWinston: string,
+): Promise<TxReceipt> {
+  return uploadData(address, passphrase, {
+    data: new Uint8Array(0),
+    target,
+    quantityWinston,
+  });
+}
+
+/**
  * Post a signed transaction to the gateway with chunked upload. Progress
  * fires once per chunk for files >256 KiB; smaller payloads complete
  * in a single call.

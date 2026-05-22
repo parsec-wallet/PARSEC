@@ -29,6 +29,14 @@ const MAINNET: AoEndpoints = {
 
 let _endpoints: AoEndpoints = MAINNET;
 
+/**
+ * Canonical AOS module — the WASM interpreter a spawned process runs on.
+ * `Module` on a Spawn DataItem MUST be the TxID of a real uploaded module;
+ * this is the long-standing AOS 2.x module (sqlite + Handlers). A process
+ * loads its own Lua via the `On-Boot` tag — see buildAoSpawnInput({ onBoot }).
+ */
+export const AOS_MODULE = 'Do_Uc2Sju_ffp6Ev0AnLVdPtot15rvMjP-a9VVaA5fM';
+
 export function setAoEndpoints(endpoints: Partial<AoEndpoints>): void {
   _endpoints = { ..._endpoints, ...endpoints };
 }
@@ -153,11 +161,15 @@ export function buildAoMessageInput(opts: {
 }
 
 export function buildAoSpawnInput(opts: {
+  /** Module TxID — a real uploaded AOS module (see AOS_MODULE). */
   module: string;
   scheduler: string;
   data?: string | Uint8Array;
   tags?: DataItemTag[];
   anchor?: string;
+  /** When true, add `On-Boot: Data` so AOS evaluates the DataItem's Data
+   *  (the process's own bundled Lua source) on boot. */
+  onBoot?: boolean;
 }): { target: string; anchor?: string; tags: DataItemTag[]; data: Uint8Array | string } {
   const baseTags: DataItemTag[] = [
     { name: 'Data-Protocol', value: 'ao' },
@@ -167,6 +179,7 @@ export function buildAoSpawnInput(opts: {
     { name: 'Scheduler', value: opts.scheduler },
     { name: 'SDK', value: 'parsec-wallet' },
   ];
+  if (opts.onBoot) baseTags.push({ name: 'On-Boot', value: 'Data' });
   return {
     // Spawn targets the scheduler.
     target: opts.scheduler,

@@ -6,6 +6,7 @@ import type { WalletState, AppView, PendingSend, WalletAccount } from '../types/
 import type { ChainId } from './pouch/types';
 import { isTauri } from './vault';
 import { keystoreLock } from './keystore';
+import { defaultAvatarFor } from './avatars';
 
 type Listener = (state: WalletState) => void;
 
@@ -24,6 +25,7 @@ function migrateAccount(raw: unknown): WalletAccount {
     watchOnly: a.watchOnly,
     chains,
     activeChain: a.activeChain ?? 'algorand',
+    avatar: a.avatar ?? defaultAvatarFor(a.address),
   };
 }
 
@@ -138,6 +140,19 @@ class Store {
 
   navigate(view: AppView): void {
     this.set({ view, error: null });
+  }
+
+  /** Switch the active account and the chain it is viewed on. Clears the
+   *  cached Algorand account data (stale across a switch) and routes to the
+   *  dashboard. Single switch path for the wallet switcher and the per-chain
+   *  create flows (solana-create, arweave-create). */
+  selectChain(accountIndex: number, chainId: ChainId): void {
+    const accounts = [...this.state.accounts];
+    const acct = accounts[accountIndex];
+    if (!acct) return;
+    accounts[accountIndex] = { ...acct, activeChain: chainId };
+    this.set({ accounts, activeAccountIndex: accountIndex, accountInfo: null, transactions: [] });
+    this.navigate('dashboard');
   }
 
   subscribe(listener: Listener): () => void {

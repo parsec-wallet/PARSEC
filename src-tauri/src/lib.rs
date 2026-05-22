@@ -8,6 +8,7 @@ mod parsec_validate;
 mod parsec_connect;
 mod chain_btc;
 mod chain_ltc;
+mod network_monitor;
 
 use bankon_vault::VaultState;
 use bankon_vault::commands::*;
@@ -27,6 +28,8 @@ use parsec_connect::ConnectState;
 use parsec_connect::commands::*;
 use chain_btc::commands::*;
 use chain_ltc::commands::*;
+use network_monitor::NetworkMonitorState;
+use network_monitor::commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -46,6 +49,7 @@ pub fn run() {
         .manage(ThrottleState::default())
         .manage(SandboxState::default())
         .manage(ConnectState::default())
+        .manage(NetworkMonitorState::default())
         .invoke_handler(tauri::generate_handler![
             // pmvpn — wallet-authenticated SSH
             pmvpn_connect,
@@ -139,6 +143,10 @@ pub fn run() {
             chain_ltc_create_account,
             chain_ltc_derive_from_vault,
             chain_ltc_sign_psbt,
+            // network_monitor — opt-in local network + system snapshot
+            network_monitor_set_enabled,
+            network_info,
+            network_set_mac,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Parsec Wallet");

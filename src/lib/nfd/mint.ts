@@ -17,7 +17,8 @@ import algosdk from 'algosdk';
 import type { NetworkId } from '../../types/wallet';
 import { getAlgodClient } from '../algorand/client';
 import { getNfdClient } from './client';
-import { bankonFeeFor, BANKON_FEE_ADDRESS, isFeeConfigured } from './fees';
+import { lookupNfd, invalidateNfdCaches } from './resolve';
+import { bankonFeeFor, getBankonFeeAddress, isFeeConfigured } from './fees';
 import { makeParsecSigner } from './signer';
 import type {
   MintProgress,
@@ -75,6 +76,18 @@ export interface MintArgs {
 export async function mintNfdWithFee(args: MintArgs): Promise<Nfd> {
   const progress = (p: MintProgress) => args.onProgress?.(p);
 
+  // Pre-flight existence check. A name registered in ANY state cannot be
+  // minted — the NFD Registry rejects it on-chain with an opaque assert
+  // ("assert failed pc=..."). Catch it here with a message that says why.
+  progress({ stage: 'checking-availability' });
+  const existing = await lookupNfd(args.network, args.name);
+  if (existing) {
+    const owner = existing.owner ? ` It is owned by ${existing.owner}.` : '';
+    throw new Error(
+      `${args.name} is already registered (${existing.state ?? 'taken'}) and cannot be minted.${owner}`,
+    );
+  }
+
   progress({ stage: 'quoting' });
   const quote = await getMintQuoteWithBankonFee({
     network: args.network,
@@ -85,11 +98,8 @@ export async function mintNfdWithFee(args: MintArgs): Promise<Nfd> {
 
   const signer = makeParsecSigner(args.buyer, args.passphrase);
 
-  if (quote.bankonFee > 0n && isFeeConfigured()) {
-    progress({ stage: 'paying-bankon-fee' });
-    await payBankonFee(args.network, args.buyer, quote.bankonFee, signer);
-  }
-
+  // Mint FIRST. The NFD SDK simulates the mint group before submitting, so a
+  // registry rejection surfaces here — before any BANKON fee is charged.
   progress({ stage: 'awaiting-signature' });
   const client = getNfdClient(args.network).setSigner(args.buyer, signer);
 
@@ -99,6 +109,20 @@ export async function mintNfdWithFee(args: MintArgs): Promise<Nfd> {
     years: args.years,
     reservedFor: args.reservedFor,
   });
+
+  // The name is minted — only now collect BANKON's fee. A failure here does
+  // not undo the mint, so it is logged but is not fatal to the flow.
+  if (quote.bankonFee > 0n && isFeeConfigured()) {
+    progress({ stage: 'paying-bankon-fee' });
+    try {
+      await payBankonFee(args.network, args.buyer, quote.bankonFee, signer);
+    } catch (e) {
+      console.warn('NFD minted, but the BANKON fee payment failed:', e);
+    }
+  }
+
+  // The name now exists — drop cached lookups so a re-check reflects that.
+  invalidateNfdCaches();
 
   progress({
     stage: 'confirmed',
@@ -117,7 +141,7 @@ async function payBankonFee(
   const sp = await algod.getTransactionParams().do();
   const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
     sender: buyer,
-    receiver: BANKON_FEE_ADDRESS,
+    receiver: getBankonFeeAddress(),
     amount,
     suggestedParams: sp,
     note: new TextEncoder().encode('parsec:nfdominter:bankon-fee'),

@@ -101,7 +101,8 @@ export function solanaCreateView(): HTMLElement {
             accounts[state.activeAccountIndex] = updated;
             store.set({ accounts });
             toast('Solana address saved to vault', 'success');
-            store.navigate('dashboard');
+            // Land on the new Solana wallet, not the Algorand dashboard.
+            store.selectChain(state.activeAccountIndex, 'solana');
           } catch (err) {
             toast(err instanceof Error ? err.message : 'Save failed', 'danger');
             confirmed = false;

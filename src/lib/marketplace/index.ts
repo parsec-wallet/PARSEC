@@ -32,3 +32,20 @@ export {
   type Trade,
 } from './client';
 export { escrowBankonName, escrowArnsName } from './escrow';
+
+// Extensible provider layer — multiple marketplaces behind one interface.
+export {
+  registerMarketplaceProvider,
+  getMarketplaceProvider,
+  listMarketplaceProviders,
+  findListingsAcrossProviders,
+} from './providers';
+export type {
+  MarketAssetKind,
+  MarketBuyArgs,
+  MarketBuyResult,
+  MarketListing,
+  MarketQuote,
+  MarketplaceProvider,
+  SettlementMode,
+} from './providers';

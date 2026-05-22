@@ -5,8 +5,8 @@
 import './algorand-module';
 import './nfdominter-module';
 import './x402-module';
+import './chain-wallets-module';
 import './ario-module';
-import './solana-module';
 import './bankon-module';
 import './marketspace-module';
 

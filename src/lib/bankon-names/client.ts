@@ -44,7 +44,8 @@ export type ClaimIntent = 'Buy-Name' | 'Extend-Lease' | 'Upgrade-Name' | 'Primar
 
 function requireConfigured(): void {
   if (!isBnrConfigured()) {
-    throw new Error('BANKON Names Registry not yet spawned. Run scripts/spawn-bnr.mjs.');
+    // Wallet users can't run a CLI — point them at the in-wallet spawn flow.
+    throw new Error('BANKON Names Registry not yet spawned. Open the BANKON tile on the dashboard and choose “Setup” to spawn it.');
   }
 }
 

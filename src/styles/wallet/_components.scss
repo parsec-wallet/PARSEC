@@ -373,6 +373,16 @@
   &--leaving {
     animation: parsec-toast-out $transition-duration-slow $transition-timing-function forwards;
   }
+
+  // Click-to-copy / hover-to-pause toasts.
+  &--clickable {
+    cursor: pointer;
+  }
+
+  // A hovered toast is being read — hold it steady, hint it can be copied.
+  &--clickable:hover {
+    filter: brightness(1.08);
+  }
 }
 
 @keyframes parsec-toast-in {

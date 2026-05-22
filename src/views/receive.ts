@@ -5,6 +5,7 @@
 import { el, btn, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { encodeArc26 } from '../lib/algorand/arc26';
+import { resolveAddress } from '../lib/nfd';
 
 export function receiveView(): HTMLElement {
   const state = store.get();
@@ -42,6 +43,21 @@ export function receiveView(): HTMLElement {
   }
   rebuildUri();
 
+  // Primary .algo name — Parsec recognizes an NFD as part of the receive
+  // identity. Reverse-lookup is cached; render the chip only on a hit.
+  const nfdChip = el('div', { cls: 'parsec-receive__nfd', attrs: { hidden: 'true' } });
+  void resolveAddress(state.settings.network, account.address)
+    .then((nfd) => {
+      if (!nfd?.name) return;
+      nfdChip.innerHTML = '';
+      nfdChip.append(
+        el('span', { cls: 'parsec-receive__nfd-tag', text: '.algo' }),
+        el('span', { cls: 'parsec-receive__nfd-name', text: nfd.name }),
+      );
+      nfdChip.removeAttribute('hidden');
+    })
+    .catch(() => { /* no NFD / offline — leave the chip hidden */ });
+
   const amountInput = el('input', {
     cls: 'parsec-input',
     attrs: { type: 'number', step: '0.000001', min: '0', placeholder: 'Amount in ALGO (optional)' },
@@ -72,6 +88,7 @@ export function receiveView(): HTMLElement {
         cls: 'parsec-receive__address-box',
         children: [
           el('div', { cls: 'parsec-receive__label', text: 'Your Algorand Address' }),
+          nfdChip,
           el('div', { cls: 'parsec-receive__address', text: account.address }),
         ],
       }),

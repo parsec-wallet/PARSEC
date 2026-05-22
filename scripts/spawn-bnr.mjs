@@ -59,12 +59,10 @@ if (existsSync(PROCESS_ID_FILE) && !FORCE) {
 }
 
 // ── Lua source bundling ────────────────────────────────────────
-// AO modules use a `require('.foo')` resolver where '.foo' maps to a
-// sub-table on the bundled source. For a Spawn DataItem we ship the
-// concatenated handlers as the data payload; the process loads it via
-// `Eval` on first message. For initial production use the canonical
-// path is to publish each module via aos and reference a Module id;
-// for a self-spawned process we inline the source.
+// The concatenated handlers ship as the Spawn DataItem's `data` payload.
+// The process spawns on a real AOS module (ao.AOS_MODULE — the Module tag
+// MUST be a real uploaded module TxID), and the `On-Boot: Data` tag tells
+// AOS to evaluate that bundled Lua on boot.
 
 const concat = (files) => files.map(f => readFileSync(join(PROCESS_DIR, f), 'utf8')).join('\n\n-- ──\n\n');
 const luaSource = concat([
@@ -108,8 +106,9 @@ const spawnInput = {
     { name: 'Data-Protocol', value: 'ao' },
     { name: 'Variant', value: 'ao.TN.1' },
     { name: 'Type', value: 'Process' },
-    { name: 'Module', value: 'self-bundled' },
+    { name: 'Module', value: ao.AOS_MODULE },
     { name: 'Scheduler', value: DEFAULT_SCHEDULER },
+    { name: 'On-Boot', value: 'Data' },
     { name: 'Authority', value: AO_AUTHORITY },
     { name: 'Name', value: 'BANKON-Names' },
     { name: 'Initial-Controller', value: initialController },

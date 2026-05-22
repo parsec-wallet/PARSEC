@@ -94,3 +94,10 @@ export function arToWinston(ar: string): string {
   const arweave = getArweaveClient();
   return arweave.ar.arToWinston(ar);
 }
+
+/** Balance of an Arweave address, returned in AR (not winston). */
+export async function getArBalance(address: string): Promise<string> {
+  const arweave = getArweaveClient();
+  const winston = await arweave.wallets.getBalance(address);
+  return arweave.ar.winstonToAr(winston);
+}

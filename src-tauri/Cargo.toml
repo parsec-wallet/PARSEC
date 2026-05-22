@@ -67,3 +67,7 @@ sha2 = "0.10"
 bitcoin = { version = "0.32", features = ["rand-std"] }
 bip39 = "2.1"
 base64 = "0.22"
+
+# network_monitor — read-only local interface enumeration + CPU/GPU snapshot
+network-interface = "1"
+sysinfo = "0.32"

@@ -5,7 +5,8 @@
 //   * Transfer ARIO when an Arweave addr exists
 //   * ARIO → Solana migration (always; this is the June 1 deadline CTA)
 //
-// The Solana destination address chip lives in solana-module.
+// Arweave wallet creation lives in chain-wallets-module (rendered above this
+// row); this tile only carries ARIO-specific actions.
 
 import { el, btn } from '../dom';
 import { registerDashboardModule, type DashboardModule } from '../dashboard-modules';
@@ -17,28 +18,30 @@ export const arioDashboardModule: DashboardModule = {
   enabled: true,
   render(ctx) {
     const arweaveAddr = ctx.getChainAddress('arweave-hd') ?? ctx.getChainAddress('arweave');
+    const children: HTMLElement[] = [];
+    if (arweaveAddr) {
+      children.push(
+        btn('AR.IO Names', {
+          intent: 'primary',
+          icon: 'tag',
+          onClick: () => {
+            setActiveNamespaceId('arns');
+            ctx.navigate('name-hub');
+          },
+        }),
+        btn('Transfer ARIO', { outlined: true, icon: 'send-message', onClick: () => ctx.navigate('ario-transfer') }),
+      );
+    }
+    children.push(
+      btn('ARIO → Solana', {
+        intent: 'danger',
+        icon: 'exchange',
+        onClick: () => ctx.navigate('ario-migrate-solana'),
+      }),
+    );
     return el('div', {
       cls: 'parsec-dashboard__actions parsec-dashboard__ario-actions',
-      children: [
-        arweaveAddr
-          ? btn('AR.IO Names', {
-              intent: 'primary',
-              icon: 'tag',
-              onClick: () => {
-                setActiveNamespaceId('arns');
-                ctx.navigate('name-hub');
-              },
-            })
-          : btn('Create Arweave', { outlined: true, icon: 'plus', onClick: () => ctx.navigate('arweave-create') }),
-        arweaveAddr
-          ? btn('Transfer ARIO', { outlined: true, icon: 'send-message', onClick: () => ctx.navigate('ario-transfer') })
-          : el('span', {}),
-        btn('ARIO → Solana', {
-          intent: 'danger',
-          icon: 'exchange',
-          onClick: () => ctx.navigate('ario-migrate-solana'),
-        }),
-      ],
+      children,
     });
   },
 };

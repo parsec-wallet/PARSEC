@@ -85,8 +85,14 @@ export function btn(
   if (opts?.outlined) classes.push('bp5-outlined');
   if (opts?.cls) classes.push(opts.cls);
 
+  // "Back" buttons render as a stylish circular chevron (see _buttons.scss):
+  // the label text + Blueprint icon are hidden, a pure-CSS arrow drawn instead.
+  const isBack = label === 'Back' || label.startsWith('Back ');
+  if (isBack) classes.push('parsec-back-btn');
+
   b.className = classes.join(' ');
   if (opts?.disabled) b.disabled = true;
+  if (isBack) b.setAttribute('aria-label', label); // text is visually hidden
 
   if (opts?.icon) {
     const iconSpan = document.createElement('span');
@@ -104,8 +110,18 @@ export function btn(
   return b;
 }
 
-/** Show a toast notification */
-export function toast(message: string, intent: 'success' | 'danger' | 'warning' | 'primary' = 'primary'): void {
+/**
+ * Show a toast notification.
+ *
+ * Errors and warnings stay up much longer than a success ping, hovering
+ * pauses dismissal so a long message can be read, and clicking copies the
+ * full text to the clipboard. `durationMs` overrides the per-intent default.
+ */
+export function toast(
+  message: string,
+  intent: 'success' | 'danger' | 'warning' | 'primary' = 'primary',
+  durationMs?: number,
+): void {
   const existing = document.querySelector('.parsec-toast-container');
   const container = existing || document.createElement('div');
   if (!existing) {
@@ -114,13 +130,37 @@ export function toast(message: string, intent: 'success' | 'danger' | 'warning' 
   }
 
   const t = el('div', {
-    cls: `parsec-toast bp5-intent-${intent}`,
+    cls: `parsec-toast parsec-toast--clickable bp5-intent-${intent}`,
     text: message,
+    attrs: { title: 'Click to copy this message' },
+  });
+
+  const life = durationMs ?? (
+    intent === 'danger' ? 60000
+      : intent === 'warning' ? 12000
+        : 3500
+  );
+
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const dismiss = (): void => {
+    if (timer) { clearTimeout(timer); timer = null; }
+    t.classList.add('parsec-toast--leaving');
+    setTimeout(() => t.remove(), 300);
+  };
+  const schedule = (ms: number): void => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(dismiss, ms);
+  };
+
+  // Hovering pauses dismissal so a long error can be read in full.
+  t.addEventListener('mouseenter', () => { if (timer) { clearTimeout(timer); timer = null; } });
+  t.addEventListener('mouseleave', () => schedule(5000));
+  // Clicking copies the full message to the clipboard, then dismisses.
+  t.addEventListener('click', () => {
+    void navigator.clipboard.writeText(message).catch(() => { /* clipboard unavailable */ });
+    dismiss();
   });
 
   container.appendChild(t);
-  setTimeout(() => {
-    t.classList.add('parsec-toast--leaving');
-    setTimeout(() => t.remove(), 300);
-  }, 3000);
+  schedule(life);
 }

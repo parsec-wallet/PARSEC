@@ -1,46 +1,54 @@
-// Mint tab — search-as-you-type name input, live tier/availability/price
-// feedback, BANKON fee line, and a Mint button that kicks off the review
+// Claim tab — search-as-you-type name input, live tier/availability/price
+// feedback, NFDminter fee line, and a Claim button that kicks off the review
 // flow via the connect-style confirm view.
 
-import { el, input, btn, toast } from '../lib/dom';
+import { el, input, btn } from '../lib/dom';
 import { store } from '../lib/store';
 import {
   classifyTier,
   getMintQuoteWithBankonFee,
-  isFeeConfigured,
   normalizeName,
   nameError,
   rootLength,
-  resolveName,
+  lookupNfd,
   type Nfd,
   type NfdMintCostBreakdown,
   type NfdTier,
 } from '../lib/nfd';
 import type { NetworkId } from '../types/wallet';
+import { findListingsAcrossProviders, getMarketplaceProvider, type MarketListing } from '../lib/marketplace';
 import { setNfdPendingMint } from './nfdominter-confirm';
+import { setNfdPendingBuy } from './nfdominter-buy';
 
 interface LookupState {
   name: string;
   error: string | null;
   existing: Nfd | null;
   quote: NfdMintCostBreakdown | null;
+  /** Marketplace listings for a taken name — an optional way to buy it. */
+  listings: MarketListing[];
   loading: boolean;
 }
 
 const DEBOUNCE_MS = 350;
 
 export function buildMintTab(buyer: string, network: NetworkId): HTMLElement {
-  const state: LookupState = { name: '', error: null, existing: null, quote: null, loading: false };
+  const state: LookupState = { name: '', error: null, existing: null, quote: null, listings: [], loading: false };
   let debounce: ReturnType<typeof setTimeout> | null = null;
 
   const nameInput = input({
-    placeholder: 'yourname',
+    placeholder: 'search a name…',
     cls: 'parsec-nfdominter__name-input bp5-input bp5-large',
     onInput: (raw) => {
       state.name = raw;
       if (debounce) clearTimeout(debounce);
       debounce = setTimeout(() => { void refresh(); }, DEBOUNCE_MS);
       render();
+    },
+    // Enter searches immediately, without waiting out the debounce.
+    onEnter: () => {
+      if (debounce) { clearTimeout(debounce); debounce = null; }
+      void refresh();
     },
   });
 
@@ -62,11 +70,12 @@ export function buildMintTab(buyer: string, network: NetworkId): HTMLElement {
   const feedback = el('div', { cls: 'parsec-nfdominter__feedback' });
   const quoteBox = el('div', { cls: 'parsec-nfdominter__quote' });
 
-  const mintButton = btn('Mint', {
+  const mintButton = btn('Claim .algo', {
     intent: 'primary',
     large: true,
     icon: 'confirm',
     disabled: true,
+    cls: 'parsec-nfdominter__mint-btn',
     onClick: () => startMint(),
   });
 
@@ -75,6 +84,7 @@ export function buildMintTab(buyer: string, network: NetworkId): HTMLElement {
     state.error = nameError(state.name);
     state.existing = null;
     state.quote = null;
+    state.listings = [];
     if (state.error || !full) {
       render();
       return;
@@ -82,8 +92,13 @@ export function buildMintTab(buyer: string, network: NetworkId): HTMLElement {
     state.loading = true;
     render();
     try {
-      const [existing, yearsRaw] = [await resolveName(network, full), Number(yearsInput.value) || 1];
+      const [existing, yearsRaw] = [await lookupNfd(network, full), Number(yearsInput.value) || 1];
       state.existing = existing;
+      if (existing) {
+        // Taken — but it may be listed for sale. Ask every marketplace.
+        state.listings = await findListingsAcrossProviders(full, network, 'nfd-name')
+          .catch(() => []);
+      }
       if (!existing) {
         try {
           state.quote = await getMintQuoteWithBankonFee({
@@ -147,6 +162,11 @@ export function buildMintTab(buyer: string, network: NetworkId): HTMLElement {
             : 'Taken.',
       }));
       mintButton.disabled = true;
+      // A taken name can't be minted — but if a marketplace lists it,
+      // surface an optional way to buy.
+      if (!mineByAddress) {
+        for (const listing of state.listings) quoteBox.appendChild(renderBuyOption(listing));
+      }
       return;
     }
     // Available
@@ -162,10 +182,6 @@ export function buildMintTab(buyer: string, network: NetworkId): HTMLElement {
 
   function startMint() {
     if (!state.quote) return;
-    if (!isFeeConfigured()) {
-      toast('BANKON fee address not configured at build time. Mint skipped.', 'warning');
-      return;
-    }
     setNfdPendingMint({
       name: state.quote.nfdName,
       buyer,
@@ -195,12 +211,38 @@ export function buildMintTab(buyer: string, network: NetworkId): HTMLElement {
   });
 }
 
+/** A "this name is for sale" row — the optional buy path for a taken name. */
+function renderBuyOption(listing: MarketListing): HTMLElement {
+  const provider = getMarketplaceProvider(listing.providerId);
+  const price = listing.priceMinor !== undefined
+    ? `${(Number(listing.priceMinor) / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${listing.priceCurrency ?? 'ALGO'}`
+    : 'price at checkout';
+  return el('div', {
+    cls: 'parsec-nfdominter__buy-option',
+    children: [
+      el('div', {
+        cls: 'parsec-nfdominter__buy-info',
+        children: [
+          el('span', { cls: 'parsec-nfdominter__buy-tag', text: 'For sale' }),
+          el('span', { cls: 'parsec-nfdominter__buy-price', text: price }),
+          el('span', { cls: 'parsec-nfdominter__hint', text: `via ${provider?.displayName ?? listing.providerId}` }),
+        ],
+      }),
+      btn('Buy', {
+        intent: 'primary',
+        icon: 'shopping-cart',
+        onClick: () => { setNfdPendingBuy(listing); store.navigate('nfdominter-buy'); },
+      }),
+    ],
+  });
+}
+
 function renderQuote(q: NfdMintCostBreakdown): HTMLElement {
   const rows: (HTMLElement | string)[] = [
     rowFor('NFD price', q.basePrice),
     rowFor('Contract funding', q.carryCost),
     rowFor('Network fee', q.extraFee),
-    rowFor('BANKON fee', q.bankonFee, true),
+    rowFor('NFDminter fee', q.bankonFee, true),
   ];
   rows.push(el('div', { cls: 'parsec-nfdominter__quote-total', children: [
     el('span', { text: 'You pay' }),

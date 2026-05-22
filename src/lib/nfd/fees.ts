@@ -2,7 +2,7 @@
 //
 // The NFD Registry hardcodes its treasury and commission addresses as TEAL
 // template variables — we can't redirect those. Parsec's own fee is
-// therefore an additional payment transaction sent to BANKON_FEE_ADDRESS
+// therefore an additional payment transaction sent to the BANKON treasury
 // alongside the SDK-produced mint group.
 //
 // Fee policy is intentionally small and fully visible in the mint
@@ -10,16 +10,33 @@
 // microAlgo amount, and the source code rule that produced it.
 
 import type { NfdMintQuote } from '@txnlab/nfd-sdk';
+import { store, getAccountAddress } from '../store';
+
+// Optional production override — a build-time env address. When unset (the
+// default), the treasury resolves at runtime from the wallet (see below).
+const ENV_FEE_ADDRESS: string = import.meta.env.VITE_BANKON_FEE_ADDRESS ?? '';
+
+function isAlgoAddress(a: string): boolean {
+  return typeof a === 'string' && a.length === 58;
+}
 
 /**
- * BANKON fee receiving address (mainnet + testnet share one target for now).
- * Set via env at build time in production; falls back to a zero-placeholder
- * during development so the mint flow remains testable without real funds
- * flowing to an unknown address.
+ * BANKON treasury — the address that receives the BANKON mint fee.
+ *
+ * The treasury is the wallet's **first account** Algorand address (its key has
+ * never been compromised). A `VITE_BANKON_FEE_ADDRESS` env value overrides it
+ * when set to a valid 58-char address, for production deployments that route
+ * the fee to a dedicated treasury.
  */
-export const BANKON_FEE_ADDRESS: string =
-  import.meta.env.VITE_BANKON_FEE_ADDRESS ??
-  'BANKON_FEE_ADDRESS_NOT_CONFIGURED';
+export function getBankonFeeAddress(): string {
+  if (isAlgoAddress(ENV_FEE_ADDRESS)) return ENV_FEE_ADDRESS;
+  const first = store.get().accounts[0];
+  if (first) {
+    const algo = getAccountAddress(first, 'algorand') ?? first.address;
+    if (isAlgoAddress(algo)) return algo;
+  }
+  return 'BANKON_FEE_ADDRESS_NOT_CONFIGURED';
+}
 
 /** Fee policy. Tweak in one place. */
 export interface BankonFeeConfig {
@@ -36,15 +53,14 @@ export interface BankonFeeConfig {
 }
 
 export const BANKON_FEE_CONFIG: BankonFeeConfig = {
-  flatMicroAlgos: 250_000n, // 0.25 ALGO
+  flatMicroAlgos: 2_000_000n, // 2 ALGO
   premiumBps: 0,
   waivedAddresses: new Set(),
 };
 
 /**
  * Compute BANKON's fee for a given quote + buyer. Returns 0 if waived or
- * if the receiving address is not configured (dev mode — we refuse to
- * collect a fee to a placeholder).
+ * if the treasury address cannot be resolved (e.g. no wallet yet).
  */
 export function bankonFeeFor(
   quote: Pick<NfdMintQuote, 'basePrice' | 'isSegment'>,
@@ -58,10 +74,7 @@ export function bankonFeeFor(
   return cfg.flatMicroAlgos + premium;
 }
 
-/** True once a real BANKON fee address has been wired at build time. */
+/** True once the BANKON treasury address resolves to a valid Algorand address. */
 export function isFeeConfigured(): boolean {
-  return (
-    BANKON_FEE_ADDRESS !== 'BANKON_FEE_ADDRESS_NOT_CONFIGURED' &&
-    BANKON_FEE_ADDRESS.length === 58
-  );
+  return isAlgoAddress(getBankonFeeAddress());
 }

@@ -2142,6 +2142,33 @@
   }
 }
 
+// Primary .algo identity — a quiet, confident mark above the raw key.
+.parsec-pubkey__nfd {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-1;
+  margin-bottom: $spacing-2;
+  padding: $spacing-1 $spacing-3;
+  border-radius: $border-radius-full;
+  cursor: pointer;
+  background: rgba($color-primary, 0.08);
+  transition: background 0.15s ease;
+
+  &:hover { background: rgba($color-primary, 0.14); }
+  &[hidden] { display: none; }
+}
+
+.parsec-pubkey__nfd-mark {
+  font-size: $font-size-xs;
+  color: $color-primary;
+}
+
+.parsec-pubkey__nfd-name {
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.02em;
+  color: $color-primary;
+}
+
 .parsec-network-badge {
   display: inline-block;
   font-size: $font-size-xs;
@@ -2357,6 +2384,30 @@
   font-size: $font-size-xs;
   word-break: break-all;
   line-height: $line-height-relaxed;
+  color: var(--bp-text-color, $color-gray-900);
+}
+
+// Primary .algo name — shown above the raw address when one resolves.
+.parsec-receive__nfd {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+  margin-bottom: $spacing-3;
+  padding: $spacing-1 $spacing-3;
+  border-radius: $border-radius-lg;
+  background: rgba($color-primary, 0.1);
+}
+
+.parsec-receive__nfd-tag {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: $color-primary;
+}
+
+.parsec-receive__nfd-name {
+  font-weight: $font-weight-semibold;
   color: var(--bp-text-color, $color-gray-900);
 }
 
@@ -2690,6 +2741,44 @@
   font-family: $font-family-mono;
   font-size: $font-size-xs;
   color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-settings__account-wrap {
+  margin-bottom: $spacing-2;
+}
+
+.parsec-settings__account-name {
+  font-weight: $font-weight-medium;
+}
+
+.parsec-settings__avatar.bp5-button {
+  min-width: 2rem;
+  padding: 0;
+  font-size: $font-size-lg;
+  line-height: 1;
+}
+
+.parsec-settings__avatar-picker {
+  display: none;
+  flex-wrap: wrap;
+  gap: $spacing-1;
+  padding: $spacing-2 $spacing-3;
+  margin-top: -$spacing-1;
+
+  &--open {
+    display: flex;
+  }
+}
+
+.parsec-settings__avatar-option.bp5-button {
+  min-width: 2.25rem;
+  padding: $spacing-1;
+  font-size: $font-size-lg;
+  line-height: 1;
+
+  &:hover {
+    background: var(--bp-background-color-tertiary, $color-gray-200);
+  }
 }
 
 .parsec-settings__danger {
@@ -3401,4 +3490,1101 @@
   &--danger {
     color: $color-danger;
   }
+}
+
+// ==========================================================================
+// NFDOMINTER — .algo name minting (Mint · Search · Mine · Manage)
+// ==========================================================================
+
+.parsec-nfdominter {
+  max-width: 560px;
+}
+
+// --- Tab bar ---------------------------------------------------------------
+.parsec-nfdominter__tabs {
+  display: flex;
+  gap: $spacing-1;
+  border-bottom: 1px solid var(--bp-border-color, $color-gray-200);
+  margin-bottom: $spacing-5;
+}
+
+.parsec-nfdominter__tab.bp5-button {
+  flex: 1;
+  justify-content: center;
+  border-radius: 0;
+  padding: $spacing-3 $spacing-2;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  border-bottom: 2px solid transparent;
+  transition: $transition-colors;
+
+  &:hover {
+    color: var(--bp-text-color, $color-gray-900);
+  }
+}
+
+.parsec-nfdominter__tab--active.bp5-button {
+  color: $color-primary;
+  border-bottom-color: $color-primary;
+  font-weight: $font-weight-semibold;
+}
+
+// --- Mint tab --------------------------------------------------------------
+.parsec-nfdominter__mint {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+}
+
+.parsec-nfdominter__name-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+}
+
+.parsec-nfdominter__name-input {
+  flex: 1;
+}
+
+.parsec-nfdominter__suffix {
+  flex-shrink: 0;
+  font-family: $font-family-mono;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-lg;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__years-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+}
+
+.parsec-nfdominter__label {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__years-input {
+  width: 5rem;
+}
+
+// --- Feedback chips --------------------------------------------------------
+.parsec-nfdominter__feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+  min-height: 1.75rem;
+}
+
+.parsec-nfdominter__hint {
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+
+  &--error {
+    color: $color-danger;
+  }
+}
+
+.parsec-nfdominter__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $border-radius-full;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: capitalize;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+// length chips — neutral info tint, one shared rule for --len-1 … --len-10
+.parsec-nfdominter__chip[class*='--len-'] {
+  background: rgba($color-info, 0.12);
+  color: $color-info;
+}
+
+// tier chips — curated | premium | common-short | common
+.parsec-nfdominter__chip--tier-curated {
+  background: rgba($color-primary, 0.15);
+  color: $color-primary;
+}
+
+.parsec-nfdominter__chip--tier-premium {
+  background: rgba($color-warning, 0.15);
+  color: $color-warning;
+}
+
+.parsec-nfdominter__chip--tier-common-short {
+  background: rgba($color-success, 0.15);
+  color: $color-success;
+}
+
+// tier-common keeps the neutral base.
+
+// state chips — available | yours | owned | reserved | forSale | …
+.parsec-nfdominter__chip--state-available {
+  background: rgba($color-success, 0.15);
+  color: $color-success;
+}
+
+.parsec-nfdominter__chip--state-yours {
+  background: rgba($color-primary, 0.15);
+  color: $color-primary;
+}
+
+.parsec-nfdominter__chip--state-owned,
+.parsec-nfdominter__chip--state-reserved {
+  background: rgba($color-danger, 0.15);
+  color: $color-danger;
+}
+
+.parsec-nfdominter__chip--state-forSale {
+  background: rgba($color-warning, 0.15);
+  color: $color-warning;
+}
+
+// --- Quote box -------------------------------------------------------------
+.parsec-nfdominter__quote-box {
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-lg;
+  background: var(--bp-background-color-secondary, $color-gray-50);
+  padding: $spacing-2 $spacing-4;
+}
+
+.parsec-nfdominter__quote-row {
+  display: flex;
+  justify-content: space-between;
+  padding: $spacing-2 0;
+  font-size: $font-size-sm;
+  border-bottom: 1px solid var(--bp-border-color, $color-gray-200);
+
+  span:last-child {
+    font-family: $font-family-mono;
+  }
+
+  &--bankon {
+    color: $color-primary;
+  }
+}
+
+.parsec-nfdominter__quote-total {
+  display: flex;
+  justify-content: space-between;
+  margin-top: $spacing-1;
+  padding-top: $spacing-3;
+  border-top: 2px solid var(--bp-border-color, $color-gray-300);
+  font-weight: $font-weight-bold;
+  font-size: $font-size-base;
+
+  span:last-child {
+    font-family: $font-family-mono;
+  }
+}
+
+.parsec-nfdominter__mint-btn {
+  width: 100%;
+  margin-top: $spacing-2;
+}
+
+// --- Search tab ------------------------------------------------------------
+.parsec-nfdominter__search {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.parsec-nfdominter__search-controls {
+  display: flex;
+  gap: $spacing-2;
+}
+
+.parsec-nfdominter__search-input {
+  flex: 1;
+}
+
+.parsec-nfdominter__search-status {
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: $spacing-3;
+}
+
+.parsec-nfdominter__card {
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-left: 3px solid var(--bp-border-color, $color-gray-300);
+  border-radius: $border-radius-md;
+  padding: $spacing-3;
+  transition: $transition-all;
+
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+
+  &--state-available { border-left-color: $color-success; }
+  &--state-yours { border-left-color: $color-primary; }
+
+  &--state-owned,
+  &--state-reserved { border-left-color: $color-danger; }
+  &--state-forSale { border-left-color: $color-warning; }
+}
+
+.parsec-nfdominter__card-name {
+  font-weight: $font-weight-semibold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: $spacing-1;
+}
+
+.parsec-nfdominter__card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-1 $spacing-2;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__card-state {
+  text-transform: capitalize;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-nfdominter__card-owner {
+  font-family: $font-family-mono;
+}
+
+.parsec-nfdominter__card-sale {
+  margin-top: $spacing-1;
+  font-size: $font-size-xs;
+  color: $color-success;
+}
+
+// --- Mine / Manage tab -----------------------------------------------------
+.parsec-nfdominter__mine {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.parsec-nfdominter__list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.parsec-nfdominter__list-status {
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__row {
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-md;
+  padding: $spacing-3;
+}
+
+.parsec-nfdominter__row-head {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  cursor: pointer;
+  user-select: none;
+}
+
+.parsec-nfdominter__row-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: $border-radius-full;
+}
+
+.parsec-nfdominter__row-avatar--ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+  background: rgba($color-primary, 0.12);
+}
+
+.parsec-nfdominter__row-badge {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $border-radius-full;
+  color: $color-primary;
+  background: rgba($color-primary, 0.12);
+}
+
+.parsec-nfdominter__row-caret {
+  margin-left: auto;
+  font-size: $font-size-lg;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  transition: transform 0.15s ease;
+}
+
+.parsec-nfdominter__row--open .parsec-nfdominter__row-caret {
+  transform: rotate(90deg);
+}
+
+.parsec-nfdominter__row-name {
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-nfdominter__row-state {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: capitalize;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $border-radius-full;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__row-body {
+  margin-top: $spacing-2;
+}
+
+.parsec-nfdominter__row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-1 $spacing-3;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__row-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+  margin-top: $spacing-3;
+
+  .bp5-input {
+    flex: 1;
+    min-width: 12rem;
+  }
+}
+
+// --- My Names: expandable rows --------------------------------------------
+.parsec-nfdominter__list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin-top: $spacing-3;
+}
+
+.parsec-nfdominter__row-body[hidden] { display: none; }
+
+.parsec-nfdominter__control-group {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin-top: $spacing-3;
+  padding-top: $spacing-3;
+  border-top: 1px solid var(--bp-border-color, $color-gray-200);
+}
+
+.parsec-nfdominter__inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+
+  .bp5-input { flex: 1; min-width: 10rem; }
+}
+
+.parsec-nfdominter__linked-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-2;
+}
+
+.parsec-nfdominter__mono {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+}
+
+.parsec-nfdominter__meta-warn {
+  font-weight: $font-weight-semibold;
+  color: $color-warning;
+}
+
+.parsec-nfdominter__primary-ok {
+  font-size: $font-size-sm;
+  line-height: $line-height-relaxed;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $border-radius-md;
+  color: $color-success;
+  background: rgba($color-success, 0.1);
+}
+
+.parsec-nfdominter__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-6 $spacing-4;
+}
+
+.parsec-nfdominter__card-actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  margin-top: $spacing-2;
+}
+
+.parsec-nfdominter__card-link {
+  font-size: $font-size-xs;
+}
+
+// --- Confirm view ----------------------------------------------------------
+.parsec-nfdominter__confirm-summary {
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  border-radius: $border-radius-xl;
+  padding: $spacing-2 $spacing-4;
+  margin-bottom: $spacing-4;
+}
+
+.parsec-nfdominter__summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-4;
+  padding: $spacing-2 0;
+  border-bottom: 1px solid var(--bp-border-color, $color-gray-200);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.parsec-nfdominter__summary-label {
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__summary-value {
+  font-family: $font-family-mono;
+  text-align: right;
+  word-break: break-all;
+}
+
+.parsec-nfdominter__confirm-note {
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  margin: $spacing-4 0;
+
+  p {
+    margin: $spacing-2 0;
+  }
+}
+
+.parsec-nfdominter__muted {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  word-break: break-all;
+}
+
+.parsec-nfdominter__progress {
+  font-size: $font-size-sm;
+  color: $color-primary;
+  margin: $spacing-3 0;
+}
+
+.parsec-nfdominter__sign-btn {
+  width: 100%;
+}
+
+// --- Confirm: persistent failure panel ------------------------------------
+.parsec-nfdominter__error {
+  margin: $spacing-3 0;
+
+  .parsec-callout {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-2;
+  }
+}
+
+.parsec-nfdominter__error-title {
+  font-weight: 600;
+}
+
+.parsec-nfdominter__error-message {
+  margin: 0;
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+// --- Mint tab: "this name is for sale" buy option -------------------------
+.parsec-nfdominter__buy-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-3;
+  margin-top: $spacing-3;
+  padding: $spacing-3;
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-lg;
+  background: rgba($color-success, 0.06);
+}
+
+.parsec-nfdominter__buy-info {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+}
+
+.parsec-nfdominter__buy-tag {
+  align-self: flex-start;
+  padding: 0 $spacing-2;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: $color-success;
+  background: rgba($color-success, 0.15);
+}
+
+.parsec-nfdominter__buy-price {
+  font-size: $font-size-base;
+  font-weight: 600;
+}
+
+// --- Manage tab: transfer / send an owned .algo name ----------------------
+.parsec-nfdominter__transfer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+  width: 100%;
+  margin-top: $spacing-2;
+  padding-top: $spacing-2;
+  border-top: 1px solid var(--bp-border-color, $color-gray-200);
+}
+
+.parsec-nfdominter__control-label {
+  font-size: $font-size-xs;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: $color-gray-500;
+}
+
+.parsec-nfdominter__price-input {
+  max-width: 6rem;
+}
+
+// --- .algo profile editor -------------------------------------------------
+.parsec-nfdominter__edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+  margin: $spacing-4 0;
+}
+
+.parsec-nfdominter__edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.parsec-nfdominter__edit-label {
+  font-size: $font-size-xs;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: $color-gray-500;
+}
+
+.parsec-nfdominter__edit-textarea {
+  resize: vertical;
+  min-height: 4rem;
+  font-family: inherit;
+}
+
+.parsec-nfdominter__edit-hint {
+  font-size: $font-size-xs;
+  color: $color-gray-500;
+}
+
+.parsec-nfdominter__avatar-preview {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: $border-radius-lg;
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+}
+
+.parsec-nfdominter__avatar-upload {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+}
+
+// --- Subdomains tab -------------------------------------------------------
+.parsec-nfdominter__sub-panel {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  margin-top: $spacing-4;
+  padding: $spacing-4;
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-lg;
+  background: var(--bp-background-color-secondary, $color-gray-50);
+}
+
+.parsec-nfdominter__owned-picker {
+  margin-top: $spacing-3;
+}
+
+.parsec-nfdominter__manual {
+  margin-top: $spacing-5;
+
+  summary {
+    cursor: pointer;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $color-primary;
+  }
+}
+
+// --- Confirm: network prominence, balance check, success ------------------
+.parsec-nfdominter__confirm-network {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  margin-bottom: $spacing-4;
+
+  .parsec-network-badge {
+    margin-bottom: 0;
+  }
+}
+
+.parsec-nfdominter__balance {
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-lg;
+  background: var(--bp-background-color-secondary, $color-gray-50);
+  padding: $spacing-2 $spacing-4;
+  margin-top: $spacing-4;
+
+  .parsec-callout {
+    margin: $spacing-2 0;
+  }
+}
+
+.parsec-nfdominter__success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: $spacing-3;
+  padding: $spacing-6 0;
+}
+
+.parsec-nfdominter__success-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: $border-radius-full;
+  background: rgba($color-success, 0.15);
+  color: $color-success;
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+}
+
+.parsec-nfdominter__success-name {
+  margin: 0;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+}
+
+.parsec-nfdominter__success-links {
+  display: flex;
+  gap: $spacing-4;
+}
+
+// ==========================================================================
+// WALLET SWITCHER — header pill + popover (account × chain picker)
+// ==========================================================================
+
+.parsec-wallet-switcher {
+  position: relative;
+}
+
+.parsec-wallet-switcher__pill {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-1 $spacing-3;
+  border-radius: $border-radius-full;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  cursor: pointer;
+  font-size: $font-size-sm;
+  transition: $transition-colors;
+
+  &:hover {
+    background: var(--bp-background-color-tertiary, $color-gray-200);
+  }
+
+  .bp5-icon {
+    color: var(--bp-text-color-muted, $color-gray-500);
+  }
+}
+
+.parsec-wallet-switcher__pill-name {
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-wallet-switcher__pill-chain {
+  padding: 0 $spacing-2;
+  border-radius: $border-radius-full;
+  background: rgba($color-primary, 0.15);
+  color: $color-primary;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-wallet-switcher__popover {
+  display: none;
+  position: absolute;
+  top: calc(100% + #{$spacing-2});
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: $z-index-popover;
+  min-width: 16rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: $spacing-2;
+  border-radius: $border-radius-lg;
+  background: var(--bp-background-color, $color-white);
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  box-shadow: $shadow-lg;
+
+  &--open {
+    display: block;
+  }
+}
+
+.parsec-wallet-switcher__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: $border-radius-full;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  font-size: $font-size-sm;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.parsec-wallet-switcher__account {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  margin-top: $spacing-2;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $border-radius-md;
+  cursor: pointer;
+  transition: $transition-colors;
+
+  &:first-child {
+    margin-top: 0;
+  }
+
+  &:hover {
+    background: var(--bp-background-color-secondary, $color-gray-100);
+  }
+
+  &--active {
+    background: rgba($color-primary, 0.1);
+  }
+}
+
+.parsec-wallet-switcher__account-name {
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-wallet-switcher__chain {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  margin-left: $spacing-4;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $border-radius-md;
+  cursor: pointer;
+  transition: $transition-colors;
+
+  &:hover {
+    background: var(--bp-background-color-secondary, $color-gray-100);
+  }
+
+  &--active {
+    background: rgba($color-primary, 0.12);
+  }
+}
+
+.parsec-wallet-switcher__chain-label {
+  font-weight: $font-weight-medium;
+}
+
+.parsec-wallet-switcher__chain-addr {
+  flex: 1;
+  text-align: right;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-wallet-switcher__chain-copy {
+  flex-shrink: 0;
+  padding: $spacing-1;
+  border-radius: $border-radius-base;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  cursor: pointer;
+
+  &:hover {
+    color: $color-primary;
+    background: var(--bp-background-color-tertiary, $color-gray-200);
+  }
+}
+
+.parsec-wallet-switcher__footer {
+  display: flex;
+  gap: $spacing-2;
+  margin-top: $spacing-2;
+  padding-top: $spacing-2;
+  border-top: 1px solid var(--bp-border-color, $color-gray-200);
+
+  .bp5-button {
+    flex: 1;
+  }
+}
+
+// --- Per-chain wallet panel ------------------------------------------------
+.parsec-chain-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.parsec-chain-panel .parsec-network-badge {
+  margin-top: $spacing-4;
+}
+
+.parsec-chain-panel .parsec-dashboard__pubkey {
+  width: 100%;
+}
+
+.parsec-chain-panel__actions {
+  display: flex;
+  gap: $spacing-3;
+  width: 100%;
+  margin: $spacing-4 0;
+
+  .bp5-button {
+    flex: 1;
+  }
+}
+
+// ===========================================================================
+// Diagnostics — opt-in network/system monitor with shield toggles
+// ===========================================================================
+.parsec-diag__shields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+  margin: $spacing-4 0;
+}
+
+// Shield toggle — dim/outline when off, lit when on. Reused in Settings.
+.parsec-diag__shield {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-1;
+  min-width: 5.5rem;
+  padding: $spacing-2 $spacing-3;
+  cursor: pointer;
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-lg;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  transition: $transition-colors;
+}
+
+.parsec-diag__shield-glyph {
+  font-size: 1.5rem;
+  filter: grayscale(1);
+  opacity: 0.4;
+  transition: $transition-colors;
+}
+
+.parsec-diag__shield-label {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-diag__shield-state {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.06em;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-diag__shield--on {
+  border-color: $color-primary;
+  background: rgba($color-primary, 0.1);
+
+  .parsec-diag__shield-glyph {
+    filter: none;
+    opacity: 1;
+    text-shadow: 0 0 8px rgba($color-primary, 0.6);
+  }
+
+  .parsec-diag__shield-state {
+    color: $color-primary;
+  }
+}
+
+.parsec-diag__tabs {
+  display: flex;
+  gap: $spacing-1;
+  border-bottom: 1px solid var(--bp-border-color, $color-gray-200);
+  margin-bottom: $spacing-4;
+}
+
+.parsec-diag__tab.bp5-button {
+  flex: 1;
+  justify-content: center;
+  border-radius: 0;
+  padding: $spacing-3 $spacing-2;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  border-bottom: 2px solid transparent;
+}
+
+.parsec-diag__tab--active.bp5-button {
+  color: $color-primary;
+  border-bottom-color: $color-primary;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-diag__panel {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.parsec-diag__kv {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-3;
+  padding: $spacing-1 0;
+}
+
+.parsec-diag__kv-label {
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-diag__kv-value {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  word-break: break-all;
+  text-align: right;
+}
+
+.parsec-diag__section {
+  margin: $spacing-3 0 0;
+  font-size: $font-size-sm;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-diag__hint {
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-diag__off {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-6 $spacing-4;
+  text-align: center;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-diag__off-glyph {
+  font-size: 2.5rem;
+  filter: grayscale(1);
+  opacity: 0.35;
+}
+
+.parsec-diag__if-card {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+  padding: $spacing-3;
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-md;
+}
+
+.parsec-diag__if-name {
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-diag__svc {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $border-radius-md;
+  border-left: 3px solid transparent;
+  background: var(--bp-background-color-secondary, $color-gray-50);
+}
+
+.parsec-diag__svc-group {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  min-width: 5.5rem;
+}
+
+.parsec-diag__svc-label {
+  flex: 1;
+}
+
+.parsec-diag__svc-stat {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+}
+
+.parsec-diag__svc--ok { border-left-color: $color-success; }
+.parsec-diag__svc--slow { border-left-color: $color-warning; }
+
+.parsec-diag__svc--down {
+  border-left-color: $color-danger;
+  background: rgba($color-danger, 0.06);
 }

@@ -4,6 +4,7 @@
 
 import { el, btn, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
+import { isBnrConfigured } from '../lib/bankon-names/process-id';
 import {
   activeNamespaceId,
   getNamespace,
@@ -62,6 +63,27 @@ export function nameHubView(): HTMLElement {
       children: [
         el('p', { text: 'No Arweave address on the active account.' }),
         btn('Create Arweave', { intent: 'primary', onClick: () => store.navigate('arweave-create') }),
+      ],
+    }));
+    return root;
+  }
+
+  // BANKON Names needs its registry process spawned once before any screen
+  // works. Surface the in-wallet spawn flow instead of a dead-end error.
+  if (ns.id === 'bankon' && !isBnrConfigured()) {
+    root.appendChild(el('div', {
+      cls: 'parsec-callout bp5-callout bp5-intent-warning',
+      children: [
+        el('p', { text: 'The BANKON Names Registry has not been spawned yet — a one-time setup. Sign the spawn with your Arweave key to bring the registry online.' }),
+        btn('Spawn registry', {
+          intent: 'primary',
+          large: true,
+          icon: 'play',
+          onClick: () => {
+            sessionStorage.setItem('parsec:bankon-admin-mode', 'spawn');
+            store.navigate('bankon-admin');
+          },
+        }),
       ],
     }));
     return root;

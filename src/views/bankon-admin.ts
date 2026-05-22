@@ -38,6 +38,7 @@ import {
   aoSpawn,
   buildAoSpawnInput,
   setAoEndpoints,
+  AOS_MODULE,
 } from '../lib/arweave/ao';
 import {
   AO_AUTHORITY,
@@ -237,8 +238,9 @@ async function runSpawn(
   log('Building Spawn DataItem...');
 
   const spawnInput = buildAoSpawnInput({
-    module: 'self-bundled',
+    module: AOS_MODULE,
     scheduler: DEFAULT_SCHEDULER,
+    onBoot: true,
     tags: [
       { name: 'Authority', value: AO_AUTHORITY },
       { name: 'Name', value: 'BANKON-Names' },
@@ -436,8 +438,9 @@ async function runBmrSpawn(
 
   const bnrId = getBnrProcessId();
   const spawnInput = buildAoSpawnInput({
-    module: 'self-bundled',
+    module: AOS_MODULE,
     scheduler: DEFAULT_SCHEDULER,
+    onBoot: true,
     tags: [
       { name: 'Authority', value: AO_AUTHORITY },
       { name: 'Name', value: 'BANKON-Marketspace' },

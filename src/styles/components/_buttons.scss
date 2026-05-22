@@ -367,9 +367,72 @@
     background-color: var(--bp-background-color-secondary, $color-dark-bg-secondary);
     border-color: var(--bp-border-color, $color-dark-border);
     color: var(--bp-text-color, $color-dark-text);
-    
+
     &:hover:not(:disabled) {
       background-color: var(--bp-background-color-tertiary, $color-dark-bg-tertiary);
     }
+  }
+}
+
+// Back button
+// ==========================================================================
+// btn('Back', …) calls are tagged with .parsec-back-btn (see lib/dom.ts).
+// The "Back" label and Blueprint arrow-left glyph are hidden; a pure-CSS
+// chevron is drawn in their place, with hover + press effects.
+
+.parsec-back-btn.bp5-button {
+  position: relative;
+  width: 2.25rem;
+  height: 2.25rem;
+  min-width: 2.25rem !important;
+  min-height: 2.25rem !important;
+  padding: 0 !important;
+  border-radius: $border-radius-full !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  transition:
+    background-color $transition-duration-fast ease,
+    color $transition-duration-fast ease,
+    transform $transition-duration-fast ease;
+
+  // Hide Blueprint's arrow-left glyph and the "Back" text label.
+  .bp5-icon,
+  .bp5-button-text {
+    display: none !important;
+  }
+
+  // Pure-CSS chevron — an L of two borders rotated 45° points left.
+  &::before {
+    content: '';
+    width: 0.5rem;
+    height: 0.5rem;
+    border-left: 2.5px solid currentcolor;
+    border-bottom: 2.5px solid currentcolor;
+    border-radius: 1px;
+    transform: translateX(2px) rotate(45deg);
+    transition: transform $transition-duration-fast ease;
+  }
+
+  // Hover — tinted circle, primary colour, chevron nudges back (left).
+  &:hover {
+    background: var(--bp-background-color-secondary, $color-gray-100) !important;
+    color: $color-primary;
+
+    &::before {
+      transform: translateX(0) rotate(45deg);
+    }
+  }
+
+  // Activation — press inward.
+  &:active {
+    transform: scale(0.88);
+    background: var(--bp-background-color-tertiary, $color-gray-200) !important;
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba($color-primary, 0.5);
+    outline-offset: 1px;
   }
 } 

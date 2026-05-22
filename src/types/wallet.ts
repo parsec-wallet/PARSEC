@@ -16,6 +16,9 @@ export interface WalletAccount {
    * that mint fresh accounts can omit it and let the store backfill. */
   chains?: Record<string, string>;
   activeChain?: ChainId;
+  /** Emoji avatar (Phantom-style personalization). The store backfills a
+   * deterministic default when absent — see lib/avatars.ts. */
+  avatar?: string;
 }
 
 export interface AccountInfo {
@@ -69,6 +72,8 @@ export interface WalletSettings {
   network: NetworkId;
   autoLockMinutes: number;
   showTestnetWarning: boolean;
+  /** Opt-in Diagnostics screen. Undefined / false = off (the default). */
+  enableDiagnostics?: boolean;
 }
 
 // Pending send — held in memory only for confirm-send flow
@@ -98,6 +103,8 @@ export type AppView =
   | 'onramp'
   | 'nfdominter'
   | 'nfdominter-confirm'
+  | 'nfdominter-buy'
+  | 'diagnostics'
   | 'docs'
   | 'settings'
   | 'pmvpn'
@@ -112,8 +119,10 @@ export type AppView =
   | 'arweave-approve'
   | 'arweave-ario-migrate'
   | 'solana-create'
+  | 'solana-send'
   | 'ario-migrate-solana'
   | 'arweave-create'
+  | 'arweave-send'
   | 'ario-claim-pythai'
   | 'bankon-hub'
   | 'bankon-claim'

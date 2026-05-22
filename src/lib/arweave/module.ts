@@ -16,7 +16,7 @@ import type {
   PublicSurface,
 } from '../pouch/types';
 import * as bip39 from 'bip39';
-import { deriveJwkFromMnemonic } from './seed';
+import { deriveJwkInWorker } from './seed';
 import {
   addressFromJwk,
   isArweaveAddress,
@@ -30,7 +30,7 @@ export const arweaveHdModule: WalletModule = {
 
   async createWallet(): Promise<CreatedWallet> {
     const mnemonic = bip39.generateMnemonic(256); // 24 words
-    const jwk = await deriveJwkFromMnemonic(mnemonic);
+    const jwk = await deriveJwkInWorker(mnemonic);
     const address = await addressFromJwk(jwk);
     return {
       walletId: `arhd_${address.slice(0, 8)}`,
@@ -46,7 +46,7 @@ export const arweaveHdModule: WalletModule = {
       if (!bip39.validateMnemonic(trimmed)) {
         throw new Error('Invalid BIP-39 mnemonic (wordlist or checksum failure)');
       }
-      const jwk = await deriveJwkFromMnemonic(trimmed);
+      const jwk = await deriveJwkInWorker(trimmed);
       const address = await addressFromJwk(jwk);
       return {
         walletId: `arhd_${address.slice(0, 8)}`,
