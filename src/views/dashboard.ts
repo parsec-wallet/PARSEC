@@ -11,7 +11,7 @@ import { fetchAccountInfo, microAlgosToAlgo } from '../lib/algorand/account';
 import { fetchTransactions } from '../lib/algorand/transactions';
 import { enrichAssets, formatAssetAmount, optOutFromAsset, lookupAsset } from '../lib/algorand/assets';
 import { resolveIpfsUrl } from '../lib/algorand/ipfs-gateway';
-import { resolveAddress } from '../lib/nfd';
+import { resolveAddress, searchByOwner } from '../lib/nfd';
 import { keystoreRetrieve } from '../lib/keystore';
 import { formatPrice, fetchPrices, fetchPricesByIds } from '../lib/prices';
 import type { CoinPrice } from '../lib/prices';
@@ -119,22 +119,30 @@ export function dashboardView(): HTMLElement {
   const network = state.settings.network;
   const networkBadge = el('div', { cls: `parsec-network-badge parsec-network-badge--${network}`, text: network.toUpperCase() });
 
-  // Resolve the address's primary .algo name and reveal the identity line.
-  void resolveAddress(network, addr)
-    .then((nfd) => {
-      if (!nfd?.name) return;
+  // Recognize the wallet's .algo name and reveal the identity line. Primary
+  // reverse-resolution first; if the address owns a name without a primary
+  // reverse record, fall back to its owned name so it is still recognized.
+  void (async () => {
+    try {
+      let algoName = (await resolveAddress(network, addr))?.name ?? null;
+      if (!algoName) {
+        const owned = await searchByOwner(network, addr, { limit: 1, view: 'brief' });
+        algoName = owned.nfds[0]?.name ?? null;
+      }
+      if (!algoName) return;
+      const name = algoName;
       nfdLine.innerHTML = '';
       nfdLine.append(
         el('span', { cls: 'parsec-pubkey__nfd-mark', text: '◆' }),
-        el('span', { cls: 'parsec-pubkey__nfd-name', text: nfd.name }),
+        el('span', { cls: 'parsec-pubkey__nfd-name', text: name }),
       );
       nfdLine.removeAttribute('hidden');
       nfdLine.addEventListener('click', () => {
-        navigator.clipboard.writeText(nfd.name);
+        navigator.clipboard.writeText(name);
         toast('.algo name copied', 'success');
       });
-    })
-    .catch(() => { /* no NFD / offline — the line stays hidden */ });
+    } catch { /* no NFD / offline — the line stays hidden */ }
+  })();
 
   // Testnet faucet
   const faucetLink = network === 'testnet'

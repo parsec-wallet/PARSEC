@@ -1,7 +1,7 @@
 // Subdomain (NFD "segment") support.
 //
-// A segment is a child name under a root NFD — `sea.mindx.algo` under
-// `mindx.algo`. Minting a segment uses the ordinary mint flow
+// A segment is a child name under a root NFD — `shop.yourname.algo` under
+// `yourname.algo`. Minting a segment uses the ordinary mint flow
 // (`mintNfdWithFee` accepts a segment name directly), but segment minting is
 // LOCKED by default on every root NFD. The root owner must unlock it.
 //

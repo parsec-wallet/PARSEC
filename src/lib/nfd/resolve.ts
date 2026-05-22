@@ -116,10 +116,12 @@ export async function resolveAddress(
   if (cached !== undefined) return cached;
   try {
     const nfd = await getNfdClient(network).resolveAddress(address);
+    // Only cache a real result (a hit, or a genuine "no NFD"). A transient
+    // failure must NOT be cached as null — that would hide a primary name
+    // for the whole TTL after a single network hiccup.
     set(reverse, key, nfd);
     return nfd;
   } catch {
-    set(reverse, key, null);
     return null;
   }
 }

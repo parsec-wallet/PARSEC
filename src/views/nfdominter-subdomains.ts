@@ -300,7 +300,7 @@ export function buildSubdomainsTab(
   return el('div', {
     cls: 'parsec-nfdominter__subdomains',
     children: [
-      el('p', { cls: 'parsec-view__desc', text: 'Mint subdomains — like sea.mindx.algo — under a .algo name you own.' }),
+      el('p', { cls: 'parsec-view__desc', text: 'Mint subdomains — like shop.yourname.algo — under a .algo name you own.' }),
       ownedSection,
       action,
       manualSection,
