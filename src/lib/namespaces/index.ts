@@ -3,6 +3,7 @@
 
 import './arns';
 import './bankon';
+import './solana-arns';
 
 export {
   activeNamespaceId,

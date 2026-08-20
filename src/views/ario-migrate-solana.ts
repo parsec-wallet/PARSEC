@@ -19,8 +19,8 @@ import { formatArio, MARIO_PER_ARIO } from '../lib/arweave/ario';
 
 const BASE_CHAIN_ID = '0x2105'; // 8453
 const BASE_ARIO_CONTRACT = '0x138746adfa52909e5920def027f5a8dc1c7effb6';
-const SOLANA_SNAPSHOT = new Date('2026-06-01T00:00:00Z').getTime();
 const SOL_AR_IO_URL = 'https://sol.ar.io';
+const SWAP_AR_IO_URL = 'https://swap.ar.io';
 
 type ProviderRequest = (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 
@@ -28,6 +28,7 @@ interface State {
   evmAddress?: string;
   baseBalanceMicroArio?: bigint;
   solanaAddress?: string;
+  solanaArioUi?: string;
   error?: string;
 }
 
@@ -50,17 +51,16 @@ export function arioMigrateSolanaView(): HTMLElement {
       ],
     }));
 
-    // Countdown — most important info on the page.
-    const daysLeft = Math.max(0, Math.floor((SOLANA_SNAPSHOT - Date.now()) / 86400000));
+    // Post-snapshot reality (the June 1, 2026 snapshot has PASSED): two live paths remain, and
+    // ar.io says the Base bridge is CLOSING — migrating held Base ARIO is urgent.
     root.appendChild(el('div', {
-      cls: daysLeft <= 7
-        ? 'parsec-callout bp5-callout bp5-intent-danger'
-        : daysLeft <= 30
-          ? 'parsec-callout bp5-callout bp5-intent-warning'
-          : 'parsec-callout bp5-callout bp5-intent-primary',
+      cls: 'parsec-callout bp5-callout bp5-intent-danger',
       children: [
         el('p', {
-          text: `Snapshot: June 1, 2026 — ${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining. ARIO on Solana is the canonical token going forward. Register at sol.ar.io before the snapshot or your holding goes into the retroactive claim window.`,
+          text: 'The June 1, 2026 snapshot has passed. ARIO on Solana is canonical (SPL '
+            + 'DcNnMuFxwhgV4WY1HVSaSEgr92bv2b1vUvEKiNxWqHdF). Two live paths: MIGRATE held Base ARIO at '
+            + 'swap.ar.io (ar.io says this bridge is closing — do it now, small test tranche first), or '
+            + 'RETRO-CLAIM missed snapshot assets at sol.ar.io (open, no published deadline).',
         }),
       ],
     }));
@@ -183,6 +183,10 @@ export function arioMigrateSolanaView(): HTMLElement {
     }
 
     dest.appendChild(row('Solana address', state.solanaAddress));
+    dest.appendChild(row(
+      'Solana ARIO',
+      state.solanaArioUi === undefined ? 'Not read yet' : `${state.solanaArioUi} ARIO`,
+    ));
     dest.appendChild(btn('Copy', {
       minimal: true,
       icon: 'clipboard',
@@ -191,10 +195,27 @@ export function arioMigrateSolanaView(): HTMLElement {
         toast('Solana address copied', 'success');
       },
     }));
+    dest.appendChild(btn('Verify arrival (read ARIO balance)', {
+      minimal: true,
+      icon: 'refresh',
+      onClick: () => void readSolanaArio(),
+    }));
     return dest;
   }
 
-  // ── Handoff to sol.ar.io ─────────────────────────────────
+  async function readSolanaArio(): Promise<void> {
+    if (!state.solanaAddress) return;
+    try {
+      const { getTokenBalance } = await import('../lib/solana/token');
+      const bal = await getTokenBalance(state.solanaAddress);
+      state.solanaArioUi = bal.uiAmountString;
+    } catch (e) {
+      state.error = `Solana ARIO read failed: ${e instanceof Error ? e.message : String(e)}`;
+    }
+    render();
+  }
+
+  // ── Handoff: swap.ar.io (migrate) + sol.ar.io (retro-claim) ──────────
 
   function buildHandoff(): HTMLElement {
     const ready = state.evmAddress && state.solanaAddress &&
@@ -203,7 +224,10 @@ export function arioMigrateSolanaView(): HTMLElement {
       children: [
         el('p', {
           cls: 'parsec-view__desc',
-          text: 'Final step: open sol.ar.io, connect the same MetaMask (BASE) as the source wallet, paste the Solana address above as the destination, and sign the registration. sol.ar.io is the canonical AR.IO registration site.',
+          text: 'MIGRATE (held Base ARIO): open swap.ar.io with the same MetaMask (BASE), paste the '
+            + 'Solana address above as the destination, and migrate — send a SMALL TEST TRANCHE first, '
+            + 'verify it arrives with the button above, then the rest. RETRO-CLAIM (missed the snapshot): '
+            + 'sol.ar.io. Both are official ar.io sites; the Base bridge is closing.',
         }),
         ready && state.baseBalanceMicroArio !== undefined && state.baseBalanceMicroArio < MARIO_PER_ARIO
           ? el('div', {
@@ -221,12 +245,21 @@ export function arioMigrateSolanaView(): HTMLElement {
             }),
             el('a', {
               attrs: {
+                href: SWAP_AR_IO_URL,
+                target: '_blank',
+                rel: 'noopener',
+                class: 'bp5-button bp5-intent-danger bp5-large',
+              },
+              text: 'Migrate at swap.ar.io →',
+            }),
+            el('a', {
+              attrs: {
                 href: SOL_AR_IO_URL,
                 target: '_blank',
                 rel: 'noopener',
                 class: 'bp5-button bp5-intent-primary bp5-large',
               },
-              text: 'Open sol.ar.io →',
+              text: 'Retro-claim at sol.ar.io →',
             }),
           ],
         }),
