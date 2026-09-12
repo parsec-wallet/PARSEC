@@ -17,7 +17,7 @@ Forks, not copies: GitHub lineage back to `perawallet/*` stays visible, which is
 
 ## License and attribution
 
-All three upstreams are **Apache License 2.0, Copyright Pera Wallet, LDA** (GitHub's license detector
+<!-- REUSE-IgnoreStart -->All three upstreams are **Apache License 2.0, Copyright Pera Wallet, LDA** (GitHub's license detector<!-- REUSE-IgnoreEnd -->
 shows "Other"/NOASSERTION because of the notice-file format; the LICENSE text in each repo is the
 Apache-2.0 notice — verified 2026-08-20). Apache-2.0 permits derivative work with attribution and
 license preservation. Any Parsec module derived from these sources must:

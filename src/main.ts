@@ -14,7 +14,14 @@ import './styles/main.scss';
 import './styles/pmvpn.scss';
 
 import { registerView, mountRouter } from './lib/router';
+import { createShell } from './views/shell';
+import { mountPalette } from './lib/ui/palette';
 import { store } from './lib/store';
+
+// Modules that register through the manifest (lib/modules.ts): one import,
+// one registration for router + rail + dashboard. Lightspeed is the template.
+import './lib/lightspeed/module';
+import './lib/permaweb/module';
 
 // Eager — first-paint critical path. Together these cover every entry-point
 // state (no wallet, locked wallet, unlocked wallet) and the onboarding flow.
@@ -22,11 +29,8 @@ import { matrixView } from './views/matrix';
 import { onboardingView } from './views/onboarding';
 import { unlockView } from './views/unlock';
 import { dashboardView } from './views/dashboard';
-import { createWalletView } from './views/create-wallet';
-import { verifyMnemonicView } from './views/verify-mnemonic';
-import { importWalletView } from './views/import-wallet';
 
-import type { SignRequest } from './lib/connect';
+import type { NameRequest, SignRequest } from './lib/connect';
 import type { AppView } from './types/wallet';
 
 // ── Lazy view loader ──────────────────────────────────────────
@@ -55,21 +59,28 @@ function lazyView(loader: () => Promise<() => HTMLElement>): () => HTMLElement {
   };
 }
 
-// Register eager views
+// Register eager views — only what can actually be the first thing on screen.
 registerView('matrix', matrixView);
 registerView('onboarding', onboardingView);
 registerView('unlock', unlockView);
 registerView('dashboard', dashboardView);
-registerView('create-wallet', createWalletView);
-registerView('verify-mnemonic', verifyMnemonicView);
-registerView('import-wallet', importWalletView);
+
+// Wallet creation and import are lazy. They are never the first paint — you
+// arrive at them from onboarding — and eager-importing them pulled `algosdk`
+// (~492 kB) onto the critical path, where the browser was told to
+// `modulepreload` it before anything could render.
+registerView('create-wallet', lazyView(async () => (await import('./views/create-wallet')).createWalletView));
+registerView('verify-mnemonic', lazyView(async () => (await import('./views/verify-mnemonic')).verifyMnemonicView));
+registerView('import-wallet', lazyView(async () => (await import('./views/import-wallet')).importWalletView));
 
 // Register lazy views — keep one entry per view so chunk-name hints are stable.
 registerView('send', lazyView(async () => (await import('./views/send')).sendView));
 registerView('confirm-send', lazyView(async () => (await import('./views/confirm-send')).confirmSendView));
 registerView('receive', lazyView(async () => (await import('./views/receive')).receiveView));
 registerView('add-asset', lazyView(async () => (await import('./views/add-asset')).addAssetView));
+registerView('create-select', lazyView(async () => (await import('./views/create-select')).createSelectView));
 registerView('settings', lazyView(async () => (await import('./views/settings')).settingsView));
+registerView('linkage', lazyView(async () => (await import('./views/linkage')).linkageView));
 registerView('diagnostics', lazyView(async () => (await import('./views/diagnostics')).diagnosticsView));
 registerView('swap', lazyView(async () => (await import('./views/swap')).swapView));
 registerView('onramp', lazyView(async () => (await import('./views/onramp')).onrampView));
@@ -117,6 +128,14 @@ registerView('name-manage', lazyView(async () => {
   await import('./lib/namespaces');
   return (await import('./views/name-manage')).nameManageView;
 }));
+registerView('connect-name-approve', lazyView(async () => {
+  await import('./lib/namespaces');
+  return (await import('./views/connect-name-approve')).connectNameApproveView;
+}));
+registerView('name-controller', lazyView(async () => {
+  await import('./lib/namespaces');
+  return (await import('./views/name-controller')).nameControllerView;
+}));
 registerView('name-resolve', lazyView(async () => {
   await import('./lib/namespaces');
   return (await import('./views/name-resolve')).nameResolveView;
@@ -125,11 +144,16 @@ registerView('market-hub', lazyView(async () => (await import('./views/market-hu
 registerView('market-listing', lazyView(async () => (await import('./views/market-listing')).marketListingView));
 registerView('market-create', lazyView(async () => (await import('./views/market-create')).marketCreateView));
 registerView('market-auction', lazyView(async () => (await import('./views/market-auction')).marketAuctionView));
+registerView('solana-import', lazyView(async () => (await import('./views/solana-import')).solanaImportView));
 
-// Mount
+// Mount — the router renders into the shell's content host, not the document
+// root, so the shell (brand, tier rail, breadcrumb) survives navigation.
 const root = document.getElementById('root');
 if (root) {
-  mountRouter(root);
+  const shell = createShell();
+  root.appendChild(shell.element);
+  mountRouter(shell.content);
+  mountPalette();
 }
 
 // Global loading overlay — responds to store.isLoading
@@ -188,6 +212,20 @@ function deferredInit(): void {
       import('./views/connect-approve').then(({ setConnectPending }) => {
         setConnectPending(event.payload);
         store.navigate('connect-approve');
+      });
+    });
+
+    // Listen for dApp name-management requests (parsec_nameRequest). Unlike a raw sign
+    // request these carry an intent, so the approval view can state it in words.
+    await listen<NameRequest>('parsec-connect-name-request', (event) => {
+      const state = store.get();
+      if (state.accounts.length === 0) return;
+      Promise.all([
+        import('./lib/namespaces'),                       // adapters must be registered first
+        import('./views/connect-name-approve'),
+      ]).then(([, { setNamePending }]) => {
+        setNamePending(event.payload);
+        store.navigate('connect-name-approve');
       });
     });
 

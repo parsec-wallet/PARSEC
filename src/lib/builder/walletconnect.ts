@@ -2,7 +2,8 @@
 // Multi-family support: Algorand, EVM (all chains), UTXO, Solana (future).
 // External wallet bridge — PARSEC never touches the remote wallet's keys.
 // CLI + Desktop compatible via @walletconnect/sign-client
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
 import type {
   ChainFamily,

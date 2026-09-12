@@ -26,6 +26,11 @@ Parsec Wallet (Tauri Desktop)
 └── src/lib/pouch/chains.ts   Chain adapters (Algorand wired, Ethereum enabled)
 ```
 
+**Naming:** the same rail is the shortest path to paid BANKON name claims — an x402 settlement is
+an Algorand tx id paying a quoted address, which is exactly the proof `BNR.Treasury.algorand`
+wants. The one blocker is local: `X402PaymentResult.txId` is declared and never assigned. See
+[TOON, x402 and the naming service](./integration/toon-naming-x402.md).
+
 ## Three Integration Tiers
 
 ### Tier 1 — Direct Import (No Network Required)

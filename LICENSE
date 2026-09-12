@@ -1,14 +1,24 @@
-BANKON License
+Parsec Wallet — licensing
 
-Copyright (c) 2026 BANKON. All rights reserved.
+Copyright (c) 2026 BANKON.
 
-This software and associated documentation files (the "Software") are the
-proprietary property of BANKON. No part of this Software may be reproduced,
-distributed, transmitted, displayed, published, or broadcast in any form or
-by any means without the prior written permission of BANKON.
+BANKON is tri-licensed: client-facing encryption and privacy software is released under
+GPL-3.0 and Apache-2.0, and server-side software under MIT. For this repository:
 
-The Software is provided "as is", without warranty of any kind, express or
-implied, including but not limited to the warranties of merchantability,
-fitness for a particular purpose, and noninfringement.
+  GPL-3.0-only   the encryption and privacy core
+                   src-tauri/src/bankon_vault/   src-tauri/src/chain_*/   src-tauri/src/pmvpn/
+                   src/lib/pmvpn/                src/views/pmvpn.ts
+  Apache-2.0     all other BANKON-authored code, documentation and assets in this repository
+  MIT            server-side code
+                   bankon-names-process/   marketplace-process/
+                   scripts/spawn-bnr.mjs   scripts/spawn-bmr.mjs
+
+The authoritative per-path mapping is REUSE.toml (https://reuse.software). The full licence
+texts are in LICENSES/. Third-party material included in this repository keeps its own licence
+and copyright, as recorded in REUSE.toml.
+
+This repository began as a fork of Web3dGuy/tauri-workflow-template, Copyright (c) 2025
+Web3dGuy, released under the MIT License (LICENSES/MIT.txt). Files still carrying that
+template's content retain its copyright notice and licence, as recorded in REUSE.toml.
 
 For licensing inquiries: github@deltav.exchange

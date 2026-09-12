@@ -160,7 +160,7 @@ Except the market moved. And the wall knows.
 
 ---
 
-(c) BANKON. All rights reserved.
+(c) 2026 BANKON. GPL-3.0-only (encryption & privacy core) · Apache-2.0 (the rest) · MIT (server side) — see [LICENSE](../LICENSE).
 
 Contact: github@deltav.exchange
 

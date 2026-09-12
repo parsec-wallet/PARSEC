@@ -2,7 +2,7 @@
 
 Sovereign multi-chain wallet — Algorand, Solana, Arweave. Your keys. Your coins. No compromises.
 
-(c) BANKON. All rights reserved.
+(c) 2026 BANKON. GPL-3.0-only (encryption & privacy core) · Apache-2.0 (the rest) · MIT (server side) — see [LICENSE](LICENSE).
 
 ## What Is Parsec
 
@@ -27,7 +27,7 @@ Parsec never holds your private key or mnemonic. Keys are encrypted on your devi
 - **Freeze/clawback warnings** — flagged before opt-in and on dashboard
 - **bankon_vault** — Rust-side Argon2id + AES-256-GCM encrypted key storage
 - **Tomb cold storage** — Linux LUKS encrypted volumes with USB key separation
-- **Auto-lock** — session clears after inactivity (configurable)
+- **Auto-lock** — enforced in Rust, on by default (5 min), configurable; the DEK is dropped even if the UI is wedged or compromised
 - **Multi-account** — create, import, switch between accounts
 - **Watch-only mode** — view balances without signing keys
 - **In-wallet docs** — quickstart, FAQ, security model, asset guide
@@ -153,7 +153,7 @@ src-tauri/                    # Backend — Rust
 - **Web encryption** — PBKDF2 600K iterations + AES-256-GCM (Web Crypto API)
 - **Session isolation** — passphrase held in private class fields, never serialized to localStorage
 - **Mnemonic zeroing** — secrets overwritten after signing, cleared in finally blocks
-- **Auto-lock** — configurable timer, clears session on inactivity
+- **Auto-lock** — Rust-enforced idle timer, on by default, drops the vault key independently of the frontend
 - **CSP hardened** — no unsafe-inline, no unsafe-eval, whitelisted endpoints only
 - **Cold storage** — optional Tomb encrypted volumes with USB key separation (Linux)
 - **Watch-only** — explicit flag, signing blocked at view level
@@ -174,6 +174,9 @@ npm run lint:css         # SCSS lint
 
 ## License
 
-BANKON License. (c) 2026 BANKON. All rights reserved. See [LICENSE](LICENSE).
+(c) 2026 BANKON. Tri-licensed: **GPL-3.0-only** for the encryption and privacy core (`bankon_vault`,
+the `chain_*` signing packs, pmVPN), **Apache-2.0** for the rest of the wallet, **MIT** for the
+server-side AO processes. Per-path mapping in [REUSE.toml](REUSE.toml); full texts in
+[LICENSES/](LICENSES/). See [LICENSE](LICENSE).
 
 Contact: github@deltav.exchange

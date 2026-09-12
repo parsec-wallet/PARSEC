@@ -209,7 +209,10 @@ Deploy: `npm run deploy:resolver` → publishes to Arweave via `permaweb-deploy`
 
 ## v2 roadmap (post-launch)
 
-- Oracle-verified payment proofs (Algorand-tx via algod oracle, AR-tx via Arweave-Oracle process)
+- Oracle-verified payment proofs (Algorand-tx via algod oracle, AR-tx via Arweave-Oracle process).
+  Parsec's x402 rail already signs an Algorand payment to a quoted `payTo`, so pointing a quote at
+  `BNR.Treasury.algorand` makes an x402 settlement a valid `algorand` proof with **no new method** —
+  see [TOON, x402 and naming](./integration/toon-naming-x402.md).
 - BANKON token issuance + `bankon` payment-method enablement
 - Token-weighted governance voting
 - Marketplace handler (transfer with token escrow)
@@ -217,8 +220,11 @@ Deploy: `npm run deploy:resolver` → publishes to Arweave via `permaweb-deploy`
 
 ## Related docs
 
+- [Arweave & ar.io source map](./arweave-ario-map.md) — where the BNR's Lua, clients, adapter and views sit in the wider permaweb surface
+
 - [Development Plan](./DEVELOPMENT_PLAN.md) — Phase P (Permaweb & Sovereign Naming) + Phase Q (this round)
 - [Snapshot Investigation](./snapshot-investigation.md) — ARIO Solana migration risk report
 - [Named-NFT Binding](./named-nft-binding.md) — bind an Algorand ASA to a name's records
 - [BANKON Marketspace](./marketspace.md) — order book + auctions for BANKON / ArNS names
+- [TOON, x402 and the naming service](./integration/toon-naming-x402.md) — which rails can carry a `Payment-Proof`, and which can only pay for the data a record points at
 - [TODO Index](./TODO-INDEX.md) — current session

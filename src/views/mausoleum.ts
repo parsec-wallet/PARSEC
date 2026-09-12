@@ -2,12 +2,20 @@
 // Tomb-inspired: LUKS volumes, USB key separation, cold storage lifecycle.
 // Shows every encryption threshold from AES-256 to quantum horizon.
 // 3D visualization of key space exhaustion probability over time.
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
 import { el, btn, input, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { invoke } from '../lib/platform';
-import { isTauri } from '../lib/vault';
+import {
+  isTauri,
+  vaultV2Status, vaultMigrationPlan, vaultMigrate, vaultChangePassphrase,
+  vaultRemoveCustodian, vaultBindingMessage,
+  vaultKdfProfile, vaultAutoLockStatus, vaultSetAutoLock,
+  type VaultV2Status, type MigrationPlan, type KdfProfile, type AutoLockStatus,
+} from '../lib/vault';
+import { passphraseField } from '../lib/passphrase-field';
 
 // ── Types from Rust IPC ──────────────────────────────────────
 
@@ -423,9 +431,26 @@ export function mausoleumView(): HTMLElement {
   let tombAvail: TombAvailability | null = null;
   let usbDrives: UsbDrive[] = [];
   let selectedCipher = THRESHOLDS[0]; // AES-256-GCM default
-  let tab: 'vault' | 'thresholds' | 'horizon' = 'vault';
+  let tab: 'keystore' | 'vault' | 'thresholds' | 'horizon' = 'keystore';
+
+  // Keystore tab state
+  let ks: VaultV2Status | null = null;
+  let plan: MigrationPlan | null = null;
+  let kdf: KdfProfile | null = null;
+  let autoLock: AutoLockStatus | null = null;
+  let busy = false;
 
   const root = el('div', { cls: 'parsec-view parsec-mausoleum' });
+
+  async function loadKeystoreState() {
+    if (!isTauri()) return;
+    try {
+      ks = await vaultV2Status();
+      plan = await vaultMigrationPlan();
+      kdf = await vaultKdfProfile();
+      autoLock = await vaultAutoLockStatus();
+    } catch { /* vault not reachable */ }
+  }
 
   async function loadTombState() {
     if (!isTauri()) return;
@@ -455,6 +480,7 @@ export function mausoleumView(): HTMLElement {
     // Tab bar
     const tabs = el('div', { cls: 'parsec-mausoleum__tabs' });
     for (const t of [
+      { id: 'keystore' as const, label: 'Keystore', icon: 'key' },
       { id: 'vault' as const, label: 'Tomb Vault', icon: 'lock' },
       { id: 'thresholds' as const, label: 'Cipher Thresholds', icon: 'shield' },
       { id: 'horizon' as const, label: '3D Crypto Horizon', icon: 'globe' },
@@ -470,6 +496,7 @@ export function mausoleumView(): HTMLElement {
 
     // Tab content
     switch (tab) {
+      case 'keystore': renderKeystoreTab(); break;
       case 'vault': renderVaultTab(); break;
       case 'thresholds': renderThresholdsTab(); break;
       case 'horizon': renderHorizonTab(); break;
@@ -477,6 +504,232 @@ export function mausoleumView(): HTMLElement {
   }
 
   // ── Tab: Tomb Vault ──────────────────────────────────────
+
+
+  // ── Keystore tab ──────────────────────────────────────────────
+  // The bankon-vault/2 control surface: which format is on disk, migration,
+  // custodians, passphrase rotation, and the idle lock.
+
+  function section(title: string, children: HTMLElement[]): HTMLElement {
+    return el('div', {
+      cls: 'parsec-mausoleum__section',
+      children: [el('h3', { cls: 'parsec-mausoleum__section-title', text: title }), ...children],
+    });
+  }
+
+  function note(text: string, intent: 'warning' | 'danger' | 'primary' | 'success' = 'primary'): HTMLElement {
+    return el('div', {
+      cls: `parsec-callout bp5-callout bp5-intent-${intent}`,
+      children: [el('p', { text })],
+    });
+  }
+
+  function renderKeystoreTab() {
+    const body = el('div', { cls: 'parsec-mausoleum__body' });
+
+    if (!isTauri()) {
+      body.appendChild(note(
+        'This is the browser build. Keys are held in an encrypted blob in localStorage, which any script that achieves XSS can reach — the weakest of the four tiers. The desktop build uses bankon-vault/2 with Argon2id and pinned memory.',
+        'warning',
+      ));
+      root.appendChild(body);
+      return;
+    }
+
+    if (!ks) {
+      body.appendChild(el('p', { cls: 'bp5-text-muted', text: 'Reading keystore…' }));
+      root.appendChild(body);
+      void loadKeystoreState().then(render);
+      return;
+    }
+
+    // ── Format ────────────────────────────────────────────────
+    const fmt = ks.format ?? 'none';
+    body.appendChild(section('Format', [
+      el('div', {
+        cls: 'parsec-mausoleum__kv',
+        children: [
+          el('span', { text: 'On disk' }),
+          el('strong', { text: fmt }),
+        ],
+      }),
+      el('div', {
+        cls: 'parsec-mausoleum__kv',
+        children: [
+          el('span', { text: 'Entries' }),
+          el('strong', { text: String(ks.entryCount) }),
+        ],
+      }),
+      el('div', {
+        cls: 'parsec-mausoleum__kv',
+        children: [
+          el('span', { text: 'Session' }),
+          el('strong', { text: ks.unlocked ? 'unlocked' : 'locked' }),
+        ],
+      }),
+      ...(kdf ? [el('div', {
+        cls: 'parsec-mausoleum__kv',
+        children: [
+          el('span', { text: 'Key derivation' }),
+          el('strong', {
+            text: `argon2id · ${Math.round(kdf.default.m_cost_kib / 1024)} MiB · t=${kdf.default.t_cost} · p=${kdf.default.p_cost}`,
+          }),
+        ],
+      })] : []),
+      ...(ks.accounts === null && ks.unlocked === false
+        ? [el('p', {
+            cls: 'bp5-text-muted',
+            text: 'The account list is encrypted. A locked vault discloses neither which accounts it holds nor how many.',
+          })]
+        : []),
+    ]));
+
+    // ── Migration ─────────────────────────────────────────────
+    if (plan?.needed) {
+      const pass = passphraseField({
+        placeholder: 'Current vault passphrase',
+        meter: false,
+      });
+      const status = el('div', { cls: 'parsec-mausoleum__status' });
+
+      body.appendChild(section('Upgrade to bankon-vault/2', [
+        note(
+          `This vault is ${plan.from}. Upgrading re-encrypts ${plan.accounts} account(s) across ${(plan.chains ?? []).join(', ')} with per-entry keys, full authentication, and an encrypted account index.`,
+          'warning',
+        ),
+        el('p', {
+          cls: 'bp5-text-muted',
+          text: 'Non-destructive: every secret is re-sealed, then read back and compared before the upgrade is accepted. Your existing files are left in place — remove them yourself once you have confirmed access.',
+        }),
+        pass.el,
+        btn(busy ? 'Upgrading…' : 'Upgrade keystore', {
+          intent: 'primary',
+          large: true,
+          disabled: busy,
+          onClick: async () => {
+            if (!pass.value()) { toast('Enter your current passphrase.', 'danger'); return; }
+            busy = true; render();
+            try {
+              const r = await vaultMigrate(pass.value());
+              toast(`Upgraded ${r.migrated} account(s) to bankon-vault/2.`, 'success');
+              pass.clear();
+              await loadKeystoreState();
+            } catch (e) {
+              status.textContent = String(e);
+              toast('Upgrade failed — your existing vault is untouched.', 'danger');
+            } finally {
+              busy = false; render();
+            }
+          },
+        }),
+        status,
+      ]));
+    }
+
+    // ── Custodians ────────────────────────────────────────────
+    if (ks.unlocked && ks.format === 'bankon-vault/2') {
+      const custodians = ks.custodians;
+      const rows = custodians.map((c) =>
+        el('div', {
+          cls: 'parsec-mausoleum__kv',
+          children: [
+            el('span', { text: `${c.kind} · ${c.label || 'unnamed'}` }),
+            custodians.length > 1
+              ? btn('Remove', {
+                  minimal: true, intent: 'danger',
+                  onClick: async () => {
+                    try {
+                      await vaultRemoveCustodian(c.kind, c.label);
+                      toast('Custodian removed.', 'success');
+                      await loadKeystoreState(); render();
+                    } catch (e) { toast(String(e), 'danger'); }
+                  },
+                })
+              : el('span', { cls: 'bp5-text-muted', text: 'only custodian' }),
+          ],
+        }),
+      );
+
+      body.appendChild(section('Custodians', [
+        el('p', {
+          cls: 'bp5-text-muted',
+          text: 'Each custodian is an independent way to open this vault. More than one means losing a passphrase or a wallet key is recoverable rather than final.',
+        }),
+        ...rows,
+        btn('Show wallet-binding message', {
+          minimal: true,
+          onClick: async () => {
+            const m = await vaultBindingMessage();
+            toast(`Sign exactly this to bind a wallet: ${m}`, 'primary');
+          },
+        }),
+        note(
+          'A signature over the binding message is a bearer credential for this vault. Never sign it in response to a website or a dApp prompt — Parsec never asks a dApp for it.',
+          'danger',
+        ),
+      ]));
+
+      // ── Change passphrase ───────────────────────────────────
+      const cur = passphraseField({ placeholder: 'Current passphrase', meter: false });
+      const next = passphraseField({ placeholder: 'New passphrase', meter: true, generate: true });
+      body.appendChild(section('Change passphrase', [
+        el('p', {
+          cls: 'bp5-text-muted',
+          text: 'Rewraps the vault key only. No account is re-encrypted, so this is instant however many accounts you hold.',
+        }),
+        cur.el,
+        next.el,
+        btn('Change passphrase', {
+          intent: 'primary',
+          onClick: async () => {
+            if (!cur.value() || !next.value()) { toast('Fill both fields.', 'danger'); return; }
+            try {
+              await vaultChangePassphrase(cur.value(), next.value());
+              cur.clear(); next.clear();
+              toast('Passphrase changed.', 'success');
+              await loadKeystoreState(); render();
+            } catch (e) { toast(String(e), 'danger'); }
+          },
+        }),
+      ]));
+    }
+
+    // ── Auto-lock ─────────────────────────────────────────────
+    if (autoLock) {
+      const opts: { label: string; secs: number }[] = [
+        { label: '1 minute', secs: 60 },
+        { label: '5 minutes', secs: 300 },
+        { label: '15 minutes', secs: 900 },
+        { label: '1 hour', secs: 3600 },
+        { label: 'Never', secs: 0 },
+      ];
+      body.appendChild(section('Idle lock', [
+        el('p', {
+          cls: 'bp5-text-muted',
+          text: 'Enforced in Rust: the vault key is dropped even if the interface is wedged or compromised. "Never" leaves key material resident for as long as the app runs.',
+        }),
+        el('div', {
+          cls: 'parsec-mausoleum__row',
+          children: opts.map((o) =>
+            btn(o.label, {
+              minimal: autoLock!.seconds !== o.secs,
+              intent: autoLock!.seconds === o.secs ? 'primary' : 'none',
+              onClick: async () => {
+                await vaultSetAutoLock(o.secs);
+                autoLock = await vaultAutoLockStatus();
+                render();
+              },
+            }),
+          ),
+        }),
+        ...(autoLock.remaining !== null
+          ? [el('p', { cls: 'bp5-text-muted', text: `Locks in ${autoLock.remaining}s unless you keep working.` })]
+          : []),
+      ]));
+    }
+
+    root.appendChild(body);
+  }
 
   function renderVaultTab() {
     const panel = el('div', { cls: 'parsec-mausoleum__panel' });

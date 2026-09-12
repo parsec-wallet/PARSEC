@@ -45,12 +45,15 @@ export {
   decodeDataItemAsync,
   decodeTags,
   encodeTags,
+  estimateDataItemSize,
   signDataItem,
   signDataItemFromVault,
+  signDataItemWith,
   verifyDataItem,
 } from './ans104';
 export type {
   DataItemInput,
+  DataItemSigner,
   DataItemTag,
   DecodedDataItem,
   SignedDataItem,

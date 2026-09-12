@@ -27,4 +27,4 @@ The connector (`src/lib/pmvpn/`) orchestrates:
 ## Notes
 
 Desktop (Tauri) feature — the SSH transport lives in the Rust backend. Licensed
-GPL-3.0 as a Parsec client module.
+GPL-3.0-only as part of Parsec's encryption & privacy core (see `REUSE.toml`).

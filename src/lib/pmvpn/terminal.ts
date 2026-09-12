@@ -1,9 +1,11 @@
 // pmVPN Module — Terminal Manager
-// GPL-3.0 (Parsec client module)
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: GPL-3.0-only
 //
 // Manages xterm.js terminal instances.
 // Data flow: xterm → Tauri command → russh → server PTY → russh → Tauri event → xterm
 
+import { bindObserver } from '../lifecycle';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { sendTerminalData, resizeTerminal, onTerminalData } from './connector';
@@ -81,9 +83,15 @@ export function mountTerminal(instance: TerminalInstance, container: HTMLElement
     instance.fitAddon.fit();
   });
 
-  // Re-fit on window resize
+  // Re-fit on window resize.
+  //
+  // This observer was never disconnected. A ResizeObserver holds a strong
+  // reference to everything it observes, so each terminal mount kept its
+  // container — and the xterm instance behind the closure — alive for the life
+  // of the process.
   const observer = new ResizeObserver(() => {
     instance.fitAddon.fit();
   });
   observer.observe(container);
+  bindObserver(observer);
 }

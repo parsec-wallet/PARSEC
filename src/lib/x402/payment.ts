@@ -1,10 +1,12 @@
 // Parsec x402 Integration — Payment Flow
 // Handles 402 responses: parse requirement → check discount → build signer → pay → settle.
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
 import { buildAlgorandX402Signer } from './bridge';
 import { PriceOracle } from './oracle';
-import { checkBankonHolder, applyDiscount } from './discount';
+import { checkBankonHolder, applyDiscountExact } from './discount';
+import { ALGO_DECIMALS, USD_DECIMALS, formatDecimal, parseDecimal, usdToAssetUnits } from '../money';
 import { BANKON_ASA_ID, DEFAULT_DISCOUNT_PCT } from './constants';
 import type { BankonPaymentRequirement } from './types';
 import type { NetworkId } from '../../types/wallet';
@@ -18,20 +20,31 @@ export interface PendingX402Payment {
   requestInit?: RequestInit;
   /** Parsed 402 response */
   requirement: BankonPaymentRequirement;
-  /** Price in USD */
-  priceUsd: number;
-  /** Price in ALGO */
-  priceAlgo: number;
-  /** ALGO/USD exchange rate used */
-  exchangeRate: number;
+  // ── Exact amounts (cypherpunk4096 commitment IV) ──
+  // These are the truth. Scaled bigints, no float anywhere in their
+  // derivation, and `amountMicroAlgos` is precisely what gets signed.
+
+  /** List price, scaled micro-USD. */
+  priceUsdExact: bigint;
+  /** Price after the holder discount, scaled micro-USD. */
+  effectivePriceUsdExact: bigint;
+  /** The amount actually charged, in microALGO. This is what is signed. */
+  amountMicroAlgos: bigint;
+  /** ALGO/USD rate used, scaled micro-USD. */
+  exchangeRateExact: bigint;
+
+  // ── Display strings, derived from the exact values above ──
+  /** Price in USD, formatted. */
+  priceUsdDisplay: string;
+  /** Effective price in USD, formatted. */
+  effectivePriceUsdDisplay: string;
+  /** Effective price in ALGO, formatted. */
+  effectivePriceAlgoDisplay: string;
+
   /** Whether payer holds BANKON for discount */
   isHolder: boolean;
   /** BANKON balance */
   bankonBalance: number;
-  /** Effective price after discount */
-  effectivePriceUsd: number;
-  /** Effective price in ALGO */
-  effectivePriceAlgo: number;
   /** Endpoint description (from price table or path) */
   description: string;
 }
@@ -59,7 +72,9 @@ export async function parsePaymentRequirement(
   requestInit?: RequestInit,
 ): Promise<PendingX402Payment> {
   const req = responseBody as BankonPaymentRequirement;
-  const priceUsd = parseFloat(req.price);
+  // Exact from the wire: the quoted price is parsed as a decimal string, never
+  // through parseFloat, which would approximate it before we ever charge it.
+  const priceUsdExact = parseDecimal(req.price, USD_DECIMALS);
 
   // Fetch current ALGO/USD and check BANKON holder status in parallel
   const [algoUsd, holderStatus] = await Promise.all([
@@ -67,9 +82,22 @@ export async function parsePaymentRequirement(
     checkBankonHolder(payerAddress, BANKON_ASA_ID),
   ]);
 
-  const priceAlgo = +(priceUsd / algoUsd).toFixed(6);
-  const effectivePriceUsd = applyDiscount(priceUsd, holderStatus.isHolder, DEFAULT_DISCOUNT_PCT);
-  const effectivePriceAlgo = +(effectivePriceUsd / algoUsd).toFixed(6);
+  const exchangeRateExact = parseDecimal(algoUsd.toFixed(USD_DECIMALS), USD_DECIMALS);
+  const effectivePriceUsdExact = applyDiscountExact(
+    priceUsdExact,
+    holderStatus.isHolder,
+    DEFAULT_DISCOUNT_PCT,
+  );
+  // Round UP: the payer covers the remainder rather than underpaying and
+  // having the payment rejected.
+  const amountMicroAlgos = usdToAssetUnits(
+    effectivePriceUsdExact,
+    USD_DECIMALS,
+    exchangeRateExact,
+    USD_DECIMALS,
+    ALGO_DECIMALS,
+    'ceil',
+  );
 
   // Extract endpoint description from path
   const urlObj = new URL(url);
@@ -79,13 +107,15 @@ export async function parsePaymentRequirement(
     url,
     requestInit,
     requirement: req,
-    priceUsd,
-    priceAlgo,
-    exchangeRate: algoUsd,
+    priceUsdExact,
+    effectivePriceUsdExact,
+    amountMicroAlgos,
+    exchangeRateExact,
+    priceUsdDisplay: formatDecimal(priceUsdExact, USD_DECIMALS, { maxFractionDigits: 4, trim: false }),
+    effectivePriceUsdDisplay: formatDecimal(effectivePriceUsdExact, USD_DECIMALS, { maxFractionDigits: 4, trim: false }),
+    effectivePriceAlgoDisplay: formatDecimal(amountMicroAlgos, ALGO_DECIMALS, { trim: false }),
     isHolder: holderStatus.isHolder,
     bankonBalance: holderStatus.balance,
-    effectivePriceUsd,
-    effectivePriceAlgo,
     description,
   };
 }
@@ -108,7 +138,9 @@ export async function executeX402Payment(
     const client = signer.getAlgodClient();
     const suggestedParams = await client.getTransactionParams().do();
 
-    const amountMicroAlgos = Math.ceil(pending.effectivePriceAlgo * 1e6);
+    // Already exact — computed once at quote time and carried, not recomputed
+    // from a rounded display value. algosdk takes a number or bigint here.
+    const amountMicroAlgos = pending.amountMicroAlgos;
     const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
       sender: payerAddress,
       receiver: pending.requirement.payTo,

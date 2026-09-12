@@ -9,6 +9,98 @@
 > - [x402 Integration](./x402-integration.md) — AgenticPlace payment + identity layer
 > - [Snapshot Investigation](./snapshot-investigation.md) — ARIO Solana migration risk report (2026-05-16)
 
+## Session: 2026-09-07 — Lightspeed + module choices
+
+**Focus**: first module registered through the manifest, and the template for the next one. Doc: [lightspeed.md](./lightspeed.md).
+
+- [x] `src/lib/module-choices.ts` — `ParsecModule.choices`: privilege ladder `observe < sign < vault < system`, reach, persistence, provider; `assertPrivilege` / `PrivilegeError`; cautious defaults.
+- [x] `src/lib/lightspeed/` — light.js reimplemented in-house, zero deps: `poll()` observable (refcounted, replay, emit-on-change), provider seam with a local default and a JSON-RPC provider, `blockNumber$ chainId$ balanceOf$ syncStatus$`, `makeContract` read half, `post$` as the privilege boundary.
+- [x] `src/views/lightspeed.ts` + dashboard tile; first `registerModule()` caller, imported from `main.ts`.
+- [x] `parsec-wallet/lightspeed` repo: pure-Node `lightspeed.mjs` prototype of the same contract, `SKILL.md` (all eight light.js pages distilled), `lightspeed.md`.
+- [ ] Open the `AppView` union so a module's route ids need no edit in `src/types/wallet.ts` (the one remaining manual step in the recipe).
+
+## Session: 2026-08-30 (Phase R)
+
+**Focus**: UI and workflow — tiered navigation shell, module manifest, PARSEC brand, wallet entry, matrix/diagnostics. Full contract in [modules.md](./modules.md); narrative in [Development Plan → Phase R](./DEVELOPMENT_PLAN.md).
+
+### Completed — Navigation & shell
+
+- [x] `src/lib/nav.ts` — route registry grouped into the four architecture tiers (Modules → Pouch → Identity → AgenticPlace), with per-route disclosure level, rail flag and `modal` flag.
+- [x] `src/views/shell.ts` — persistent shell; router renders into its content host, removing the full-page `innerHTML` wipe.
+- [x] Back stack + route params in `src/lib/store.ts`; `replace()` for redirects; `lock()` clears history then replaces.
+- [x] Approval surfaces (`confirm-send`, `connect-approve`, `connect-name-approve`, `x402-confirm`, `arweave-approve`) kept off the stack and out of the palette.
+- [x] Command palette (Ctrl/Cmd-K), zero deps, names the matched keyword.
+- [x] Progressive disclosure Simple / More / Professional, persisted per device.
+
+### Completed — Module contract
+
+- [x] `src/lib/modules.ts` — `registerModule()` does router + nav + dashboard in one call; `aliases` retire the 11 forwarder views.
+- [x] `src/views/linkage.ts` — Linkage Map: `PARSEC.png` live, tri-state nodes, connectors lit from real state.
+- [x] `docs/modules.md` — the expansion contract and the add-a-chain recipe.
+
+### Completed — Brand
+
+- [x] `src/styles/abstracts/_brand.scss` + `src/styles/base/_brand-tokens.scss` — palette sampled from `PARSEC2.png` (emblem) and `PARSEC.png` (interface); semantic tokens repointed so ~129 call sites inherited it. `#0084ff` gone from the build.
+- [x] `src/assets/brand/parsec-mark.svg` (hand-authored flat mark) + emblem rasters at 512/256.
+- [x] All 14 `src-tauri/icons/*` regenerated from the badge crop; mobile icon sets dropped (no mobile target).
+- [x] Favicon fixed — pointed at a non-existent `/vite.svg`, 404ing in the app window and the permaweb deploy.
+- [x] Removed 548 lines of dead chat-app CSS (`_buttons.scss` 438 → 71 lines) and the empty React scaffolding.
+
+### Completed — Wallet entry
+
+- [x] `src/views/create-select.ts` — "Choose your chains": Algorand required (quantum rationale from `QUANTUM.md`), Bitcoin / Solana / Arweave / EVM as utility. Row state derived from held addresses.
+- [x] `src/lib/recovery.ts` — rebuild accounts from the keystore (vault or browser blob), with shape-based chain inference; 11 tests.
+- [x] `src/lib/nfd/login.ts` — `.algo` identity login. Name selects, passphrase authenticates; 11 tests.
+- [x] Red pill states its situation: *Open Wallet* when a keystore exists; *Restore Existing Wallet* first when none does.
+
+### Completed — Matrix & diagnostics
+
+- [x] Landing remains the matrix screen. Pyramid on/off toggle, persisted; visibility class-driven and re-asserted after every rebuild.
+- [x] Pyramid now shows inside the blue pill; diagnostics panel becomes a left column.
+- [x] Diagnostics rows carry tri-state tone (dot + colour); every tab states provenance.
+- [x] `src/lib/prices.ts` reports `FeedStatus` instead of swallowing errors; `sessionStorage` cache stops reloads re-hammering CoinGecko.
+- [x] Favourites strip: GLMR → **STX (Stacks)**, CoinGecko id `blockstack`.
+
+### Verification
+
+- [x] `npx tsc --noEmit` clean.
+- [x] `npx vitest run` **232/232** (+43: nav/fuzzy 21, recovery 11, `.algo` login 11).
+- [x] `npm run build` succeeds; web bundle stays Tauri-free.
+- [x] `npx stylelint "src/styles/**/*.scss"` — zero errors.
+- [x] Confirmed running under `npm run tauri:dev`.
+
+### Pending — next round
+
+- [ ] Migrate the remaining dashboard modules onto `registerModule()` (start: Bitcoin, then Solana — see [modules.md](./modules.md)). **Permaweb done 2026-09-10** (`src/lib/permaweb/module.ts`).
+- [x] ~~In-wallet upload to Arweave.~~ **Done 2026-09-10** — `permaweb-upload`: Turbo (free ≤ 107,520 B/item), path manifests for sites, Rust-signed on desktop, gateway digest verification, hand-off to the name controller. See [permaweb/README.md](./permaweb/README.md).
+- [ ] Paid uploads: buy / check Turbo credits in-wallet (today an over-limit item without credits stops at HTTP 402).
+- [ ] Upload hand-off for **undernames** (root target only today); Wayfinder-style gateway ranking for verification.
+- [ ] Enable `bitcoinModule` in `src/lib/pouch/chains.ts` once BANKON BTC WaaS is wired through; it is `enabled: false` and the chain picker reports it honestly until then.
+- [ ] `ethereumModule.signMessage` throws and the descriptor has no `sendView` — the Base panel's Send stays disabled.
+- [ ] Derived stepper + next-action card (`src/lib/ui/`) applied to onboarding and send.
+- [ ] QR rendering for receive (ARC-26 URI already built, no encoder yet).
+- [ ] In-app modals to replace native `confirm()` / `prompt()` in dashboard logout, asset opt-out, settings rename/reset.
+- [ ] Adopt `matrix-fx/` in `src/views/matrix.ts` (2,206 lines duplicated; module never imported).
+- [ ] **Capture the x402 settlement tx id** — `X402PaymentResult.txId` (`src/lib/x402/payment.ts:53`) is declared and never assigned; nothing reads `X-PAYMENT-RESPONSE`. Without it there is no `Payment-Proof` to hand the BANKON registry, so a paid name claim cannot be built. Small, standalone, benefits every payee. See [integration/toon-naming-x402.md](./integration/toon-naming-x402.md).
+- [ ] **Paid BANKON name claim** — `Payment-Method: algorand` end to end using that tx id (or the unused `sendPaymentWithVault()`, `src/lib/x402/bridge.ts:249`). No registry change needed: an x402 settlement to `BNR.Treasury.algorand` already satisfies the existing verifier.
+- [ ] **x402 multi-chain signer selection** — `executeX402Payment()` hardcodes `buildAlgorandX402Signer`; pick from the 402 document's network via `detectNetworkFamily()`. Unblocks EVM/Solana payees including TOON. See [integration/toon-connector.md](./integration/toon-connector.md).
+- [ ] TOON connector module (`tier: 'agenticplace'`, `enabled: false`) — **blocked on upstream leaving testnet**; production is "a named, empty tier" (ADR 0056) with no mainnet contracts, still true on <https://toon.ar.io/> as of 2026-09-02. Snapshot + re-check: [reference/permaweb/toon-ar-io/](./reference/permaweb/toon-ar-io/README.md).
+- [x] ~~**cp4096 commitment IV — kill float money** in the x402 path.~~ **Done 2026-08-30.** New `src/lib/money.ts` (exact `bigint` fixed-point, zero deps); `payment.ts` / `oracle.ts` / `discount.ts` converted; `PendingX402Payment` carries exact amounts with display strings beside them; `usdToAlgo` → `usdToAlgoForDisplay`. 28 new tests.
+- [ ] **Audit the remaining value paths** for float arithmetic the same way: SpinTrade quoting/slippage, ASA amount handling, NFD/ArNS pricing, marketplace listing amounts.
+- [x] ~~Pin `permaweb-deploy` exactly.~~ **Done** — `3.4.6`, was `^3.4.0`.
+- [ ] **Implement `chain_btc_sign_psbt` for real** — `chain_btc/mod.rs:11` is still a derivation scaffold. Blocks the whole Bitcoin path.
+- [ ] **Bitcoin provider seam** (`src/lib/bitcoin/providers/`) with a `local` implementation — Bitcoin must work in Parsec **alone**. Follows the `namespaces/registry.ts` and `marketplace/providers/` pattern.
+- [ ] `bitcoin` module (tier `modules`) on the `local` provider, exercised on **regtest**: descriptor → receive → PSBT → sign → broadcast.
+- [ ] `bankon-waas` **optional** provider + `btc-node` diagnostics module (tier `identity`), registering only when reachable. Parsec is compatible with BANKONBTCWaaS but **must never require it**; absent = `unknown`, never `deficient`.
+- [ ] Add the WaaS origins (`127.0.0.1:8088`, `:8090`) to the CSP `connect-src` allowlist in `src-tauri/tauri.conf.json` when wiring the above.
+- [x] ~~Ask whether WaaS `bankon-vault` and Parsec's `bankon_vault` are the same component.~~ **Answered: one shared component.** It is finding its way into several applications and **Parsec offers it as a service** — treat its 16 IPC commands as a public contract, additive changes only.
+- [ ] **Confirm the naming network** for `pythai`, `bankon`, `deltaverse`, `spintrade` — ArNS (Solana authority) or Permaweb Names (Arweave authority)? The two tools have diverged; publishing with the wrong one updates nothing. Fact-finding, blocks the rest.
+- [ ] If ArNS-on-Solana: adopt `ario-deploy` (devDependency only — `@ar.io/sdk` and `@solana/kit` are already present) and port `deploy:permaweb` / `deploy:resolver`, keeping the old scripts until one deploy is verified end to end.
+- [ ] Move publishing to the `ario-deploy` **GitHub Action** with a controller key, owner cold — matching `spintrade/deploy.yml` and `deltaverse/deploy.yml`.
+- [ ] Update `docs/PRODUCTION_DEPLOY.md` once the deploy path changes.
+
+---
+
 ## Session: 2026-05-16 (Phase Q)
 
 **Focus**: BNR spawn UI, AR.IO module parity (mirror of BANKON), named-NFT bindings (aORC stack), BANKON Marketspace (order book + auctions).

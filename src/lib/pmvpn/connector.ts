@@ -1,5 +1,6 @@
 // pmVPN Module — Connection Orchestrator
-// GPL-3.0 (Parsec client module)
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: GPL-3.0-only
 //
 // Orchestrates the full connection flow:
 // 1. Fetch challenge nonce from server

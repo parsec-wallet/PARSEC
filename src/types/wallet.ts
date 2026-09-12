@@ -90,11 +90,14 @@ export interface PendingSend {
 export type AppView =
   | 'matrix'
   | 'onboarding'
+  | 'create-select'
   | 'create-wallet'
   | 'verify-mnemonic'
   | 'import-wallet'
   | 'unlock'
   | 'dashboard'
+  | 'linkage'
+  | 'lightspeed'
   | 'send'
   | 'confirm-send'
   | 'receive'
@@ -138,11 +141,18 @@ export type AppView =
   | 'name-hub'
   | 'name-claim'
   | 'name-manage'
+  | 'name-controller'
+  | 'connect-name-approve'
   | 'name-resolve'
   | 'market-hub'
   | 'market-listing'
   | 'market-create'
-  | 'market-auction';
+  | 'market-auction'
+  | 'permaweb-desk'
+  | 'permaweb-gateway-join'
+  | 'permaweb-bridge'
+  | 'permaweb-upload'
+  | 'solana-import';
 
 export interface WalletState {
   view: AppView;

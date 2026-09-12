@@ -58,6 +58,9 @@ const RSA_PSS_OWNER_LENGTH = 512;
 
 // ── Public API ───────────────────────────────────────────────
 
+/** Produces the 512-byte RSA-PSS signature over a DataItem's deep-hash. */
+export type DataItemSigner = (signatureData: Uint8Array) => Promise<Uint8Array>;
+
 /**
  * Sign a DataItem with a JWK. Pure — no vault, no network. Caller is
  * responsible for zeroing the JWK after use.
@@ -70,7 +73,34 @@ export async function signDataItem(
   if (jwk.n !== input.owner) {
     throw new Error('DataItem owner does not match signing JWK');
   }
+  return signDataItemWith(input, async (sigData) => {
+    // RSA-PSS sign with SHA-256 + 32-byte salt (Arweave convention).
+    const cryptoKey = await crypto.subtle.importKey(
+      'jwk',
+      jwk,
+      { name: 'RSA-PSS', hash: 'SHA-256' },
+      false,
+      ['sign'],
+    );
+    const sigBuf = await crypto.subtle.sign(
+      { name: 'RSA-PSS', saltLength: 32 },
+      cryptoKey,
+      sigData as unknown as BufferSource,
+    );
+    return new Uint8Array(sigBuf);
+  });
+}
 
+/**
+ * Build a DataItem whose signature comes from elsewhere — the Rust
+ * `chain_ar_sign` command on desktop, where the key never enters JS. The
+ * signer only ever sees the deep-hash, which is public. `input.owner` must be
+ * the signer's public modulus or the item will not verify.
+ */
+export async function signDataItemWith(
+  input: DataItemInput,
+  sign: DataItemSigner,
+): Promise<SignedDataItem> {
   const dataBytes = typeof input.data === 'string'
     ? new TextEncoder().encode(input.data)
     : input.data;
@@ -87,20 +117,8 @@ export async function signDataItem(
     data: dataBytes,
   });
 
-  // 2. RSA-PSS sign with SHA-256 + 32-byte salt (Arweave convention).
-  const cryptoKey = await crypto.subtle.importKey(
-    'jwk',
-    jwk,
-    { name: 'RSA-PSS', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-  const sigBuf = await crypto.subtle.sign(
-    { name: 'RSA-PSS', saltLength: 32 },
-    cryptoKey,
-    sigData as unknown as BufferSource,
-  );
-  const signature = new Uint8Array(sigBuf);
+  // 2. The signature, from whichever signer the caller supplied.
+  const signature = await sign(sigData);
   if (signature.length !== RSA_PSS_SIG_LENGTH) {
     throw new Error(`Unexpected signature length ${signature.length}`);
   }
@@ -139,6 +157,24 @@ export async function signDataItem(
     signature: bytesToBase64url(signature),
     owner: input.owner,
   };
+}
+
+/**
+ * Exact byte length of the signed DataItem for a payload, known before signing
+ * — so a caller can decide free tier vs paid without spending a signature.
+ * sigtype(2) + signature(512) + owner(512) + target flag(1, +32 if present)
+ * + anchor flag(1, +32 if present) + tag count(8) + tag-bytes length(8)
+ * + tags + data.
+ */
+export function estimateDataItemSize(opts: {
+  dataLength: number;
+  tags?: DataItemTag[];
+  target?: boolean;
+  anchor?: boolean;
+}): number {
+  return 2 + RSA_PSS_SIG_LENGTH + RSA_PSS_OWNER_LENGTH
+    + (opts.target ? 33 : 1) + (opts.anchor ? 33 : 1)
+    + 8 + 8 + encodeTags(opts.tags ?? []).length + opts.dataLength;
 }
 
 /**

@@ -1,0 +1,128 @@
+# REUSE.toml — which licence covers which path in this repository.
+# Spec: https://reuse.software/spec-3.3/   Check: `reuse lint`
+#
+# BANKON licence policy: client-facing encryption / privacy software is GPL-3.0 + Apache-2.0,
+# server-side software is MIT. For Parsec that resolves to (decided 2026-09-10):
+#   GPL-3.0-only  the encryption & privacy core — bankon_vault, the chain_* signing packs, pmVPN
+#   Apache-2.0    everything else BANKON wrote in this tree
+#   MIT           server side — the AO Lua processes and the scripts that spawn them
+# Third-party material keeps its upstream licence and copyright. The nested matrix-fx/ repo
+# (its own MIT LICENSE) is excluded through .gitignore rather than annotated here.
+#
+# The LAST matching [[annotations]] table wins, so the default comes first and exceptions follow.
+# A file's own SPDX header takes precedence over this file (default precedence "closest").
+version = 1
+
+# ── Default: BANKON-authored, Apache-2.0 ────────────────────────────────────────────────────
+[[annotations]]
+path = "**"
+SPDX-FileCopyrightText = "2026 BANKON"
+SPDX-License-Identifier = "Apache-2.0"
+
+# ── Forked from Web3dGuy/tauri-workflow-template (MIT, © 2025 Web3dGuy) ─────────────────────
+# Classified 2026-09-10 by comparing each template file's last Web3dGuy revision with the working
+# copy. Byte-identical → template's own licence. Template lines surviving ≥ 20 % alongside our
+# changes → both notices, both licences. Template content gone (rewritten docs, replaced icons)
+# → falls through to the BANKON default above.
+[[annotations]]
+path = [
+  ".gitattributes",
+  ".github/workflows/ci.yml",
+  ".github/workflows/release.yml",
+  ".husky/pre-commit",
+  ".stylelintignore",
+  ".stylelintrc.cjs",
+  ".stylelintrc.production.cjs",
+  "docker/Dockerfile",
+  "docker/Dockerfile.arm64",
+  "docker/README.md",
+  "docker/docker-menu.ps1",
+  "docker/docker-menu.sh",
+  "docker/run-docker-script.js",
+  "docs/GITHUB_ACTIONS_TRIGGER_GUIDE.md",
+  "src-tauri/.gitignore",
+  "src-tauri/build.rs",
+  "src-tauri/capabilities/clipboard.json",
+  "src-tauri/capabilities/default.json",
+  "src-tauri/capabilities/dialog.json",
+  "src-tauri/capabilities/filesystem.json",
+  "src-tauri/capabilities/network.json",
+  "src-tauri/capabilities/system.json",
+  "src/styles/abstracts/_functions.scss",
+  "src/styles/base/_reset.scss",
+  "src/styles/components/_scrollbars.scss",
+  "src/styles/layout/_app.scss",
+  "src/styles/utilities/_text-selection.scss",
+  "src/styles/utilities/_utility-classes.scss",
+  "src/vite-env.d.ts",
+  "tsconfig.node.json",
+]
+SPDX-FileCopyrightText = "2025 Web3dGuy"
+SPDX-License-Identifier = "MIT"
+
+[[annotations]]
+path = [
+  ".gitignore",
+  "index.html",
+  "package-lock.json",
+  "package.json",
+  "src-tauri/Cargo.lock",
+  "src-tauri/Cargo.toml",
+  "src-tauri/src/lib.rs",
+  "src-tauri/src/main.rs",
+  "src-tauri/tauri.conf.json",
+  "src/styles/abstracts/_breakpoints.scss",
+  "src/styles/abstracts/_index.scss",
+  "src/styles/abstracts/_mixins.scss",
+  "src/styles/abstracts/_variables.scss",
+  "src/styles/base/_animations.scss",
+  "src/styles/base/_typography.scss",
+  "src/styles/main.scss",
+  "src/styles/themes/_dark.scss",
+  "src/styles/themes/_light.scss",
+  "src/styles/utilities/_responsive.scss",
+  "src/styles/vendors/_blueprint-overrides.scss",
+  "tsconfig.json",
+  "vite.config.ts",
+]
+SPDX-FileCopyrightText = ["2025 Web3dGuy", "2026 BANKON"]
+SPDX-License-Identifier = "Apache-2.0 AND MIT"
+
+# ── Client encryption & privacy core: GPL-3.0-only ──────────────────────────────────────────
+[[annotations]]
+path = [
+  "src-tauri/src/bankon_vault/**",
+  "src-tauri/src/chain_*/**",
+  "src-tauri/src/pmvpn/**",
+  "src/lib/pmvpn/**",
+  "src/views/pmvpn.ts",
+]
+SPDX-FileCopyrightText = "2026 BANKON"
+SPDX-License-Identifier = "GPL-3.0-only"
+
+# ── Server side: MIT ────────────────────────────────────────────────────────────────────────
+[[annotations]]
+path = [
+  "bankon-names-process/**",
+  "marketplace-process/**",
+  "scripts/spawn-bnr.mjs",
+  "scripts/spawn-bmr.mjs",
+]
+SPDX-FileCopyrightText = "2026 BANKON"
+SPDX-License-Identifier = "MIT"
+
+# ── Third-party material carried in the tree: upstream licence and copyright ────────────────
+[[annotations]]
+path = "docs/third-party-api-docs/blueprint.js-api/**"
+SPDX-FileCopyrightText = "Palantir Technologies"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = "docs/third-party-api-docs/tauri-backend-api/**"
+SPDX-FileCopyrightText = "Tauri Programme within The Commons Conservancy"
+SPDX-License-Identifier = "Apache-2.0 OR MIT"
+
+[[annotations]]
+path = "docs/third-party-api-docs/tauri-frontend-api/**"
+SPDX-FileCopyrightText = "Tauri Programme within The Commons Conservancy"
+SPDX-License-Identifier = "MIT"

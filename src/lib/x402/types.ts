@@ -1,7 +1,8 @@
 // Parsec x402 Integration — Core Types
 // Adapted from x402-demo: erc8004/src/types.ts, modules/identity/types.ts, modules/bankon-payments/types.ts
 // No viem dependency — all address/hash types are plain strings.
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
 // ── ERC-8004 Agent Identity ──────────────────────────────────────
 

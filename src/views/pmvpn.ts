@@ -1,5 +1,6 @@
 // pmVPN View — Remote Machine Manager
-// GPL-3.0 (Parsec client module)
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: GPL-3.0-only
 //
 // Vanilla TypeScript using Parsec's dom.ts helpers.
 // Layout: host sidebar | terminal | status bar

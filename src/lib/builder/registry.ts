@@ -1,7 +1,8 @@
 // PARSEC — Chain Registry
 // Dynamic chain discovery. 2500+ EVM chains from allchain API.
 // Static entries for non-EVM families (UTXO, CryptoNote, Algorand).
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
 import type { ChainDescriptor, ChainFamily, NetworkType } from './types';
 

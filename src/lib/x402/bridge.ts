@@ -1,7 +1,8 @@
 // Parsec x402 Integration — Vault-Secured Signing Bridge
 // Retrieves keys from vault EPHEMERALLY, builds x402 signer, signs, discards.
 // Secrets pass through JS only for a single signing operation.
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
 import algosdk from 'algosdk';
 import { keystoreRetrieve } from '../keystore';

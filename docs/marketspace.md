@@ -10,7 +10,7 @@ BANKON Marketspace is Parsec's sovereign secondary market for names — both BAN
 
 - ArNS doesn't have a built-in marketplace. Existing AR.IO-side trade venues are third-party.
 - BANKON Names + ArNS share an Arweave-key custody model — one Marketspace can list names from either namespace and settle them through the same on-AO escrow.
-- The BMR's payment model is token-agnostic by design (same `Payment-Method` + `Payment-Proof` pattern as the BNR). v1 ships ARIO-priced listings only; v2 will add Algorand ASA and BANKON-token payments.
+- The BMR's payment model is token-agnostic by design (same `Payment-Method` + `Payment-Proof` pattern as the BNR). v1 ships ARIO-priced listings only; v2 will add Algorand ASA and BANKON-token payments. The rails that can and cannot produce a settle-time proof are assessed in [TOON, x402 and the naming service](./integration/toon-naming-x402.md) — a TOON claim cannot, an x402 settlement can.
 
 ## Architecture
 

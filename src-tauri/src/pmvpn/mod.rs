@@ -1,5 +1,6 @@
 // pmVPN Module — Rust SSH client via russh
-// GPL-3.0 (Parsec client module)
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: GPL-3.0-only
 //
 // Manages SSH connections to PMVPN servers.
 // Authentication: wallet signature JSON sent as SSH password.

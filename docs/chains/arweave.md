@@ -41,6 +41,10 @@ DataItems, and ArNS / BANKON name actions.
 `client.ts` (gateway), `tx.ts` (build/sign/upload), `ans104.ts`, `ao.ts`,
 `ario.ts`, `ant.ts`, `signer.ts`, `inject.ts` (`window.arweaveWallet`).
 
+The full inventory — every Arweave, ar.io, AO and naming file in the repo, both registry eras,
+the runtime endpoints and the upstream dependency split — is
+[`../arweave-ario-map.md`](../arweave-ario-map.md).
+
 ## Notes
 
 ArNS is one of two namespaces behind the unified name hub — see

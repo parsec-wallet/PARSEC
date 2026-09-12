@@ -1,8 +1,10 @@
 // Parsec x402 Integration — Price Oracle
 // Algorand DEX price oracle via Vestige API (Tinyman/Pact/Folks pools).
 // Augments the CoinGecko-only prices.ts with Algorand-native pricing.
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
+import { ALGO_DECIMALS, USD_DECIMALS, parseDecimal, usdToAssetUnits } from '../money';
 import { VESTIGE_API, FALLBACK_ALGO_USD, DEFAULT_CACHE_TTL } from './constants';
 
 export class PriceOracle {
@@ -36,14 +38,29 @@ export class PriceOracle {
     return this.cachedAlgoUsd;
   }
 
-  /** Convert USD to microALGO */
-  async usdToMicroAlgo(usd: number): Promise<number> {
+  /**
+   * Convert scaled micro-USD to microALGO, exactly.
+   *
+   * The old form — `Math.ceil((usd / algoUsd) * 1e6)` — did a float divide and
+   * a float multiply before rounding into the amount actually signed. Rounding
+   * is a display decision, never a storage one (cp4096 IV). Rounds UP so the
+   * payer covers the remainder rather than underpaying.
+   */
+  async usdToMicroAlgoExact(usdMicro: bigint): Promise<bigint> {
     const algoUsd = await this.getAlgoUsd();
-    return Math.ceil((usd / algoUsd) * 1e6);
+    const rate = parseDecimal(algoUsd.toFixed(USD_DECIMALS), USD_DECIMALS);
+    return usdToAssetUnits(usdMicro, USD_DECIMALS, rate, USD_DECIMALS, ALGO_DECIMALS, 'ceil');
   }
 
-  /** Convert USD to ALGO */
-  async usdToAlgo(usd: number): Promise<number> {
+  /**
+   * Convert USD to ALGO for DISPLAY ONLY.
+   *
+   * Returns a float and is therefore not usable in a value path — use
+   * `usdToMicroAlgoExact()` for anything that will be signed. Kept because a
+   * label needs a number, not because the arithmetic is sound
+   * (cypherpunk4096 commitment IV).
+   */
+  async usdToAlgoForDisplay(usd: number): Promise<number> {
     const algoUsd = await this.getAlgoUsd();
     return +(usd / algoUsd).toFixed(6);
   }

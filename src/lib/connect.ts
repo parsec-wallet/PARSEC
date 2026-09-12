@@ -1,6 +1,7 @@
 // Parsec Connect — IPC client for dApp WebSocket bridge
 // Controls the connect server and handles sign request approval/rejection.
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
 import { invoke } from './platform';
 
@@ -25,6 +26,22 @@ export interface SignRequest {
 
 // --- IPC ---
 
+/**
+ * Origins allowed to reach the Connect server by default — the PYTHAI suite.
+ *
+ * This gates the HTTP endpoints (`/health`, `/info`) that a page uses to detect Parsec.
+ * Localhost is always added by the Rust side for development. Keep in step with the
+ * default in src-tauri/src/parsec_connect/commands.rs.
+ */
+export const DEFAULT_CONNECT_ORIGINS = [
+  'https://bankon.pythai.net',
+  'https://agenticplace.pythai.net',
+  'https://mindx.pythai.net',
+  'https://deltaverse.pythai.net',
+  'https://rage.pythai.net',
+  'https://pythai.net',
+];
+
 /** Start the connect server on localhost */
 export async function connectStart(
   activeAddress: string,
@@ -33,7 +50,7 @@ export async function connectStart(
 ): Promise<string> {
   return await invoke<string>('connect_start', {
     port: port ?? 9876,
-    allowedOrigins: allowedOrigins ?? ['https://agenticplace.pythai.net'],
+    allowedOrigins: allowedOrigins ?? DEFAULT_CONNECT_ORIGINS,
     activeAddress,
   });
 }
@@ -72,4 +89,40 @@ export async function connectRejectSign(
 /** Disconnect a specific dApp session */
 export async function connectDisconnectSession(sessionId: string): Promise<void> {
   await invoke('connect_disconnect_session', { sessionId });
+}
+
+// ── Name requests (parsec_nameRequest) ────────────────────────────────────────
+// A web page states an intent against a name it controls; Parsec renders it, the user
+// approves, and the wallet builds and signs. See src/lib/names/intent.ts for the ops.
+
+export interface NameRequest {
+  requestId: number;
+  sessionId: string;
+  origin: string;
+  /** Namespace adapter id — 'solana-arns' | 'arns' | 'bankon' */
+  namespace: string;
+  /** One of NAME_OPS; the Rust side rejects anything else before it reaches the UI. */
+  op: string;
+  name: string;
+  params: Record<string, unknown>;
+  createdAt: number;
+}
+
+export async function connectPendingNameRequests(): Promise<NameRequest[]> {
+  return invoke<NameRequest[]>('connect_pending_name_requests');
+}
+
+/** Hand the adapter's result back to the waiting page. */
+export async function connectApproveName(
+  requestId: number,
+  result: unknown,
+): Promise<void> {
+  await invoke('connect_approve_name', { requestId, result });
+}
+
+export async function connectRejectName(
+  requestId: number,
+  reason?: string,
+): Promise<void> {
+  await invoke('connect_reject_name', { requestId, reason });
 }

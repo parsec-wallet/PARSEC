@@ -1,7 +1,8 @@
 // PARSEC — Multi-Chain Transaction Builder Types
 // Unified transaction format across all chains.
 // Isolation-first: each chain family is a cryptographic boundary.
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
 // ── Chain Family Classification ──────────────────────────────
 // Each family is a cryptographic isolation zone.

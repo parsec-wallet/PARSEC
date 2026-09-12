@@ -8,6 +8,8 @@ codebase: a chain or tool is a self-contained module, and each gets its own doc.
 
 - [TODO-INDEX.md](./TODO-INDEX.md) — task index + quick start
 - [DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md) — roadmap
+- [modules.md](./modules.md) — **the expansion contract**: one module registration adds a chain, a name registry or a dApp surface
+- [cypherpunk4096.md](./cypherpunk4096.md) — the consortium standard Parsec joins on completion, and an honest gap list against its five commitments
 - [../README.md](../README.md) — project overview, architecture, security model
 
 ## Chains
@@ -28,13 +30,15 @@ Each blockchain is a self-contained **chain pack** — see
 
 - [SpinTrade](./spintrade.md) — DEX aggregator (Pact + Tinyman, on-chain)
 - [x402](./x402-integration.md) — AgenticPlace micropayments + BANKON identity
-- [NFDominter](./nfdominter.md) — `.algo` name minting (NFD)
+- [NFDminter](./nfdominter.md) — `.algo` name minting, subdomains & hierarchy (NFD)
 - [BANKON Names](./bankon-names.md) — sovereign permaweb namespace
 - [BANKON Marketspace](./marketspace.md) — secondary market for names
 - [Named-NFT binding](./named-nft-binding.md) — bind ASAs to namespace names
 - [aORC](./aorc.md) — Algorand Open Runtime Contracts (NFT minting)
 - [pmVPN](./pmvpn.md) — wallet-authenticated SSH
 - [Diagnostics](./diagnostics.md) — opt-in network/system monitor, no storage
+- [Permaweb](./permaweb/README.md) — ar.io names, gateway operation, the ARIO bridge, and **in-wallet uploads to Arweave** (upload → verify → point a name)
+- [Lightspeed](./lightspeed.md) — reactive chain reads over a chosen provider (light.js idea, zero deps); **the module template** with the choices / privilege ladder
 
 ## dApp integration
 
@@ -49,6 +53,13 @@ Each blockchain is a self-contained **chain pack** — see
 - [announcement.md](./announcement.md) — project introduction
 - [snapshot-investigation.md](./snapshot-investigation.md) — ARIO migration snapshot
 - [GITHUB_ACTIONS_TRIGGER_GUIDE.md](./GITHUB_ACTIONS_TRIGGER_GUIDE.md) — CI triggers
+- [arweave-ario-map.md](./arweave-ario-map.md) — **the complete Arweave / ar.io source map**:
+  every file, both ar.io eras, the AO processes, the endpoints, what we import vs re-implemented.
+  `npm run map:arweave` regenerates it and names anything unmapped
+- [reference/permaweb/](./reference/permaweb/README.md) — the Arweave / ar.io source
+  corpus the permaweb module is built on, plus dated snapshots of
+  [docs.ar.io](./reference/permaweb/docs-ar-io/README.md) and
+  [toon.ar.io](./reference/permaweb/toon-ar-io/README.md)
 
 ## Conventions
 

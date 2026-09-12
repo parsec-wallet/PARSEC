@@ -1,6 +1,7 @@
 // Parsec x402 Integration — AgenticPlace HTTP Client
 // Connects to pythai.net services: discovery API, oracle, facilitator, BANKON.
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
 import { AGENTICPLACE_DEFAULTS } from './constants';
 import type {
