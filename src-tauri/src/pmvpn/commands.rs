@@ -1,6 +1,6 @@
 // pmVPN Tauri Commands — IPC interface for the frontend
 // SPDX-FileCopyrightText: 2026 BANKON
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // These commands are the bridge between TypeScript and Rust.
 // SSH connections run in async Tokio tasks.

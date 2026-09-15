@@ -1,6 +1,6 @@
 // pmVPN Module — Terminal Manager
 // SPDX-FileCopyrightText: 2026 BANKON
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Manages xterm.js terminal instances.
 // Data flow: xterm → Tauri command → russh → server PTY → russh → Tauri event → xterm

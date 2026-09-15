@@ -1,6 +1,6 @@
 // pmVPN Module — Connection Orchestrator
 // SPDX-FileCopyrightText: 2026 BANKON
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Orchestrates the full connection flow:
 // 1. Fetch challenge nonce from server

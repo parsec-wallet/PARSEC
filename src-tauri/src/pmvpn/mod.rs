@@ -1,6 +1,6 @@
 // pmVPN Module — Rust SSH client via russh
 // SPDX-FileCopyrightText: 2026 BANKON
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Manages SSH connections to PMVPN servers.
 // Authentication: wallet signature JSON sent as SSH password.

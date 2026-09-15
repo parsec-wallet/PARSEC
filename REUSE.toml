@@ -1,11 +1,16 @@
 # REUSE.toml — which licence covers which path in this repository.
 # Spec: https://reuse.software/spec-3.3/   Check: `reuse lint`
 #
-# BANKON licence policy: client-facing encryption / privacy software is GPL-3.0 + Apache-2.0,
-# server-side software is MIT. For Parsec that resolves to (decided 2026-09-10):
-#   GPL-3.0-only  the encryption & privacy core — bankon_vault, the chain_* signing packs, pmVPN
-#   Apache-2.0    everything else BANKON wrote in this tree
-#   MIT           server side — the AO Lua processes and the scripts that spawn them
+# BANKON licence policy (revised 2026-09-15). Licensing is BY COMPONENT:
+#   GPL-3.0-or-later  client-facing encryption software — code that generates keys, derives them
+#                     from a seed or mnemonic, holds key material, or signs transactions, plus the
+#                     client-facing privacy transport (pmVPN). Copyleft with NO permissive
+#                     alternative: a dual licence here would let a fork close the code that
+#                     touches a user's keys. The GnuPG / "PGP is GPL" argument — see LICENSE.
+#   Apache-2.0        everything else BANKON wrote in this tree. It calls the tier above and is
+#                     handed a signature back; it never holds key material. Apache-2.0 carries an
+#                     explicit patent grant and is readily consumed downstream.
+#   MIT               server side — the AO Lua processes and the scripts that spawn them.
 # Third-party material keeps its upstream licence and copyright. The nested matrix-fx/ repo
 # (its own MIT LICENSE) is excluded through .gitignore rather than annotated here.
 #
@@ -88,17 +93,54 @@ path = [
 SPDX-FileCopyrightText = ["2025 Web3dGuy", "2026 BANKON"]
 SPDX-License-Identifier = "Apache-2.0 AND MIT"
 
-# ── Client encryption & privacy core: GPL-3.0-only ──────────────────────────────────────────
+# ── Client-facing encryption software: GPL-3.0-or-later ─────────────────────────────────────
+# The tier boundary is "does this file mint key material, hold it, or produce a signature?" —
+# not "is it security-adjacent". Files that merely CALL a signer and are handed a signature back
+# (arweave/{ant,ario,inject,module,turbo}.ts, namespaces/*, marketplace/escrow.ts, x402/*,
+# aorc/*minter.ts, market-*.ts, name-mint.ts, pouch/*) stay Apache-2.0 under the default above.
+# Verified against the source 2026-09-15; see LICENSE for the reasoning.
 [[annotations]]
 path = [
+  # Rust: the vault and every signing pack
   "src-tauri/src/bankon_vault/**",
   "src-tauri/src/chain_*/**",
   "src-tauri/src/pmvpn/**",
+  # client-facing privacy transport
   "src/lib/pmvpn/**",
   "src/views/pmvpn.ts",
+  # key derivation, key material and signing in TypeScript
+  "src/lib/crypto.ts",
+  "src/lib/keystore.ts",
+  "src/lib/algorand-hd/**",
+  "src/lib/algorand/account.ts",
+  "src/lib/algorand/assets.ts",
+  "src/lib/algorand/transactions.ts",
+  "src/lib/algorand/validate.ts",
+  "src/lib/arweave/seed.ts",
+  "src/lib/arweave/derive-worker.ts",
+  "src/lib/arweave/jwk.ts",
+  "src/lib/arweave/ans104.ts",
+  "src/lib/arweave/signer.ts",
+  "src/lib/arweave/tx.ts",
+  "src/lib/solana/seed.ts",
+  "src/lib/solana/module.ts",
+  "src/lib/solana/transfer.ts",
+  "src/lib/solana/kit-signer.ts",
+  "src/lib/bitcoin/account.ts",
+  "src/lib/litecoin/account.ts",
+  "src/lib/nfd/signer.ts",
+  "src/lib/builder/isolation.ts",
+  "src/lib/dex/pact.ts",
+  "src/lib/dex/tinyman-onchain.ts",
+  "src/lib/permaweb/wallet/keys.ts",
+  "src/lib/permaweb/evm/vault-key.ts",
+  "src/views/admin-keygen.ts",
+  "src/views/create-wallet.ts",
+  "src/views/import-wallet.ts",
+  "src/views/connect-approve.ts",
 ]
 SPDX-FileCopyrightText = "2026 BANKON"
-SPDX-License-Identifier = "GPL-3.0-only"
+SPDX-License-Identifier = "GPL-3.0-or-later"
 
 # ── Server side: MIT ────────────────────────────────────────────────────────────────────────
 [[annotations]]

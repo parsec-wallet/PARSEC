@@ -14,8 +14,10 @@ signing and validation, **vanilla TypeScript frontend with no UI framework**.
 
 Tagline: *Your keys. Your coins. No compromises.*
 Repo: <https://github.com/parsec-wallet>
-Licence: tri-licensed by BANKON — **GPL-3.0-only** for the encryption & privacy core (`bankon_vault`,
-`chain_*`, pmVPN), **Apache-2.0** for the rest, **MIT** for the server-side AO processes.
+Licence: by component — **GPL-3.0-or-later** for client-facing encryption software: anything that
+generates keys, derives them from a seed/mnemonic, holds key material, or signs (`bankon_vault`,
+`chain_*`, pmVPN, plus the TypeScript key paths in `REUSE.toml`). **Apache-2.0** for the rest,
+**MIT** for the server-side AO processes. No permissive alternative on the key tier — by design.
 `REUSE.toml` is the per-path authority; check it before moving code between those areas.
 
 **Destination:** on completion Parsec joins the

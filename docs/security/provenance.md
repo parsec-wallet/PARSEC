@@ -49,7 +49,7 @@ Same organisation. Full map in [`vault-family.md`](vault-family.md).
 | [BANKONBTCWaaS `bankon-vault`](https://github.com/cypherpunk4096/BANKONBTCWaaS) | GPL-3.0-or-later | **Idea** — the loopback signing-oracle contract (hand it a payload, get a signature, never a key) and its client-side assertion refusing any reply containing key material. `ShamirOverseer` and `HybridPQCOverseer` (ML-KEM-768) are noted as future custody modes, not yet implemented. | `chain_*/commands.rs` signing shape |
 | BANKONBTCWaaS `keygen.mjs` | GPL-3.0-or-later | **Cautionary.** Mnemonic in DOM `textContent`, prefilled into a `<textarea>`, copied to clipboard, no CSP, no zeroization. The exposure this work closes. | `chain_algo/commands.rs` (create returns no secret) |
 
-**Licence note:** everything this section takes lands in Parsec's **GPL-3.0-only**
+**Licence note:** everything this section takes lands in Parsec's **GPL-3.0-or-later**
 core (`bankon_vault`, `chain_*` — see `REUSE.toml`), so the GPL-3.0 and
 GPL-3.0-or-later sources above stay compatible. The rest of Parsec is Apache-2.0:
 GPL-sourced material must not move outside the core. No code from them has been
@@ -113,5 +113,5 @@ material out of a heap where it cannot be wiped.
 
 Add a row whenever an external design informs a decision, not only when code is
 copied. If code is ever transliterated, mark it **Code**, add an SPDX header to
-the file, and check licence compatibility first — GPL-3.0-only if it lands in the core,
+the file, and check licence compatibility first — GPL-3.0-or-later if it lands in the core,
 Apache-2.0 anywhere else (`REUSE.toml`).

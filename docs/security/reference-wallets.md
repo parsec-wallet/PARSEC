@@ -94,7 +94,7 @@ Two things to know:
   DOM `textContent`, prefills it into a `<textarea>`, copies it to the clipboard,
   ships no CSP, and zeroizes nothing. That is the exposure moving keygen into
   Parsec closes. Licence is compatible — those files are GPL-3.0-or-later and
-  keygen lands in Parsec's GPL-3.0-only core (`chain_*`); keep it there.
+  keygen lands in Parsec's GPL-3.0-or-later core (`chain_*`); keep it there.
 - Its `rejectPrivate` middleware is a **substring match on JSON key names**. It is
   a guard rail, not a boundary; a client posting a seed under a differently-named
   field sails through. Parsec must not rely on it.

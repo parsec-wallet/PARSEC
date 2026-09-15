@@ -3,7 +3,7 @@
 // Network must be OFF. Diagnostics confirm isolation before key material appears.
 // Beautiful, professional, interactive — the most important 60 seconds in your wallet's life.
 // SPDX-FileCopyrightText: 2026 BANKON
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 import { el, btn, input } from '../lib/dom';
 import { passphraseField } from '../lib/passphrase-field';

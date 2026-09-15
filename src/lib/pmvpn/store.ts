@@ -1,6 +1,6 @@
 // pmVPN Module — State Store
 // SPDX-FileCopyrightText: 2026 BANKON
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Follows Parsec's store pattern. Connection profiles persisted
 // in localStorage, sessions held in memory only.

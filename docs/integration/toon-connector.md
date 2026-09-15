@@ -211,7 +211,7 @@ our own code.
    existing chain packs. If ILP packet handling is ever genuinely needed, it
    belongs in `src-tauri/` as a Rust crate behind an IPC command — never in the
    TS bundle. MIT code can come in with its notice kept; a connector crate would sit
-   outside the GPL-3.0-only core, under Apache-2.0 (`REUSE.toml`).
+   outside the GPL-3.0-or-later core, under Apache-2.0 (`REUSE.toml`).
 6. **Licence hygiene.** MIT code may be incorporated; the `docs/rfcs/`
    directory is CC BY-SA 4.0 and must not be copied into Parsec docs without
    its own attribution. Link to the RFCs instead.

@@ -2,7 +2,7 @@
 
 Sovereign multi-chain wallet — Algorand, Solana, Arweave. Your keys. Your coins. No compromises.
 
-(c) 2026 BANKON. GPL-3.0-only (encryption & privacy core) · Apache-2.0 (the rest) · MIT (server side) — see [LICENSE](LICENSE).
+(c) 2026 BANKON. GPL-3.0-or-later (key generation, signing & privacy) · Apache-2.0 (the rest) · MIT (server side) — see [LICENSE](LICENSE).
 
 ## What Is Parsec
 
@@ -174,8 +174,10 @@ npm run lint:css         # SCSS lint
 
 ## License
 
-(c) 2026 BANKON. Tri-licensed: **GPL-3.0-only** for the encryption and privacy core (`bankon_vault`,
-the `chain_*` signing packs, pmVPN), **Apache-2.0** for the rest of the wallet, **MIT** for the
+(c) 2026 BANKON. Licensed by component: **GPL-3.0-or-later** for client-facing encryption software — every file
+that generates keys, derives them from a seed or mnemonic, holds key material, or signs
+(`bankon_vault`, the `chain_*` packs, pmVPN, and the TypeScript key paths enumerated in
+`REUSE.toml`), **Apache-2.0** for the rest of the wallet, **MIT** for the
 server-side AO processes. Per-path mapping in [REUSE.toml](REUSE.toml); full texts in
 [LICENSES/](LICENSES/). See [LICENSE](LICENSE).
 
