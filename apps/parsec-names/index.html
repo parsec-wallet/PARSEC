@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Name desk — PYTHAI permaweb</title>
+<meta name="description" content="Run the ar.io names for the PYTHAI suite. Reads are public; Parsec holds the key and approves every change.">
+<style>
+  :root{
+    --bg:#0B1C14; --panel:#10261B; --sunk:#081711; --ink:#E7EDE8; --faint:#93A79B; --rule:#2A4034;
+    --gold:#D9A23A; --blue:#5A9BE0; --done:#4FB97A; --alert:#E06A52;
+    --mono:ui-monospace,SFMono-Regular,Menlo,"IBM Plex Mono",monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.55;font-size:16px}
+  .wrap{max-width:60rem;margin:0 auto;padding:2rem 1.1rem 4rem}
+  h1{font-size:1.7rem;margin:0;letter-spacing:.02em}
+  h2{font-size:1.05rem;margin:0 0 .6rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:600}
+  .lede{color:var(--faint);margin:.5rem 0 0;max-width:60ch}
+  .mono{font-family:var(--mono);font-size:.82rem;word-break:break-all}
+  a{color:var(--blue)}
+  button{font:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--rule);background:var(--panel);color:var(--ink);padding:.5rem .9rem}
+  button:hover:not(:disabled){border-color:var(--gold)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:var(--gold);color:#0B1C14;border-color:var(--gold);font-weight:600}
+  button.ghost{background:transparent}
+  input,select{font:inherit;background:var(--sunk);color:var(--ink);border:1px solid var(--rule);border-radius:6px;padding:.45rem .6rem;width:100%}
+  input:focus,select:focus,button:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+  label{display:block;font-size:.78rem;color:var(--faint);margin-bottom:.2rem}
+
+  /* wallet bar */
+  .bar{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;justify-content:space-between;
+       padding:.7rem .9rem;border:1px solid var(--rule);border-radius:8px;background:var(--panel);margin:1.25rem 0}
+  .bar[data-state="on"]{border-color:rgba(79,185,122,.5)}
+  .bar[data-state="off"]{border-color:rgba(224,106,82,.45)}
+  .dot{width:.55rem;height:.55rem;border-radius:50%;background:var(--faint);display:inline-block;margin-right:.5rem}
+  .bar[data-state="on"] .dot{background:var(--done)}
+  .bar[data-state="off"] .dot{background:var(--alert)}
+  .bar[data-state="checking"] .dot{background:var(--gold)}
+
+  .names{display:grid;gap:1rem;margin-top:1.5rem}
+  .card{border:1px solid var(--rule);border-radius:8px;background:var(--panel);overflow:hidden}
+  .card__head{display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:baseline;padding:.85rem 1rem;border-bottom:1px solid var(--rule)}
+  .card__name{font-size:1.25rem;font-weight:600}
+  .card__url{font-family:var(--mono);font-size:.78rem;color:var(--faint)}
+  .pill{font-family:var(--mono);font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;padding:.2rem .45rem;border-radius:3px;border:1px solid currentColor}
+  .pill.done{color:var(--done)} .pill.warn{color:var(--gold)} .pill.alert{color:var(--alert)} .pill.idle{color:var(--faint)}
+  .card__body{padding:.85rem 1rem;display:grid;gap:.9rem}
+
+  /* completion checklist — the workflow */
+  .steps{display:grid;gap:.4rem}
+  .step{display:grid;grid-template-columns:1.5rem 1fr auto;gap:.6rem;align-items:center;
+        padding:.5rem .6rem;border-radius:6px;background:var(--sunk)}
+  .step__mark{font-family:var(--mono);font-size:.9rem;text-align:center}
+  .step[data-done="true"] .step__mark{color:var(--done)}
+  .step[data-done="false"] .step__mark{color:var(--gold)}
+  .step__text{font-size:.9rem}
+  .step__text small{display:block;color:var(--faint);font-size:.78rem}
+  .progress{height:4px;border-radius:2px;background:var(--sunk);overflow:hidden}
+  .progress span{display:block;height:100%;background:var(--done);transition:width .4s ease}
+
+  details{border:1px solid var(--rule);border-radius:6px;background:var(--sunk);padding:.55rem .75rem}
+  summary{cursor:pointer;font-size:.9rem}
+  .form{display:grid;gap:.55rem;margin-top:.6rem}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:.55rem}
+  @media (max-width:600px){.row{grid-template-columns:1fr}}
+  .hint{font-size:.78rem;color:var(--faint);min-height:1.1em}
+  .hint[data-tone="ok"]{color:var(--done)} .hint[data-tone="bad"]{color:var(--alert)}
+  .msg{padding:.6rem .75rem;border-radius:6px;font-size:.88rem;margin-top:.6rem}
+  .msg[data-tone="ok"]{background:rgba(79,185,122,.12);border:1px solid rgba(79,185,122,.4)}
+  .msg[data-tone="bad"]{background:rgba(224,106,82,.12);border:1px solid rgba(224,106,82,.4)}
+  .msg[data-tone="busy"]{background:rgba(217,162,58,.12);border:1px solid rgba(217,162,58,.4)}
+  .msg:empty{display:none}
+  footer{margin-top:2.5rem;padding-top:1rem;border-top:1px solid var(--rule);color:var(--faint);font-size:.8rem}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Name desk</h1>
+    <p class="lede">The ar.io names for the PYTHAI suite. Anyone can see what each name serves — that part is public. Changing one needs Parsec, which states the change in plain words and signs it with your vault key.</p>
+  </header>
+
+  <div class="bar" id="bar" data-state="checking">
+    <div><span class="dot"></span><span id="barText">Looking for Parsec…</span></div>
+    <div><button id="retry" class="ghost">Check again</button></div>
+  </div>
+
+  <main class="names" id="names"></main>
+
+  <footer>
+    Reads come from ar.io gateways over HTTPS and need no wallet. Writes go to Parsec on
+    <span class="mono">127.0.0.1:9876</span>; this page never holds a key and never builds a transaction —
+    it asks for a named operation and Parsec decides what that means.
+  </footer>
+</div>
+
+<script type="module">
+import { ParsecNames, ParsecNotAvailable, isArweaveId, validateUndername, undernameUrl } from './parsec-names.js';
+
+// The suite's names and the undernames each one is meant to end up with.
+const PLAN = [
+  { name: 'bankon', blurb: 'BANKON — permanence, identity, payments',
+    undernames: ['thot', 'inft', 'mindx', 'pythai', 'bankon'] },
+  { name: 'deltaverse', blurb: 'DeltaVerse — sovereign identity infrastructure',
+    undernames: ['login', 'docs', 'gfx'] },
+];
+
+const pn = new ParsecNames();
+const bar = document.getElementById('bar');
+const barText = document.getElementById('barText');
+const namesEl = document.getElementById('names');
+
+async function checkWallet() {
+  bar.dataset.state = 'checking';
+  barText.textContent = 'Looking for Parsec…';
+  const ok = await pn.detect();
+  if (ok) {
+    bar.dataset.state = 'on';
+    let who = '';
+    try {
+      const accts = await pn.accounts();
+      const a = accts?.accounts?.[0] ?? accts?.[0];
+      if (typeof a === 'string') who = ` · ${a.slice(0, 6)}…${a.slice(-4)}`;
+    } catch { /* accounts are optional context */ }
+    barText.textContent = `Parsec is running${who} — changes will open there for approval`;
+  } else {
+    bar.dataset.state = 'off';
+    barText.textContent = 'Parsec is not running. You can read every name below; changing one needs the wallet open.';
+  }
+  document.querySelectorAll('[data-needs-wallet]').forEach((b) => { b.disabled = !ok; });
+  return ok;
+}
+
+function pill(text, tone) {
+  const s = document.createElement('span');
+  s.className = `pill ${tone}`;
+  s.textContent = text;
+  return s;
+}
+
+function render() {
+  namesEl.replaceChildren();
+  for (const entry of PLAN) namesEl.appendChild(card(entry));
+}
+
+function card({ name, blurb, undernames }) {
+  const el = document.createElement('section');
+  el.className = 'card';
+  el.innerHTML = `
+    <div class="card__head">
+      <span class="card__name">${name}</span>
+      <span class="card__url">ar://${name} · ${name}.ar.io</span>
+      <span class="pills" style="margin-left:auto"></span>
+    </div>
+    <div class="card__body">
+      <div class="progress"><span style="width:0%"></span></div>
+      <div class="steps"></div>
+      <p class="lede" style="font-size:.85rem;margin:0">${blurb}</p>
+      <div class="msg" role="status" aria-live="polite"></div>
+    </div>`;
+
+  const pills = el.querySelector('.pills');
+  const steps = el.querySelector('.steps');
+  const bar = el.querySelector('.progress span');
+  const msg = el.querySelector('.msg');
+
+  const say = (text, tone) => { msg.textContent = text; msg.dataset.tone = tone ?? ''; };
+
+  async function refresh() {
+    steps.replaceChildren(stepEl('…', 'Reading the name from ar.io gateways', '', null));
+    const root = await pn.read(name);
+    const subs = await Promise.all(undernames.map((u) => pn.read(name, u)));
+
+    pills.replaceChildren();
+    if (!root.resolvedId) pills.appendChild(pill('not indexed', 'idle'));
+    else if (ParsecNames.isPlaceholder(root.resolvedId)) pills.appendChild(pill('placeholder', 'warn'));
+    else pills.appendChild(pill('live', 'done'));
+
+    const rootDone = !!root.resolvedId && !ParsecNames.isPlaceholder(root.resolvedId);
+    const setSubs = subs.filter((s) => s.resolvedId);
+    const done = (rootDone ? 1 : 0) + setSubs.length;
+    const total = 1 + undernames.length;
+    bar.style.width = `${Math.round((done / total) * 100)}%`;
+
+    steps.replaceChildren();
+
+    // Step 1 — the root. Everything else is cosmetic until this is real.
+    steps.appendChild(stepEl(
+      rootDone ? '✓' : '○',
+      rootDone ? `${name} serves your content` : `${name} still serves ar.io's placeholder`,
+      rootDone ? `${root.resolvedId} · cached ${root.ttlSeconds ?? '?'}s` : 'Upload a manifest, then point the name at it',
+      rootDone,
+      rootForm(),
+    ));
+
+    // Then each planned undername.
+    for (let i = 0; i < undernames.length; i++) {
+      const u = undernames[i];
+      const s = subs[i];
+      const has = !!s.resolvedId;
+      steps.appendChild(stepEl(
+        has ? '✓' : '○',
+        `${u}_${name}`,
+        has ? `${s.resolvedId}` : `not set — will be served at ${undernameUrl(name, u).replace('https://', '')}`,
+        has,
+        undernameForm(u),
+      ));
+    }
+    say('');
+  }
+
+  function stepEl(mark, text, sub, done, form) {
+    const d = document.createElement('div');
+    d.className = 'step';
+    d.dataset.done = String(!!done);
+    d.innerHTML = `<span class="step__mark">${mark}</span>
+      <span class="step__text">${text}<small class="mono">${sub}</small></span>`;
+    const slot = document.createElement('span');
+    if (form) {
+      const b = document.createElement('button');
+      b.className = 'ghost';
+      b.textContent = done ? 'Change' : 'Set';
+      b.dataset.needsWallet = '';
+      b.disabled = pn.available !== true;
+      b.addEventListener('click', () => {
+        const open = d.nextElementSibling?.classList.contains('formrow');
+        if (open) { d.nextElementSibling.remove(); return; }
+        d.insertAdjacentElement('afterend', form);
+      });
+      slot.appendChild(b);
+    }
+    d.appendChild(slot);
+    return d;
+  }
+
+  // ── forms ──
+  function rootForm() {
+    const f = document.createElement('div');
+    f.className = 'formrow form';
+    f.innerHTML = `
+      <div class="row">
+        <div><label>Manifest or transaction id</label><input class="tx" placeholder="43 characters" autocomplete="off"></div>
+        <div><label>Cache for</label>
+          <select class="ttl">
+            <option value="60">1 minute — while iterating</option>
+            <option value="900" selected>15 minutes — ar.io default</option>
+            <option value="3600">1 hour</option>
+            <option value="86400">1 day — settled content</option>
+          </select></div>
+      </div>
+      <div class="hint"></div>
+      <div><button class="primary" data-needs-wallet disabled>Point ${name} here</button></div>`;
+    wireTx(f, async (tx, ttl) => {
+      say(`Waiting for approval in Parsec — it will show "Point ${name} at new content".`, 'busy');
+      await pn.setRoot(name, tx, ttl);
+      say(`Done. ${name} now serves ${tx}. Gateways catch up within the TTL.`, 'ok');
+      f.remove();
+      await refresh();
+    });
+    return f;
+  }
+
+  function undernameForm(u) {
+    const f = document.createElement('div');
+    f.className = 'formrow form';
+    f.innerHTML = `
+      <div class="row">
+        <div><label>Target for ${u}_${name}</label><input class="tx" placeholder="43 characters" autocomplete="off"></div>
+        <div><label>Cache for</label>
+          <select class="ttl">
+            <option value="60">1 minute</option>
+            <option value="900" selected>15 minutes</option>
+            <option value="3600">1 hour</option>
+            <option value="86400">1 day</option>
+          </select></div>
+      </div>
+      <div class="hint"></div>
+      <div><button class="primary" data-needs-wallet disabled>Serve ${u}_${name}</button></div>`;
+    wireTx(f, async (tx, ttl) => {
+      say(`Waiting for approval in Parsec — it will show "Serve ${u}_${name} from new content".`, 'busy');
+      await pn.setUndername(name, u, tx, ttl);
+      say(`Done. ${u}_${name} now serves ${tx}.`, 'ok');
+      f.remove();
+      await refresh();
+    });
+    return f;
+  }
+
+  // Shared wiring: validate as you type, disable until valid, translate errors into English.
+  function wireTx(f, run) {
+    const tx = f.querySelector('.tx');
+    const ttl = f.querySelector('.ttl');
+    const hint = f.querySelector('.hint');
+    const go = f.querySelector('button');
+    const check = () => {
+      const v = tx.value.trim();
+      const ok = isArweaveId(v);
+      hint.textContent = !v ? '' : ok ? 'Looks like an Arweave id' : `Needs exactly 43 characters — that is ${v.length}`;
+      hint.dataset.tone = !v ? '' : ok ? 'ok' : 'bad';
+      go.disabled = !ok || pn.available !== true;
+    };
+    tx.addEventListener('input', check);
+    check();
+    tx.focus();
+    go.addEventListener('click', async () => {
+      go.disabled = true;
+      try {
+        await run(tx.value.trim(), Number(ttl.value));
+      } catch (e) {
+        if (e instanceof ParsecNotAvailable) {
+          say('Parsec closed or is no longer reachable. Open the wallet and try again.', 'bad');
+          checkWallet();
+        } else if (e.code === 4001) {
+          say('Rejected in Parsec. Nothing changed.', 'bad');
+        } else if (e.code === 4100) {
+          say('Parsec is locked. Unlock it and try again.', 'bad');
+        } else if (e.code === 4002) {
+          say('The request timed out waiting for approval. Nothing changed.', 'bad');
+        } else {
+          say(e.message || 'The change did not go through.', 'bad');
+        }
+        go.disabled = false;
+      }
+    });
+  }
+
+  refresh().catch((e) => say(`Could not read ${name}: ${e.message}`, 'bad'));
+  return el;
+}
+
+document.getElementById('retry').addEventListener('click', () => { checkWallet(); });
+render();
+checkWallet();
+</script>
+</body>
+</html>

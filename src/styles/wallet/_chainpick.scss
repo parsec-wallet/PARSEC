@@ -1,0 +1,120 @@
+// ==========================================================================
+// CHOOSE YOUR CHAINS
+// ==========================================================================
+// The first step of wallet creation. Algorand carries a "required" tag with
+// its quantum reason; the rest are utility. Row state is derived from which
+// addresses the account holds, so it never drifts from reality.
+
+@use '../abstracts' as *;
+
+.parsec-chainpick {
+  max-width: 640px;
+}
+
+.parsec-chainpick__lede {
+  color: $px-muted;
+  font-size: $font-size-sm;
+  line-height: $line-height-relaxed;
+  margin-bottom: $spacing-5;
+}
+
+.parsec-chainpick__list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.parsec-chainpick__row {
+  padding: $spacing-4;
+  border: 1px solid $px-line;
+  border-left: 3px solid $px-steel-lo;
+  border-radius: $border-radius-md;
+  background: $px-panel;
+
+  // Required chain leads with the brand accent.
+  &--ready { border-left-color: $px-steel; }
+  &--done { border-left-color: $px-gold; }
+
+  &--locked,
+  &--blocked {
+    opacity: 0.55;
+  }
+}
+
+.parsec-chainpick__row-head {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-2;
+  flex-wrap: wrap;
+}
+
+.parsec-chainpick__name {
+  margin: 0;
+  color: $px-text;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-chainpick__unit {
+  color: $px-steel-hi;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+}
+
+.parsec-chainpick__tag {
+  margin-left: auto;
+  padding: 2px $spacing-2;
+  border-radius: $border-radius-sm;
+  font-family: $font-family-mono;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+
+  &--required {
+    background: rgba($px-gold, 0.14);
+    color: $px-gold;
+  }
+
+  &--utility {
+    background: rgba($px-steel, 0.2);
+    color: $px-steel-hi;
+  }
+}
+
+.parsec-chainpick__detail {
+  margin: $spacing-2 0 0;
+  color: $px-muted;
+  font-size: $font-size-xs;
+  line-height: $line-height-relaxed;
+}
+
+.parsec-chainpick__addr {
+  margin: $spacing-2 0 0;
+  color: $px-gold;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  word-break: break-all;
+}
+
+.parsec-chainpick__note {
+  margin: $spacing-2 0 0;
+  color: $px-steel-lo;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+}
+
+.parsec-chainpick__action {
+  margin-top: $spacing-3;
+}
+
+.parsec-chainpick__done {
+  width: 100%;
+  margin-top: $spacing-5;
+}
+
+.parsec-chainpick__foot {
+  margin-top: $spacing-5;
+  color: $px-steel-lo;
+  font-size: $font-size-xs;
+  text-align: center;
+}

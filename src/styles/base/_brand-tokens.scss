@@ -1,0 +1,56 @@
+// ==========================================================================
+// BRAND TOKENS — CSS custom properties
+// ==========================================================================
+
+// Emits the Parsec palette as runtime custom properties so new UI (the app
+// shell, command palette, linkage map) can theme without a Sass rebuild, and
+// so the --bp-* Blueprint layer in themes/ has something to point at.
+
+// Source of truth is abstracts/_brand.scss — never hard-code a hex here.
+
+@use '../abstracts' as *;
+
+:root {
+  // Ground
+  --px-void: #{$px-void};
+  --px-panel: #{$px-panel};
+  --px-panel-2: #{$px-panel-2};
+  --px-grid: #{$px-grid};
+  --px-line: #{$px-line};
+  --px-text: #{$px-text};
+  --px-muted: #{$px-muted};
+
+  // Brushed steel
+  --px-steel: #{$px-steel};
+  --px-steel-hi: #{$px-steel-hi};
+  --px-steel-lo: #{$px-steel-lo};
+  --px-glass: #{$px-glass};
+
+  // Brand gold / amber
+  --px-gold: #{$px-gold};
+  --px-gold-hi: #{$px-gold-hi};
+  --px-gold-mid: #{$px-gold-mid};
+  --px-gold-deep: #{$px-gold-deep};
+  --px-amber-hot: #{$px-amber-hot};
+
+  // Cold accent
+  --px-cyan: #{$px-cyan};
+  --px-cyan-deep: #{$px-cyan-deep};
+
+  // Matrix signature — entry gate only
+  --px-matrix: #{$px-matrix};
+  --px-pill-red: #{$px-pill-red};
+  --px-pill-blue: #{$px-pill-blue};
+
+  // Status
+  --px-success: #{$px-success};
+  --px-warning: #{$px-warning};
+  --px-danger: #{$px-danger};
+  --px-info: #{$px-info};
+
+  // Derived surfaces used by the shell and panel chrome
+  --px-panel-header: linear-gradient(180deg, #{$px-steel-hi} 0%, #{$px-steel-lo} 100%);
+  --px-gold-ramp: linear-gradient(135deg, #{$px-gold-hi} 0%, #{$px-gold} 45%, #{$px-gold-mid} 100%);
+  --px-glow-gold: 0 0 18px #{rgba($px-gold, 0.28)};
+  --px-glow-cyan: 0 0 18px #{rgba($px-cyan, 0.30)};
+}

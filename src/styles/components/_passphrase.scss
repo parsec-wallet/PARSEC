@@ -1,0 +1,457 @@
+// Passphrase field — masked input with reveal toggle, strength meter, generator.
+// Colours come from the brand token layer rather than literals so the meter
+// stays legible in both themes. The three bands are by length only, matching
+// `bankon_vault::overseer::assess`.
+
+@use '../abstracts' as *;
+
+.parsec-passphrase {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+
+  &__row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  &__input {
+    width: 100%;
+
+    // Room for the reveal button so a long passphrase never runs under it.
+    // stylelint-disable-next-line declaration-no-important -- Blueprint sets
+    // padding on .bp5-input at the same specificity; this must win
+
+    padding-right: 2.75rem !important;
+
+    // A passphrase is not prose; a monospace face makes a mistyped character
+    // findable when revealed, and keeps generated strings unambiguous.
+    font-family: var(--px-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    letter-spacing: 0.02em;
+  }
+
+  &__reveal {
+    position: absolute;
+    right: 0.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    min-height: 2rem;
+    padding: 0;
+    color: var(--px-text-muted, #8a9199);
+    cursor: pointer;
+
+    &:hover,
+    &:focus-visible {
+      color: var(--px-text, #e6e8eb);
+    }
+
+    // The pressed state is the only cue that the passphrase is on screen.
+    &[aria-pressed='true'] {
+      color: var(--px-accent, #4aa3df);
+    }
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  &__generate {
+    font-size: 0.8125rem;
+  }
+
+  &__meter {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+  }
+
+  &__bar {
+    position: relative;
+    flex: 1;
+    height: 4px;
+    overflow: hidden;
+    background: var(--px-surface-3, #2a2f36);
+    border-radius: 2px;
+  }
+
+  &__fill {
+    width: 0;
+    height: 100%;
+    background: var(--px-text-muted, #8a9199);
+    border-radius: 2px;
+    transition: width 120ms ease-out, background-color 120ms ease-out;
+  }
+
+  &__label {
+    min-width: 9.5rem;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--px-text-muted, #8a9199);
+    text-align: right;
+  }
+
+  &__note {
+    font-size: 0.75rem;
+    line-height: 1.4;
+    color: var(--px-text-muted, #8a9199);
+
+    &:empty {
+      display: none;
+    }
+  }
+
+  // ── bands ────────────────────────────────────────────────────────────────
+  &[data-strength='weak'] {
+    .parsec-passphrase__fill { background: var(--px-danger, #d9534f); }
+
+    .parsec-passphrase__label,
+    .parsec-passphrase__note { color: var(--px-danger, #d9534f); }
+  }
+
+  &[data-strength='medium'] {
+    .parsec-passphrase__fill { background: var(--px-warning, #e0a030); }
+    .parsec-passphrase__label { color: var(--px-warning, #e0a030); }
+  }
+
+  &[data-strength='strong'] {
+    .parsec-passphrase__fill { background: var(--px-success, #3aa76d); }
+    .parsec-passphrase__label { color: var(--px-success, #3aa76d); }
+  }
+}
+
+// ── Mausoleum · Keystore tab ────────────────────────────────────────────────
+// The bankon-vault/2 control surface: format, migration, custodians, idle lock.
+
+.parsec-mausoleum {
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1rem 0;
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--px-surface-2, #1c2026);
+    border: 1px solid var(--px-border, #2a2f36);
+    border-radius: 6px;
+  }
+
+  &__section-title {
+    margin: 0;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: var(--px-text, #e6e8eb);
+  }
+
+  // Label / value pairs. Values are monospace so a KDF cost or an entry count
+  // lines up rather than jittering between renders.
+  &__kv {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.375rem 0;
+    font-size: 0.8125rem;
+    border-bottom: 1px solid var(--px-border-subtle, rgb(255 255 255 / 6%));
+
+    &:last-of-type {
+      border-bottom: 0;
+    }
+
+    > span:first-child {
+      color: var(--px-text-muted, #8a9199);
+    }
+
+    > strong {
+      font-family: var(--px-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+      font-weight: 500;
+      color: var(--px-text, #e6e8eb);
+      text-align: right;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  &__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  &__status {
+    font-family: var(--px-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--px-danger, #d9534f);
+    overflow-wrap: anywhere;
+
+    &:empty {
+      display: none;
+    }
+  }
+}
+
+// Favourites chooser — opened by pressing and holding the FAVOURITES toggle.
+// Anchored beside the toggle stack it belongs to, not centred as a modal: it is
+// a setting on the control you are already touching.
+.parsec-favchooser {
+  position: absolute;
+  right: calc(#{$spacing-4} + 9.5rem);
+  bottom: $spacing-4;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 13rem;
+  padding: 0.75rem;
+  background: rgb(0 0 0 / 88%);
+  border: 1px solid rgb(16 255 90 / 28%);
+  border-radius: 6px;
+  box-shadow: 0 8px 32px rgb(0 0 0 / 60%);
+  font-family: $font-family-mono;
+
+  &__title {
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    color: rgb(16 255 90 / 70%);
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+
+    // Keep the panel on screen if the list ever outgrows it.
+    max-height: 40vh;
+    overflow-y: auto;
+  }
+
+  &__row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.2rem 0.15rem;
+    font-size: 0.72rem;
+    color: rgb(255 255 255 / 78%);
+    cursor: pointer;
+    border-radius: 3px;
+
+    &:hover {
+      background: rgb(16 255 90 / 8%);
+      color: #fff;
+    }
+  }
+
+  &__box {
+    accent-color: rgb(16 255 90 / 90%);
+    cursor: pointer;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 0.25rem;
+    justify-content: flex-end;
+    padding-top: 0.25rem;
+    border-top: 1px solid rgb(255 255 255 / 10%);
+  }
+}
+
+// A toggle that has more behind it than a click. The hold state gives the press
+// visible feedback so it does not feel like the click was simply ignored.
+.parsec-matrix__toggle {
+  &--holdable::after {
+    content: '\00b7\00b7\00b7';
+    margin-left: 0.4em;
+    opacity: 0.55;
+    letter-spacing: 0.1em;
+  }
+
+  &--holding {
+    color: rgb(16 255 90 / 95%);
+    border-color: rgb(16 255 90 / 60%);
+    transform: scale(0.97);
+  }
+}
+
+// The period label on a column header. Set apart from the header text so it
+// reads as an annotation rather than running into it ("FAVOURITES24h").
+.parsec-fleet-column__period {
+  margin-left: 0.5em;
+  padding: 0 0.35em;
+  border: 1px solid rgb(16 255 90 / 22%);
+  border-radius: 3px;
+  font-size: 0.85em;
+  letter-spacing: 0.06em;
+  opacity: 0.72;
+  text-transform: lowercase;
+}
+
+// The period selector cycles rather than toggles, so it never shows ON/OFF and
+// should not be dimmed like a switch that is off.
+.parsec-matrix__toggle--period {
+  border-color: rgb(16 255 90 / 40%);
+  color: rgb(16 255 90 / 88%);
+}
+
+// ── Blue pill · depth landing ───────────────────────────────────────────────
+.parsec-diaglanding {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem 0;
+
+  &__lede {
+    margin: 0;
+    font-size: 0.82rem;
+    color: rgb(255 255 255 / 62%);
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 0.75rem;
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    padding: 1rem;
+    text-align: left;
+    background: rgb(0 0 0 / 45%);
+    border: 1px solid rgb(90 160 255 / 22%);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
+
+    &:hover,
+    &:focus-visible {
+      background: rgb(0 0 0 / 65%);
+      border-color: rgb(90 160 255 / 55%);
+      transform: translateY(-2px);
+    }
+  }
+
+  &__title {
+    font-family: $font-family-mono;
+    font-size: 0.8rem;
+    letter-spacing: 0.16em;
+    color: rgb(120 180 255 / 92%);
+  }
+
+  &__blurb {
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: rgb(255 255 255 / 66%);
+  }
+}
+
+// ── Blue pill · wallets and events ──────────────────────────────────────────
+
+// An outbound link. Marked so it is never mistaken for local data: following one
+// tells a third party which address was asked about.
+.parsec-matrix__diag-link {
+  margin-left: 0.6em;
+  color: rgb(120 180 255 / 85%);
+  text-decoration: none;
+  font-size: 0.9em;
+
+  &:hover {
+    text-decoration: underline;
+    color: rgb(150 200 255);
+  }
+}
+
+.parsec-matrix__diag-note {
+  margin: 0.75rem 0 0;
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: rgb(255 255 255 / 45%);
+}
+
+.parsec-matrix__eventfilters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.parsec-matrix__eventfilter--off {
+  opacity: 0.4;
+}
+
+.parsec-matrix__eventlog {
+  max-height: 18rem;
+  overflow-y: auto;
+  padding: 0.5rem;
+  background: rgb(0 0 0 / 45%);
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 4px;
+  font-family: $font-family-mono;
+  font-size: 0.68rem;
+  line-height: 1.6;
+}
+
+.parsec-matrix__eventrow {
+  white-space: pre;
+  color: rgb(255 255 255 / 62%);
+
+  &--failed {
+    color: rgb(239 68 68 / 90%);
+  }
+
+  &--cached {
+    color: rgb(224 160 48 / 85%);
+  }
+
+  &--pending {
+    color: rgb(255 255 255 / 40%);
+  }
+}
+
+// ── Blue pill · EVM chain reference ─────────────────────────────────────────
+.parsec-matrix__evmsearch {
+  width: 100%;
+  margin-bottom: 0.5rem;
+  font-family: $font-family-mono;
+  font-size: 0.72rem;
+}
+
+.parsec-matrix__evmlist {
+  max-height: 20rem;
+  overflow-y: auto;
+}
+
+// Internal vs external provenance.
+// The separation is carried by colour and a marker, not just wording: a
+// participant scanning the panel should be able to tell at a glance which
+// readings left the device.
+.parsec-matrix__diag-provenance {
+  &--internal {
+    color: rgb(16 255 90 / 62%);
+
+    &::before {
+      content: '⌂ ';
+      opacity: 0.8;
+    }
+  }
+
+  &--external {
+    color: rgb(224 160 48 / 72%);
+
+    &::before {
+      content: '↗ ';
+      opacity: 0.8;
+    }
+  }
+}
