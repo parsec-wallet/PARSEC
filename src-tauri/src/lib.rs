@@ -6,7 +6,9 @@ mod parsec_throttle;
 mod parsec_sandbox;
 mod parsec_validate;
 mod parsec_connect;
+mod chain_algo;
 mod chain_btc;
+mod chain_evm;
 mod chain_ltc;
 mod network_monitor;
 
@@ -26,7 +28,9 @@ use parsec_sandbox::commands::*;
 use parsec_validate::commands::*;
 use parsec_connect::ConnectState;
 use parsec_connect::commands::*;
+use chain_algo::commands::*;
 use chain_btc::commands::*;
+use chain_evm::commands::*;
 use chain_ltc::commands::*;
 use network_monitor::NetworkMonitorState;
 use network_monitor::commands::*;
@@ -143,6 +147,19 @@ pub fn run() {
             chain_ltc_create_account,
             chain_ltc_derive_from_vault,
             chain_ltc_sign_psbt,
+            // chain_algo — Algorand chain pack (25-word mnemonic, ed25519).
+            // Signs the x402 payment group: the seed never leaves Rust.
+            chain_algo_address_from_mnemonic,
+            chain_algo_validate_mnemonic,
+            chain_algo_create_account,
+            chain_algo_import_account,
+            chain_algo_reveal_mnemonic,
+            chain_algo_sign_bytes,
+            chain_algo_sign_transaction,
+            // chain_evm — EVM chain pack (EIP-1559 transactions, EIP-3009 x402 authorizations)
+            chain_evm_sign_tx,
+            chain_evm_address_from_key,
+            chain_evm_sign_transfer_authorization,
             // network_monitor — opt-in local network + system snapshot
             network_monitor_set_enabled,
             network_info,

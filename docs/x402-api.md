@@ -359,7 +359,7 @@ Two typed errors; everything else is an `Error` whose message names the cause.
 | `no algod endpoint for <caip2>` | a network with no default and none configured | `configureX402Host({ algod })` |
 | `no RPC configured for <network>` | same, for EVM | `configureX402Host({ evmRpc })` or `setEvmRpc` |
 | `unsupported x402 network <n>` | a CAIP-2 namespace with no rail family | expected for an exotic chain |
-| `unknown command chain_algo_sign_transaction` | **Parsec only** — the chain packs are not registered in `lib.rs` | see *Not yet runnable* in [x402-integration.md](./x402-integration.md) |
+| `vault is locked` | **Parsec only** — signing was reached with no unlocked vault | unlock first; the signer cannot prompt |
 
 A facilitator or Bazaar HTTP failure throws with the status and URL.
 `probeFacilitator()` is the exception: it returns `{ reachable: false, error }`, because a

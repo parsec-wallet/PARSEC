@@ -12,10 +12,9 @@
 > Lute — supplies its own in one line. A test reads the source and fails if the core
 > reaches back into the application again.
 >
-> **One thing does not run yet.** The payment path calls
-> `chain_algo_sign_transaction` and `chain_evm_sign_transfer_authorization`, and neither
-> chain pack is registered in `src-tauri/src/lib.rs` on this branch — see
-> [Not yet runnable](#not-yet-runnable) at the end.
+> **Runnable as of 2026-09-19.** Both chain packs are registered in
+> `src-tauri/src/lib.rs` and `cargo check` is clean — see
+> [How signing reaches Rust](#how-signing-reaches-rust).
 
 **Also:** [`src/lib/x402/README.md`](../src/lib/x402/README.md) is the module's own entry
 point and quickstart; [x402-api.md](./x402-api.md) is every export, every error and the
@@ -481,28 +480,39 @@ reads as a shortfall), paid someone else, or settled on another network. Otherwi
 No registry change was needed: an Algorand transaction id paying the treasury is exactly
 what the existing verifier wants.
 
-## Not yet runnable
+## How signing reaches Rust
 
-The payment path is complete and tested, and **cannot execute on this branch**.
+The payment path calls two IPC commands:
 
-`chain_algo` and `chain_evm` exist as source under `src-tauri/src/` but are **not
-declared in `lib.rs`** and their commands are not in `generate_handler!`, so
-`chain_algo_sign_transaction` and `chain_evm_sign_transfer_authorization` are not
-reachable over IPC. Wiring them in fails to compile: both packs are written against a
-vault seam that is not in this tree — `bankon_vault::secure_mem` (present on disk,
-undeclared in `bankon_vault/mod.rs`) and `VaultSession::{store_by_address,
-retrieve_by_address}` (absent entirely; the committed `VaultSession` has
-`store_secret` / `retrieve_secret`).
+| command | signs |
+|---|---|
+| `chain_algo_sign_transaction` | each Algorand transaction the payer owns, over the exact `TX`-prefixed preimage from `bytesToSign()` |
+| `chain_evm_sign_transfer_authorization` | the EIP-3009 authorization, over a digest Rust builds itself from named fields |
 
-That is the unlanded `bankon-vault/2` session seam, not an x402 problem, and it blocks
-`chain_ar` and `chain_sol` the same way. Until it lands:
+Both live in chain packs that were present as source but **not registered** — absent from
+`mod` declarations in `src-tauri/src/lib.rs` and from `generate_handler!` — so every
+`chain_*` call failed with an unknown command and nothing in this module could sign.
 
-- everything that does not sign works — discovery, the Bazaar, quoting, preflight,
-  reading settlements, the receipt ledger;
-- the signing call fails at the IPC boundary with an unknown-command error.
+Wiring them in needed one missing seam. The packs are written against
+`VaultSession::{store_by_address, retrieve_by_address}`, which did not exist; the
+committed session exposes `key()` and `dir()`, and `store::VaultStore` takes both as
+arguments. `bankon_vault/mod.rs` now carries the two accessors over the *existing* store —
+additive, no IPC change, no change to the on-disk format, and the encryption and manifest
+stay exactly where they were:
 
-The EIP-712 module compiles and its eight tests pass in isolation, including the
-`eth_account` ground-truth vector, so the cryptography is not what is waiting.
+```rust
+fn unlocked(&self) -> Result<(&Path, &[u8]), String>      // both, or "vault is locked"
+pub fn store_by_address(&self, chain, address, label, secret) -> Result<(), String>
+pub fn retrieve_by_address(&self, address) -> Result<SecretBytes, String>
+```
+
+`retrieve_by_address` returns `SecretBytes` rather than a `Vec<u8>` so the plaintext is
+wiped when the caller drops it; a `Vec` would leave it in the allocator for whatever reads
+that page next. `secure_mem` was already in the tree and simply undeclared.
+
+`chain_ar` and `chain_sol` are still unregistered. They need the same two accessors, which
+now exist, so wiring them is a `mod` line and a handler list each — separate work, and not
+x402's to do.
 
 ## Verification
 
