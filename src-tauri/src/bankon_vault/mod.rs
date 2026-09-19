@@ -6,6 +6,7 @@
 // Interface: create, unlock, lock, store, retrieve, remove, list
 
 pub mod crypto;
+pub mod kdf;
 pub mod secure_mem;
 pub mod store;
 pub mod commands;

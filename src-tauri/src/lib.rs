@@ -7,9 +7,11 @@ mod parsec_sandbox;
 mod parsec_validate;
 mod parsec_connect;
 mod chain_algo;
+mod chain_ar;
 mod chain_btc;
 mod chain_evm;
 mod chain_ltc;
+mod chain_sol;
 mod network_monitor;
 
 use bankon_vault::VaultState;
@@ -29,9 +31,11 @@ use parsec_validate::commands::*;
 use parsec_connect::ConnectState;
 use parsec_connect::commands::*;
 use chain_algo::commands::*;
+use chain_ar::commands::*;
 use chain_btc::commands::*;
 use chain_evm::commands::*;
 use chain_ltc::commands::*;
+use chain_sol::commands::*;
 use network_monitor::NetworkMonitorState;
 use network_monitor::commands::*;
 
@@ -160,6 +164,16 @@ pub fn run() {
             chain_evm_sign_tx,
             chain_evm_address_from_key,
             chain_evm_sign_transfer_authorization,
+            // chain_ar — Arweave chain pack (RSA-4096 JWK, ANS-104 data items)
+            chain_ar_create_account,
+            chain_ar_import_account,
+            chain_ar_account_info,
+            chain_ar_sign,
+            chain_ar_export_jwk,
+            // chain_sol — Solana chain pack (ed25519, BIP-44 m/44'/501')
+            chain_sol_address_from_mnemonic,
+            chain_sol_import_account,
+            chain_sol_sign,
             // network_monitor — opt-in local network + system snapshot
             network_monitor_set_enabled,
             network_info,
