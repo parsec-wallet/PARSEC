@@ -1,0 +1,3 @@
+[submodule "matrix-fx"]
+	path = matrix-fx
+	url = https://github.com/Professor-Codephreak/matrix.git
