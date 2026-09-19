@@ -81,10 +81,10 @@ the x402-to-AR.IO leg on 2026-08-29 in favour of paying uploads in ARIO directly
 > *"a caller with no claim on a priced route gets `402`"* — with an **x402
 > document quoting the price** before any transmission.
 
-**Parsec already speaks that.** `src/lib/x402/payment.ts` implements the whole
-payer flow: `parse402Response()` → `executeX402Payment()` → retry with an
-`X-PAYMENT` header, wrapped by `x402Fetch()` with an `onPaymentRequired`
-callback for the confirmation sheet.
+**Parsec already speaks that.** `src/lib/x402/client.ts` implements the whole
+payer flow: read the 402 challenge → choose an offer a registered rail can pay →
+quote it exactly → sign → resend with `PAYMENT-SIGNATURE` → read the settlement.
+`x402Request()` wraps it with an `approve` callback for the confirmation sheet.
 
 So Parsec does **not** need ILP, BTP, claims, or channels to be a *payer*. That
 machinery is the connector operator's concern. Paying a TOON-fronted route is
@@ -104,22 +104,33 @@ Keeping these apart matters. The wallet must never grow a payment-channel
 daemon; it holds keys and signs. The connector is infrastructure that sits in
 front of a service.
 
-## The actual gap (payer side)
+## The gap is closed (payer side)
 
-`executeX402Payment()` hardcodes Algorand:
+> **Updated 2026-09-18.** This section described a signer hardcoded to Algorand.
+> That is no longer how the payment path works.
 
-```ts
-const signer = await buildAlgorandX402Signer(payerAddress, passphrase, network);
-```
+`src/lib/x402/rails.ts` is a registry keyed by CAIP-2 namespace. `railFor(network)`
+answers which rail can pay a requirement, `selectRequirement()` picks from the
+server's offers accordingly, and `unpayableNetworks()` names the ones nothing can
+take — so a failure says *what was offered* instead of "payment failed".
 
-TOON settles on **EVM (Base)** and **Solana**. Parsec has both chain packs, and
-`src/lib/x402/bridge.ts` already has `buildXchainX402Signer` and
-`buildAlgorandHdX402Signer` — but the payment path never reaches them.
+Both rails TOON needs on the EVM side are in place:
 
-**The work is signer selection, not a new protocol.** Choose the signer from
-the 402 document's declared network (`detectNetworkFamily()` in
-`x402/constants.ts` already maps an address to `'evm' | 'solana' | 'algorand'`),
-then sign with the corresponding chain pack.
+| Rail | Scheme | How it pays |
+|---|---|---|
+| `avm` (`rails/avm.ts`) | `exact` | facilitator-sponsored atomic group, ASA or ALGO, Rust-signed |
+| `evm` (`rails/evm.ts`) | `exact` | EIP-3009 `transferWithAuthorization`, EIP-712 digest built and signed in Rust (`chain_evm_sign_transfer_authorization`) |
+
+Solana (`svm`) is still an empty slot. Adding it is one `registerRail()` call
+(`docs/x402-integration.md` § *Adding a chain*) — no change to the payment flow.
+
+Which address pays is resolved per rail: `payersFromAccount(account)` hands the
+flow one address per chain and `resolvePayer()` picks after the requirement is
+chosen, rather than being told one address up front and discovering it belonged to
+the wrong chain.
+
+**So what remains for TOON is not payment machinery at all** — it is recognizing
+TOON's dialect (step 2 below) and the upstream mainnet question.
 
 ## Proposed module
 
@@ -143,10 +154,10 @@ registerModule({
 });
 ```
 
-### Step 1 — multi-chain signer selection (the only load-bearing change)
+### Step 1 — ~~multi-chain signer selection~~ **done**
 
-In `src/lib/x402/payment.ts`, pick the signer from the 402 document rather than
-assuming Algorand. This benefits **every** x402 payee, not just TOON.
+Superseded by the rail registry (2026-09-18). Nothing in the payment path needs to
+change for TOON; an EVM-settled 402 is already payable.
 
 ### Step 2 — recognize TOON's dialect
 

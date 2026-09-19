@@ -64,17 +64,17 @@ are both live**, with different signing keys — `arweave-hd` for the AO era,
 |---|--:|--:|
 | Keys & signing | 11 | 1,090 |
 | Transport & encoding | 8 | 1,908 |
-| ar.io — AO era | 3 | 833 |
-| ar.io — Solana era | 39 | 2,239 |
-| Sovereign registries (BNR + BMR) | 36 | 3,535 |
-| Name model & desk | 8 | 1,251 |
-| Views | 31 | 5,544 |
-| Surfaces (tiles, styles, probes) | 5 | 343 |
-| Apps & scripts | 9 | 1,052 |
+| ar.io — AO era | 3 | 832 |
+| ar.io — Solana era | 39 | 2,185 |
+| Sovereign registries (BNR + BMR) | 37 | 3,676 |
+| Name model & desk | 8 | 1,224 |
+| Views | 31 | 5,821 |
+| Surfaces (tiles, styles, probes) | 5 | 340 |
+| Apps & scripts | 9 | 1,055 |
 | Tests | 19 | 1,339 |
-| **Total (mapped, excluding peripheral)** | **169** | **19,134** |
+| **Total (mapped, excluding peripheral)** | **170** | **19,470** |
 
-Generated 2026-09-11. Every file in the tree carrying ≥3 Arweave/ar.io/AO/naming references is claimed by a group above or listed as a peripheral touchpoint — the map is complete.
+Generated 2026-09-18. Every file in the tree carrying ≥3 Arweave/ar.io/AO/naming references is claimed by a group above or listed as a peripheral touchpoint — the map is complete.
 <!-- END INVENTORY -->
 
 ## 1. Keys & signing

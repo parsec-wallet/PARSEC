@@ -61,6 +61,29 @@ Payment methods accepted at launch:
 | `arweave-stake` | Arweave tx id staking AR to `BNR.Treasury.arweave-stake` | configurable winston |
 | `bankon` | BANKON token tx id (placeholder) | `Not-Yet-Supported` until token issued |
 
+#### Paying for a claim (`algorand`) — `src/lib/bankon-names/pay.ts`
+
+Added 2026-09-18. The proof the registry wants is just an Algorand transaction id paying
+`BNR.Treasury.algorand`, so the module is thin:
+
+| | |
+|---|---|
+| `treasuryFor('algorand')` | the treasury address, read live from the registry's own `Info` — never cached, never hardcoded |
+| `quoteNameClaim(intent, name, opts, network)` | the cost, the treasury, and **any settlement already on file that covers it** |
+| `proveNameClaimPayment(payer, quote, name, network)` | reuses that settlement, or pays the treasury; never both |
+
+An x402 receipt paying the treasury counts. A participant who bought something else from
+the same treasury over x402 owes nothing further — `proofFromReceipts()` finds it in the
+settlement ledger (`src/lib/x402/receipts.ts`). It is refused if it underpaid, was paid
+in another asset (`Payment-Amount` is microALGO; a USDC receipt reads as a shortfall),
+paid someone else, or settled on another network.
+
+Otherwise `payTreasury()` sends the quote and waits for finality — Rust-signed through
+`sendAlgoPayment()`, so the mnemonic never enters the renderer.
+
+**Not yet wired to a view:** the module and its tests are in place, but no surface calls
+`quoteNameClaim()` yet, so a paid claim is API-only today (`docs/TODO-INDEX.md`).
+
 ### Record management
 
 The owner of a name can:
@@ -191,7 +214,7 @@ buildPrimaryBankonRequestInput({ name })
 buildPrimaryBankonAcknowledgeInput()
 ```
 
-`PaymentProof` (from `payment.ts`) is a discriminated union; `paymentProofToTags(p)` is the canonical tag mapping.
+`PaymentProof` (from `payment.ts`) is a discriminated union; `paymentProofToTags(p)` is the canonical tag mapping. `pay.ts` is what produces one for `algorand` — see [Paying for a claim](#paying-for-a-claim-algorand--srclibbankon-namespayts) above.
 
 ## Public resolver
 
@@ -210,9 +233,10 @@ Deploy: `npm run deploy:resolver` → publishes to Arweave via `permaweb-deploy`
 ## v2 roadmap (post-launch)
 
 - Oracle-verified payment proofs (Algorand-tx via algod oracle, AR-tx via Arweave-Oracle process).
-  Parsec's x402 rail already signs an Algorand payment to a quoted `payTo`, so pointing a quote at
-  `BNR.Treasury.algorand` makes an x402 settlement a valid `algorand` proof with **no new method** —
-  see [TOON, x402 and naming](./integration/toon-naming-x402.md).
+  This is the remaining half: the wallet now **produces** a real proof (`pay.ts`, 2026-09-18) and
+  the BNR still records it without verifying it on chain. An x402 settlement to
+  `BNR.Treasury.algorand` is already a valid `algorand` proof with **no new method** — see
+  [TOON, x402 and naming](./integration/toon-naming-x402.md).
 - BANKON token issuance + `bankon` payment-method enablement
 - Token-weighted governance voting
 - Marketplace handler (transfer with token escrow)

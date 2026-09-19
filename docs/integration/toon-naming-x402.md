@@ -92,18 +92,37 @@ treasury and **the existing method already covers it** — no new Lua, no new
 verifier, no policy change. `Payment-Method: algorand`, `Payment-Proof: <txid>`.
 
 **The gap, verified in the tree:** the tx id is never captured.
-`X402PaymentResult.txId` is declared at `src/lib/x402/payment.ts:53` and never
-assigned — `executeX402Payment()` returns `{ success: true, response }`, and
-nothing anywhere reads the `X-PAYMENT-RESPONSE` header the facilitator settles
-with. **You cannot submit a proof you never kept.** Fixing that is a handful of
-lines and it benefits every x402 payee, not just naming.
+> **Resolved 2026-09-18.** What follows described a settlement id that was never
+> captured. Both halves are now built.
 
-Beside it sits the non-402 half, already written and unused:
-`sendPaymentWithVault()` (`src/lib/x402/bridge.ts:249`) sends an ALGO payment
-from the vault and returns `{ txId, confirmedRound }`. It has no callers. A paid
-BANKON claim is that call, then `claim({ paymentMethod: 'algorand',
-paymentProof: txId, paymentAmount })` — the adapter already threads a proof
-through (`src/lib/namespaces/bankon.ts:109`).
+`X402PaymentResult.txId` used to be declared and never assigned — nothing read the
+settlement header, so a payment that succeeded left no proof it had. **You cannot
+submit a proof you never kept.** `src/lib/x402/protocol.ts` now reads
+`PAYMENT-RESPONSE` (and the v1 `X-PAYMENT-RESPONSE`), and `receipts.ts` writes a
+receipt the moment one is decoded — delivered or not, because a payment that settled
+and a resource that failed are two different facts.
+
+`latestReceiptTo(payTo, network)` is the lookup this document was asking for.
+
+The non-402 half is built too. `src/lib/bankon-names/pay.ts` is the paid claim end to
+end:
+
+| | |
+|---|---|
+| `treasuryFor('algorand')` | `BNR.Treasury.algorand`, read live from the registry's own `Info` |
+| `quoteNameClaim(intent, name, opts, network)` | the cost, the treasury, and **any settlement already on file that covers it** |
+| `proofFromReceipts(...)` | an x402 receipt paying the treasury — refused if it underpaid, was in another asset, paid someone else, or settled on another network |
+| `payTreasury(...)` | otherwise: send the quote, Rust-signed via `sendAlgoPayment()`, wait for finality |
+| `proveNameClaimPayment(...)` | the two above in order — it never pays twice |
+
+The result feeds straight into `claim({ paymentMethod: 'algorand', paymentProof:
+txId, paymentAmount })`, which the adapter already threads through
+(`src/lib/namespaces/bankon.ts:109`). No registry change was needed: an Algorand
+transaction id paying the treasury is exactly what the existing verifier wants.
+
+`sendPaymentWithVault()` (`src/lib/x402/bridge.ts`) remains unused and is now
+superseded — it retrieves the mnemonic into JavaScript, where `sendAlgoPayment()`
+signs through Rust.
 
 `Policy.AcceptedMethods` (`bankon-names-process/state.lua:58`) and `Policy.Costs`
 are governance-settable, so a future dedicated `x402` method is a `Set-Policy`

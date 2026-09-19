@@ -152,5 +152,4 @@ registerRoutes([
   { id: 'connect-approve',      title: 'Approve Signature',   tier: 'agenticplace', disclosure: 'simple', modal: true },
   { id: 'connect-name-approve', title: 'Approve Name Action', tier: 'agenticplace', disclosure: 'simple', modal: true },
   { id: 'arweave-approve',      title: 'Approve Connection',  tier: 'agenticplace', disclosure: 'simple', modal: true },
-  { id: 'x402-confirm',         title: 'Confirm Payment',     tier: 'agenticplace', disclosure: 'simple', modal: true },
 ]);

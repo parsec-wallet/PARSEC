@@ -22,6 +22,7 @@ import { store } from './lib/store';
 // one registration for router + rail + dashboard. Lightspeed is the template.
 import './lib/lightspeed/module';
 import './lib/permaweb/module';
+import './lib/x402/module';
 
 // Eager — first-paint critical path. Together these cover every entry-point
 // state (no wallet, locked wallet, unlocked wallet) and the onboarding flow.
@@ -93,7 +94,6 @@ registerView('nfdominter-buy', lazyView(async () => (await import('./views/nfdom
 registerView('mausoleum', lazyView(async () => (await import('./views/mausoleum')).mausoleumView));
 registerView('admin-keygen', lazyView(async () => (await import('./views/admin-keygen')).adminKeygenView));
 registerView('pmvpn', lazyView(async () => (await import('./views/pmvpn')).pmvpnView));
-registerView('x402-confirm', lazyView(async () => (await import('./views/x402-confirm')).x402ConfirmView));
 registerView('connect-approve', lazyView(async () => (await import('./views/connect-approve')).connectApproveView));
 registerView('xchain-connect', lazyView(async () => (await import('./views/xchain-connect')).xchainConnectView));
 registerView('arc52-create', lazyView(async () => (await import('./views/arc52-create')).arc52CreateView));

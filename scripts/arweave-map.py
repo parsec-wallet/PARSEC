@@ -85,6 +85,9 @@ PERIPHERAL = [
     "src/lib/recovery.ts", "src/lib/__tests__/recovery.test.ts",
     "src/lib/builder/registry.ts", "src/lib/builder/types.ts",
     "src/lib/builder/multichain.ts", "src/lib/builder/isolation.ts",
+    # x402 is a payment module, not a permaweb one — but its CAIP-2 table names the
+    # `arweave` rail family, so the map claims it rather than reporting it unmapped.
+    "src/lib/x402/networks.ts",
 ]
 
 

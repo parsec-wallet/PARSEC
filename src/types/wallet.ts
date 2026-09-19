@@ -112,6 +112,8 @@ export type AppView =
   | 'settings'
   | 'pmvpn'
   | 'x402-confirm'
+  | 'x402-desk'
+  | 'x402-bazaar'
   | 'agents'
   | 'identity'
   | 'connect-approve'
