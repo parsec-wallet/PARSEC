@@ -29,7 +29,8 @@ Each blockchain is a self-contained **chain pack** — see
 ## Tools & extensions
 
 - [SpinTrade](./spintrade.md) — DEX aggregator (Pact + Tinyman, on-chain)
-- [x402](./x402-integration.md) — AgenticPlace micropayments + BANKON identity
+- [x402](./x402-integration.md) — HTTP 402 payments: the protocol, the Algorand and EVM rails, embedding the module in another wallet
+- [x402 API](./x402-api.md) — every export, every error, troubleshooting
 - [NFDminter](./nfdominter.md) — `.algo` name minting, subdomains & hierarchy (NFD)
 - [BANKON Names](./bankon-names.md) — sovereign permaweb namespace
 - [BANKON Marketspace](./marketspace.md) — secondary market for names

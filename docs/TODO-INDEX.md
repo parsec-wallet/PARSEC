@@ -6,7 +6,8 @@
 > **Related:**
 > - [Development Plan](./DEVELOPMENT_PLAN.md) — architecture, roadmap, completed work
 > - [Production Deploy](./PRODUCTION_DEPLOY.md) — running locally + contract deployment checklist
-> - [x402 Integration](./x402-integration.md) — AgenticPlace payment + identity layer
+> - [x402 Integration](./x402-integration.md) — the protocol, both rails, embedding it in another wallet
+> - [x402 API reference](./x402-api.md) — every export, every error, troubleshooting
 > - [Snapshot Investigation](./snapshot-investigation.md) — ARIO Solana migration risk report (2026-05-16)
 
 ## Session: 2026-09-07 — Lightspeed + module choices

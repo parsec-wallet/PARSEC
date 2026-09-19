@@ -17,6 +17,10 @@
 > chain pack is registered in `src-tauri/src/lib.rs` on this branch — see
 > [Not yet runnable](#not-yet-runnable) at the end.
 
+**Also:** [`src/lib/x402/README.md`](../src/lib/x402/README.md) is the module's own entry
+point and quickstart; [x402-api.md](./x402-api.md) is every export, every error and the
+troubleshooting table.
+
 ## What x402 is
 
 An HTTP status code with a protocol attached. A resource server answers `402 Payment
@@ -526,5 +530,6 @@ the core reaches back into the application.
 - Facilitator: <https://facilitator.goplausible.xyz> (`/supported`, `/discovery/*`)
 - Reference client: `@x402/avm` on npm
 - Developer guide: <https://algorand.co/agentic-commerce/x402/developers>
-- In-house: `docs/integration/toon-naming-x402.md`, `docs/bankon-names.md`, and mindX
-  `docs/X402.md`
+- In-house: [x402-api.md](./x402-api.md) (API reference),
+  [`src/lib/x402/README.md`](../src/lib/x402/README.md) (module entry point),
+  `docs/integration/toon-naming-x402.md`, `docs/bankon-names.md`, and mindX `docs/X402.md`
