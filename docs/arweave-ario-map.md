@@ -66,15 +66,15 @@ are both live**, with different signing keys — `arweave-hd` for the AO era,
 | Transport & encoding | 8 | 1,908 |
 | ar.io — AO era | 3 | 832 |
 | ar.io — Solana era | 39 | 2,185 |
-| Sovereign registries (BNR + BMR) | 37 | 3,676 |
+| Sovereign registries (BNR + BMR) | 37 | 3,678 |
 | Name model & desk | 8 | 1,224 |
 | Views | 31 | 5,821 |
 | Surfaces (tiles, styles, probes) | 5 | 340 |
 | Apps & scripts | 9 | 1,055 |
 | Tests | 19 | 1,339 |
-| **Total (mapped, excluding peripheral)** | **170** | **19,470** |
+| **Total (mapped, excluding peripheral)** | **170** | **19,472** |
 
-Generated 2026-09-18. Every file in the tree carrying ≥3 Arweave/ar.io/AO/naming references is claimed by a group above or listed as a peripheral touchpoint — the map is complete.
+Generated 2026-09-19. Every file in the tree carrying ≥3 Arweave/ar.io/AO/naming references is claimed by a group above or listed as a peripheral touchpoint — the map is complete.
 <!-- END INVENTORY -->
 
 ## 1. Keys & signing

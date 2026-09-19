@@ -21,26 +21,30 @@ const suggestedParams = {
 
 const signCalls: string[] = [];
 
-vi.mock('../../algorand/client', () => ({
-  getAlgodClient: () => ({
+vi.mock('../host', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../host')>()),
+  hostAlgod: async () => ({
     getTransactionParams: () => ({ do: async () => ({ ...suggestedParams }) }),
     accountInformation: () => ({ do: async () => ({ amount: 5_000_000n, assets: [{ assetId: 10458941n, amount: 2_000_000n }] }) }),
   }),
-  getIndexerClient: () => ({}),
-}));
-
-vi.mock('../../chain-algo', () => ({
-  algoSignTransaction: async (address: string, payloadB64: string) => {
-    signCalls.push(address);
-    const preimage = Buffer.from(payloadB64, 'base64');
-    // Rust signs the exact preimage handed to it — the `TX`-prefixed transaction bytes.
-    if (preimage.subarray(0, 2).toString() !== 'TX') throw new Error('not a transaction preimage');
-    return { signature_b64: Buffer.alloc(64, 7).toString('base64'), scheme: 'ed25519' };
-  },
 }));
 
 const { buildPaymentGroup, signPaymentGroup, preflightAvm, avmRail } = await import('../rails/avm');
 const { normalizeChallenge, normalizeRequirement, base64ToBytes } = await import('../protocol');
+
+/**
+ * A signer in the ecosystem's own shape — this is what any wallet passes in, and what
+ * the test uses in place of Parsec's Rust one. Nothing about the rail knows the difference.
+ */
+const signer = {
+  address: PAYER,
+  async sign(txnGroup: algosdk.Transaction[], indexesToSign: number[]) {
+    return indexesToSign.map((i) => {
+      signCalls.push(txnGroup[i].sender.toString());
+      return txnGroup[i].attachSignature(PAYER, new Uint8Array(64).fill(7));
+    });
+  },
+};
 
 const challenge = normalizeChallenge({ x402Version: 2, resource: { url: 'https://x/y' }, accepts: [] }, 'https://x/y');
 
@@ -58,6 +62,7 @@ function context(extra: Record<string, unknown>, asset = '10458941', amount = '2
     challenge,
     payer: PAYER,
     walletNetwork: 'testnet' as const,
+    signers: { avm: signer },
   };
 }
 
@@ -114,9 +119,9 @@ describe('building the group', () => {
 describe('signing the group', () => {
   it('signs only what the payer owns, and leaves the sponsor’s transaction unsigned', async () => {
     const { group } = await buildPaymentGroup(context({ feePayer: FEE_PAYER }));
-    const encoded = await signPaymentGroup(group, PAYER);
+    const encoded = await signPaymentGroup(group, signer);
 
-    expect(signCalls).toEqual([PAYER]);
+    expect(signCalls).toEqual([PAYER]); // the sponsor's transaction was never offered
 
     // Index 0 decodes as a bare transaction: no signature was attached to it.
     const unsigned = algosdk.decodeUnsignedTransaction(base64ToBytes(encoded[0]));

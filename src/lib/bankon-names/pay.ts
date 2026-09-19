@@ -27,6 +27,7 @@ import { getBnrInfo, getBankonTokenCost } from './client';
 import type { ClaimIntent, TokenCostOpts } from './client';
 import type { PaymentMethod } from './payment';
 import { latestReceiptTo } from '../x402/receipts';
+import type { AvmSigner } from '../x402/host';
 import { sendAlgoPayment } from '../x402/rails/avm';
 import { describeNetwork, toCaip2 } from '../x402/networks';
 
@@ -78,14 +79,15 @@ export function proofFromReceipts(
 
 /** Pay the treasury directly and wait for the transaction to be final. */
 export async function payTreasury(
-  payer: string,
+  signer: AvmSigner,
   treasury: string,
   microAlgos: bigint,
   name: string,
   network: NetworkId,
 ): Promise<NameClaimProof> {
   if (microAlgos <= 0n) throw new Error('A paid claim needs a positive quote.');
-  const { txId } = await sendAlgoPayment(payer, treasury, microAlgos, `bnr:claim:${name}`, network);
+  const caip2 = network === 'mainnet' ? 'algorand-mainnet' : 'algorand-testnet';
+  const { txId } = await sendAlgoPayment(signer, treasury, microAlgos, `bnr:claim:${name}`, caip2);
   return { method: 'algorand', txId, amount: microAlgos, source: 'direct', treasury };
 }
 
@@ -129,11 +131,11 @@ export async function quoteNameClaim(
  * Returns what `NamespaceAdapter.claim()` wants: `paymentProof` and `paymentAmount`.
  */
 export async function proveNameClaimPayment(
-  payer: string,
+  signer: AvmSigner,
   quote: NameClaimQuote,
   name: string,
   network: NetworkId,
 ): Promise<NameClaimProof> {
   if (quote.existing) return quote.existing;
-  return payTreasury(payer, quote.treasury, quote.amount, name, network);
+  return payTreasury(signer, quote.treasury, quote.amount, name, network);
 }

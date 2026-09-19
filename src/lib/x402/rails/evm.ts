@@ -12,17 +12,19 @@
 // The nonce is 32 random bytes and single-use — the token contract marks it spent, which
 // is what stops a facilitator replaying an authorization it has already settled.
 //
-// Signing goes through Rust (`chain_evm_sign_transfer_authorization`), which builds the
-// EIP-712 digest itself from named fields. The private key never enters the renderer,
-// and the renderer cannot ask for a signature over anything but this one message.
+// Signing goes through whatever `EvmSigner` the caller supplied. Parsec passes one backed
+// by Rust (`chain_evm_sign_transfer_authorization`), which builds the EIP-712 digest itself
+// from named fields — the key never enters the renderer and the renderer cannot ask for a
+// signature over anything else. A browser wallet passes one wrapping
+// `eth_signTypedData_v4`; see `adapters/eip1193.ts`.
 //
 // Spec: `specs/schemes/exact/scheme_exact_evm.md` in algorandfoundation/x402; EIP-3009.
 //
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: Apache-2.0
 
-import { evmSignTransferAuthorization } from '../../chain-evm';
-import { BASE_MAINNET, BASE_SEPOLIA, ETHEREUM_MAINNET, describeNetwork, toCaip2 } from '../networks';
+import { hostEvmRpc } from '../host';
+import { describeNetwork, toCaip2 } from '../networks';
 import { registerRail, type X402Blocker, type X402PaymentContext, type X402Preflight, type X402Rail } from '../rails';
 
 /** The scheme payload for EVM `exact` via EIP-3009. */
@@ -38,20 +40,15 @@ export interface EvmPaymentPayload extends Record<string, unknown> {
   };
 }
 
-/**
- * Read-only endpoints, one per chain, for the balance check before signing.
- *
- * Public and rate-limited; they are asked one `eth_call` per payment and nothing else.
- * A chain absent here still pays — preflight simply reports that it could not look.
- */
-export const EVM_RPC: Record<string, string> = {
-  [BASE_MAINNET]: 'https://mainnet.base.org',
-  [BASE_SEPOLIA]: 'https://sepolia.base.org',
-  [ETHEREUM_MAINNET]: 'https://ethereum-rpc.publicnode.com',
-};
-
+/** Point the rail at a different JSON-RPC endpoint for a chain. */
 export function setEvmRpc(network: string, url: string): void {
-  EVM_RPC[toCaip2(network)] = url;
+  overrides[toCaip2(network)] = url;
+}
+
+const overrides: Record<string, string> = {};
+
+function rpcFor(network: string): string {
+  return overrides[toCaip2(network)] || hostEvmRpc(network);
 }
 
 /** `eip155:8453` → `8453`. */
@@ -89,7 +86,7 @@ function decodeUint256(hex: string): bigint {
 }
 
 async function ethCall(network: string, to: string, data: string): Promise<string> {
-  const url = EVM_RPC[toCaip2(network)];
+  const url = rpcFor(network);
   if (!url) throw new Error(`no RPC configured for ${describeNetwork(network).label}`);
   const res = await fetch(url, {
     method: 'POST',
@@ -141,27 +138,22 @@ export async function buildAuthorization(ctx: X402PaymentContext): Promise<EvmPa
     nonce: randomNonce(),
   };
 
-  const { signature_hex } = await evmSignTransferAuthorization(
-    payer,
+  const signer = ctx.signers.evm;
+  if (!signer) throw new Error('no EVM signer supplied for an EVM requirement');
+
+  const signature = await signer.signTransferAuthorization(
     {
       // A token's EIP-712 domain is part of what makes the signature valid on that token
       // and nowhere else. The server states it; USDC's is ("USDC", "2").
       name: typeof extra.name === 'string' && extra.name ? extra.name : 'USDC',
       version: typeof extra.version === 'string' && extra.version ? extra.version : '2',
-      chain_id: chainIdOf(requirement.network),
-      verifying_contract: requirement.asset,
+      chainId: chainIdOf(requirement.network),
+      verifyingContract: requirement.asset,
     },
-    {
-      from: authorization.from,
-      to: authorization.to,
-      value: authorization.value,
-      valid_after: authorization.validAfter,
-      valid_before: authorization.validBefore,
-      nonce: authorization.nonce,
-    },
+    authorization,
   );
 
-  return { signature: signature_hex, authorization };
+  return { signature, authorization };
 }
 
 export async function preflightEvm(ctx: X402PaymentContext): Promise<X402Preflight> {

@@ -6,6 +6,12 @@
 > through **Rust**, and writes a **receipt carrying the settled transaction id**. Solana
 > and Arweave are registrable slots with nothing behind them yet.
 >
+> **Portable as of 2026-09-19.** The module depends on the application through three
+> small ports (`host.ts`) rather than by importing it. Parsec supplies signing backed by
+> Rust; any wallet with an `algosdk.TransactionSigner` — use-wallet, AlgoKit, Pera, Defly,
+> Lute — supplies its own in one line. A test reads the source and fails if the core
+> reaches back into the application again.
+>
 > **One thing does not run yet.** The payment path calls
 > `chain_algo_sign_transaction` and `chain_evm_sign_transfer_authorization`, and neither
 > chain pack is registered in `src-tauri/src/lib.rs` on this branch — see
@@ -53,6 +59,10 @@ src/lib/x402/
   facilitator.ts     /supported, /verify, /settle — read-only from a client
   bazaar.ts          discovery: the catalogue of paid resources
   settings.ts        preferred network, facilitator, auto-approve cap
+  host.ts            the ports — signing, storage, nodes — and their defaults
+  pay.ts             createX402Client(): the whole module behind one object
+  adapters/parsec.ts Parsec's port implementations, Rust-backed
+  adapters/wallets.ts  algosdk.TransactionSigner, ARC-0001 and EIP-1193 adapters
   module.ts          registerModule() — routes, rail, dashboard tile
   choices.ts         privilege: sign · reach: external · persistence: device
   constants.ts       BANKON ASA, ERC-8004 registries, AgenticPlace URLs
@@ -223,15 +233,100 @@ A multi-chain wallet has a different address on every chain, and which one pays 
 decided by the offer the server made — so the flow is handed all of them:
 
 ```ts
-import { payersFromAccount, x402Request } from './lib/x402';
+import { createX402Client } from './lib/x402';
+import { signersForAccount } from './lib/x402/adapters/parsec';
 
-await x402Request(url, undefined, { payers: payersFromAccount(account), approve });
+const x402 = createX402Client({ signers: signersForAccount(account), approve });
 ```
 
+A signer carries its own address, so supplying the signers supplies the payer too.
 `resolvePayer()` picks after the requirement is chosen, and **throws** rather than
 falling back to whatever address was nearest. Signing an EVM authorization whose `from`
 is an Algorand address yields a signature that recovers to nobody, and the failure would
 surface at the facilitator as something unrelated to the real cause.
+
+## Using it from another wallet
+
+The module talks to its host through three ports and nothing else, so embedding it is a
+matter of supplying them. The Algorand signer is deliberately `algosdk.TransactionSigner`
+— the shape use-wallet, AlgoKit Utils, Pera, Defly and Lute already produce — so for most
+integrations there is no adapter to write at all.
+
+```ts
+import { createX402Client, algorandSigner } from './lib/x402';
+import { useWallet } from '@txnlab/use-wallet';
+
+const { activeAddress, transactionSigner } = useWallet();
+
+const x402 = createX402Client({
+  signers: { avm: algorandSigner(activeAddress, transactionSigner) },
+  approve: async (pending) => confirm(`Pay ${pending.quote.amountDisplay} ${pending.quote.assetSymbol}?`),
+});
+
+const res = await x402.fetch('https://api.example.com/weather');   // 402 paid, receipt written
+```
+
+That is the whole integration. A free resource passes straight through; a 402 is quoted,
+approved, signed and settled, and the transaction id is recorded.
+
+### The three ports
+
+| port | default | when to override |
+|---|---|---|
+| **signers** | none — the client can read and quote but not pay | always, to pay |
+| **storage** | `localStorage`, falling back to memory | an agent, SSR, a Tauri store, a test |
+| **nodes** | public algod / EVM RPC | your own node, or a paid endpoint |
+
+```ts
+createX402Client({
+  signers: { avm, evm },
+  host: {
+    storage: myStore,                       // getItem / setItem / removeItem
+    algod: (network) => myAlgodClient,      // per CAIP-2 network
+    evmRpc: (network) => 'https://…',
+  },
+});
+```
+
+### Wallets that are not `TransactionSigner`-shaped
+
+| adapter | for |
+|---|---|
+| `algorandSigner(address, signer)` | anything with an `algosdk.TransactionSigner` |
+| `arc0001Signer(address, provider)` | a raw ARC-0001 `signTxns` provider — Lute, a WalletConnect session |
+| `eip1193Signer(address, provider)` | the EVM rail, over `eth_signTypedData_v4` |
+| `parsecAvmSigner` / `parsecEvmSigner` | Parsec's own, backed by Rust (`adapters/parsec.ts`) |
+
+`arc0001Signer` sends transactions the payer does not own with `signers: []` — ARC-0001's
+way of saying *this one is here for context, do not sign it*, which is exactly what a
+sponsored group's facilitator transaction needs.
+
+`eip1193Signer` assembles the typed-data document itself, so what the wallet displays is
+an EIP-3009 transfer authorization and cannot be anything else.
+
+### Reading costs nothing and needs no key
+
+```ts
+const x402 = createX402Client();                  // no signers at all
+await x402.quote('https://api.example.com/x');    // what it costs, or null if free
+await x402.probe('https://api.example.com/x');    // the raw challenge
+await x402.discover({ maxAmount: 10000n });       // the Bazaar catalogue
+await x402.facilitator();                         // what can be settled, and who sponsors fees
+```
+
+An agent deciding whether a resource is worth paying for should not have to hold a key to
+find out what it costs.
+
+### What is still Parsec's
+
+Three files are the integration layer and are coupled on purpose: `adapters/parsec.ts`
+(the port implementations), `module.ts` (routes and the dashboard tile) and `choices.ts`
+(the privilege declaration). `bridge.ts` is a legacy vault signer kept for the AORC
+minters and is not on the payment path.
+
+The core keeps one shared dependency, `../money` — exact fixed-point arithmetic, pure and
+dependency-free, and what stops a float reaching a signed amount. An extraction would take
+it along.
 
 ## Adding a chain
 
@@ -304,14 +399,15 @@ A payment settles through whichever facilitator the resource's own `extra.feePay
 — that is per-resource and not ours to configure. The setting above governs capability
 queries and discovery only.
 
-## Using it
+## Using it from Parsec
 
 ```ts
-import { x402Request } from './lib/x402';
+import { createX402Client } from './lib/x402';
+import { signersForAccount } from './lib/x402/adapters/parsec';
 import { approveThroughView } from './views/x402-confirm';
 
-const result = await x402Request('https://api.example.com/weather', undefined, {
-  payer: algorandAddress,
+const x402 = createX402Client({
+  signers: signersForAccount(account),
   approve: async (pending) => {
     // pending.quote.amountDisplay  '0.25'
     // pending.quote.assetSymbol    'USDC'
@@ -321,12 +417,18 @@ const result = await x402Request('https://api.example.com/weather', undefined, {
   },
 });
 
-result.txId    // settled transaction id
-result.receipt // the ledger entry
+const result = await x402.request('https://api.example.com/weather');
+result.txId     // settled transaction id
+result.receipt  // the ledger entry
 ```
 
-`x402Fetch()` is the same flow returning only a `Response`, for a caller that wants
-`fetch` semantics. `discoverRequirements(url)` probes without paying.
+`x402.fetch()` is the same flow returning only a `Response`, for a caller that wants
+`fetch` semantics. `x402.probe()` and `x402.quote()` read without paying.
+
+Building a custom confirmation screen? `x402.prepare(url, challenge)` returns the pending
+payment with nothing signed, and `x402.pay(pending)` signs and sends it — which is how
+`views/x402-confirm.ts` works. The lower-level `x402Request` / `preparePayment` /
+`signPayment` / `submitPayment` remain exported for anything the facade does not cover.
 
 ## AgenticPlace and mindX
 
@@ -401,7 +503,7 @@ The EIP-712 module compiles and its eight tests pass in isolation, including the
 ## Verification
 
 ```bash
-npx tsc --noEmit && npx vitest run     # 121 tests across src/lib/x402/ and src/lib/bankon-names/
+npx tsc --noEmit && npx vitest run     # 132 tests across src/lib/x402/ and src/lib/bankon-names/
 cd src-tauri && cargo test chain_evm   # 8 EIP-712 tests, once the pack is wired in
 ```
 
@@ -411,7 +513,10 @@ unsigned, payment second and signed, fee on index 0, `paymentIndex` correct.
 case where the payment settles and the resource then fails. `evm.test.ts` pins that the
 authorization says what the server asked for and that unimplemented transfer methods are
 refused rather than signed. `bankon-names/__tests__/pay.test.ts` pins the four ways a
-receipt can fail to be proof of *this* payment.
+receipt can fail to be proof of *this* payment. `portability.test.ts` pays end to end with
+nothing but a bare `algosdk` account and an in-memory store — no Parsec, no Tauri, no
+vault, no `localStorage` — and its last case reads the module's own source and fails if
+the core reaches back into the application.
 
 ## References
 

@@ -10,18 +10,17 @@ const USDC_BASE = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 
 const signCalls: Array<{ address: string; domain: Record<string, unknown>; authorization: Record<string, unknown> }> = [];
 
-vi.mock('../../chain-evm', () => ({
-  evmSignTransferAuthorization: async (
-    address: string,
-    domain: Record<string, unknown>,
-    authorization: Record<string, unknown>,
-  ) => {
-    signCalls.push({ address, domain, authorization });
-    return { signature_hex: `0x${'ab'.repeat(65)}`, digest_hex: `0x${'cd'.repeat(32)}`, scheme: 'secp256k1-eip712' };
-  },
-}));
-
 const { buildAuthorization, chainIdOf, randomNonce, validityWindow, preflightEvm, evmRail } = await import('../rails/evm');
+type EvmSigner = import('../host').EvmSigner;
+
+/** Any wallet's EVM signer. The rail cannot tell this from Parsec's Rust-backed one. */
+const signer: EvmSigner = {
+  address: PAYER,
+  async signTransferAuthorization(domain, authorization) {
+    signCalls.push({ address: PAYER, domain: { ...domain }, authorization: { ...authorization } });
+    return `0x${'ab'.repeat(65)}`;
+  },
+};
 const { normalizeChallenge, normalizeRequirement } = await import('../protocol');
 const { BASE_MAINNET } = await import('../networks');
 
@@ -42,6 +41,7 @@ function context(extra: Record<string, unknown> = {}, over: Record<string, unkno
     challenge,
     payer: PAYER,
     walletNetwork: 'mainnet' as const,
+    signers: { evm: signer },
   };
 }
 
@@ -96,8 +96,8 @@ describe('building the authorization', () => {
     expect(signCalls[0].domain).toEqual({
       name: 'USDC',
       version: '2',
-      chain_id: 8453,
-      verifying_contract: USDC_BASE,
+      chainId: 8453,
+      verifyingContract: USDC_BASE,
     });
     expect(signCalls[0].address).toBe(PAYER);
   });

@@ -8,6 +8,7 @@
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: Apache-2.0
 
+import { hostStorage } from './host';
 import { ALGORAND_MAINNET, ALGORAND_TESTNET, toCaip2, type Caip2 } from './networks';
 
 /** GoPlausible runs the facilitator the Algorand x402 ecosystem settles through. */
@@ -35,7 +36,7 @@ export const DEFAULT_X402_SETTINGS: X402Settings = {
 
 export function getX402Settings(): X402Settings {
   try {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
+    const raw = hostStorage().getItem(KEY);
     if (!raw) return { ...DEFAULT_X402_SETTINGS };
     const parsed = JSON.parse(raw) as Partial<X402Settings>;
     return {
@@ -57,7 +58,7 @@ export function getX402Settings(): X402Settings {
 
 export function setX402Settings(next: Partial<X402Settings>): X402Settings {
   const merged = { ...getX402Settings(), ...next };
-  try { localStorage.setItem(KEY, JSON.stringify(merged)); } catch { /* storage unavailable */ }
+  try { hostStorage().setItem(KEY, JSON.stringify(merged)); } catch { /* storage unavailable */ }
   return merged;
 }
 

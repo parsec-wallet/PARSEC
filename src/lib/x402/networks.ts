@@ -11,7 +11,13 @@
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: Apache-2.0
 
-import type { NetworkId } from '../../types/wallet';
+/**
+ * A host's own network selector.
+ *
+ * Structurally identical to Parsec's `NetworkId`, declared here so the module's core
+ * imports nothing from the application embedding it.
+ */
+export type WalletNetwork = 'mainnet' | 'testnet' | 'betanet';
 
 /** A CAIP-2 chain id, `namespace:reference`. */
 export type Caip2 = `${string}:${string}`;
@@ -104,7 +110,7 @@ export interface NetworkDescriptor {
   family: RailFamily;
   testnet: boolean;
   /** Parsec's own network selector, where the chain has one. */
-  walletNetwork?: NetworkId;
+  walletNetwork?: WalletNetwork;
   /** Explorer base for a settled transaction id. */
   explorerTx?: string;
 }

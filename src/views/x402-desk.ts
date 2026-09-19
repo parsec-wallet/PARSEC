@@ -23,9 +23,10 @@ import {
   describeNetwork,
   usdcFor,
 } from '../lib/x402/networks';
-import { isOptedIn, optInToAsset, walletNetworkFor } from '../lib/x402/rails/avm';
+import { isOptedIn, optInToAsset } from '../lib/x402/rails/avm';
 import { listReceipts, clearReceipts, receiptExplorerUrl, onReceipts, type X402Receipt } from '../lib/x402/receipts';
-import { discoverRequirements, payersFromAccount } from '../lib/x402/client';
+import { discoverRequirements } from '../lib/x402/client';
+import { signersForAccount } from '../lib/x402/adapters/parsec';
 import { quote } from '../lib/x402/quote';
 import { preparePayment } from '../lib/x402/client';
 import { approveThroughView } from './x402-confirm';
@@ -34,8 +35,8 @@ export function x402DeskView(): HTMLElement {
   const settings = getX402Settings();
   const account = store.get().accounts[store.get().activeAccountIndex];
   // One address per rail: which one pays is decided by the offer the server makes.
-  const payers = account ? payersFromAccount(account) : {};
-  const payer = payers.avm ?? '';
+  const signers = account ? signersForAccount(account) : {};
+  const payer = signers.avm?.address ?? '';
 
   const facilitatorBox = el('div', { cls: 'parsec-card', children: [el('p', { cls: 'parsec-muted', text: 'Probing facilitator…' })] });
   const optInBox = el('div', { cls: 'parsec-card' });
@@ -76,7 +77,6 @@ export function x402DeskView(): HTMLElement {
 
   const renderOptIn = async () => {
     const network = describeNetwork(settings.preferNetwork);
-    const walletNetwork = walletNetworkFor(settings.preferNetwork);
     const usdc = usdcFor(settings.preferNetwork);
     if (!payer || !usdc) {
       optInBox.replaceChildren(
@@ -85,7 +85,7 @@ export function x402DeskView(): HTMLElement {
       );
       return;
     }
-    const opted = await isOptedIn(payer, Number(usdc), walletNetwork);
+    const opted = await isOptedIn(payer, Number(usdc), settings.preferNetwork);
     optInBox.replaceChildren(
       el('h3', { text: 'USDC' }),
       row('Network', network.label),
@@ -104,7 +104,7 @@ export function x402DeskView(): HTMLElement {
                 const b = e.currentTarget as HTMLButtonElement;
                 b.disabled = true;
                 try {
-                  const { txId } = await optInToAsset(payer, Number(usdc), walletNetwork);
+                  const { txId } = await optInToAsset(signers.avm!, Number(usdc), settings.preferNetwork);
                   toast(`Opted in — ${txId}`, 'success');
                   void renderOptIn();
                 } catch (err) {
@@ -163,10 +163,10 @@ export function x402DeskView(): HTMLElement {
         ),
         btn('Pay this', {
           intent: 'primary',
-          disabled: !Object.keys(payers).length,
+          disabled: !Object.keys(signers).length,
           onClick: async () => {
             try {
-              const pending = await preparePayment(url, challenge, { payers });
+              const pending = await preparePayment(url, challenge, { signers });
               const result = await approveThroughView(pending);
               if (!result.success && result.error) toast(result.error, 'danger');
             } catch (err) {

@@ -213,7 +213,8 @@ describe('when things go wrong', () => {
 // A multi-chain wallet has a different address on every chain. Which one pays is
 // decided by the offer the server made, not by whichever address the caller had first.
 
-const { resolvePayer, payersFromAccount } = await import('../client');
+const { resolvePayer } = await import('../client');
+const { payersFromAccount } = await import('../adapters/parsec');
 const { BASE_MAINNET, ALGORAND_MAINNET } = await import('../networks');
 
 describe('resolving the payer', () => {

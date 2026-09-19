@@ -13,20 +13,19 @@
 // With no `extra.feePayer` the group is the single payment transaction at index 0 and
 // the payer pays its own fee.
 //
-// Signing goes through Rust (`chain_algo_sign_transaction`): the transaction is built
-// here, `bytesToSign()` hands Rust the exact `TX`-prefixed preimage, and a signature
-// comes back. The mnemonic never enters the renderer — which the previous x402 path,
-// retrieving it through `keystoreRetrieve`, could not say.
+// Signing goes through whatever signer the caller supplied — `algosdk.TransactionSigner`,
+// the shape use-wallet, AlgoKit, Pera, Defly and Lute already speak. Parsec passes one
+// backed by Rust (`chain_algo_sign_transaction`), so the mnemonic never enters the
+// renderer; another wallet passes its own and nothing here changes.
 //
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: Apache-2.0
 
 import algosdk from 'algosdk';
-import { algoSignTransaction } from '../../chain-algo';
-import { getAlgodClient, getIndexerClient } from '../../algorand/client';
-import type { NetworkId } from '../../../types/wallet';
+import { hostAlgod, type AvmSigner } from '../host';
+import type { WalletNetwork } from '../networks';
 import { ALGORAND_MAINNET, ALGORAND_TESTNET, ALGORAND_LOCALNET, describeNetwork } from '../networks';
-import { base64ToBytes, bytesToBase64 } from '../protocol';
+import { bytesToBase64 } from '../protocol';
 import { registerRail, type X402Blocker, type X402PaymentContext, type X402Preflight, type X402Rail } from '../rails';
 
 /** Min balance an account must keep, plus one asset holding, in microALGO. */
@@ -39,7 +38,7 @@ export interface AvmPaymentPayload extends Record<string, unknown> {
 }
 
 /** Parsec's network selector for a CAIP-2 Algorand id. Localnet has no selector; it reads as testnet. */
-export function walletNetworkFor(network: string): NetworkId {
+export function walletNetworkFor(network: string): WalletNetwork {
   const d = describeNetwork(network);
   return d.walletNetwork ?? 'testnet';
 }
@@ -57,7 +56,7 @@ export async function buildPaymentGroup(ctx: X402PaymentContext): Promise<{
   paymentIndex: number;
 }> {
   const { requirement, payer } = ctx;
-  const client = getAlgodClient(ctx.walletNetwork);
+  const client = await hostAlgod(requirement.network);
   const sp = await client.getTransactionParams().do();
   const feePayer = typeof requirement.extra?.feePayer === 'string' ? requirement.extra.feePayer : '';
   const amount = BigInt(requirement.amount);
@@ -122,18 +121,28 @@ export async function buildPaymentGroup(ctx: X402PaymentContext): Promise<{
  */
 export async function signPaymentGroup(
   group: algosdk.Transaction[],
-  payer: string,
+  signer: AvmSigner,
 ): Promise<string[]> {
-  const out: string[] = [];
-  for (const txn of group) {
-    if (txn.sender.toString() !== payer) {
-      out.push(bytesToBase64(algosdk.encodeUnsignedTransaction(txn)));
-      continue;
-    }
-    const { signature_b64 } = await algoSignTransaction(payer, bytesToBase64(txn.bytesToSign()));
-    out.push(bytesToBase64(txn.attachSignature(payer, base64ToBytes(signature_b64))));
+  // Only the payer's own transactions are offered for signature. In a sponsored group
+  // the other one is the facilitator's, and it travels unsigned — signing it would be
+  // both impossible and, if it were possible, an authority a client should not hold.
+  const mine: number[] = [];
+  group.forEach((txn, i) => {
+    if (txn.sender.toString() === signer.address) mine.push(i);
+  });
+
+  const signed = mine.length ? await signer.sign(group, mine) : [];
+  if (signed.length !== mine.length) {
+    throw new Error(`signer returned ${signed.length} signatures for ${mine.length} transactions`);
   }
-  return out;
+
+  const byIndex = new Map<number, Uint8Array>();
+  mine.forEach((groupIndex, n) => byIndex.set(groupIndex, signed[n]));
+
+  return group.map((txn, i) => {
+    const blob = byIndex.get(i);
+    return bytesToBase64(blob ?? algosdk.encodeUnsignedTransaction(txn));
+  });
 }
 
 /**
@@ -156,7 +165,7 @@ export async function preflightAvm(ctx: X402PaymentContext): Promise<X402Preflig
   let balance: bigint | undefined;
 
   try {
-    const client = getAlgodClient(ctx.walletNetwork);
+    const client = await hostAlgod(requirement.network);
     const info = (await client.accountInformation(payer).do()) as unknown as {
       amount: bigint | number;
       assets?: Array<{ assetId: bigint | number; amount: bigint | number }>;
@@ -172,10 +181,12 @@ export async function preflightAvm(ctx: X402PaymentContext): Promise<X402Preflig
         blockers.push({
           code: 'not-opted-in',
           message: `Not opted in to ASA ${assetId}. Algorand requires an opt-in before an account can receive or hold an asset, and the holding locks 0.1 ALGO into the account's minimum balance.`,
-          remedy: {
-            label: `Opt in to ASA ${assetId}`,
-            run: async () => { await optInToAsset(payer, assetId, ctx.walletNetwork); },
-          },
+          remedy: ctx.signers.avm
+            ? {
+                label: `Opt in to ASA ${assetId}`,
+                run: async () => { await optInToAsset(ctx.signers.avm!, assetId, requirement.network); },
+              }
+            : undefined,
         });
       } else {
         balance = BigInt(holding.amount);
@@ -196,14 +207,14 @@ export async function preflightAvm(ctx: X402PaymentContext): Promise<X402Preflig
 }
 
 /** Whether the payer has opted in to an ASA. Cheap enough to call from a view. */
-export async function isOptedIn(address: string, assetId: number, network: NetworkId): Promise<boolean> {
+export async function isOptedIn(address: string, assetId: number, network: string): Promise<boolean> {
   if (assetId === 0) return true;
   try {
-    const info = (await getIndexerClient(network)
-      .lookupAccountAssets(address)
-      .assetId(assetId)
-      .do()) as unknown as { assets?: unknown[] };
-    return !!info.assets?.length;
+    const client = await hostAlgod(network);
+    const info = (await client.accountInformation(address).do()) as unknown as {
+      assets?: Array<{ assetId: bigint | number }>;
+    };
+    return !!info.assets?.some((a) => BigInt(a.assetId) === BigInt(assetId));
   } catch {
     return false;
   }
@@ -217,14 +228,14 @@ export async function isOptedIn(address: string, assetId: number, network: Netwo
  * key never in the renderer.
  */
 export async function signAndSend(
-  address: string,
+  signer: AvmSigner,
   txn: algosdk.Transaction,
-  network: NetworkId,
+  network: string,
   waitRounds = 4,
 ): Promise<{ txId: string; confirmedRound: number }> {
-  const client = getAlgodClient(network);
-  const { signature_b64 } = await algoSignTransaction(address, bytesToBase64(txn.bytesToSign()));
-  const signed = txn.attachSignature(address, base64ToBytes(signature_b64));
+  const client = await hostAlgod(network);
+  const [signed] = await signer.sign([txn], [0]);
+  if (!signed) throw new Error('signer declined the transaction');
   const { txid } = await client.sendRawTransaction(signed).do();
   const result = await algosdk.waitForConfirmation(client, txid, waitRounds);
   return { txId: txid, confirmedRound: Number(result.confirmedRound ?? 0) };
@@ -238,16 +249,17 @@ export async function signAndSend(
  * a participant opts in to something to spend $0.001.
  */
 export async function optInToAsset(
-  address: string,
+  signer: AvmSigner,
   assetId: number,
-  network: NetworkId,
+  network: string,
 ): Promise<{ txId: string; confirmedRound: number }> {
-  const suggestedParams = await getAlgodClient(network).getTransactionParams().do();
+  const client = await hostAlgod(network);
+  const suggestedParams = await client.getTransactionParams().do();
   return signAndSend(
-    address,
+    signer,
     algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-      sender: address,
-      receiver: address,
+      sender: signer.address,
+      receiver: signer.address,
       assetIndex: BigInt(assetId),
       amount: 0,
       suggestedParams,
@@ -265,17 +277,18 @@ export async function optInToAsset(
  * address".
  */
 export async function sendAlgoPayment(
-  address: string,
+  signer: AvmSigner,
   receiver: string,
   amountMicroAlgos: bigint,
   note: string,
-  network: NetworkId,
+  network: string,
 ): Promise<{ txId: string; confirmedRound: number }> {
-  const suggestedParams = await getAlgodClient(network).getTransactionParams().do();
+  const client = await hostAlgod(network);
+  const suggestedParams = await client.getTransactionParams().do();
   return signAndSend(
-    address,
+    signer,
     algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      sender: address,
+      sender: signer.address,
       receiver,
       amount: amountMicroAlgos,
       note: note ? new TextEncoder().encode(note) : undefined,
@@ -296,7 +309,9 @@ export const avmRail: X402Rail = {
     if (group.length > 16) {
       throw new Error(`payment group has ${group.length} transactions; Algorand allows 16`);
     }
-    const paymentGroup = await signPaymentGroup(group, ctx.payer);
+    const signer = ctx.signers.avm;
+    if (!signer) throw new Error('no Algorand signer supplied for an Algorand requirement');
+    const paymentGroup = await signPaymentGroup(group, signer);
     return { paymentGroup, paymentIndex };
   },
 

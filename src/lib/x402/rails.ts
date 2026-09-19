@@ -12,8 +12,8 @@
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: Apache-2.0
 
-import type { NetworkId } from '../../types/wallet';
-import { familyFor, sameNetwork, type Caip2, type RailFamily } from './networks';
+import type { X402Signers } from './host';
+import { familyFor, sameNetwork, type Caip2, type RailFamily, type WalletNetwork } from './networks';
 import type { PaymentRequired, PaymentRequirements } from './protocol';
 
 /** Everything a rail needs to build a payment, and nothing it does not. */
@@ -24,8 +24,16 @@ export interface X402PaymentContext {
   challenge: PaymentRequired;
   /** The address paying, in that chain's native format. */
   payer: string;
-  /** Parsec's network selector for the rail, where it has one. */
-  walletNetwork: NetworkId;
+  /** The host's network selector for the rail, where it has one. */
+  walletNetwork: WalletNetwork;
+  /**
+   * How to sign. A rail reaches for its own family's signer and nothing else.
+   *
+   * This is the seam that makes the module portable: before it, the Algorand rail
+   * imported Parsec's Rust IPC directly and the payment path could only run inside
+   * one application.
+   */
+  signers: X402Signers;
 }
 
 /** A blocking condition found before signing — reported, never worked around silently. */
@@ -59,7 +67,7 @@ export interface X402Rail {
   /** Check what would stop this payment before anything is signed. */
   preflight?(ctx: X402PaymentContext): Promise<X402Preflight>;
   /** The address this rail would pay from, given the wallet's current state. */
-  resolvePayer?(walletNetwork: NetworkId): Promise<string>;
+  resolvePayer?(walletNetwork: WalletNetwork): Promise<string>;
 }
 
 const rails = new Map<RailFamily, X402Rail>();

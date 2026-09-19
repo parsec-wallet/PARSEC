@@ -16,15 +16,16 @@ import { store } from '../lib/store';
 import { listResources, describePrice, type BazaarResource } from '../lib/x402/bazaar';
 import { getX402Settings } from '../lib/x402/settings';
 import { describeNetwork } from '../lib/x402/networks';
-import { discoverRequirements, payersFromAccount, preparePayment } from '../lib/x402/client';
+import { discoverRequirements, preparePayment } from '../lib/x402/client';
+import { signersForAccount } from '../lib/x402/adapters/parsec';
 import { approveThroughView } from './x402-confirm';
 
 export function x402BazaarView(): HTMLElement {
   const settings = getX402Settings();
   const state = store.get();
   const account = state.accounts[state.activeAccountIndex];
-  const payers = account ? payersFromAccount(account) : {};
-  const canPayAtAll = Object.keys(payers).length > 0;
+  const signers = account ? signersForAccount(account) : {};
+  const canPayAtAll = Object.keys(signers).length > 0;
 
   const results = el('div', { cls: 'parsec-list' });
   const searchField = input({
@@ -111,7 +112,7 @@ export function x402BazaarView(): HTMLElement {
         toast('That resource answered without asking for payment.', 'warning');
         return;
       }
-      const pending = await preparePayment(resource.resourceUrl, challenge, { payers });
+      const pending = await preparePayment(resource.resourceUrl, challenge, { signers });
       const result = await approveThroughView(pending);
       if (!result.success && result.error) toast(result.error, 'danger');
     } catch (err) {

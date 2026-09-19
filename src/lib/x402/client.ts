@@ -15,9 +15,8 @@
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: Apache-2.0
 
-import type { NetworkId, WalletAccount } from '../../types/wallet';
-import { getAccountAddress } from '../store';
-import { describeNetwork, familyFor, type RailFamily } from './networks';
+import { signerAddress, type X402Signers } from './host';
+import { describeNetwork, familyFor, type RailFamily, type WalletNetwork } from './networks';
 import {
   buildPayment,
   paymentHeaders,
@@ -56,7 +55,9 @@ export interface PendingX402Payment {
   /** Every offer the server made, quoted — so the participant can see what was passed over. */
   alternatives: X402Quote[];
   payer: string;
-  walletNetwork: NetworkId;
+  walletNetwork: WalletNetwork;
+  /** The signers this payment will use. Carried so the confirmation surface can sign. */
+  signers: X402Signers;
   /** Null when preflight is disabled in settings. */
   preflight: X402Preflight | null;
   /** The endpoint's own declaration of what it takes and returns, when it published one. */
@@ -98,35 +99,17 @@ export class X402Unpayable extends Error {
   }
 }
 
-/** The wallet's chain ids for the families a rail can pay from. */
-const CHAIN_ID_FOR: Partial<Record<RailFamily, string>> = {
-  avm: 'algorand',
-  evm: 'ethereum',
-  svm: 'solana',
-  arweave: 'arweave',
-};
-
-/**
- * The addresses this account can pay from, one per rail family.
- *
- * A multi-chain wallet has a different address on every chain, and which one pays is
- * decided by which offer the server made — so the flow is handed all of them and picks
- * after the requirement is chosen, rather than being told one address up front and
- * discovering it was the wrong chain's.
- */
-export function payersFromAccount(account: WalletAccount): Partial<Record<RailFamily, string>> {
-  const out: Partial<Record<RailFamily, string>> = {};
-  for (const [family, chainId] of Object.entries(CHAIN_ID_FOR)) {
-    const address = getAccountAddress(account, chainId);
-    if (address) out[family as RailFamily] = address;
-  }
-  return out;
-}
-
 export interface X402FetchOptions {
+  /**
+   * How to sign, per rail family. The normal way to pay.
+   *
+   * A signer carries its own address, so supplying these supplies the payer too —
+   * `payer`/`payers` below exist for the read-only paths, where nothing is signed.
+   */
+  signers?: X402Signers;
   /** The address paying, when the caller knows there is only one rail in play. */
   payer?: string;
-  /** Addresses per rail family — `payersFromAccount(account)`. Preferred; wins over `payer`. */
+  /** Addresses per rail family. Used when no signer for that family was given. */
   payers?: Partial<Record<RailFamily, string>>;
   /** Called before signing. Omit only for an unattended flow under an auto-approve cap. */
   approve?: ApproveFn;
@@ -145,7 +128,8 @@ export interface X402FetchOptions {
  */
 export function resolvePayer(network: string, options: X402FetchOptions): string {
   const family = familyFor(network);
-  const chosen = options.payers?.[family] ?? options.payer ?? '';
+  // A signer knows its own address, so it is the most authoritative source.
+  const chosen = signerAddress(options.signers, family) || options.payers?.[family] || options.payer || '';
   if (!chosen) {
     throw new Error(
       `No ${family.toUpperCase()} address in this wallet to pay a ${describeNetwork(network).label} requirement.`,
@@ -166,12 +150,13 @@ export async function preparePayment(
   if (!requirement) throw new X402Unpayable(unpayableNetworks(challenge));
 
   const network = describeNetwork(requirement.network);
-  const walletNetwork: NetworkId = network.walletNetwork ?? 'testnet';
+  const walletNetwork: WalletNetwork = network.walletNetwork ?? 'testnet';
   const rail = railFor(requirement.network);
   if (!rail) throw new X402Unpayable([requirement.network]);
 
   const payer = resolvePayer(requirement.network, options);
-  const ctx = { requirement, challenge, payer, walletNetwork };
+  const signers = options.signers ?? {};
+  const ctx = { requirement, challenge, payer, walletNetwork, signers };
   const [q, alternatives, pre] = await Promise.all([
     quote(requirement),
     Promise.all(challenge.accepts.map(quote)),
@@ -187,6 +172,7 @@ export async function preparePayment(
     alternatives,
     payer,
     walletNetwork,
+    signers,
     preflight: pre,
     bazaar: bazaarInfoFrom(challenge.extensions),
     mainnet: !network.testnet,
@@ -202,6 +188,7 @@ export async function signPayment(pending: PendingX402Payment): Promise<PaymentP
     challenge: pending.challenge,
     payer: pending.payer,
     walletNetwork: pending.walletNetwork,
+    signers: pending.signers,
   });
   return buildPayment(pending.challenge, pending.requirement, payload);
 }

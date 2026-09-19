@@ -22,11 +22,14 @@ vi.mock('../client', () => ({
 }));
 
 vi.mock('../../x402/rails/avm', () => ({
-  sendAlgoPayment: async (_payer: string, receiver: string, amount: bigint, note: string) => {
+  sendAlgoPayment: async (_signer: unknown, receiver: string, amount: bigint, note: string) => {
     sent.push({ receiver, amount, note });
     return { txId: 'DIRECTTX', confirmedRound: 42 };
   },
 }));
+
+/** The signer carries the payer's address, so callers pass one object instead of two. */
+const signer = { address: PAYER, sign: async () => [] };
 
 const { proofFromReceipts, payTreasury, quoteNameClaim, proveNameClaimPayment, treasuryFor } =
   await import('../pay');
@@ -102,13 +105,13 @@ describe('a proof from a settlement already on file', () => {
 
 describe('paying directly', () => {
   it('sends the quote to the treasury and notes the name', async () => {
-    const proof = await payTreasury(PAYER, TREASURY, 1_000_000n, 'alice', 'mainnet');
+    const proof = await payTreasury(signer, TREASURY, 1_000_000n, 'alice', 'mainnet');
     expect(sent).toEqual([{ receiver: TREASURY, amount: 1_000_000n, note: 'bnr:claim:alice' }]);
     expect(proof).toMatchObject({ txId: 'DIRECTTX', source: 'direct', method: 'algorand' });
   });
 
   it('refuses a zero quote rather than sending an empty payment', async () => {
-    await expect(payTreasury(PAYER, TREASURY, 0n, 'alice', 'mainnet')).rejects.toThrow(/positive quote/);
+    await expect(payTreasury(signer, TREASURY, 0n, 'alice', 'mainnet')).rejects.toThrow(/positive quote/);
   });
 });
 
@@ -127,14 +130,14 @@ describe('quoting and proving together', () => {
   it('does not pay twice', async () => {
     recordReceipt(receipt());
     const quote = await quoteNameClaim('Buy-Name', 'alice', { paymentMethod: 'algorand' }, 'mainnet');
-    const proof = await proveNameClaimPayment(PAYER, quote, 'alice', 'mainnet');
+    const proof = await proveNameClaimPayment(signer, quote, 'alice', 'mainnet');
     expect(proof.txId).toBe('X402TX');
     expect(sent).toHaveLength(0);
   });
 
   it('pays when there is nothing on file', async () => {
     const quote = await quoteNameClaim('Buy-Name', 'alice', { paymentMethod: 'algorand' }, 'mainnet');
-    const proof = await proveNameClaimPayment(PAYER, quote, 'alice', 'mainnet');
+    const proof = await proveNameClaimPayment(signer, quote, 'alice', 'mainnet');
     expect(proof.source).toBe('direct');
     expect(sent).toHaveLength(1);
   });

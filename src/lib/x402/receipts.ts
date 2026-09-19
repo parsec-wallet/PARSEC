@@ -15,6 +15,7 @@
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: Apache-2.0
 
+import { hostStorage } from './host';
 import { explorerTxUrl, type Caip2 } from './networks';
 
 export interface X402Receipt {
@@ -48,7 +49,7 @@ const listeners = new Set<Listener>();
 
 export function listReceipts(): X402Receipt[] {
   try {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(KEY) : null;
+    const raw = hostStorage().getItem(KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? (parsed as X402Receipt[]) : [];
@@ -60,13 +61,13 @@ export function listReceipts(): X402Receipt[] {
 /** Append a receipt, newest first. Returns the stored list. */
 export function recordReceipt(receipt: X402Receipt): X402Receipt[] {
   const next = [receipt, ...listReceipts().filter((r) => r.txId !== receipt.txId)].slice(0, LIMIT);
-  try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+  try { hostStorage().setItem(KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
   listeners.forEach((fn) => fn(next));
   return next;
 }
 
 export function clearReceipts(): void {
-  try { localStorage.removeItem(KEY); } catch { /* storage unavailable */ }
+  try { hostStorage().removeItem(KEY); } catch { /* storage unavailable */ }
   listeners.forEach((fn) => fn([]));
 }
 
