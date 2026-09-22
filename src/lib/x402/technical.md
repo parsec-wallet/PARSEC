@@ -159,8 +159,15 @@ This module is published standalone at
 minus the four that reach into Parsec (`adapters/parsec.ts`, `module.ts`, `choices.ts`,
 `bridge.ts`). `protocol.ts`, `networks.ts`, `rails*`, `client.ts`, `quote.ts`, `host.ts`,
 `receipts.ts`, `settings.ts`, `bazaar.ts`, `facilitator.ts` and `adapters/wallets.ts`
-should stay byte-identical in both. When they drift, the published copy is not what
-anyone is running, and the claim that this is extractable stops being true.
+should stay byte-identical in both — 14 files, verified with `diff`, not asserted.
+
+`index.ts` is the one legitimate difference: each barrel lists what its own copy
+contains, and this one also re-exports `bridge`, `constants`, `types`, `oracle`,
+`discount` and `agenticplace-client`, which serve Parsec's identity surface and are not
+part of the portable core. Do not "fix" that.
+
+When the other fourteen drift, the published copy is not what anyone is running, and the
+claim that this is extractable stops being true.
 
 ## Known limits
 
