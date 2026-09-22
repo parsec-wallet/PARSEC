@@ -31,7 +31,7 @@ vi.mock('../../x402/rails/avm', () => ({
 /** The signer carries the payer's address, so callers pass one object instead of two. */
 const signer = { address: PAYER, sign: async () => [] };
 
-const { proofFromReceipts, payTreasury, quoteNameClaim, proveNameClaimPayment, treasuryFor } =
+const { proofFromReceipts, payTreasury, quoteNameClaim, proveNameClaimPayment, proofStillCovers, treasuryFor } =
   await import('../pay');
 const { recordReceipt, clearReceipts } = await import('../../x402/receipts');
 const { ALGORAND_MAINNET } = await import('../../x402/networks');
@@ -140,5 +140,37 @@ describe('quoting and proving together', () => {
     const proof = await proveNameClaimPayment(signer, quote, 'alice', 'mainnet');
     expect(proof.source).toBe('direct');
     expect(sent).toHaveLength(1);
+  });
+});
+
+
+// ── A proof has to cover the quote it is submitted against ───────────────────
+// The price moves when the term does. A payment made against a one-year lease is a
+// real transaction and is not payment for a five-year one; letting it ride would
+// underpay the registry and the claim would be rejected — or worse, accepted.
+
+describe('proofStillCovers', () => {
+  const quote = { treasury: TREASURY, amount: 1_000_000n, unit: 'microALGO', networkLabel: 'Algorand', existing: null };
+  const proof = { method: 'algorand' as const, txId: 'TX', amount: 1_000_000n, source: 'direct' as const, treasury: TREASURY };
+
+  it('accepts a payment that covers the quote exactly', () => {
+    expect(proofStillCovers(proof, quote)).toBe(true);
+  });
+
+  it('accepts one that overpays', () => {
+    expect(proofStillCovers({ ...proof, amount: 2_000_000n }, quote)).toBe(true);
+  });
+
+  it('refuses one that no longer covers a raised price', () => {
+    expect(proofStillCovers(proof, { ...quote, amount: 5_000_000n })).toBe(false);
+  });
+
+  it('refuses one paid to a different treasury', () => {
+    expect(proofStillCovers({ ...proof, treasury: 'SOMEWHERE-ELSE' }, quote)).toBe(false);
+  });
+
+  it('refuses nothing at all', () => {
+    expect(proofStillCovers(null, quote)).toBe(false);
+    expect(proofStillCovers(undefined, quote)).toBe(false);
   });
 });

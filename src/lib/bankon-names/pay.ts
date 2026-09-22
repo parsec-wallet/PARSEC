@@ -126,6 +126,20 @@ export async function quoteNameClaim(
 }
 
 /**
+ * Whether a proof still covers a quote.
+ *
+ * A price moves when the term does — a longer lease, a switch to permabuy. A payment
+ * made against the old price is a real transaction and is no longer payment for *this*
+ * claim, and submitting it would underpay. Callers re-check after every requote rather
+ * than letting an earlier proof ride.
+ */
+export function proofStillCovers(proof: NameClaimProof | null | undefined, quote: NameClaimQuote): boolean {
+  if (!proof) return false;
+  if (proof.treasury !== quote.treasury) return false;
+  return proof.amount >= quote.amount;
+}
+
+/**
  * Produce a proof for a claim, paying only if one is not already on file.
  *
  * Returns what `NamespaceAdapter.claim()` wants: `paymentProof` and `paymentAmount`.

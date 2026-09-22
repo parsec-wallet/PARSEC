@@ -4,6 +4,9 @@
 
 import { el, btn, input, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
+import { quoteNameClaim, proveNameClaimPayment, proofStillCovers, type NameClaimProof, type NameClaimQuote } from '../lib/bankon-names/pay';
+import { parsecAvmSigner } from '../lib/x402/adapters/parsec';
+import { explorerTxUrl } from '../lib/x402/networks';
 import {
   activeNamespaceId,
   getNamespace,
@@ -25,6 +28,12 @@ interface State {
   paymentMethod: string;
   paymentProof: string;
   paymentAmount?: bigint;
+  /** The treasury, the price, and any settlement already on file that covers it. */
+  claimQuote?: NameClaimQuote;
+  quoteError?: string;
+  paying?: boolean;
+  /** The proof this wallet produced, if any. A pasted one is not tracked here. */
+  walletProof?: NameClaimProof;
   messageId?: string;
   childProcessId?: string;
   error?: string;
@@ -133,6 +142,7 @@ export function nameClaimView(): HTMLElement {
       state.available = true;
       state.phase = 'configure';
       await refreshCost(ns);
+      void refreshClaimQuote(ns);
       render();
     } catch (e) {
       state.error = e instanceof Error ? e.message : String(e);
@@ -151,6 +161,7 @@ export function nameClaimView(): HTMLElement {
     purchaseSelect.addEventListener('change', () => {
       state.purchaseType = purchaseSelect.value as PurchaseType;
       void refreshCost(ns);
+      void refreshClaimQuote(ns);
       render();
     });
 
@@ -163,6 +174,7 @@ export function nameClaimView(): HTMLElement {
     yearsSelect.addEventListener('change', () => {
       state.years = parseInt(yearsSelect.value, 10);
       void refreshCost(ns);
+      void refreshClaimQuote(ns);
       render();
     });
 
@@ -175,7 +187,10 @@ export function nameClaimView(): HTMLElement {
     methodSelect.addEventListener('change', () => {
       state.paymentMethod = methodSelect.value;
       state.paymentProof = '';
+      state.claimQuote = undefined;
+      state.quoteError = undefined;
       void refreshCost(ns);
+      void refreshClaimQuote(ns);
       render();
     });
 
@@ -184,9 +199,14 @@ export function nameClaimView(): HTMLElement {
           placeholder: 'Payment proof (tx id; method-specific)',
           cls: 'bp5-input bp5-fill',
           value: state.paymentProof,
-          onInput: (v) => { state.paymentProof = v.trim(); },
+          onInput: (v) => { state.paymentProof = v.trim(); state.walletProof = undefined; },
         })
       : null;
+
+    // The wallet can produce the proof rather than asking for it to be pasted:
+    // the registry quotes a price and a treasury, and paying it *is* the proof.
+    // The box stays, because a payment may have been made outside this wallet.
+    const payPanel = state.paymentMethod === 'algorand' ? treasuryPanel(ns) : null;
 
     return el('div', {
       children: [
@@ -207,6 +227,7 @@ export function nameClaimView(): HTMLElement {
             proofInput ? proofInput : el('span', {}),
           ].filter(node => (node as HTMLElement).childNodes.length > 0) as HTMLElement[],
         }),
+        payPanel ?? el('span', {}),
         el('div', {
           cls: 'parsec-confirm__actions',
           children: [
@@ -220,6 +241,139 @@ export function nameClaimView(): HTMLElement {
         }),
       ],
     });
+  }
+
+  /**
+   * Read the registry's own treasury and price, and whether a settlement already on
+   * file covers it. Never throws into the render path — a registry that cannot be
+   * reached leaves the manual proof box, which still works.
+   */
+  let quoteSeq = 0;
+
+  async function refreshClaimQuote(ns: NamespaceAdapter): Promise<void> {
+    if (state.paymentMethod !== 'algorand' || ns.id !== 'bankon') return;
+    // The term and the years change the price, so a quote can be superseded while it
+    // is in flight. Only the newest one is allowed to land.
+    const seq = ++quoteSeq;
+    state.claimQuote = undefined;
+    state.quoteError = undefined;
+    render();
+    try {
+      const quote = await quoteNameClaim(
+        'Buy-Name',
+        state.name,
+        { paymentMethod: 'algorand', purchaseType: state.purchaseType, years: state.years },
+        store.get().settings.network,
+      );
+      if (seq !== quoteSeq) return;
+      state.claimQuote = quote;
+
+      if (quote.existing) {
+        // A settlement already on file covers this quote; nothing further is owed.
+        state.paymentProof = quote.existing.txId;
+        state.paymentAmount = quote.existing.amount;
+        state.walletProof = quote.existing;
+      } else if (state.walletProof && !proofStillCovers(state.walletProof, quote)) {
+        // We paid, then the price moved — a longer lease, a different term. The old
+        // transaction is real but no longer covers what is being claimed, and
+        // submitting it would underpay. Drop it rather than let it ride.
+        state.paymentProof = '';
+        state.paymentAmount = undefined;
+        state.walletProof = undefined;
+        logLine('The price changed; the earlier payment no longer covers it.');
+      }
+    } catch (e) {
+      if (seq !== quoteSeq) return;
+      state.quoteError = e instanceof Error ? e.message : String(e);
+    }
+    render();
+  }
+
+  /** Pay the treasury, or show the settlement that already did. */
+  function treasuryPanel(ns: NamespaceAdapter): HTMLElement {
+    if (state.quoteError) {
+      return el('div', {
+        cls: 'parsec-callout bp5-callout bp5-intent-warning',
+        children: [
+          el('p', { text: `Could not read the registry's treasury: ${state.quoteError}` }),
+          el('p', { cls: 'parsec-muted', text: 'Paste a transaction id above if you have already paid.' }),
+        ],
+      });
+    }
+
+    const quote = state.claimQuote;
+    if (!quote) {
+      return el('div', {
+        cls: 'parsec-callout bp5-callout',
+        children: [el('p', { cls: 'parsec-muted', text: 'Reading the registry treasury…' })],
+      });
+    }
+
+    const existing = quote.existing;
+    if (existing) {
+      const link = explorerTxUrl(
+        store.get().settings.network === 'mainnet' ? 'algorand-mainnet' : 'algorand-testnet',
+        existing.txId,
+      );
+      return el('div', {
+        cls: 'parsec-callout bp5-callout bp5-intent-success',
+        children: [
+          el('p', { text: 'Already paid — a settlement to this treasury covers the quote.' }),
+          link
+            ? el('a', { text: existing.txId, cls: 'parsec-asset-link', attrs: { href: link, target: '_blank', rel: 'noreferrer' } })
+            : el('p', { cls: 'parsec-muted', text: existing.txId }),
+        ],
+      });
+    }
+
+    return el('div', {
+      cls: 'parsec-callout bp5-callout bp5-intent-primary',
+      children: [
+        el('p', { text: `${quote.amount.toString()} ${quote.unit} to the registry treasury on ${quote.networkLabel}.` }),
+        el('p', { cls: 'parsec-muted', text: `Treasury ${quote.treasury.slice(0, 8)}…${quote.treasury.slice(-6)} — read live from the registry, not stored here.` }),
+        btn(state.paying ? 'Paying…' : 'Pay the treasury', {
+          intent: 'primary',
+          disabled: state.paying || !state.address,
+          onClick: () => void payTreasuryNow(ns),
+        }),
+      ],
+    });
+  }
+
+  /**
+   * Pay, and put the transaction id in the proof box.
+   *
+   * The payment and the claim stay two steps on purpose: the payment is final the
+   * moment it is in a block, and a claim that failed afterwards must not look like a
+   * reason to pay again.
+   */
+  async function payTreasuryNow(ns: NamespaceAdapter): Promise<void> {
+    const quote = state.claimQuote;
+    if (!quote || !state.address) return;
+    state.paying = true;
+    render();
+    try {
+      logLine(`Paying ${quote.amount} ${quote.unit} to ${quote.treasury}...`);
+      const proof = await proveNameClaimPayment(
+        parsecAvmSigner(state.address),
+        quote,
+        state.name,
+        store.get().settings.network,
+      );
+      state.paymentProof = proof.txId;
+      state.paymentAmount = proof.amount;
+      state.walletProof = proof;
+      logLine(`Paid — ${proof.txId} (${proof.source}).`);
+      toast('Payment settled. Sign the claim to finish.', 'success');
+      await refreshClaimQuote(ns);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      logLine(`Payment failed: ${message}`);
+      toast(message, 'danger');
+    } finally {
+      state.paying = false;
+      render();
+    }
   }
 
   async function refreshCost(ns: NamespaceAdapter): Promise<void> {

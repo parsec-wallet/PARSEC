@@ -517,7 +517,8 @@ x402's to do.
 ## Verification
 
 ```bash
-npx tsc --noEmit && npx vitest run     # 132 tests across src/lib/x402/ and src/lib/bankon-names/
+npx tsc --noEmit && npx vitest run     # 137 tests across src/lib/x402/ and src/lib/bankon-names/
+cd src-tauri && cargo test --lib       # 85 Rust tests (not `cargo test` — see todo.md)
 cd src-tauri && cargo test chain_evm   # 8 EIP-712 tests, once the pack is wired in
 ```
 

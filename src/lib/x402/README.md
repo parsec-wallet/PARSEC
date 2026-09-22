@@ -102,6 +102,16 @@ Defly and Lute need no adapter at all.
 
 ## Further reading
 
+Beside this file:
+
+| | |
+|---|---|
+| [`technical.md`](./technical.md) | how it works inside — the five decisions and what each refused, the invariants, the known limits |
+| [`usage.md`](./usage.md) | task-oriented recipes — pay an endpoint, integrate a wallet, run an agent, build a confirmation screen |
+| [`todo.md`](./todo.md) | the goal, the plan, and what is still open |
+
+Elsewhere:
+
 - [`docs/x402-integration.md`](../../../docs/x402-integration.md) — the protocol, both
   schemes in detail, integrating another wallet, the Global Challenge
 - [`docs/x402-api.md`](../../../docs/x402-api.md) — every export, every error

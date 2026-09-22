@@ -81,8 +81,12 @@ paid someone else, or settled on another network.
 Otherwise `payTreasury()` sends the quote and waits for finality — Rust-signed through
 `sendAlgoPayment()`, so the mnemonic never enters the renderer.
 
-**Not yet wired to a view:** the module and its tests are in place, but no surface calls
-`quoteNameClaim()` yet, so a paid claim is API-only today (`docs/TODO-INDEX.md`).
+**In the claim view.** `views/name-claim.ts` reads the treasury and price when the
+`algorand` method is picked, shows a settlement already on file if one covers the quote,
+and otherwise offers to pay it — filling the proof box rather than asking for a
+transaction id to be pasted. The box stays, because a payment may have been made outside
+this wallet. Changing the term re-quotes, and a proof that no longer covers the new price
+is dropped rather than submitted (`proofStillCovers`).
 
 ### Record management
 
