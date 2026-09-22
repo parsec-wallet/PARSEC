@@ -14,10 +14,11 @@
 import type algosdk from 'algosdk';
 import { algoSignTransaction } from '../../chain-algo';
 import { evmSignTransferAuthorization } from '../../chain-evm';
+import { solSign } from '../../chain-sol';
 import { getAccountAddress } from '../../store';
 import type { WalletAccount } from '../../../types/wallet';
 import { base64ToBytes, bytesToBase64 } from '../protocol';
-import { configureX402Host, type AvmSigner, type EvmSigner, type X402Signers } from '../host';
+import { configureX402Host, type AvmSigner, type EvmSigner, type SvmSigner, type X402Signers } from '../host';
 import { getAlgodClient } from '../../algorand/client';
 import { PriceOracle } from '../oracle';
 // `describeNetwork`, not `rails/avm`'s `walletNetworkFor`: importing the rail module
@@ -73,6 +74,23 @@ export function parsecEvmSigner(address: string): EvmSigner {
   };
 }
 
+/**
+ * A Solana signer backed by the vault and Rust.
+ *
+ * `chain_sol_sign` signs the bytes it is handed with no added prefix, which is what a
+ * compiled Solana message needs — the message is already the thing signed, and a domain
+ * tag would make the signature invalid.
+ */
+export function parsecSvmSigner(address: string): SvmSigner {
+  return {
+    address,
+    async signTransaction(message) {
+      const { signature_b64 } = await solSign(address, bytesToBase64(message));
+      return base64ToBytes(signature_b64);
+    },
+  };
+}
+
 /** The wallet's chain id per rail family. */
 const CHAIN_ID_FOR: Record<string, string> = { avm: 'algorand', evm: 'ethereum', svm: 'solana', arweave: 'arweave' };
 
@@ -104,6 +122,8 @@ export function signersForAccount(account: WalletAccount): X402Signers {
   if (algorand) signers.avm = parsecAvmSigner(algorand);
   const ethereum = getAccountAddress(account, 'ethereum');
   if (ethereum) signers.evm = parsecEvmSigner(ethereum);
+  const solana = getAccountAddress(account, 'solana');
+  if (solana) signers.svm = parsecSvmSigner(solana);
   return signers;
 }
 

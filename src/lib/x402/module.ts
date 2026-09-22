@@ -11,6 +11,7 @@ import { x402DashboardModule } from '../dashboard/x402-module';
 import { X402_CHOICES, X402_ID } from './choices';
 import './rails/avm';
 import './rails/evm';
+import './rails/svm';
 import { configureParsecX402Host } from './adapters/parsec';
 
 // Hand the module Parsec's algod and price feed before any view can ask it to pay.
