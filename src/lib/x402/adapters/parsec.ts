@@ -17,7 +17,12 @@ import { evmSignTransferAuthorization } from '../../chain-evm';
 import { getAccountAddress } from '../../store';
 import type { WalletAccount } from '../../../types/wallet';
 import { base64ToBytes, bytesToBase64 } from '../protocol';
-import type { AvmSigner, EvmSigner, X402Signers } from '../host';
+import { configureX402Host, type AvmSigner, type EvmSigner, type X402Signers } from '../host';
+import { getAlgodClient } from '../../algorand/client';
+import { PriceOracle } from '../oracle';
+// `describeNetwork`, not `rails/avm`'s `walletNetworkFor`: importing the rail module
+// registers the rail as a side effect, which would silently replace a test's stub.
+import { describeNetwork } from '../networks';
 
 /**
  * An Algorand signer backed by the vault and Rust.
@@ -100,4 +105,35 @@ export function signersForAccount(account: WalletAccount): X402Signers {
   const ethereum = getAccountAddress(account, 'ethereum');
   if (ethereum) signers.evm = parsecEvmSigner(ethereum);
   return signers;
+}
+
+
+// ── Parsec as a host ─────────────────────────────────────────────────────────
+
+const oracle = new PriceOracle();
+
+/**
+ * Register Parsec's facilities against the module's ports.
+ *
+ * Called once, from the module manifest. Everything the module needs from the
+ * application it gets here and nowhere else — which is why the same code runs
+ * unchanged in a wallet that is not this one.
+ *
+ * Only `algod` and `usdRate` are supplied: `localStorage` is already the default,
+ * and the public EVM endpoints are fine until an operator says otherwise.
+ */
+export function configureParsecX402Host(): void {
+  configureX402Host({
+    // Parsec's own algod configuration, so a payment and a balance read use the same node.
+    algod: (network) => getAlgodClient(describeNetwork(network).walletNetwork ?? 'testnet'),
+
+    // The Vestige DEX feed, for display beside a quote. Returning null — which it does
+    // on any failure — means the quote is shown in the asset it is denominated in,
+    // which is never wrong, only less convenient.
+    usdRate: async (symbol) => {
+      if (symbol.toUpperCase() !== 'ALGO') return null;
+      const usd = await oracle.getAlgoUsd();
+      return usd > 0 ? usd : null;
+    },
+  });
 }

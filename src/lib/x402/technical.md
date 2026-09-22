@@ -66,6 +66,19 @@ not.
 until a server quotes in wei, and the failure is silent: a payment for the wrong amount
 that the facilitator rejects for reasons that look unrelated.
 
+### 3½. Everything host-specific is a port — including the price feed
+
+Signing, storage, node endpoints, and the USD price of a non-pegged asset. The last one
+was a late addition, forced by extracting the module into its own repository: `quote.ts`
+read ALGO/USD from a Vestige client, which is a vendor choice, and a portable module has
+no business making one on its host's behalf. `hostUsdRate(symbol)` returns `null` by
+default and on any failure, and a quote with no reading is shown in the asset it is
+denominated in — never wrong, only less convenient. Parsec supplies the Vestige feed
+through the port, like any other host would supply its own.
+
+*Refused:* keeping the feed inside. It would have made the public copy and this one
+diverge on their first day.
+
 ### 4. Verification and settlement are the resource server's calls, not ours
 
 The client builds and signs. The *server* asks a facilitator to verify and settle. This
@@ -138,6 +151,16 @@ These hold across the module; breaking one is a bug even if tests pass.
 5. **A rail signs only what its payer owns.** Anything else in the group travels unsigned.
 6. **The terms paid are the terms quoted.** A proof that no longer covers its quote is
    dropped, not submitted (`proofStillCovers`).
+
+## Kept in step with the public copy
+
+This module is published standalone at
+[github.com/parsec-wallet/x402](https://github.com/parsec-wallet/x402) — the same files,
+minus the four that reach into Parsec (`adapters/parsec.ts`, `module.ts`, `choices.ts`,
+`bridge.ts`). `protocol.ts`, `networks.ts`, `rails*`, `client.ts`, `quote.ts`, `host.ts`,
+`receipts.ts`, `settings.ts`, `bazaar.ts`, `facilitator.ts` and `adapters/wallets.ts`
+should stay byte-identical in both. When they drift, the published copy is not what
+anyone is running, and the claim that this is extractable stops being true.
 
 ## Known limits
 
