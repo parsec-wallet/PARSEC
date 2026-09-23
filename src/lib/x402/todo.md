@@ -62,7 +62,7 @@ scores — real mainnet settlements, not code.
 
 ### Module
 
-- **`bridge.ts` is legacy.** A vault-held algosdk signer, still used by the AORC minters,
+- **[`bridge.ts`](bridge.ts) is legacy.** A vault-held algosdk signer, still used by the AORC minters,
   not on the payment path. It retrieves a mnemonic into the renderer, which the rest of
   the module no longer does. Migrating AORC to `parsecAvmSigner` would let it go.
 - **`X402Signers` still declares `arweave` as `never`** — it type-errors at the call site
