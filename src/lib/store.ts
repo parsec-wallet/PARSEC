@@ -7,6 +7,7 @@ import type { ChainId } from './pouch/types';
 import { isTauri } from './vault';
 import { keystoreLock } from './keystore';
 import { defaultAvatarFor } from './avatars';
+import { isModalRoute } from './nav';
 
 type Listener = (state: WalletState) => void;
 
@@ -138,8 +139,38 @@ class Store {
     this.notify();
   }
 
+  /**
+   * Views visited, most recent last. Not persisted: a back stack that survives a
+   * restart would let a gesture walk into a context the participant never opened.
+   */
+  private history: AppView[] = [];
+
   navigate(view: AppView): void {
+    const from = this.state.view;
+    // An approval surface never joins the stack. A back gesture must not be able to
+    // silently cancel — or silently re-enter — a signing decision, which is the same
+    // rule `nav.ts` states with `modal: true` and `isModalRoute()` enforces.
+    if (from && from !== view && !isModalRoute(from)) {
+      this.history.push(from);
+      if (this.history.length > 50) this.history.shift();
+    }
     this.set({ view, error: null });
+  }
+
+  /** Whether there is anywhere to go back to. */
+  canGoBack(): boolean {
+    return this.history.length > 0;
+  }
+
+  /**
+   * Return to the previous view, or to the dashboard when there is none.
+   *
+   * Never a no-op: a back control that sometimes does nothing reads as broken, and the
+   * dashboard is always a defensible place to be.
+   */
+  back(): void {
+    const previous = this.history.pop();
+    this.set({ view: previous ?? 'dashboard', error: null });
   }
 
   /** Switch the active account and the chain it is viewed on. Clears the

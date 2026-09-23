@@ -9,10 +9,150 @@ export interface CoinPrice {
   marketCap: number;
   change24h: number;
   image: string;
+  /** Derived from observed history. `0` until enough has been seen. */
+  change1h: number;
+  /** Derived. `null` until this process has watched long enough to say. */
+  change5m: DerivedChange | null;
+  change15m: DerivedChange | null;
+  change4h: DerivedChange | null;
+}
+
+/**
+ * A change this process derived, and how long it actually watched to derive it.
+ *
+ * `pct` may be null while `observedMinutes` is not: that is the honest state of a feed
+ * that is working but young, and it reads differently from a feed that is broken.
+ */
+export interface DerivedChange {
+  pct: number | null;
+  observedMinutes?: number;
+}
+
+// ── Derived short-horizon change ─────────────────────────────────────────────
+//
+// The feed gives one number: 24 hours. Everything shorter is derived here, from
+// prices this process has actually watched.
+//
+// The contract that matters is the null. Zero asserts a flat market; null says *we
+// have not been watching long enough to know*, and those must never render the same.
+// A dashboard that shows 0.00% because it just started lies about the market with
+// total confidence.
+
+export const CHANGE_PERIODS = ['5m', '15m', '1h', '4h', '24h'] as const;
+export type ChangePeriod = (typeof CHANGE_PERIODS)[number];
+
+/** Window lengths in milliseconds. `5m` is accepted for callers that ask. */
+const WINDOW_MS: Record<string, number> = {
+  '5m': 5 * 60_000,
+  '15m': 15 * 60_000,
+  '1h': 60 * 60_000,
+  '4h': 4 * 60 * 60_000,
+  '24h': 24 * 60 * 60_000,
+};
+
+/** How far outside a window a sample may sit and still be used, as a fraction. */
+const TOLERANCE = 0.5;
+
+interface Sample { at: number; usd: number }
+
+/** id → samples, oldest first. Memory only: a restart starts watching again. */
+const history = new Map<string, Sample[]>();
+const MAX_SAMPLES = 400;
+
+/** Record a reading. Called on every successful fetch. */
+export function recordPrices(prices: CoinPrice[], at = Date.now()): void {
+  const horizon = at - WINDOW_MS['24h'] * 1.5;
+  for (const coin of prices) {
+    if (!Number.isFinite(coin.usd) || coin.usd <= 0) continue;
+    const series = history.get(coin.id) ?? [];
+    series.push({ at, usd: coin.usd });
+    // Drop what no window can reach, then cap — a long-running session must not grow
+    // without bound just because it stayed open.
+    let trimmed = series.filter((s) => s.at >= horizon);
+    if (trimmed.length > MAX_SAMPLES) trimmed = trimmed.slice(trimmed.length - MAX_SAMPLES);
+    history.set(coin.id, trimmed);
+  }
+}
+
+/**
+ * Percentage change over `period`, or `null` when it cannot honestly be stated.
+ *
+ * Null when: the coin has never been seen, the current price is unusable, or no sample
+ * sits far enough back to cover the window. The last is the common one on a fresh start
+ * and is exactly what must not be reported as zero.
+ */
+export function derivedChange(id: string, currentUsd: number, period: ChangePeriod | '5m', now = Date.now()): number | null {
+  if (!Number.isFinite(currentUsd) || currentUsd <= 0) return null;
+  const window = WINDOW_MS[period];
+  if (!window) return null;
+
+  const series = history.get(id);
+  if (!series || series.length === 0) return null;
+
+  const target = now - window;
+  // The newest sample at or before the target — the closest honest comparison.
+  let chosen: Sample | undefined;
+  for (const s of series) {
+    if (s.at <= target) chosen = s;
+    else break;
+  }
+  // Nothing old enough. Accept a sample slightly inside the window rather than none,
+  // but only slightly: comparing a 15-minute claim against 2 minutes of data is a
+  // different number wearing the same label.
+  if (!chosen) {
+    const oldest = series[0];
+    if (!oldest || now - oldest.at < window * (1 - TOLERANCE)) return null;
+    chosen = oldest;
+  }
+  if (!Number.isFinite(chosen.usd) || chosen.usd <= 0) return null;
+  return ((currentUsd - chosen.usd) / chosen.usd) * 100;
+}
+
+/** How long this process has been watching a coin, in minutes. */
+export function observedMinutes(id: string, now = Date.now()): number | undefined {
+  const series = history.get(id);
+  if (!series || series.length === 0) return undefined;
+  return Math.round((now - series[0].at) / 60_000);
+}
+
+/**
+ * The change to show for a coin over a period.
+ *
+ * 24h comes from the feed, which has been watching far longer than this process.
+ * Everything shorter is derived, and carries how long we watched — so a UI can say
+ * "not yet" rather than showing a confident nothing.
+ */
+export function changeFor(coin: CoinPrice, period: ChangePeriod, now = Date.now()): DerivedChange {
+  if (period === '24h') {
+    return { pct: Number.isFinite(coin.change24h) ? coin.change24h : null };
+  }
+  return {
+    pct: derivedChange(coin.id, coin.usd, period, now),
+    observedMinutes: observedMinutes(coin.id, now),
+  };
+}
+
+export type FeedStatus = 'live' | 'stale' | 'down' | 'starting';
+
+/** Whether the price feed is currently believable, and why. */
+export function getFeedStatus(now = Date.now()): { status: FeedStatus; detail: string } {
+  if (lastFetch === 0) return { status: 'starting', detail: 'no reading yet' };
+  const age = now - lastFetch;
+  if (lastFetchFailed && age > CACHE_TTL * 3) {
+    return { status: 'down', detail: `no reading for ${Math.round(age / 60_000)}m` };
+  }
+  if (age > CACHE_TTL * 2) return { status: 'stale', detail: `${Math.round(age / 1000)}s old` };
+  return { status: 'live', detail: `${Math.round(age / 1000)}s ago` };
+}
+
+/** Forget every observation. For tests, and for a session that changed feeds. */
+export function __resetHistory(): void {
+  history.clear();
 }
 
 let cache: CoinPrice[] | null = null;
 let lastFetch = 0;
+let lastFetchFailed = false;
 const CACHE_TTL = 60 * 1000;
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -42,6 +182,10 @@ export async function fetchPricesByIds(ids: string[]): Promise<CoinPrice[]> {
       marketCap: Number(coin.market_cap || 0),
       change24h: Number(coin.price_change_percentage_24h || 0),
       image: String(coin.image || ''),
+      change1h: 0,
+      change5m: null,
+      change15m: null,
+      change4h: null,
     })).filter(c => c.id && c.usd > 0);
 
     byIdCache.set(key, { at: Date.now(), data: mapped });
@@ -60,7 +204,7 @@ export async function fetchPrices(): Promise<CoinPrice[]> {
       'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=24h',
       { signal: AbortSignal.timeout(10000) }
     );
-    if (!response.ok) return cache || [];
+    if (!response.ok) { lastFetchFailed = true; return cache || []; }
     const data = await response.json() as Record<string, unknown>[];
 
     cache = data.map(coin => ({
@@ -70,11 +214,27 @@ export async function fetchPrices(): Promise<CoinPrice[]> {
       marketCap: Number(coin.market_cap || 0),
       change24h: Number(coin.price_change_percentage_24h || 0),
       image: String(coin.image || ''),
+      change1h: 0,
+      change5m: null,
+      change15m: null,
+      change4h: null,
     })).filter(c => c.id && c.usd > 0);
 
     lastFetch = Date.now();
+    lastFetchFailed = false;
+    // Every successful reading feeds the derived short-horizon changes. Without this
+    // `derivedChange` is honest but permanently null.
+    recordPrices(cache, lastFetch);
+    // Attach what can be stated now; null where the window is not covered yet.
+    for (const coin of cache) {
+      coin.change1h = derivedChange(coin.id, coin.usd, '1h', lastFetch) ?? 0;
+      coin.change5m = changeFor(coin, '5m', lastFetch);
+      coin.change15m = changeFor(coin, '15m', lastFetch);
+      coin.change4h = changeFor(coin, '4h', lastFetch);
+    }
     return cache;
   } catch {
+    lastFetchFailed = true;
     return cache || [];
   }
 }
