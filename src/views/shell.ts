@@ -55,7 +55,7 @@ export function createShell(): Shell {
 
   const crumb = el('span', { cls: 'parsec-shell__crumb' });
 
-  const backBtn = btn('Back', { minimal: true, onClick: () => store.back() });
+  const backBtn = btn('Back', { minimal: true, onClick: () => { if (!store.back()) store.navigate('dashboard'); } });
   backBtn.classList.add('parsec-shell__back');
 
   const paletteBtn = btn('Search', { minimal: true, onClick: () => showPalette() });

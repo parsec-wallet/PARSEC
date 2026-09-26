@@ -7,6 +7,11 @@
 // declare partial capability; the UI hides controls the adapter doesn't
 // support without per-namespace special-casing.
 
+import type { AddressChain, NameIdentityFields } from '../names/controller-model';
+
+/** A name's token identity: how explorers and gateways label it. */
+export type NameIdentity = NameIdentityFields;
+
 /**
  * Normalized record shape every namespace produces. Adapter-specific
  * fields live under `raw`; everything the UI needs is at the top level.
@@ -86,6 +91,8 @@ export interface NamespaceAdapter {
   readonly displayName: string;
   /** What the adapter can do, for the UI to gate optional sections. */
   readonly capabilities: NamespaceCapabilities;
+  /** Which of the account's addresses this namespace signs with. Default 'arweave-hd'. */
+  readonly addressChain?: AddressChain;
 
   // ── Reads ──────────────────────────────────────────────────
 
@@ -183,6 +190,17 @@ export interface NamespaceAdapter {
     passphrase: string;
     name: string;
     controller: string;
+  }): Promise<SignedWrite>;
+
+  /** Read the name's token identity (nickname, ticker, description, keywords, logo). */
+  getIdentity?(name: string): Promise<NameIdentity>;
+
+  /** Write changed identity fields; each changed field is one signed write. */
+  setIdentity?(opts: {
+    address: string;
+    passphrase: string;
+    name: string;
+    patch: Partial<NameIdentity>;
   }): Promise<SignedWrite>;
 
   /** Increase the undername limit. Some adapters gate this. */

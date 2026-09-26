@@ -617,7 +617,7 @@ export function matrixView(): HTMLElement {
     const { status, detail } = getFeedStatus();
     const dead = prices.length < 10;
     feedNote.textContent = dead ? `Market feed ${status} — ${detail}` : '';
-    feedNote.dataset.tone = status === 'live' ? 'ok' : status === 'cached' ? 'warn' : 'alert';
+    feedNote.dataset.tone = status === 'live' ? 'ok' : status === 'stale' ? 'warn' : 'alert';
   }
   brandEl.style.cursor = 'pointer';
   makeDraggable(brandEl, 'brand');

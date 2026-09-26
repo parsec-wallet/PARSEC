@@ -52,6 +52,9 @@ export const solanaArnsAdapter: NamespaceAdapter = {
   id: 'solana-arns',
   displayName: 'AR.IO Names (Solana)',
   capabilities: CAPS,
+  // Writes go through the vault-bridged Solana kit signer, so the owner and
+  // signer is the account's Solana address, not its Arweave one.
+  addressChain: 'solana',
 
   async getRecord(name): Promise<NormalizedRecord | null> {
     const rec = await client.getRecord(name);

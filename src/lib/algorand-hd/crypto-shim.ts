@@ -6,6 +6,9 @@
 //   createHash("sha256" | "sha512").update(...).digest()
 //   createHmac("sha512", key).update(...).digest()
 //
+// @ar.io/sdk (utils/base64.js) also does:
+//   import { createHash, randomBytes } from "crypto"
+//
 // Vite externalizes "crypto" by default — we alias it to this file instead
 // so the lib runs unmodified.
 
@@ -96,4 +99,21 @@ function bufferFrom(u8: Uint8Array): Buffer {
   return u8 as unknown as Buffer;
 }
 
-export default { createHash, createHmac };
+// WebCrypto's getRandomValues is the platform CSPRNG; it fills at most 65536
+// bytes per call, so larger requests are filled in chunks.
+const RANDOM_CHUNK = 65536;
+
+export function randomBytes(size: number, callback?: (err: Error | null, buf: Buffer) => void): Buffer {
+  if (!Number.isSafeInteger(size) || size < 0) {
+    throw new RangeError(`crypto-shim: randomBytes size must be a non-negative integer, got ${size}`);
+  }
+  const out = new Uint8Array(size);
+  for (let off = 0; off < size; off += RANDOM_CHUNK) {
+    globalThis.crypto.getRandomValues(out.subarray(off, Math.min(off + RANDOM_CHUNK, size)));
+  }
+  const buf = bufferFrom(out);
+  if (callback) queueMicrotask(() => callback(null, buf));
+  return buf;
+}
+
+export default { createHash, createHmac, randomBytes };

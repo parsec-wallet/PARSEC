@@ -128,6 +128,11 @@ export function removeAccount(address: string): void {
   saveVault(vault);
 }
 
+/** Addresses held in the vault. The blob records no chain and no secret is returned. */
+export function listAccounts(): { address: string }[] {
+  return loadVault().accounts.map(({ address }) => ({ address }));
+}
+
 /** Check if vault has any accounts */
 export function hasVault(): boolean {
   return loadVault().accounts.length > 0;

@@ -529,7 +529,7 @@ export function mausoleumView(): HTMLElement {
 
     if (!isTauri()) {
       body.appendChild(note(
-        'This is the browser build. Keys are held in an encrypted blob in localStorage, which any script that achieves XSS can reach — the weakest of the four tiers. The desktop build uses bankon-vault/2 with Argon2id and pinned memory.',
+        'This is the browser build. Keys are held in an encrypted blob in localStorage, which any script that achieves XSS can reach — the weakest of the four tiers. The desktop build keeps keys in bankon_vault in Rust, behind Argon2id.',
         'warning',
       ));
       root.appendChild(body);
@@ -583,6 +583,13 @@ export function mausoleumView(): HTMLElement {
           })]
         : []),
     ]));
+
+    if (!ks.v2Available) {
+      body.appendChild(note(
+        'bankon-vault/2 is not in this build. This vault is bankon-vault/1 (Argon2id → AES-256-GCM, secrets held in Rust); upgrade, custodians, passphrase change and auto-lock arrive with v2.',
+        'warning',
+      ));
+    }
 
     // ── Migration ─────────────────────────────────────────────
     if (plan?.needed) {

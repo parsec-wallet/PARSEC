@@ -217,8 +217,9 @@ export function cloudWeather(coins: CoinPrice[]): Weather {
     const h = Number.isFinite(c.change1h) ? Math.abs(c.change1h) : 0;
     sum1h += h;
     if (h >= VOLATILE_1H_PCT) volatile++;
-    if (c.change15m === null) unknown15m++;
-    else if (Math.abs(c.change15m.pct) >= SURGE_15M_PCT) surging++;
+    const pct15m = c.change15m?.pct ?? null;
+    if (pct15m === null) unknown15m++;
+    else if (Math.abs(pct15m) >= SURGE_15M_PCT) surging++;
   }
 
   const avg1h = sum1h / coins.length;
@@ -227,7 +228,8 @@ export function cloudWeather(coins: CoinPrice[]): Weather {
 
 /** Is this coin moving hard enough in fifteen minutes to earn the candle border? */
 export function isSurging(coin: CoinPrice): boolean {
-  return coin.change15m !== null && Math.abs(coin.change15m.pct) >= SURGE_15M_PCT;
+  const pct = coin.change15m?.pct ?? null;
+  return pct !== null && Math.abs(pct) >= SURGE_15M_PCT;
 }
 
 /**
