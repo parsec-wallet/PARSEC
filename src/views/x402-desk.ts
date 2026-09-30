@@ -45,6 +45,33 @@ export function x402DeskView(): HTMLElement {
   const probeBox = el('div', { cls: 'parsec-card' });
 
   const urlField = input({ placeholder: 'https://example.x402.goplausible.xyz/', cls: 'bp5-input parsec-input--wide' });
+  // Many paid resources are POST with a JSON body (a name order, a query), so the
+  // desk sends whatever the resource expects. The same request is resent with the
+  // payment attached; nothing about it changes between the probe and the pay.
+  const methodSelect = el('select', { cls: 'bp5-input', attrs: { 'aria-label': 'Request method' } }) as HTMLSelectElement;
+  for (const m of ['GET', 'POST']) {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m;
+    methodSelect.appendChild(opt);
+  }
+  const bodyField = el('textarea', {
+    cls: 'bp5-input parsec-input--wide',
+    attrs: { rows: '3', placeholder: '{"name": "…"}  — JSON body, sent with POST', 'aria-label': 'Request body (JSON)' },
+  }) as HTMLTextAreaElement;
+  const syncBody = () => { bodyField.style.display = methodSelect.value === 'POST' ? '' : 'none'; };
+  methodSelect.addEventListener('change', syncBody);
+  syncBody();
+
+  /** The request as the resource expects it, or an error message. */
+  const requestInit = (): RequestInit | string => {
+    if (methodSelect.value !== 'POST') return { method: 'GET' };
+    const raw = bodyField.value.trim();
+    if (raw) {
+      try { JSON.parse(raw); } catch { return 'The body is not valid JSON.'; }
+    }
+    return { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: raw || '{}' };
+  };
 
   // ── Facilitator ────────────────────────────────────────────────
 
@@ -143,12 +170,35 @@ export function x402DeskView(): HTMLElement {
 
   // ── Probe / pay a URL ──────────────────────────────────────────
 
+  /** What the resource returned once paid, beside the settled transaction id. */
+  const showPaidResponse = async (result: { success: boolean; txId?: string; response?: Response }) => {
+    if (!result.response && !result.txId) return;
+    let text = '';
+    try { text = result.response ? await result.response.clone().text() : ''; } catch { /* body already read */ }
+    let shown = text;
+    try { shown = JSON.stringify(JSON.parse(text), null, 2); } catch { /* not JSON; show as is */ }
+    probeBox.appendChild(el('div', {
+      cls: 'parsec-card',
+      children: [
+        el('h3', { text: result.success ? 'Paid response' : 'Response' }),
+        ...(result.txId ? [row('Settlement', result.txId)] : []),
+        ...(result.response ? [row('HTTP', String(result.response.status))] : []),
+        el('pre', { cls: 'parsec-mono', text: shown.slice(0, 4000) }),
+      ],
+    }));
+  };
+
   const showRequirements = async () => {
     const url = urlField.value.trim();
     if (!url) return;
+    const init = requestInit();
+    if (typeof init === 'string') {
+      probeBox.replaceChildren(el('p', { cls: 'parsec-error', text: init }));
+      return;
+    }
     probeBox.replaceChildren(el('p', { cls: 'parsec-muted', text: 'Probing…' }));
     try {
-      const challenge = await discoverRequirements(url);
+      const challenge = await discoverRequirements(url, init);
       if (!challenge) {
         probeBox.replaceChildren(el('p', { text: 'Not paywalled — the resource answered without asking for payment.' }));
         return;
@@ -168,9 +218,10 @@ export function x402DeskView(): HTMLElement {
           disabled: !Object.keys(signers).length,
           onClick: async () => {
             try {
-              const pending = await preparePayment(url, challenge, { signers });
+              const pending = await preparePayment(url, challenge, { signers }, init);
               const result = await approveThroughView(pending);
               if (!result.success && result.error) toast(result.error, 'danger');
+              await showPaidResponse(result);
             } catch (err) {
               toast(err instanceof Error ? err.message : String(err), 'danger');
             }
@@ -231,7 +282,8 @@ export function x402DeskView(): HTMLElement {
         cls: 'parsec-card',
         children: [
           el('h3', { text: 'Pay a resource' }),
-          urlField,
+          el('div', { cls: 'parsec-row', children: [methodSelect, urlField] }),
+          bodyField,
           el('div', {
             cls: 'parsec-confirm__actions',
             children: [btn('Probe', { onClick: () => void showRequirements() })],
