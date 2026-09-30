@@ -68,7 +68,7 @@ export function createShell(): Shell {
   paintMode(getMode());
   onModeChange(paintMode);
 
-  const backBtn = btn('Back', { minimal: true, onClick: () => store.back() });
+  const backBtn = btn('Back', { minimal: true, onClick: () => { if (!store.back()) store.navigate('dashboard'); } });
   backBtn.classList.add('parsec-shell__back');
 
   const paletteBtn = btn('Search', { minimal: true, onClick: () => showPalette() });

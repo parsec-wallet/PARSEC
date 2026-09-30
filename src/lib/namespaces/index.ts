@@ -18,6 +18,7 @@ export type {
   CostQuote,
   NamespaceAdapter,
   NamespaceCapabilities,
+  NameIdentity,
   NormalizedRecord,
   PurchaseType,
   SignedWrite,

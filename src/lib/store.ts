@@ -168,9 +168,13 @@ class Store {
    * Never a no-op: a back control that sometimes does nothing reads as broken, and the
    * dashboard is always a defensible place to be.
    */
-  back(): void {
+  /** Go to the previous view. Returns false, without navigating, when there is
+   *  no history, so callers choose their own fallback. */
+  back(): boolean {
     const previous = this.history.pop();
-    this.set({ view: previous ?? 'dashboard', error: null });
+    if (previous === undefined) return false;
+    this.set({ view: previous, error: null });
+    return true;
   }
 
   /** Switch the active account and the chain it is viewed on. Clears the

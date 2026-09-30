@@ -8,7 +8,7 @@
 import { el, btn, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { connectApproveName, connectRejectName, type NameRequest } from '../lib/connect';
-import { getNamespace, type NamespaceAdapter, type NormalizedRecord } from '../lib/namespaces';
+import { getNamespace, type NameIdentity, type NamespaceAdapter, type NormalizedRecord } from '../lib/namespaces';
 import { addressChainFor, namespaceAddress } from '../lib/names/address';
 import { describeOrigin, renderIntent, type NameIntent } from '../lib/names/intent';
 import { describeTarget, truncId } from '../lib/names/controller-model';
@@ -237,8 +237,8 @@ async function execute(
 }
 
 /** Only the identity fields the page actually sent — never invent a field to clear. */
-function identityPatch(p: Record<string, unknown>): Record<string, unknown> {
-  const patch: Record<string, unknown> = {};
+function identityPatch(p: Record<string, unknown>): Partial<NameIdentity> {
+  const patch: Partial<NameIdentity> = {};
   for (const k of ['nickname', 'ticker', 'description', 'logo'] as const) {
     if (typeof p[k] === 'string') patch[k] = String(p[k]).trim();
   }
