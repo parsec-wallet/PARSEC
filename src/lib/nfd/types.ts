@@ -41,6 +41,7 @@ export type MintStage =
   | 'checking-availability'
   | 'quoting'
   | 'paying-bankon-fee'
+  | 'paying-service-fee'
   | 'awaiting-signature'
   | 'submitting'
   | 'confirmed'

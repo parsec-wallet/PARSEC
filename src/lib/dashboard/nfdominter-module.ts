@@ -12,7 +12,7 @@ export const nfdominterDashboardModule: DashboardModule = {
     return el('div', {
       cls: 'parsec-dashboard__actions parsec-dashboard__nfdominter-actions',
       children: [
-        btn('NFDominter', {
+        btn('.algo Names', {
           intent: 'primary',
           icon: 'tag',
           onClick: () => ctx.navigate('nfdominter'),

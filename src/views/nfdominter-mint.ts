@@ -1,7 +1,8 @@
 // Claim tab — search-as-you-type name input, live tier/availability/price
-// feedback, NFDminter fee line, and a Claim button that kicks off the review
+// feedback, the NFD price in ALGO, and a Review & register button that opens the review
 // flow via the connect-style confirm view.
 
+import { formatDecimal } from '../lib/money';
 import { el, input, btn } from '../lib/dom';
 import { store } from '../lib/store';
 import {
@@ -70,7 +71,7 @@ export function buildMintTab(buyer: string, network: NetworkId): HTMLElement {
   const feedback = el('div', { cls: 'parsec-nfdominter__feedback' });
   const quoteBox = el('div', { cls: 'parsec-nfdominter__quote' });
 
-  const mintButton = btn('Claim .algo', {
+  const mintButton = btn('Review & register', {
     intent: 'primary',
     large: true,
     icon: 'confirm',
@@ -239,15 +240,16 @@ function renderBuyOption(listing: MarketListing): HTMLElement {
 
 function renderQuote(q: NfdMintCostBreakdown): HTMLElement {
   const rows: (HTMLElement | string)[] = [
-    rowFor('NFD price', q.basePrice),
+    rowFor('Name price', q.basePrice),
     rowFor('Contract funding', q.carryCost),
     rowFor('Network fee', q.extraFee),
-    rowFor('NFDminter fee', q.bankonFee, true),
+    ...(q.bankonFee > 0n ? [rowFor('Fee', q.bankonFee, true)] : []),
   ];
   rows.push(el('div', { cls: 'parsec-nfdominter__quote-total', children: [
-    el('span', { text: 'You pay' }),
+    el('span', { text: 'NFD total' }),
     el('span', { text: formatAlgo(q.totalMicroAlgos) }),
   ]}));
+  rows.push(el('div', { cls: 'parsec-nfdominter__hint', text: 'Plus the registration service fee in USDC, shown on the next screen before anything is paid.' }));
   return el('div', { cls: 'parsec-nfdominter__quote-box', children: rows });
 }
 
@@ -261,7 +263,7 @@ function rowFor(label: string, microAlgos: bigint, highlight = false): HTMLEleme
   });
 }
 
+/** Exact: micro-ALGO as a bigint, formatted without a float. */
 function formatAlgo(microAlgos: bigint): string {
-  const algos = Number(microAlgos) / 1_000_000;
-  return `${algos.toLocaleString(undefined, { maximumFractionDigits: 6 })} ALGO`;
+  return `${formatDecimal(microAlgos, 6, { trim: true })} ALGO`;
 }

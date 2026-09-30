@@ -203,7 +203,7 @@ export function buildSubdomainsTab(
         segQuoteBox.innerHTML = '';
         segQuoteBox.append(
           quoteRow('NFD registry price', nfdPrice),
-          quoteRow('NFDminter fee', quote.bankonFee),
+          ...(quote.bankonFee > 0n ? [quoteRow('Fee', quote.bankonFee)] : []),
           el('div', { cls: 'parsec-nfdominter__quote-total', children: [
             el('span', { text: 'Total' }),
             el('span', { text: algoStr(quote.totalMicroAlgos) }),

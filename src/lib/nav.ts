@@ -144,7 +144,10 @@ registerRoutes([
   { id: 'name-hub',        title: 'Names',           tier: 'agenticplace', disclosure: 'simple', inRail: true, keywords: ['arns', 'bankon', 'ans', 'domain'] },
   { id: 'market-hub',      title: 'Marketspace',     tier: 'agenticplace', disclosure: 'more',   inRail: true, keywords: ['listing', 'auction', 'buy', 'sell'] },
   { id: 'agents',          title: 'Agents',          tier: 'agenticplace', disclosure: 'more',   inRail: true, keywords: ['agenticplace', 'x402', 'discovery'] },
-  { id: 'nfdominter',      title: 'NFDominter',      tier: 'agenticplace', disclosure: 'more',   inRail: true, keywords: ['.algo', 'nfd', 'name'] },
+  { id: 'nfdominter',      title: '.algo Names',     tier: 'agenticplace', disclosure: 'simple', inRail: true, keywords: ['.algo', 'nfd', 'name', 'domain', 'register'] },
+  // Both spend: an approval surface never joins the back stack (see confirm-send).
+  { id: 'nfdominter-confirm', title: 'Register .algo', tier: 'agenticplace', disclosure: 'simple', modal: true },
+  { id: 'nfdominter-buy',  title: 'Buy .algo',       tier: 'agenticplace', disclosure: 'simple', modal: true },
   { id: 'pmvpn',           title: 'pmVPN',           tier: 'agenticplace', disclosure: 'pro',    inRail: true, keywords: ['ssh', 'terminal', 'remote'] },
   { id: 'docs',            title: 'Docs',            tier: 'agenticplace', disclosure: 'simple', inRail: true, keywords: ['help', 'faq', 'quickstart', 'security'] },
 

@@ -52,8 +52,11 @@ export interface BankonFeeConfig {
   waivedAddresses: Set<string>;
 }
 
+// Retired: the flat 2-ALGO mint fee. The registration service fee is now paid in
+// USDC over x402 to the name service (service-fee.ts), so no ALGO fee is layered
+// on the mint. Zero keeps every caller working and pays nothing.
 export const BANKON_FEE_CONFIG: BankonFeeConfig = {
-  flatMicroAlgos: 2_000_000n, // 2 ALGO
+  flatMicroAlgos: 0n,
   premiumBps: 0,
   waivedAddresses: new Set(),
 };

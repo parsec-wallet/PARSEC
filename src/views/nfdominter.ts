@@ -72,7 +72,7 @@ export function nfdominterView(): HTMLElement {
     cls: 'parsec-view__header',
     children: [
       btn('Back', { minimal: true, icon: 'arrow-left', onClick: () => store.navigate('dashboard') }),
-      el('h2', { cls: 'parsec-view__title', text: 'NFDminter' }),
+      el('h2', { cls: 'parsec-view__title', text: '.algo Names' }),
       el('span', {
         cls: `parsec-network-badge parsec-network-badge--${network}`,
         text: network.toUpperCase(),

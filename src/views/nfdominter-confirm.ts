@@ -1,17 +1,30 @@
-// Review + sign the mint. Mirrors confirm-send.ts: show everything the user
-// is about to pay and why, gate the spend on a live balance check, then hand
-// the operation to the SDK and show a success screen.
+// .algo Names — review and pay.
+//
+// One screen, one decision. Registering a name is two payments to two parties,
+// shown side by side and never summed (different currencies):
+//
+//   · the registration service fee — USDC, over x402, to the name service;
+//   · the NFD registry's price     — ALGO, in the mint group itself.
+//
+// "Pay & register" pays the service fee first, then mints. The fee is quoted here
+// before anything is signed, and paid only if the offer at pay time is the one
+// shown (service-fee.ts refuses a changed price). The result screen carries the
+// name, its NFD application id and the service-fee settlement, each linked on the
+// right network.
 
 import { el, btn, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import {
   mintNfdWithFee,
-  getBankonFeeAddress,
   type Nfd,
   type NfdMintCostBreakdown,
   type MintProgress,
 } from '../lib/nfd';
-import { fetchAccountInfo, microAlgosToAlgo } from '../lib/algorand/account';
+import { quoteServiceFee, payServiceFee, type ServiceFeeQuote } from '../lib/nfd/service-fee';
+import { signersForAccount } from '../lib/x402/adapters/parsec';
+import { explorerTxUrl } from '../lib/x402/networks';
+import { fetchAccountInfo } from '../lib/algorand/account';
+import { formatDecimal } from '../lib/money';
 import type { AccountInfo, NetworkId } from '../types/wallet';
 
 interface PendingMint {
@@ -34,89 +47,135 @@ export function nfdominterConfirmView(): HTMLElement {
     return el('div');
   }
   const p = pending;
+  const owner = p.reservedFor ?? p.buyer;
   const root = el('div', { cls: 'parsec-view parsec-nfdominter__confirm' });
 
-  const progress = el('div', { cls: 'parsec-nfdominter__progress', text: 'Ready to mint.' });
-
-  // Persistent error panel — a failed mint must NOT vanish in a toast.
+  const progress = el('div', { cls: 'parsec-nfdominter__progress', attrs: { 'aria-live': 'polite' }, text: '' });
+  // Persistent error panel — a failed payment must NOT vanish in a toast.
   const errorBox = el('div', { cls: 'parsec-nfdominter__error', attrs: { hidden: 'true' } });
 
-  const signBtn = btn('Sign and claim', {
+  let feeQuote: ServiceFeeQuote | null = null;
+  let feeReady = false;
+  let algoReady = false;
+  const gate = () => { payBtn.disabled = !(feeReady && algoReady); };
+
+  const payBtn = btn('Pay & register', {
     intent: 'primary',
     large: true,
     icon: 'confirm',
-    disabled: true, // unlocked once the balance check passes
+    disabled: true,
     cls: 'parsec-nfdominter__sign-btn',
     onClick: () => { void run(); },
-  });
+  }) as HTMLButtonElement;
 
   const backBtn = btn('Back', {
     minimal: true,
     icon: 'arrow-left',
     onClick: () => { pending = null; store.navigate('nfdominter'); },
-  });
+  }) as HTMLButtonElement;
 
-  // ── Balance check — gate the spend on the buyer actually having the ALGO.
+  // ── The service fee (USDC, x402) ─────────────────────────────────────────
+  const feeBox = el('div', {
+    cls: 'parsec-nfdominter__quote-box',
+    children: [el('div', { cls: 'parsec-nfdominter__hint', text: 'Fetching the service fee…' })],
+  });
+  quoteServiceFee(p.name, owner, p.network)
+    .then((q) => {
+      feeQuote = q;
+      feeBox.innerHTML = '';
+      if (!q) {
+        feeBox.appendChild(el('div', { cls: 'parsec-nfdominter__hint', text: 'No service fee is charged for this name.' }));
+      } else {
+        feeBox.append(
+          el('div', { cls: 'parsec-nfdominter__quote-row', children: [
+            el('span', { text: 'Registration service fee' }),
+            el('span', { text: `${q.quote.amountDisplay} ${q.quote.assetSymbol}${q.quote.usdDisplay ? ` (${q.quote.usdDisplay})` : ''}` }),
+          ]}),
+          el('div', { cls: 'parsec-nfdominter__hint', text: `Paid over x402 on ${q.quote.networkLabel}. Fees for this transfer are sponsored by the facilitator.` }),
+        );
+      }
+      feeReady = true;
+      gate();
+    })
+    .catch((e) => {
+      feeBox.innerHTML = '';
+      feeBox.appendChild(el('div', {
+        cls: 'parsec-callout bp5-callout bp5-intent-danger',
+        text: `Could not fetch the service fee: ${e instanceof Error ? e.message : String(e)}`,
+      }));
+    });
+
+  // ── The NFD price (ALGO), gated on a live balance ────────────────────────
   const balanceBox = el('div', {
     cls: 'parsec-nfdominter__balance',
     children: [el('div', { cls: 'parsec-nfdominter__hint', text: 'Checking wallet balance…' })],
   });
-  const total = Number(p.cost.totalMicroAlgos);
-
+  const total = p.cost.totalMicroAlgos;
   fetchAccountInfo(p.buyer, p.network)
     .then((info: AccountInfo) => {
-      const spendable = info.amount - info.minBalance;
+      const amount = BigInt(Math.trunc(info.amount));
+      const minBalance = BigInt(Math.trunc(info.minBalance));
+      const spendable = amount > minBalance ? amount - minBalance : 0n;
       const ok = spendable >= total;
       balanceBox.innerHTML = '';
       balanceBox.append(
-        row('Wallet balance', `${microAlgosToAlgo(info.amount)} ALGO`),
-        row('Total cost', formatAlgo(p.cost.totalMicroAlgos)),
-        row('Remaining after', `${microAlgosToAlgo(Math.max(0, info.amount - total))} ALGO`),
+        row('ALGO balance', algo(amount)),
+        row('Spendable', algo(spendable)),
       );
       if (!ok) {
         balanceBox.appendChild(el('div', {
           cls: 'parsec-callout bp5-callout bp5-intent-danger',
-          text: `Insufficient ALGO. This mint needs ${formatAlgo(p.cost.totalMicroAlgos)}, but only ${microAlgosToAlgo(spendable)} ALGO is spendable after the ${microAlgosToAlgo(info.minBalance)} ALGO minimum balance.`,
+          text: `Not enough ALGO. The NFD price is ${algo(total)}; ${algo(spendable)} is spendable after the ${algo(minBalance)} minimum balance.`,
         }));
       }
-      signBtn.disabled = !ok;
+      algoReady = ok;
+      gate();
     })
     .catch(() => {
       balanceBox.innerHTML = '';
       balanceBox.appendChild(el('div', {
         cls: 'parsec-callout bp5-callout bp5-intent-warning',
-        text: 'Could not load the wallet balance — make sure the account is funded before signing.',
+        text: 'Could not read the wallet balance. Check the network connection, then go back and try again.',
       }));
-      signBtn.disabled = false; // allow, but the user was warned
     });
 
-  // ── Network — prominent, because a mainnet mint spends real ALGO.
-  const networkBadge = el('span', {
-    cls: `parsec-network-badge parsec-network-badge--${p.network}`,
-    text: p.network.toUpperCase(),
-  });
+  // ── Network — prominent, because mainnet spends real money ───────────────
   const networkRow = el('div', {
     cls: 'parsec-nfdominter__confirm-network',
     children: [
-      networkBadge,
+      el('span', { cls: `parsec-network-badge parsec-network-badge--${p.network}`, text: p.network.toUpperCase() }),
       p.network === 'mainnet'
-        ? el('span', { cls: 'parsec-nfdominter__hint parsec-nfdominter__hint--error', text: 'This spends real ALGO and cannot be undone.' })
+        ? el('span', { cls: 'parsec-nfdominter__hint parsec-nfdominter__hint--error', text: 'Real USDC and ALGO. This cannot be undone.' })
         : el('span', { cls: 'parsec-nfdominter__hint', text: 'Test network — no real value at stake.' }),
     ],
   });
 
-  const treasury = getBankonFeeAddress();
-  const treasuryNote = p.buyer === treasury
-    ? 'NFDminter fee returns to this account (it is the treasury).'
-    : `NFDminter fee receives: ${treasury}`;
-
   async function run() {
     const pass = store.getPassphrase();
-    if (!pass) { toast('Session locked. Unlock first.', 'warning'); return; }
-    signBtn.disabled = true;
+    if (!pass) { showError(new Error('The wallet is locked. Unlock it, then come back to this name.'), 'Locked'); return; }
+    const state = store.get();
+    const account = state.accounts[state.activeAccountIndex];
+    if (!account) { showError(new Error('No active account.'), 'No account'); return; }
+    payBtn.disabled = true;
     backBtn.disabled = true;
     errorBox.setAttribute('hidden', 'true');
     errorBox.innerHTML = '';
+
+    let feeTxId = '';
+    try {
+      if (feeQuote) {
+        progress.textContent = 'Paying the registration service fee…';
+        const paid = await payServiceFee({ name: p.name, owner, signers: signersForAccount(account), reviewed: feeQuote });
+        feeTxId = paid.txId;
+      }
+    } catch (e) {
+      progress.textContent = '';
+      showError(e, 'Service fee not paid — nothing was charged');
+      payBtn.disabled = false;
+      backBtn.disabled = false;
+      return;
+    }
+
     try {
       const nfd = await mintNfdWithFee({
         network: p.network,
@@ -127,80 +186,85 @@ export function nfdominterConfirmView(): HTMLElement {
         reservedFor: p.reservedFor,
         onProgress: (prog) => { progress.textContent = describeStage(prog); },
       });
-      toast(`Claimed ${nfd.name}.`, 'success');
+      toast(`Registered ${nfd.name}.`, 'success');
       pending = null;
-      renderSuccess(nfd);
+      renderSuccess(nfd, feeTxId);
     } catch (e) {
       progress.textContent = '';
-      showError(e);
-      signBtn.disabled = false;
+      // The fee settled but the mint did not: say so plainly, with the proof.
+      showError(e, feeTxId ? 'Service fee paid, but the name was not minted' : 'Mint failed', feeTxId);
+      payBtn.disabled = false;
       backBtn.disabled = false;
+      if (feeTxId) {
+        // Never charge twice: from here, retrying only mints.
+        feeQuote = null;
+        payBtn.textContent = 'Retry the mint';
+      }
     }
   }
 
-  // Render the full failure into a persistent panel: a headline, the raw
-  // message (selectable), and a Copy button. Nothing here auto-dismisses.
-  function showError(e: unknown): void {
+  function showError(e: unknown, title: string, feeTxId = ''): void {
     const message = e instanceof Error ? e.message : String(e);
     const stack = e instanceof Error && e.stack ? e.stack : message;
-    console.error('[nfdominter] mint failed:', e);
-
-    const copyBtn = btn('Copy error', {
-      minimal: true,
-      icon: 'duplicate',
-      onClick: () => {
-        void navigator.clipboard.writeText(stack).then(
-          () => toast('Error copied to clipboard.', 'success'),
-          () => toast('Copy failed — select the text manually.', 'warning'),
-        );
-      },
-    });
-
+    console.error('[algo-names]', title, e);
     errorBox.innerHTML = '';
     errorBox.append(
       el('div', { cls: 'parsec-callout bp5-callout bp5-intent-danger', children: [
-        el('div', { cls: 'parsec-nfdominter__error-title', text: 'Mint failed' }),
+        el('div', { cls: 'parsec-nfdominter__error-title', text: title }),
+        ...(feeTxId ? [txLine('Service fee settlement', feeTxId, feeQuote?.network ?? '')] : []),
         el('pre', { cls: 'parsec-nfdominter__error-message', text: message }),
-        copyBtn,
+        btn('Copy error', {
+          minimal: true,
+          icon: 'duplicate',
+          onClick: () => {
+            void navigator.clipboard.writeText(stack).then(
+              () => toast('Error copied.', 'success'),
+              () => toast('Copy failed — select the text manually.', 'warning'),
+            );
+          },
+        }),
       ]}),
     );
     errorBox.removeAttribute('hidden');
     errorBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
-  function renderSuccess(nfd: Nfd): void {
+  function txLine(label: string, txId: string, network: string): HTMLElement {
+    const href = network ? explorerTxUrl(network, txId) : '';
+    return el('div', { cls: 'parsec-nfdominter__summary-row', children: [
+      el('span', { cls: 'parsec-nfdominter__summary-label', text: label }),
+      href
+        ? el('a', { cls: 'parsec-nfdominter__summary-value parsec-mono', text: short(txId), attrs: { href, target: '_blank', rel: 'noopener', title: txId } })
+        : el('span', { cls: 'parsec-nfdominter__summary-value parsec-mono', text: txId }),
+    ]});
+  }
+
+  function renderSuccess(nfd: Nfd, feeTxId: string): void {
+    const mainnet = p.network === 'mainnet';
+    const appHref = nfd.appID ? `https://${mainnet ? '' : 'testnet.'}allo.info/application/${nfd.appID}` : '';
+    const profileHref = `https://app.${mainnet ? '' : 'testnet.'}nf.domains/name/${nfd.name}`;
     root.innerHTML = '';
     root.append(
       el('div', { cls: 'parsec-view__header', children: [
-        el('h2', { cls: 'parsec-view__title', text: 'Claimed' }),
+        el('h2', { cls: 'parsec-view__title', text: 'Registered' }),
       ]}),
       el('div', { cls: 'parsec-nfdominter__success', children: [
         el('div', { cls: 'parsec-nfdominter__success-mark', text: '✓' }),
         el('h3', { cls: 'parsec-nfdominter__success-name', text: `You own ${nfd.name}` }),
-        el('p', {
-          cls: 'parsec-view__desc',
-          text: nfd.appID ? `NFD application ${nfd.appID} — minted on ${p.network}.` : `Mint confirmed on ${p.network}.`,
-        }),
-        el('div', { cls: 'parsec-nfdominter__success-links', children: [
-          nfd.appID
-            ? el('a', {
-                cls: 'parsec-asset-link',
-                text: 'View on allo.info',
-                attrs: { href: `https://allo.info/application/${nfd.appID}`, target: '_blank', rel: 'noopener' },
-              })
-            : el('span'),
-          el('a', {
-            cls: 'parsec-asset-link',
-            text: 'NFD profile',
-            attrs: { href: `https://app.nf.domains/name/${nfd.name}`, target: '_blank', rel: 'noopener' },
-          }),
+        el('div', { cls: 'parsec-nfdominter__confirm-summary', children: [
+          row('Network', p.network),
+          row('Owner', owner),
+          ...(nfd.appID ? [row('NFD application', String(nfd.appID))] : []),
+          ...(feeTxId ? [txLine('Service fee settlement', feeTxId, feeQuote?.network ?? (mainnet ? 'algorand-mainnet' : 'algorand-testnet'))] : []),
         ]}),
-        btn('Done', {
-          intent: 'primary',
-          large: true,
-          cls: 'parsec-nfdominter__sign-btn',
-          onClick: () => store.navigate('dashboard'),
-        }),
+        el('div', { cls: 'parsec-nfdominter__success-links', children: [
+          ...(appHref ? [el('a', { cls: 'parsec-asset-link', text: 'NFD application on allo.info', attrs: { href: appHref, target: '_blank', rel: 'noopener' } })] : []),
+          el('a', { cls: 'parsec-asset-link', text: 'Name profile', attrs: { href: profileHref, target: '_blank', rel: 'noopener' } }),
+        ]}),
+        el('div', { cls: 'parsec-keyflow__actions', children: [
+          btn('Register another', { onClick: () => store.navigate('nfdominter') }),
+          btn('Done', { intent: 'primary', large: true, onClick: () => store.navigate('dashboard') }),
+        ]}),
       ]}),
     );
   }
@@ -208,42 +272,32 @@ export function nfdominterConfirmView(): HTMLElement {
   root.append(
     el('div', { cls: 'parsec-view__header', children: [
       backBtn,
-      el('h2', { cls: 'parsec-view__title', text: `Mint ${p.name}` }),
+      el('h2', { cls: 'parsec-view__title', text: `Register ${p.name}` }),
     ]}),
-
     networkRow,
-
     el('div', { cls: 'parsec-nfdominter__confirm-summary', children: [
       row('Name', p.name),
       row('Years', String(p.years)),
-      row('Paid by', `${p.buyer.slice(0, 8)}…${p.buyer.slice(-6)}`),
-      ...(p.reservedFor
-        ? [row('Owned by', `${p.reservedFor.slice(0, 8)}…${p.reservedFor.slice(-6)}`)]
-        : []),
+      row('Paid by', p.buyer),
+      ...(p.reservedFor ? [row('Owned by', p.reservedFor)] : []),
     ]}),
-
+    el('h3', { cls: 'parsec-keyflow__heading', text: '1 · Service fee' }),
+    feeBox,
+    el('h3', { cls: 'parsec-keyflow__heading', text: '2 · NFD registry price' }),
     el('div', { cls: 'parsec-nfdominter__quote-box', children: [
-      quoteRow('NFD price', p.cost.basePrice),
+      quoteRow('Name price', p.cost.basePrice),
       quoteRow('Contract funding', p.cost.carryCost),
       quoteRow('Network fee', p.cost.extraFee),
-      quoteRow('NFDminter fee', p.cost.bankonFee, true),
       el('div', { cls: 'parsec-nfdominter__quote-total', children: [
-        el('span', { text: 'Total' }),
-        el('span', { text: formatAlgo(p.cost.totalMicroAlgos) }),
+        el('span', { text: 'NFD total' }),
+        el('span', { text: algo(total) }),
       ]}),
     ]}),
-
     balanceBox,
-
-    el('div', { cls: 'parsec-nfdominter__confirm-note', children: [
-      el('p', { text: 'The NFD mint group runs first. The NFD SDK simulates it before submitting — if the registry rejects the name, nothing is signed or charged.' }),
-      el('p', { text: `Once the name is claimed, a ${formatAlgo(p.cost.bankonFee)} NFDminter fee is paid in a second transaction.` }),
-      el('p', { cls: 'parsec-nfdominter__muted', text: treasuryNote }),
-    ]}),
-
+    el('p', { cls: 'parsec-nfdominter__muted', text: 'The two prices are in different currencies and go to different parties, so they are shown separately, not added. The service fee is paid first; the NFD mint group is simulated before it is submitted, so a name the registry would reject is caught before any ALGO moves.' }),
     errorBox,
     progress,
-    signBtn,
+    payBtn,
   );
 
   return root;
@@ -256,31 +310,33 @@ function row(label: string, value: string): HTMLElement {
   ]});
 }
 
-function quoteRow(label: string, microAlgos: bigint, highlight = false): HTMLElement {
+function quoteRow(label: string, microAlgos: bigint): HTMLElement {
   return el('div', {
-    cls: `parsec-nfdominter__quote-row ${highlight ? 'parsec-nfdominter__quote-row--bankon' : ''}`,
-    children: [
-      el('span', { text: label }),
-      el('span', { text: formatAlgo(microAlgos) }),
-    ],
+    cls: 'parsec-nfdominter__quote-row',
+    children: [el('span', { text: label }), el('span', { text: algo(microAlgos) })],
   });
 }
 
-function formatAlgo(microAlgos: bigint): string {
-  const algos = Number(microAlgos) / 1_000_000;
-  return `${algos.toLocaleString(undefined, { maximumFractionDigits: 6 })} ALGO`;
+/** Exact: micro-ALGO as a bigint, formatted without a float. */
+function algo(microAlgos: bigint): string {
+  return `${formatDecimal(microAlgos, 6, { trim: true })} ALGO`;
+}
+
+function short(id: string): string {
+  return id.length > 18 ? `${id.slice(0, 10)}…${id.slice(-6)}` : id;
 }
 
 function describeStage(p: MintProgress): string {
   switch (p.stage) {
-    case 'idle': return 'Idle.';
-    case 'validating': return 'Validating name…';
+    case 'idle': return '';
+    case 'validating': return 'Validating the name…';
     case 'checking-availability': return 'Checking availability…';
-    case 'quoting': return 'Fetching quote…';
-    case 'paying-bankon-fee': return 'Paying NFDminter fee — awaiting signature…';
-    case 'awaiting-signature': return 'Awaiting signature for NFD mint…';
-    case 'submitting': return 'Submitting mint group…';
-    case 'confirmed': return p.appId ? `Confirmed! app id ${p.appId}.` : 'Confirmed.';
+    case 'quoting': return 'Fetching the NFD price…';
+    case 'paying-bankon-fee': return 'Paying fee…';
+    case 'paying-service-fee': return 'Paying the registration service fee…';
+    case 'awaiting-signature': return 'Signing the NFD mint…';
+    case 'submitting': return 'Submitting the mint…';
+    case 'confirmed': return p.appId ? `Confirmed — NFD application ${p.appId}.` : 'Confirmed.';
     case 'error': return p.error ?? 'Error.';
   }
 }
