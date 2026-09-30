@@ -108,16 +108,19 @@ describe('cloud zone', () => {
     expect(bottom).toBeGreaterThan(0.9);
   });
 
-  it('is constrained by the stablecoin ship only when it reaches the ship', () => {
-    // The ship sits bottom-LEFT. With the left column up, the cloud is nowhere
-    // near it and should not be limited.
-    const rightOnly = cloudZone({ top10: true, favourites: true, stablecoins: true, pyramid: false });
-    expect(rightOnly.y1).toBeGreaterThan(0.9);
-
-    // Once the cloud spreads left, the ship's corner matters.
-    const spreadLeft = cloudZone({ top10: false, favourites: false, stablecoins: true, pyramid: false });
-    expect(spreadLeft.x0).toBeLessThan(0.2);
-    expect(spreadLeft.y1).toBeLessThan(0.9);
+  it('keeps clear of the stablecoin ship by its footprint, not by a blanket ceiling', () => {
+    // The whole height stays open; only the ship's own corner is cut out.
+    const whole = cloudZone({ top10: false, favourites: false, stablecoins: true, pyramid: false });
+    expect(whole.x0).toBeLessThan(0.2);
+    expect(whole.y1).toBeGreaterThan(0.9);
+    const ship = { x0: 0.03, x1: 0.14, y0: 0.66, y1: 1 };
+    const zones = avoidObstacles(cloudZones({ ...ALL_OFF, stablecoins: true }), [ship]);
+    for (const z of zones) {
+      const hit = z.x0 < ship.x1 && z.x1 > ship.x0 && z.y0 < ship.y1 && z.y1 > ship.y0;
+      expect(hit).toBe(false);
+    }
+    // Beside the ship the floor is still reachable.
+    expect(zones.some((z) => z.x0 > ship.x1 && z.y1 > 0.9)).toBe(true);
   });
 
   it('always yields a non-empty region', () => {
@@ -416,5 +419,67 @@ describe('obstacles', () => {
   it('leaves zones an obstacle does not touch alone', () => {
     const z = { x0: 0, x1: 0.3, y0: 0, y1: 0.3 };
     expect(avoidObstacles([z], [menu])).toEqual([z]);
+  });
+});
+
+describe('winds of change', () => {
+  const zone = { x0: 0, x1: 1, y0: 0, y1: 1 };
+  const run = (bs: CloudBody[], seconds: number, storm = false, zones?: Array<typeof zone>) => {
+    for (let f = 0; f < seconds * 60; f++) stepCloud(bs, { dt: 1 / 60, t: f / 60, storm, zones });
+  };
+
+  it('floats a gainer to the top and sinks a loser to the floor', () => {
+    const up = makeBody({ x: 0.3, y: 0.5, w: 0.1, h: 0.08 }, zone, 0, 0.3, false, 0.4);
+    const down = makeBody({ x: 0.7, y: 0.5, w: 0.1, h: 0.08 }, zone, 1, 0.3, false, -0.4);
+    run([up, down], 30);
+    expect(up.y - up.h / 2).toBeLessThan(0.03);
+    expect(down.y + down.h / 2).toBeGreaterThan(0.97);
+  });
+
+  it('lets them linger there', () => {
+    const up = makeBody({ x: 0.5, y: 0.5, w: 0.1, h: 0.08 }, zone, 0, 0.3, false, 0.5);
+    run([up], 30);
+    const settled = up.y;
+    run([up], 30);
+    expect(Math.abs(up.y - settled)).toBeLessThan(0.02);
+  });
+
+  it('keeps a flat coin at its home height', () => {
+    const flat = makeBody({ x: 0.5, y: 0.5, w: 0.1, h: 0.08 }, zone, 0, 0, false, 0);
+    run([flat], 30);
+    expect(Math.abs(flat.y - 0.5)).toBeLessThan(0.05);
+  });
+
+  it('a strong gainer arriving at the top knocks the resting one out of its spot', () => {
+    const weak = makeBody({ x: 0.5, y: 0.5, w: 0.15, h: 0.1 }, zone, 0, 0, false, 0.25);
+    run([weak], 30);
+    const restX = weak.x;
+    expect(weak.y - weak.h / 2).toBeLessThan(0.03); // settled at the top
+    const strong = makeBody({ x: restX, y: 0.8, w: 0.15, h: 0.1 }, zone, 1, 0, false, 1);
+    run([weak, strong], 30);
+    expect(strong.y - strong.h / 2).toBeLessThan(0.03); // took the top
+    expect(Math.abs(weak.x - restX)).toBeGreaterThan(0.1); // shoved aside
+    expect(overlaps(weak, strong)).toBe(false);
+  });
+
+  it('climbs out of its channel into the one above', () => {
+    const top = { x0: 0.5, x1: 1, y0: 0, y1: 0.3 };
+    const mid = { x0: 0.6, x1: 1, y0: 0.3, y1: 0.6 };
+    const b = makeBody({ x: 0.8, y: 0.45, w: 0.1, h: 0.08 }, mid, 0, 0, false, 0.6);
+    run([b], 30, false, [top, mid]);
+    expect(b.zone).toBe(top);
+    expect(b.y - b.h / 2).toBeLessThan(0.03);
+  });
+});
+
+describe('sinking around obstacles', () => {
+  it('a loser reaches the floor even with the menu and ship cut out', () => {
+    const menu = { x0: 0.9, x1: 0.99, y0: 0.76, y1: 0.98 };
+    const ship = { x0: 0.03, x1: 0.14, y0: 0.66, y1: 1 };
+    const zones = avoidObstacles(cloudZones({ ...ALL_OFF, stablecoins: true }), [menu, ship]);
+    const start = zones.find((z) => z.y0 < 0.3 && z.x1 > 0.7)!;
+    const b = makeBody({ x: 0.66, y: 0.3, w: 0.06, h: 0.08 }, start, 0, 0.3, false, -0.5);
+    for (let f = 0; f < 60 * 40; f++) stepCloud([b], { dt: 1 / 60, t: f / 60, storm: false, zones });
+    expect(b.y + b.h / 2).toBeGreaterThan(0.9);
   });
 });

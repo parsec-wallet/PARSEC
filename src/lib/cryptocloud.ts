@@ -63,7 +63,7 @@ export const PYRAMID_BASE_HALF = 0.35;
 /**
  * Bottom of the pyramid body. Eight rows of cards from `top: 18%` land well
  * short of the floor, and the band beneath is clear wall -- which is where the
- * heaviest losers want to be anyway.
+ * largest losses sink to anyway.
  */
 export const PYRAMID_BOTTOM = 0.82;
 /**
@@ -95,9 +95,11 @@ export function pyramidHalfWidth(y: number): number {
 function openZone(active: OverlayState): Zone {
   const leftTaken = active.top10 || active.favourites;
   const x0 = leftTaken ? 0.65 : 0.04;
-  // Only relevant once the cloud extends over the ship's corner.
-  const y1 = active.stablecoins && x0 < 0.2 ? 0.8 : 0.94;
-  return { x0, x1: 0.97, y0: 0.06, y1 };
+  // The full height, ship or not: the ship is cut out by its measured
+  // footprint (avoidObstacles), so the floor stays open to sinking losers
+  // everywhere the ship is not. A blanket 0.8 ceiling here used to stop every
+  // loser well short of the bottom whenever the ship was on.
+  return { x0, x1: 0.97, y0: 0.06, y1: 0.94 };
 }
 
 /**
@@ -119,7 +121,7 @@ export function cloudZones(active: OverlayState): Zone[] {
   const zones: Zone[] = [];
   // Channels only span the pyramid's own height. Below its base the wall is
   // clear, so that band stays one full-width zone -- and it is the bottom of
-  // the buoyancy scale, which is exactly where the worst losers sink to.
+  // the buoyancy scale, which is exactly where the largest losses sink to.
   const obstructedTo = Math.min(open.y1, PYRAMID_BOTTOM);
   const tierH = (obstructedTo - open.y0) / CHANNEL_TIERS;
 
@@ -338,7 +340,7 @@ export function clampToZone(box: Box, zone: Zone): Box {
  * Size-aware, unlike the fixed 14%-of-screen gap it replaces: a large featured
  * glyph and a small one need different clearances, and treating them alike is
  * why big glyphs used to collide while small ones wasted space. Falls back to
- * the least-bad position rather than giving up, so a crowded cloud degrades into
+ * the most spacious position found rather than giving up, so a crowded cloud degrades into
  * "tight" instead of "stacked".
  */
 export function findSpot(
@@ -453,20 +455,48 @@ export interface CloudBody {
    */
   mass: number;
   halo: number;
+  /**
+   * The winds of change: -1..1, positive rising. A gainer is pushed up until
+   * it reaches the top of its zone and rests there; a loser sinks to the floor.
+   * Zero keeps the old behaviour, a spring back to its home height.
+   */
+  lift: number;
 }
+
+/** Below this |lift| a coin is flat and hangs at its home height. */
+export const LIFT_DEADBAND = 0.06;
+/** Upward/downward pull on a full-strength mover, normalized units per second squared. */
+const LIFT_FORCE = 0.22;
 
 /** Extra clearance a foreground glyph keeps around itself. */
 export const FOREGROUND_HALO = 0.02;
 /** How much heavier a foreground glyph is than a background one. */
 export const FOREGROUND_MASS = 4;
 
-export function makeBody(box: Box, zone: Zone, phase: number, agitation: number, foreground = false): CloudBody {
+export function makeBody(
+  box: Box, zone: Zone, phase: number, agitation: number, foreground = false, lift = 0,
+): CloudBody {
+  const l = Math.max(-1, Math.min(1, lift));
   return {
     x: box.x, y: box.y, w: box.w, h: box.h, vx: 0, vy: 0,
     hx: box.x, hy: box.y, zone, phase, agitation: Math.max(0, Math.min(1, agitation)),
-    mass: foreground ? FOREGROUND_MASS : 1,
+    // A bigger move is a heavier body: a strong gainer arriving at the top
+    // shoulders a weaker one out of its place instead of stacking under it.
+    mass: (foreground ? FOREGROUND_MASS : 1) * (1 + Math.abs(l) * 2),
     halo: foreground ? FOREGROUND_HALO : 0,
+    lift: l,
   };
+}
+
+/**
+ * Re-class a body in place -- when the period changes, a gainer can become a
+ * loser. Its mass follows its new lift, as in makeBody.
+ */
+export function setLift(b: CloudBody, lift: number): void {
+  const l = Math.max(-1, Math.min(1, lift));
+  const base = b.halo > 0 ? FOREGROUND_MASS : 1;
+  b.lift = l;
+  b.mass = base * (1 + Math.abs(l) * 2);
 }
 
 /** Clearance a pair must keep: the gap, plus the halo of each foreground glyph. */
@@ -481,6 +511,13 @@ export interface StepOptions {
   t: number;
   storm: boolean;
   gap?: number;
+  /**
+   * Every zone the cloud has. When given, a rising body that reaches the top of
+   * its zone passes into the zone directly above it (and a sinking one into the
+   * zone below), so with the pyramid's stacked channels a gainer still reaches
+   * the very top rather than stopping at its own tier's ceiling.
+   */
+  zones?: Zone[];
 }
 
 /** How bouncy a collision is. Below 1 so a storm does not pump energy in forever. */
@@ -511,10 +548,20 @@ export function stepCloud(bodies: CloudBody[], opts: StepOptions): void {
     repel(bodies, gap, dt);
     for (const b of bodies) {
       const wander = (opts.storm ? 0.16 : 0.035) * (0.4 + b.agitation);
-      const ax = spring * (b.hx - b.x) - drag * b.vx
+      // A mover's sideways spring is weak, so where a knock leaves it is where
+      // it lingers; a flat coin keeps its full spring home.
+      const moving = Math.abs(b.lift ?? 0) > LIFT_DEADBAND;
+      const ax = (moving ? spring * 0.15 : spring) * (b.hx - b.x) - drag * b.vx
         + wander * Math.sin(t * 0.7 + b.phase * 2.3) + wander * 0.5 * Math.sin(t * 1.9 + b.phase);
-      // Vertical wander is kept smaller: height is the price move, sideways is free.
-      const ay = spring * (b.hy - b.y) - drag * b.vy
+      // Vertical: a mover is carried by its lift -- up for a gainer, down for a
+      // loser -- all the way to its zone's edge, where the wall holds it and it
+      // lingers until something knocks it loose. A flat coin hangs at its home
+      // height on the spring. Vertical wander stays small: height is the move.
+      const lift = b.lift ?? 0;
+      const vertical = Math.abs(lift) > LIFT_DEADBAND
+        ? -Math.sign(lift) * LIFT_FORCE * (0.35 + 0.65 * Math.abs(lift))
+        : spring * (b.hy - b.y);
+      const ay = vertical - drag * b.vy
         + wander * 0.45 * Math.cos(t * 0.9 + b.phase * 1.7);
       b.vx += ax * dt;
       b.vy += ay * dt;
@@ -522,6 +569,7 @@ export function stepCloud(bodies: CloudBody[], opts: StepOptions): void {
       if (sp > maxSpeed) { b.vx *= maxSpeed / sp; b.vy *= maxSpeed / sp; }
       b.x += b.vx * dt;
       b.y += b.vy * dt;
+      if (opts.zones && moving) climbZones(b, opts.zones);
       bounceWalls(b);
     }
     for (let pass = 0; pass < 4; pass++) {
@@ -588,6 +636,29 @@ export function relaxHomes(bodies: CloudBody[], gap = CLOUD_GAP, iterations = 30
     }
   }
   return [...bad];
+}
+
+/** How close two zone edges must be to count as touching. */
+const ZONE_JOIN = 0.01;
+
+/**
+ * Hand a body to the zone above (rising) or below (sinking) when it is pressing
+ * on the shared edge and fits inside the neighbour horizontally.
+ */
+function climbZones(b: CloudBody, zones: Zone[]): void {
+  const z = b.zone;
+  const rising = b.lift > 0;
+  const atEdge = rising ? b.y - b.h / 2 <= z.y0 + 1e-4 : b.y + b.h / 2 >= z.y1 - 1e-4;
+  if (!atEdge) return;
+  for (const n of zones) {
+    if (n === z) continue;
+    const touches = rising ? Math.abs(n.y1 - z.y0) <= ZONE_JOIN : Math.abs(n.y0 - z.y1) <= ZONE_JOIN;
+    if (!touches) continue;
+    if (b.x - b.w / 2 < n.x0 || b.x + b.w / 2 > n.x1) continue;
+    if (n.y1 - n.y0 < b.h) continue;
+    b.zone = n;
+    return;
+  }
 }
 
 function bounceWalls(b: CloudBody): void {

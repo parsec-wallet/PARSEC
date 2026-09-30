@@ -1097,6 +1097,92 @@
   }
 }
 
+.parsec-ship__cargo-share {
+  align-self: stretch;
+  height: 2px;
+  margin-bottom: 2px;
+  border-radius: 1px;
+  background: rgb(255 255 255 / 6%);
+  overflow: hidden;
+
+  > span {
+    display: block;
+    height: 100%;
+    background: rgb(96 165 250 / 70%);
+  }
+
+  .parsec-ship__cargo--gold & > span { background: rgb(245 158 11 / 70%); }
+}
+
+.parsec-ship__cargo-peg {
+  font-family: $font-family-mono;
+  font-size: 0.5rem;
+  white-space: nowrap;
+  color: rgb(255 255 255 / 40%);
+
+  &--held { color: rgb(16 185 129 / 85%); }
+  &--drift { color: #f59e0b; }
+  &--depeg { color: #ef4444; font-weight: $font-weight-bold; }
+
+  .parsec-ship__cargo--gold & { color: rgb(245 158 11 / 70%); }
+}
+
+// The rest of the dollar fleet, one row per coin under the blocks.
+.parsec-ship__tail {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 2px;
+}
+
+.parsec-ship__tail-row {
+  display: grid;
+  grid-template-columns: 3.2em 1fr auto 3.6em 3.8em;
+  align-items: center;
+  gap: 4px;
+  padding: 0 3px;
+  border-left: 2px solid rgb(59 130 246 / 30%);
+  font-family: $font-family-mono;
+  font-size: 0.5rem;
+  line-height: 1.5;
+  cursor: crosshair;
+
+  &:hover { background: rgb(59 130 246 / 12%); }
+
+  &--held { border-left-color: rgb(16 185 129 / 70%); }
+  &--held .parsec-ship__tail-peg { color: rgb(16 185 129 / 85%); }
+  &--drift { border-left-color: #f59e0b; }
+  &--drift .parsec-ship__tail-peg { color: #f59e0b; }
+  &--depeg { border-left-color: #ef4444; background: rgb(239 68 68 / 10%); }
+  &--depeg .parsec-ship__tail-peg { color: #ef4444; font-weight: $font-weight-bold; }
+}
+
+.parsec-ship__tail-symbol {
+  font-weight: $font-weight-bold;
+  color: rgb(147 197 253 / 85%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.parsec-ship__tail-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 6%);
+  overflow: hidden;
+
+  > span {
+    display: block;
+    height: 100%;
+    background: rgb(96 165 250 / 60%);
+  }
+}
+
+.parsec-ship__tail-cap { color: rgb(255 255 255 / 35%); white-space: nowrap; }
+.parsec-ship__tail-peg { text-align: right; white-space: nowrap; color: rgb(255 255 255 / 40%); }
+.parsec-ship__tail-flow { text-align: right; white-space: nowrap; }
+
 .parsec-ship__cargo-symbol {
   font-family: $font-family-mono;
   font-weight: $font-weight-bold;

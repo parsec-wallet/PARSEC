@@ -68,7 +68,7 @@ export interface StableSummary {
   /** Cap-weighted signed peg deviation across dollar coins, in bps. */
   weightedBps: number;
   /** The dollar coin furthest from its peg, if any has a reading. */
-  worst: StableRow | null;
+  largestDeviation: StableRow | null;
   held: number;
   drifting: number;
   depegged: number;
@@ -134,7 +134,7 @@ export function summarizeStables(all: CoinPrice[]): StableSummary {
 
   let weighted = 0;
   let weight = 0;
-  let worst: StableRow | null = null;
+  let largestDeviation: StableRow | null = null;
   let held = 0;
   let drifting = 0;
   let depegged = 0;
@@ -145,7 +145,7 @@ export function summarizeStables(all: CoinPrice[]): StableSummary {
     if (row.peg.state === 'held') held++;
     else if (row.peg.state === 'drift') drifting++;
     else depegged++;
-    if (!worst || Math.abs(row.peg.bps) > Math.abs(worst.peg!.bps)) worst = row;
+    if (!largestDeviation || Math.abs(row.peg.bps) > Math.abs(largestDeviation.peg!.bps)) largestDeviation = row;
   }
 
   const flowPct = aggregateFlow(usd.map((r) => ({ cap: r.coin.marketCap, pct: r.flowPct })));
@@ -158,7 +158,7 @@ export function summarizeStables(all: CoinPrice[]): StableSummary {
     goldLiquidity,
     shareOfMarket: marketTotal > 0 && usdLiquidity > 0 ? usdLiquidity / marketTotal : null,
     weightedBps: weight > 0 ? weighted / weight : 0,
-    worst,
+    largestDeviation,
     held,
     drifting,
     depegged,

@@ -43,7 +43,7 @@ describe('stablecoin summary', () => {
   it('orders by size and counts the roll call', () => {
     expect(s.usd.map((r) => r.coin.symbol)).toEqual(['USDT', 'USDC', 'USDE']);
     expect([s.held, s.drifting, s.depegged]).toEqual([2, 0, 1]);
-    expect(s.worst?.coin.symbol).toBe('USDE');
+    expect(s.largestDeviation?.coin.symbol).toBe('USDE');
   });
 
   it('measures dry powder against the whole feed', () => {
@@ -54,7 +54,7 @@ describe('stablecoin summary', () => {
     const e = summarizeStables([coin('BTC', 1, 1)]);
     expect(e.usd).toEqual([]);
     expect(e.shareOfMarket).toBeNull();
-    expect(e.worst).toBeNull();
+    expect(e.largestDeviation).toBeNull();
   });
 });
 
