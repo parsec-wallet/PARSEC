@@ -4,7 +4,8 @@ import {
   overlaps, clampToZone, findSpot, capacity,
   cloudZones, pyramidHalfWidth, PYRAMID_TOP, PYRAMID_BOTTOM,
   VOLATILE_1H_PCT, SURGE_15M_PCT,
-  type Box, type OverlayState,
+  makeBody, stepCloud, relaxHomes, avoidObstacles, CLOUD_GAP, FOREGROUND_HALO,
+  type Box, type OverlayState, type CloudBody,
 } from '../cryptocloud';
 import type { CoinPrice, DerivedChange } from '../prices';
 
@@ -310,5 +311,110 @@ describe('placement', () => {
       expect(b.y).toBeGreaterThanOrEqual(zone.y0 - 1e-6);
       expect(b.y).toBeLessThanOrEqual(zone.y1 + 1e-6);
     }
+  });
+});
+
+describe('cloud motion', () => {
+  function bodies(n: number, zone = { x0: 0, x1: 1, y0: 0, y1: 1 }) {
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      out.push(makeBody({ x: 0.15 + (i % 4) * 0.23, y: 0.2 + Math.floor(i / 4) * 0.3, w: 0.08, h: 0.06 }, zone, i, 1));
+    }
+    return out;
+  }
+  const clear = (bs: CloudBody[], gap: number) => {
+    for (let i = 0; i < bs.length; i++) {
+      for (let j = i + 1; j < bs.length; j++) {
+        if (overlaps(bs[i], bs[j], gap * 0.5)) return false;
+      }
+    }
+    return true;
+  };
+
+  it('keeps every glyph apart through a sustained storm', () => {
+    const bs = bodies(10);
+    for (let f = 0; f < 3000; f++) {
+      stepCloud(bs, { dt: 1 / 60, t: f / 60, storm: true });
+      expect(clear(bs, CLOUD_GAP)).toBe(true);
+    }
+  });
+
+  it('bounces two glyphs driven head-on instead of letting them pass through each other', () => {
+    const zone = { x0: 0, x1: 1, y0: 0, y1: 1 };
+    const a = makeBody({ x: 0.3, y: 0.5, w: 0.1, h: 0.1 }, zone, 0, 0);
+    const b = makeBody({ x: 0.7, y: 0.5, w: 0.1, h: 0.1 }, zone, 1, 0);
+    a.vx = 0.2; b.vx = -0.2;
+    // Homes on the far side, so the springs push them together.
+    a.hx = 0.8; b.hx = 0.2;
+    // They may slide around each other to reach home; they may never pass THROUGH.
+    for (let f = 0; f < 600; f++) {
+      stepCloud([a, b], { dt: 1 / 60, t: f / 60, storm: true });
+      expect(overlaps(a, b)).toBe(false);
+    }
+  });
+
+  it('never leaves its channel', () => {
+    const zone = { x0: 0.6, x1: 0.95, y0: 0.1, y1: 0.5 };
+    const bs = [0, 1, 2].map((i) => makeBody({ x: 0.7 + i * 0.08, y: 0.3, w: 0.06, h: 0.05 }, zone, i, 1));
+    for (let f = 0; f < 2000; f++) {
+      stepCloud(bs, { dt: 1 / 60, t: f / 60, storm: true });
+      for (const b of bs) {
+        expect(b.x - b.w / 2).toBeGreaterThanOrEqual(zone.x0 - 1e-9);
+        expect(b.x + b.w / 2).toBeLessThanOrEqual(zone.x1 + 1e-9);
+        expect(b.y - b.h / 2).toBeGreaterThanOrEqual(zone.y0 - 1e-9);
+        expect(b.y + b.h / 2).toBeLessThanOrEqual(zone.y1 + 1e-9);
+      }
+    }
+  });
+});
+
+describe('foreground and background', () => {
+  it('a background glyph bounces off a foreground one instead of shoving it', () => {
+    const zone = { x0: 0, x1: 1, y0: 0, y1: 1 };
+    const fg = makeBody({ x: 0.5, y: 0.5, w: 0.12, h: 0.1 }, zone, 0, 0, true);
+    const bg = makeBody({ x: 0.2, y: 0.5, w: 0.06, h: 0.05 }, zone, 1, 0, false);
+    bg.vx = 0.3;
+    bg.hx = 0.5; // its spring pulls it straight into the foreground glyph
+    for (let f = 0; f < 900; f++) {
+      stepCloud([fg, bg], { dt: 1 / 60, t: f / 60, storm: true });
+      // Never inside the foreground glyph's halo.
+      expect(overlaps(fg, bg, CLOUD_GAP + FOREGROUND_HALO - 1e-6)).toBe(false);
+    }
+    // The heavy one barely moved.
+    expect(Math.abs(fg.x - 0.5)).toBeLessThan(0.08);
+  });
+
+  it('spreads homes that overlap at their real size', () => {
+    const zone = { x0: 0, x1: 1, y0: 0, y1: 1 };
+    const bs = [0, 1, 2, 3].map((i) => makeBody({ x: 0.5 + i * 0.01, y: 0.5, w: 0.15, h: 0.1 }, zone, i, 0, i === 0));
+    expect(relaxHomes(bs)).toEqual([]);
+    for (let i = 0; i < bs.length; i++) {
+      for (let j = i + 1; j < bs.length; j++) expect(overlaps(bs[i], bs[j])).toBe(false);
+    }
+  });
+});
+
+describe('obstacles', () => {
+  const menu = { x0: 0.9, x1: 0.99, y0: 0.75, y1: 0.98 };
+
+  it('keeps the whole cloud clear of the toggle menu', () => {
+    for (const state of [ALL_ON, ALL_OFF, { ...ALL_OFF, pyramid: true }]) {
+      for (const z of avoidObstacles(cloudZones(state), [menu])) {
+        const hit = z.x0 < menu.x1 && z.x1 > menu.x0 && z.y0 < menu.y1 && z.y1 > menu.y0;
+        expect(hit).toBe(false);
+      }
+    }
+  });
+
+  it('keeps the wall the obstacle does not use', () => {
+    const [whole] = cloudZones(ALL_OFF);
+    const pieces = avoidObstacles([whole], [menu]);
+    // Everything above the menu is still available, full width.
+    expect(pieces.some((p) => p.x0 === whole.x0 && p.x1 === whole.x1 && p.y1 >= menu.y0 - 0.03)).toBe(true);
+  });
+
+  it('leaves zones an obstacle does not touch alone', () => {
+    const z = { x0: 0, x1: 0.3, y0: 0, y1: 0.3 };
+    expect(avoidObstacles([z], [menu])).toEqual([z]);
   });
 });

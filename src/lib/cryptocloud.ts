@@ -157,6 +157,42 @@ export function cloudZones(active: OverlayState): Zone[] {
   return zones;
 }
 
+/** Clearance kept between the cloud and an obstacle such as the toggle menu. */
+export const OBSTACLE_MARGIN = 0.02;
+/** A zone piece thinner than this cannot hold a glyph and is dropped. */
+const MIN_PIECE = 0.06;
+
+/**
+ * Cut obstacles out of the cloud's zones.
+ *
+ * Each zone an obstacle touches is replaced by the bands around it -- above,
+ * below, left and right -- so the cloud keeps every bit of wall the obstacle
+ * does not use. Bands too thin to hold a glyph are dropped. If nothing at all
+ * survives, the original zones are returned: a cramped cloud beats none.
+ */
+export function avoidObstacles(zones: Zone[], obstacles: Zone[], margin = OBSTACLE_MARGIN): Zone[] {
+  let out = zones;
+  for (const raw of obstacles) {
+    const o = { x0: raw.x0 - margin, x1: raw.x1 + margin, y0: raw.y0 - margin, y1: raw.y1 + margin };
+    const next: Zone[] = [];
+    for (const z of out) {
+      const hit = o.x0 < z.x1 && o.x1 > z.x0 && o.y0 < z.y1 && o.y1 > z.y0;
+      if (!hit) { next.push(z); continue; }
+      const pieces: Zone[] = [
+        { x0: z.x0, x1: z.x1, y0: z.y0, y1: Math.min(z.y1, o.y0) },
+        { x0: z.x0, x1: z.x1, y0: Math.max(z.y0, o.y1), y1: z.y1 },
+        { x0: z.x0, x1: Math.min(z.x1, o.x0), y0: Math.max(z.y0, o.y0), y1: Math.min(z.y1, o.y1) },
+        { x0: Math.max(z.x0, o.x1), x1: z.x1, y0: Math.max(z.y0, o.y0), y1: Math.min(z.y1, o.y1) },
+      ];
+      for (const p of pieces) {
+        if (p.x1 - p.x0 >= MIN_PIECE && p.y1 - p.y0 >= MIN_PIECE) next.push(p);
+      }
+    }
+    out = next;
+  }
+  return out.length > 0 ? out : zones;
+}
+
 /**
  * The single largest zone.
  *
@@ -371,4 +407,253 @@ export function findSpot(
   }
 
   return best ?? clampToZone(box, zone);
+}
+
+// ── Motion ──────────────────────────────────────────────────────────────────
+//
+// Placement only guarantees the glyphs START apart. Once they move, something
+// has to keep them apart, or the drift carries one straight over another --
+// which is what the old per-frame drift did: it shifted every glyph by its
+// 24h move after placement had already spaced them, so a gainer slid up into
+// whatever sat above it. Here each glyph is a body with a home, and bodies
+// collide: they bounce off each other and off their channel's walls, in calm
+// and in storm alike. A storm makes them move harder; it never lets them merge.
+
+/** Breathing room kept between two glyphs, in normalized wall units. */
+export const CLOUD_GAP = 0.03;
+/**
+ * How far beyond the gap two glyphs start pushing each other away. The hard
+ * collision stops an overlap; this is what makes them visibly repel before one
+ * can happen, so the cloud stays spread instead of settling into a clump.
+ */
+export const REPEL_RANGE = 0.07;
+/** Strength of that push, in normalized units per second squared at contact. */
+const REPEL_STRENGTH = 1.1;
+
+export interface CloudBody {
+  /** Centre, normalized. */
+  x: number; y: number;
+  /** Extent, normalized. */
+  w: number; h: number;
+  /** Velocity, normalized units per second. */
+  vx: number; vy: number;
+  /** Where placement put it -- the spot the spring pulls back towards. */
+  hx: number; hy: number;
+  /** The channel it lives in; it never leaves. */
+  zone: Zone;
+  /** Per-body phase so the wander is not in lockstep. */
+  phase: number;
+  /** 0..1: how hard this coin's own move agitates it. */
+  agitation: number;
+  /**
+   * Foreground vs background. A featured glyph is heavy and wears a halo:
+   * background glyphs bounce off it rather than shoving it, and keep clear of
+   * it by the halo as well as the gap, so the small faint glyphs never smear
+   * across the ones the participant is meant to read.
+   */
+  mass: number;
+  halo: number;
+}
+
+/** Extra clearance a foreground glyph keeps around itself. */
+export const FOREGROUND_HALO = 0.02;
+/** How much heavier a foreground glyph is than a background one. */
+export const FOREGROUND_MASS = 4;
+
+export function makeBody(box: Box, zone: Zone, phase: number, agitation: number, foreground = false): CloudBody {
+  return {
+    x: box.x, y: box.y, w: box.w, h: box.h, vx: 0, vy: 0,
+    hx: box.x, hy: box.y, zone, phase, agitation: Math.max(0, Math.min(1, agitation)),
+    mass: foreground ? FOREGROUND_MASS : 1,
+    halo: foreground ? FOREGROUND_HALO : 0,
+  };
+}
+
+/** Clearance a pair must keep: the gap, plus the halo of each foreground glyph. */
+function pairGap(a: CloudBody, b: CloudBody, gap: number): number {
+  return gap + (a.halo ?? 0) + (b.halo ?? 0);
+}
+
+export interface StepOptions {
+  /** Seconds since the last step. Clamped: a backgrounded tab returns with a huge gap. */
+  dt: number;
+  /** Wall-clock seconds, for the wander. */
+  t: number;
+  storm: boolean;
+  gap?: number;
+}
+
+/** How bouncy a collision is. Below 1 so a storm does not pump energy in forever. */
+const RESTITUTION = 0.92;
+
+/**
+ * Advance the cloud one frame.
+ *
+ * Forces: a spring back home (so height keeps meaning the price move), a wander
+ * that is stronger in a storm and for coins moving hard, and drag. Then walls,
+ * then collisions -- resolved over a few passes, positionally as well as by
+ * velocity, so the no-overlap guarantee holds even when a storm drives bodies
+ * together faster than one pass can separate them.
+ */
+export function stepCloud(bodies: CloudBody[], opts: StepOptions): void {
+  const gap = opts.gap ?? CLOUD_GAP;
+  const dtTotal = Math.min(Math.max(opts.dt, 0), 0.1);
+  if (dtTotal === 0) return;
+  const substeps = opts.storm ? 3 : 2;
+  const dt = dtTotal / substeps;
+
+  const spring = opts.storm ? 0.9 : 1.4;
+  const drag = opts.storm ? 0.9 : 1.6;
+  const maxSpeed = opts.storm ? 0.22 : 0.08;
+
+  for (let s = 0; s < substeps; s++) {
+    const t = opts.t + s * dt;
+    repel(bodies, gap, dt);
+    for (const b of bodies) {
+      const wander = (opts.storm ? 0.16 : 0.035) * (0.4 + b.agitation);
+      const ax = spring * (b.hx - b.x) - drag * b.vx
+        + wander * Math.sin(t * 0.7 + b.phase * 2.3) + wander * 0.5 * Math.sin(t * 1.9 + b.phase);
+      // Vertical wander is kept smaller: height is the price move, sideways is free.
+      const ay = spring * (b.hy - b.y) - drag * b.vy
+        + wander * 0.45 * Math.cos(t * 0.9 + b.phase * 1.7);
+      b.vx += ax * dt;
+      b.vy += ay * dt;
+      const sp = Math.hypot(b.vx, b.vy);
+      if (sp > maxSpeed) { b.vx *= maxSpeed / sp; b.vy *= maxSpeed / sp; }
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      bounceWalls(b);
+    }
+    for (let pass = 0; pass < 4; pass++) {
+      if (!resolveCollisions(bodies, gap)) break;
+    }
+  }
+}
+
+/**
+ * The soft field: every pair closer than gap + REPEL_RANGE (edge to edge) is
+ * pushed apart along the line between their centres, harder the closer they are.
+ */
+function repel(bodies: CloudBody[], gap: number, dt: number): void {
+  for (let i = 0; i < bodies.length; i++) {
+    for (let j = i + 1; j < bodies.length; j++) {
+      const a = bodies[i];
+      const b = bodies[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      // Edge-to-edge clearance on each axis; the pair is only as far apart as
+      // its larger clearance (boxes clear on either axis do not touch).
+      const cx = Math.abs(dx) - (a.w + b.w) / 2;
+      const cy = Math.abs(dy) - (a.h + b.h) / 2;
+      const clearance = Math.max(cx, cy);
+      const reach = pairGap(a, b, gap) + REPEL_RANGE;
+      if (clearance >= reach) continue;
+      const strength = REPEL_STRENGTH * (1 - Math.max(0, clearance) / reach);
+      const dist = Math.hypot(dx, dy) || 1e-6;
+      const ux = dx === 0 && dy === 0 ? (i % 2 ? 1 : -1) : dx / dist;
+      const uy = dy / dist;
+      // Equal and opposite force, so the lighter glyph does the moving.
+      const ia = 1 / a.mass;
+      const ib = 1 / b.mass;
+      const k = (2 * strength * dt) / (ia + ib);
+      a.vx -= ux * k * ia;
+      a.vy -= uy * k * ia;
+      b.vx += ux * k * ib;
+      b.vy += uy * k * ib;
+    }
+  }
+}
+
+/**
+ * Spread the homes before anything moves.
+ *
+ * Placement works from ESTIMATED glyph sizes; once a glyph is on the wall its
+ * real size is known and is usually larger -- a price like $0.00001234 is far
+ * wider than the estimate. Homes that overlap at their real size would have the
+ * springs dragging bodies back into each other forever, which is the clump.
+ * This pushes them apart at their true size, then moves each body onto its
+ * spread home. Returns the indices still overlapping, so the caller can drop
+ * what genuinely does not fit rather than draw a blob.
+ */
+export function relaxHomes(bodies: CloudBody[], gap = CLOUD_GAP, iterations = 300): number[] {
+  for (const b of bodies) { b.x = b.hx; b.y = b.hy; bounceWalls(b); }
+  for (let k = 0; k < iterations; k++) {
+    if (!resolveCollisions(bodies, gap)) break;
+  }
+  for (const b of bodies) { b.hx = b.x; b.hy = b.y; b.vx = 0; b.vy = 0; }
+  const bad = new Set<number>();
+  for (let i = 0; i < bodies.length; i++) {
+    for (let j = i + 1; j < bodies.length; j++) {
+      if (overlaps(bodies[i], bodies[j], pairGap(bodies[i], bodies[j], gap) * 0.5)) { bad.add(i); bad.add(j); }
+    }
+  }
+  return [...bad];
+}
+
+function bounceWalls(b: CloudBody): void {
+  const z = b.zone;
+  const hw = b.w / 2;
+  const hh = b.h / 2;
+  if (z.x1 - z.x0 >= b.w) {
+    if (b.x < z.x0 + hw) { b.x = z.x0 + hw; if (b.vx < 0) b.vx = -b.vx * RESTITUTION; }
+    if (b.x > z.x1 - hw) { b.x = z.x1 - hw; if (b.vx > 0) b.vx = -b.vx * RESTITUTION; }
+  } else { b.x = (z.x0 + z.x1) / 2; b.vx = 0; }
+  if (z.y1 - z.y0 >= b.h) {
+    if (b.y < z.y0 + hh) { b.y = z.y0 + hh; if (b.vy < 0) b.vy = -b.vy * RESTITUTION; }
+    if (b.y > z.y1 - hh) { b.y = z.y1 - hh; if (b.vy > 0) b.vy = -b.vy * RESTITUTION; }
+  } else { b.y = (z.y0 + z.y1) / 2; b.vy = 0; }
+}
+
+/**
+ * One pass of pairwise separation. Returns whether anything moved.
+ *
+ * Axis-aligned boxes, separated along the axis of least penetration. Equal
+ * mass, so an approaching pair exchanges that velocity component -- the bounce.
+ */
+function resolveCollisions(bodies: CloudBody[], gap: number): boolean {
+  let moved = false;
+  for (let i = 0; i < bodies.length; i++) {
+    for (let j = i + 1; j < bodies.length; j++) {
+      const a = bodies[i];
+      const b = bodies[j];
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const g = pairGap(a, b, gap);
+      const px = (a.w + b.w) / 2 + g - Math.abs(dx);
+      const py = (a.h + b.h) / 2 + g - Math.abs(dy);
+      if (px <= 0 || py <= 0) continue;
+      moved = true;
+      // The lighter body takes the larger share of the separation: a background
+      // glyph is pushed off a foreground one, not the other way round.
+      const ia = 1 / a.mass;
+      const ib = 1 / b.mass;
+      const sa = ia / (ia + ib);
+      const sb = ib / (ia + ib);
+      if (px < py) {
+        const sign = dx === 0 ? (i % 2 ? 1 : -1) : Math.sign(dx);
+        a.x -= sign * px * sa;
+        b.x += sign * px * sb;
+        const rel = b.vx - a.vx;
+        if (rel * sign < 0) {
+          // Elastic bounce with unequal masses, along the contact axis.
+          const jn = (-(1 + RESTITUTION) * rel) / (ia + ib);
+          a.vx -= jn * ia;
+          b.vx += jn * ib;
+        }
+      } else {
+        const sign = dy === 0 ? (i % 2 ? 1 : -1) : Math.sign(dy);
+        a.y -= sign * py * sa;
+        b.y += sign * py * sb;
+        const rel = b.vy - a.vy;
+        if (rel * sign < 0) {
+          const jn = (-(1 + RESTITUTION) * rel) / (ia + ib);
+          a.vy -= jn * ia;
+          b.vy += jn * ib;
+        }
+      }
+      bounceWalls(a);
+      bounceWalls(b);
+    }
+  }
+  return moved;
 }

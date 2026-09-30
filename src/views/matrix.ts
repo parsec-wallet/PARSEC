@@ -13,6 +13,7 @@ import { fetchChains, searchChains, CHAINMARKETCAP_URL, type EvmChain } from '..
 import { getChainDescriptor } from '../lib/chains';
 import {
   cloudZones, cloudWeather, isSurging, driftSeconds, findSpot, capacity,
+  makeBody, stepCloud, relaxHomes, avoidObstacles, CLOUD_GAP, type CloudBody,
   type Box as CloudBox,
   type Zone as CloudZone,
 } from '../lib/cryptocloud';
@@ -33,6 +34,7 @@ import { isTauri } from '../lib/vault';
 // off the first-paint path.
 import { microAlgosToAlgo } from '../lib/algorand/format';
 import { formatAssetAmount } from '../lib/algorand/format';
+import { summarizeStables, shipList, formatBps, aggregateFlow, PEG_HELD_BPS, PEG_DEPEG_BPS } from '../lib/stablecoins';
 import { startPriceUpdates, fetchPricesByIds, formatPrice, formatMarketCap, getMarketActivity, getMarketSentiment, getMarketBreadth, getFeedStatus } from '../lib/prices';
 import type { CoinPrice } from '../lib/prices';
 import * as mg from '../lib/market-global';
@@ -62,6 +64,10 @@ interface CryptoGlyph {
   coin: CoinPrice;
   x: number; y: number; // normalized 0-1
   size: number;
+  /** Its physics: collides with the others so none ever overlap. */
+  body: CloudBody;
+  /** The figure line, rewritten in place when the period changes. */
+  changeEl?: HTMLElement;
 }
 
 export function matrixView(): HTMLElement {
@@ -145,6 +151,19 @@ export function matrixView(): HTMLElement {
       localStorage.setItem(FAVOURITES_SELECTION_KEY, JSON.stringify([...favouriteSelection]));
     } catch { /* best effort */ }
   }
+
+  // Algorand and 0G joined the favourites on 2026-09-30. Added once, on top of
+  // whatever the participant already chose -- never replacing it -- and only
+  // once, so unticking either later sticks.
+  const FAVOURITES_ADDED_KEY = 'parsec:matrix-favourites-added-2026-09-30';
+  try {
+    if (localStorage.getItem(FAVOURITES_ADDED_KEY) === null) {
+      favouriteSelection.add('algorand');
+      favouriteSelection.add('zero-gravity');
+      saveFavouriteSelection();
+      localStorage.setItem(FAVOURITES_ADDED_KEY, '1');
+    }
+  } catch { /* best effort */ }
 
   // Which period every percentage on the wall is measured over.
   //
@@ -595,8 +614,7 @@ export function matrixView(): HTMLElement {
   // Controls the participant holds, not scroll tricks: each overlay is either on
   // the wall or it isn't, and the choice is remembered.
   //
-  // Stacked bottom-right, PYRAMID last so it stays exactly where it has always
-  // been and the new controls grow upward from it.
+  // Stacked bottom-right, in the order set below.
   const toggleStack = el('div', { cls: 'parsec-matrix__toggles' });
   /** Repaint every landing toggle — after a profile rewrites their state. */
   const toggleRepaints: Array<() => void> = [];
@@ -688,23 +706,28 @@ export function matrixView(): HTMLElement {
     try { localStorage.setItem(PERIOD_KEY, pricePeriod); } catch { /* best effort */ }
     paintPeriod();
     // Redraw from prices already in memory — changing the period must never
-    // cost a request on a feed we poll every five minutes.
-    renderFleet();
+    // cost a request on a feed we poll every five minutes. The pyramid re-forms
+    // (its order IS the period); the cloud only rewrites its figures -- its
+    // placement follows the 24h move, so rebuilding it would reshuffle and
+    // re-measure every glyph for nothing.
     renderPyramid();
-    createGlyphs();
+    refreshCloudFigures();
   });
   paintPeriod();
   toggleRepaints.push(paintPeriod);
-  toggleStack.appendChild(periodToggle);
-
-  toggleStack.appendChild(makeToggle('MATRIX', matrixPref, 'the matrix rain'));
-  toggleStack.appendChild(makeToggle('CRYPTOCLOUD', cryptocloudPref, 'the winds of change — the drifting price cloud, where gainers float and losers fall'));
-  toggleStack.appendChild(makeToggle('TOP 10', top10Pref, 'the top 10 by market cap'));
-  toggleStack.appendChild(
+  // Top to bottom: CHANGE, MATRIX, PYRAMID, TOP 10, CRYPTOCLOUD, STABLECOINS,
+  // FAVOURITES. Broadly short to long so the stack widens toward its corner,
+  // with TOP 10 kept under PYRAMID and FAVOURITES last -- the participant's
+  // arrangement, not a computed one.
+  toggleStack.append(
+    periodToggle,
+    makeToggle('MATRIX', matrixPref, 'the matrix rain'),
+    makeToggle('PYRAMID', pyramidPref, 'the market pyramid'),
+    makeToggle('TOP 10', top10Pref, 'the top 10 by market cap'),
+    makeToggle('CRYPTOCLOUD', cryptocloudPref, 'the winds of change — the drifting price cloud, where gainers float and losers fall'),
+    makeToggle('STABLECOINS', stablecoinsPref, 'the stablecoin liquidity ship'),
     makeToggle('FAVOURITES', favouritesPref, 'your favourites', openFavouritesChooser),
   );
-  toggleStack.appendChild(makeToggle('STABLECOINS', stablecoinsPref, 'the stablecoin liquidity ship'));
-  toggleStack.appendChild(makeToggle('PYRAMID', pyramidPref, 'the market pyramid'));
   container.appendChild(toggleStack);
 
   // Assert the initial state now that the brand and every layer exist. Without
@@ -738,8 +761,19 @@ export function matrixView(): HTMLElement {
     e.preventDefault();
     zoom = Math.max(0.3, Math.min(3.0, zoom + e.deltaY * -0.003));
     if (gl) setUniform('u_zoom', zoom);
-    updateGlyphSizes();
+    scheduleCloudRebuild();
   }, { passive: false });
+
+  // The cloud's collision boxes are measured at build time, so anything that
+  // changes a glyph's size on screen -- zoom, a window resize -- rebuilds it
+  // once the change settles. Rescaling fonts in place left the boxes at the old
+  // size, and the glyphs grew into each other.
+  let cloudRebuildTimer: ReturnType<typeof setTimeout> | undefined;
+  function scheduleCloudRebuild() {
+    if (cloudRebuildTimer) clearTimeout(cloudRebuildTimer);
+    cloudRebuildTimer = setTimeout(() => { cloudRebuildTimer = undefined; createGlyphs(); }, 250);
+  }
+  bindGlobal(window, 'resize', scheduleCloudRebuild);
 
   // Mouse + drag for bullet-time full rotation
   let mouseX = 0.5, mouseY = 0.5;
@@ -787,8 +821,9 @@ export function matrixView(): HTMLElement {
     prices = p;
     activityUniform = getMarketActivity(p);
     sentimentUniform = getMarketSentiment(p);
-    createGlyphs();
+    // Pyramid first: the cloud measures it (and the ship) as obstacles.
     renderPyramid();
+    createGlyphs();
     paintFeed();
     // Re-resolve pinned coins the top-100 feed does not carry, then redraw.
     // Without this ARIO would only ever appear after someone clicked the
@@ -1029,12 +1064,36 @@ export function matrixView(): HTMLElement {
     // height tier with it up. The channels never meet, so a glyph cannot cross
     // the pyramid -- and each tier keeps its own slice of the full height, so
     // price still reads as height on both sides.
-    const zones = cloudZones({
+    // The toggle menu and the stablecoin ship are obstacles exactly as the
+    // pyramid is: their measured footprints are cut out of the zones, so no
+    // glyph drifts in behind them. Measured, not assumed -- both change size
+    // with their content, and the ship can be dragged anywhere.
+    const layerRect = glyphLayer.getBoundingClientRect();
+    const obstacles: CloudZone[] = [];
+    // The pyramid's rows too, as they actually rendered. The fixed pyramid
+    // model in cloudZones matches one screen shape; on a smaller window the
+    // real pyramid sits lower and wider and glyphs landed on its cards.
+    const blockers = [
+      toggleStack,
+      ...Array.from(container.querySelectorAll<HTMLElement>('.parsec-ship, .parsec-fleet-column')),
+      ...(pyramidPref.on ? Array.from(container.querySelectorAll<HTMLElement>('.parsec-pyramid__row')) : []),
+    ];
+    for (const b of blockers) {
+      const r = b.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0 || layerRect.width === 0) continue;
+      obstacles.push({
+        x0: (r.left - layerRect.left) / layerRect.width,
+        x1: (r.right - layerRect.left) / layerRect.width,
+        y0: (r.top - layerRect.top) / layerRect.height,
+        y1: (r.bottom - layerRect.top) / layerRect.height,
+      });
+    }
+    const zones = cloudZoneList = avoidObstacles(cloudZones({
       top10: top10Pref.on,
       favourites: favouritesPref.on,
       stablecoins: stablecoinsPref.on,
       pyramid: pyramidPref.on,
-    });
+    }), obstacles);
     // The wall the buoyancy scale is measured over. Taken across every channel
     // rather than per channel: a coin's height must mean the same thing on the
     // left of the pyramid as on the right.
@@ -1122,7 +1181,7 @@ export function matrixView(): HTMLElement {
         : undefined;
       const spot = findSpot(
         z, { x: pref?.x ?? 0, y: pref?.y ?? 0, w, h }, occupied,
-        Math.random, 0.01, pref,
+        Math.random, CLOUD_GAP, pref,
       );
       occupied.push(spot);
       zoneLoad[zoneIdx]++;
@@ -1198,7 +1257,13 @@ export function matrixView(): HTMLElement {
     // they are the ones that collide — an average-sized cell over-counts how
     // many of the big ones fit, which is what left POL sitting on ETH.
     const typicalSize = 36 * zoom;
-    const cell = { w: (typicalSize * 4.6) / layerW, h: (typicalSize * 3.1) / layerH };
+    // The gap is part of each glyph's cell: the motion keeps CLOUD_GAP clear
+    // around every glyph, so a count that ignored it would pack the zone
+    // tighter than the bodies can hold apart.
+    const cell = {
+      w: (typicalSize * 4.6) / layerW + CLOUD_GAP,
+      h: (typicalSize * 3.1) / layerH + CLOUD_GAP,
+    };
     // Summed across channels: with the pyramid up the wall is several narrow
     // rectangles, and measuring only the largest would cull glyphs that the
     // other channels had room for.
@@ -1215,6 +1280,7 @@ export function matrixView(): HTMLElement {
     // is. A storm shortens it further.
     const drift = driftSeconds(activityUniform, weather.storm);
     glyphLayer.classList.toggle('parsec-matrix__glyph-layer--storm', weather.storm);
+    cloudStorm = weather.storm;
     glyphLayer.style.setProperty('--parsec-cloud-drift', `${drift.toFixed(2)}s`);
 
     for (let i = 0; i < selected.length; i++) {
@@ -1263,7 +1329,10 @@ export function matrixView(): HTMLElement {
         ? 0.25 + volFactor * 0.35 + depth * 0.15
         : 0.06 + volFactor * 0.25 + depth * 0.1;
 
-      const glyph: CryptoGlyph = { coin, x, y, size: baseSize };
+      const glyph: CryptoGlyph = {
+        coin, x, y, size: baseSize,
+        body: makeBody(pos, z, i * 0.37 + Math.random(), buoy.speed, isFeatured),
+      };
       cryptoGlyphs.push(glyph);
 
       // Color — blue pill = red glyphs (selling), otherwise normal market colors
@@ -1310,7 +1379,7 @@ export function matrixView(): HTMLElement {
         children: [
           el('span', { cls: 'parsec-matrix__glyph-symbol', text: coin.symbol }),
           el('span', { cls: 'parsec-matrix__glyph-price', text: formatPrice(coin.usd), attrs: { style: `color:${color}` } }),
-          el('span', {
+          glyph.changeEl = el('span', {
             cls: 'parsec-matrix__glyph-change',
             text: formatPercent(shownChange(coin).pct),
             attrs: {
@@ -1328,6 +1397,8 @@ export function matrixView(): HTMLElement {
       glyphLayer.appendChild(glyphEl);
     }
 
+    settleCloud(layerW, layerH);
+
     // Rotate selection every 20 seconds — new random coins surface
     if (glyphRotationTimer) clearInterval(glyphRotationTimer);
     glyphRotationTimer = setInterval(() => {
@@ -1335,45 +1406,119 @@ export function matrixView(): HTMLElement {
     }, 20000);
   }
 
-  function updateGlyphSizes() {
-    const glyphs = glyphLayer.querySelectorAll('.parsec-matrix__crypto-glyph');
+  /**
+   * Give every body its real, rendered size, then spread the homes so none
+   * overlap at that size. Whatever still cannot fit is removed -- least
+   * important first (featured coins are kept) -- because a glyph that has no
+   * room is better off the wall than stacked on another.
+   */
+  /** Rewrite each cloud glyph's percentage for the current period, in place. */
+  function refreshCloudFigures() {
+    for (const g of cryptoGlyphs) {
+      const e = g.changeEl;
+      if (!e) continue;
+      const pct = shownChange(g.coin).pct;
+      e.textContent = formatPercent(pct);
+      e.style.color = choice === 'blue' ? '#ef4444' : changeTone(pct);
+      e.title = changeTitle(g.coin);
+    }
+  }
+
+  let cloudZoneList: CloudZone[] = [];
+  function settleCloud(layerW: number, layerH: number) {
+    const els = Array.from(glyphLayer.querySelectorAll<HTMLElement>('.parsec-matrix__crypto-glyph'));
     cryptoGlyphs.forEach((g, i) => {
-      const glyphEl = glyphs[i] as HTMLElement;
-      if (glyphEl) glyphEl.style.fontSize = `${g.size * zoom}px`;
+      const e = els[i];
+      if (!e) return;
+      // offsetWidth ignores transforms, so the hover scale cannot inflate it.
+      // Zero means the layer is hidden; keep the estimate then.
+      if (e.offsetWidth > 0 && e.offsetHeight > 0) {
+        g.body.w = e.offsetWidth / layerW;
+        g.body.h = e.offsetHeight / layerH;
+      }
+    });
+
+    // A glyph bigger than its zone cannot be held inside it: the walls pin it
+    // to the zone's centre, on top of whatever else is there. Move it to the
+    // nearest zone it fits, or take it off the wall.
+    for (let i = cryptoGlyphs.length - 1; i >= 0; i--) {
+      const b = cryptoGlyphs[i].body;
+      const fits = (z: CloudZone) => z.x1 - z.x0 >= b.w && z.y1 - z.y0 >= b.h;
+      if (fits(b.zone)) continue;
+      let best: CloudZone | null = null;
+      let bestD = Infinity;
+      for (const z of cloudZoneList) {
+        if (!fits(z)) continue;
+        const cx = Math.min(Math.max(b.hx, z.x0 + b.w / 2), z.x1 - b.w / 2);
+        const cy = Math.min(Math.max(b.hy, z.y0 + b.h / 2), z.y1 - b.h / 2);
+        const d = Math.hypot(cx - b.hx, cy - b.hy);
+        if (d < bestD) { bestD = d; best = z; }
+      }
+      if (best) {
+        b.zone = best;
+        b.hx = Math.min(Math.max(b.hx, best.x0 + b.w / 2), best.x1 - b.w / 2);
+        b.hy = Math.min(Math.max(b.hy, best.y0 + b.h / 2), best.y1 - b.h / 2);
+      } else {
+        els[i]?.remove();
+        els.splice(i, 1);
+        cryptoGlyphs.splice(i, 1);
+      }
+    }
+
+    for (let guard = 0; guard < 40 && cryptoGlyphs.length > 1; guard++) {
+      const bad = relaxHomes(cryptoGlyphs.map((g) => g.body));
+      if (bad.length === 0) break;
+      // Drop the least important of the overlapping glyphs: a non-featured one
+      // if there is any, the smallest otherwise.
+      const victim = bad
+        .map((i) => ({ i, g: cryptoGlyphs[i] }))
+        .sort((a, b) =>
+          Number(FEATURED_SYMBOLS.has(a.g.coin.symbol)) - Number(FEATURED_SYMBOLS.has(b.g.coin.symbol))
+          || a.g.size - b.g.size)[0].i;
+      els[victim]?.remove();
+      els.splice(victim, 1);
+      cryptoGlyphs.splice(victim, 1);
+    }
+
+    // Put each element on its spread home. Geometry is centres; CSS is corners.
+    cryptoGlyphs.forEach((g, i) => {
+      const e = els[i];
+      if (!e) return;
+      g.x = g.body.hx - g.body.w / 2;
+      g.y = g.body.hy - g.body.h / 2;
+      e.style.left = `${g.x * 100}%`;
+      e.style.top = `${g.y * 100}%`;
+      e.style.translate = '0px 0px';
     });
   }
 
+  /**
+   * Move the cloud one frame.
+   *
+   * Each glyph is a body anchored where placement put it -- its height already
+   * encodes the 24h move -- and the bodies collide, bouncing off one another and
+   * off their channel's walls, storm or calm. The offset is written to the CSS
+   * `translate` property rather than `transform`, so the hover `scale` still
+   * applies on top of it instead of snapping the glyph back home.
+   */
+  let cloudStorm = false;
+  let lastDriftT = 0;
   function driftGlyphs(t: number) {
+    const dt = lastDriftT ? t - lastDriftT : 0;
+    lastDriftT = t;
+    if (cryptoGlyphs.length === 0) return;
+    stepCloud(cryptoGlyphs.map((g) => g.body), { dt, t, storm: cloudStorm });
+
     const glyphs = glyphLayer.querySelectorAll('.parsec-matrix__crypto-glyph');
+    const layerW = glyphLayer.clientWidth || 1;
+    const layerH = glyphLayer.clientHeight || 1;
     cryptoGlyphs.forEach((cg, i) => {
       const glyphEl = glyphs[i] as HTMLElement;
       if (!glyphEl) return;
-
-      const change = cg.coin.change24h;
-      const absChange = Math.abs(change);
-
-      // Y position driven by price change:
-      // Up = floats higher on screen, down = sinks lower
-      // Flat = hangs at original position, drifting sideways
-      const changeClamped = Math.max(-15, Math.min(15, change));
-      const baseY = cg.y * 100; // original slot
-      const priceY = baseY - changeClamped * 1.5; // up = higher, down = lower
-      // Coins stay above the ship/buy zone (max 72%)
-      const targetY = Math.max(5, Math.min(72, priceY));
-
-      // Gentle sideways float — all coins drift horizontally
-      const sway = Math.sin(t * 0.15 + i * 2.3) * (3 + absChange * 0.5);
-
-      // Depth perspective
-      const rotPhase = t * 0.008;
-      const depthShift = Math.sin(rotPhase + cg.x * 3.14) * 0.1;
-      const perspScale = 0.9 + depthShift;
-
-      // Gentle vertical bob — not a bounce, a breath
-      const bob = Math.sin(t * 0.2 + i * 1.7) * 2;
-
-      glyphEl.style.top = `${targetY}%`;
-      glyphEl.style.transform = `translateX(${sway}px) translateY(${bob}px) scale(${perspScale})`;
+      const b = cg.body;
+      const ox = (b.x - b.hx) * layerW;
+      const oy = (b.y - b.hy) * layerH;
+      glyphEl.style.translate = `${ox.toFixed(1)}px ${oy.toFixed(1)}px`;
     });
   }
 
@@ -1588,163 +1733,227 @@ export function matrixView(): HTMLElement {
       'LEO', 'OKB', 'CRO', 'KCS', 'HT', 'GT', 'FTT', 'FIGR_HELOC',
     ]);
     const pyramidPrices = prices.filter(c => !pyramidExclude.has(c.symbol) && c.marketCap > 100_000_000);
-    const sorted = [...pyramidPrices].sort((a, b) => b.change24h - a.change24h);
+    // Ranked by the SELECTED period, so switching CHANGE re-forms the pyramid:
+    // the apex is the best mover over that period, not always over 24h. A coin
+    // with no figure for the period (4h for a coin the exchange feed does not
+    // list, before this session has watched it long enough) is neither a gainer
+    // nor a loser -- it goes last, rather than posing as flat.
+    const periodPct = new Map(pyramidPrices.map((c) => [c.id, shownChange(c).pct]));
+    const known = pyramidPrices.filter((c) => periodPct.get(c.id) !== null);
+    const unknown = pyramidPrices.filter((c) => periodPct.get(c.id) === null);
+    const pctOf = (c: CoinPrice) => periodPct.get(c.id) ?? 0;
+    const sorted = [...known.sort((a, b) => pctOf(b) - pctOf(a)), ...unknown];
     if (sorted.length === 0) return;
-    const topWinner = sorted[0];
 
-    const winners = sorted.filter(c => c.change24h > 0);
-    const losers = sorted.filter(c => c.change24h <= 0).reverse();
+    const winners = known.filter(c => pctOf(c) > 0);
+    const losers = [...known.filter(c => pctOf(c) <= 0).reverse(), ...unknown];
 
-    // ── Pyramid — brick steps from single apex to wide base ──
-    // Apex = #1 daily gainer (single point at top)
-    // Right side = top gainers descending (best → least gain)
-    // Left side = top losers descending (worst → least loss)
-    // Each row is one step wider — like bricks of a pyramid
-    //
-    // Visual:
-    //                  [#1 GAINER]               ← apex (1 brick)
-    //              [LOSER1] [GAINER2]            ← row 1 (2 bricks)
-    //           [L2] [GAINER3] [GAINER4]         ← row 2 (3 bricks)
-    //        [L3] [L4] [GAIN5] [GAIN6]           ← row 3 (4 bricks)
-    //     [L5] [L6] [L7] [GAIN7] [GAIN8]        ← row 4 (5 bricks)
-    //  [L8] [L9] [remaining...] [GAIN9] [G10]   ← base (widest)
+    // Nothing to build while the pyramid is hidden: 86 cards laid out for no
+    // one was most of what a toggle or a price tick cost. The ship below does
+    // not depend on it.
+    const pyramidShown = pyramidPref.on && (choice === 'none' || choice === 'blue');
+    if (pyramidShown) {
+      // ── Pyramid — brick steps from single apex to wide base ──
+      //
+      // The SHAPE is fixed: an apex brick, then rows of 2..8. It is filled from
+      // the one ranked list rather than from separate gainer and loser lists:
+      // the best movers take the right-hand bricks (best at the top), the worst
+      // take the left (worst at the top), and everything between goes to the base
+      // strip. Filling each side from its own list is what bent the pyramid over
+      // 4h -- a lopsided period ran one list dry and those rows came up short.
+      // Each card's colour still says which way its coin actually moved, so a
+      // one-sided market reads as a red right flank, not as a broken triangle.
+      //
+      //                  [#1]                 ← apex
+      //              [worst] [#2]
+      //          [w2] [#3] [#4]
+      //       [w3] [w4] [#5] [#6]     ...     ← rows widen by one brick
+      //  [middle of the ranking …]            ← base strip
+      const totalRows = 7;
+      const shape = Array.from({ length: totalRows }, (_, k) => {
+        const bricks = k + 2;
+        const left = Math.floor(bricks / 2);
+        return { left, right: bricks - left };
+      });
+      const rightSlots = shape.reduce((n, r) => n + r.right, 0);
+      const leftSlots = shape.reduce((n, r) => n + r.left, 0);
 
-    const pyramid = el('div', { cls: 'parsec-pyramid__body' });
+      const ranked = sorted; // best → worst, unknowns last
+      const apexCoin = ranked[0];
+      const bestRest = ranked.slice(1, 1 + rightSlots);
+      // Worst first, never reaching back into coins already on the right.
+      const tailStart = Math.max(1 + bestRest.length, ranked.length - leftSlots);
+      const worst = ranked.slice(tailStart).reverse();
+      const middle = ranked.slice(1 + bestRest.length, tailStart);
 
-    // Top 4 gainers (sorted best first) and top 4 losers (sorted worst first)
-    const top4Gainers = winners.slice(0, 4);
-    const top4Losers = losers.slice(0, 4);
-    const remainWinners = winners.slice(4);
-    const remainLosers = losers.slice(4);
+      const pyramid = el('div', { cls: 'parsec-pyramid__body' });
+      const usedCards = new Set<string>();
+      const card = (coin: CoinPrice, isApex: boolean) => {
+        usedCards.add(coin.id);
+        return pyramidCoinCard(coin, isApex);
+      };
 
-    // Row 0: APEX — single brick, #1 daily gainer
-    const apexRow = el('div', { cls: 'parsec-pyramid__row parsec-pyramid__row--apex' });
-    apexRow.appendChild(pyramidCoinCard(topWinner, true));
-    pyramid.appendChild(apexRow);
+      const apexRow = el('div', { cls: 'parsec-pyramid__row parsec-pyramid__row--apex' });
+      apexRow.appendChild(card(apexCoin, true));
+      pyramid.appendChild(apexRow);
 
-    // Rows 1-7: Each row adds one more brick, expanding from apex to base
-    // Right side fills with gainers (descending rank), left side with losers
-    let lIdx = 0; // index into top4Losers
-    let rgIdx = 0; // remaining gainers
-    let rlIdx = 0; // remaining losers
+      let bi = 0;
+      let wi = 0;
+      shape.forEach(({ left, right }, k) => {
+        const r = k + 1;
+        const row = el('div', { cls: 'parsec-pyramid__row' });
+        // Width scales from narrow (top) to wide (base): row 1 ≈ 26 %, row 7 ≈ 95 %.
+        const widthPct = 14 + r * 11.5;
+        row.style.width = `${widthPct}%`;
+        row.style.maxWidth = `${widthPct}%`;
+        // Left bricks run from the centre outward in the visual; the worst coin
+        // of the row sits outermost, so fill them in reverse.
+        const lefts = worst.slice(wi, wi + left).reverse();
+        wi += left;
+        for (const coin of lefts) row.appendChild(card(coin, false));
+        for (const coin of bestRest.slice(bi, bi + right)) row.appendChild(card(coin, false));
+        bi += right;
+        pyramid.appendChild(row);
+      });
 
-    // Skip the apex gainer (already placed)
-    const gainersForRows = top4Gainers.slice(1);
-    let giIdx = 0;
-
-    const totalRows = 7;
-    for (let r = 1; r <= totalRows; r++) {
-      const bricksInRow = r + 1; // row 1 = 2 bricks, row 2 = 3, ... row 7 = 8
-      const row = el('div', { cls: 'parsec-pyramid__row' });
-
-      // Width scales from narrow (top) to wide (base)
-      // Row 1 = 20%, row 7 = 92%
-      const widthPct = 14 + r * 11.5;
-      row.style.width = `${widthPct}%`;
-      row.style.maxWidth = `${widthPct}%`;
-
-      // Split: left half = losers, right half = gainers
-      // Losers go on the left, gainers on the right
-      const leftCount = Math.floor(bricksInRow / 2);
-      const rightCount = bricksInRow - leftCount;
-
-      // Fill left side with losers
-      for (let i = 0; i < leftCount; i++) {
-        let coin: CoinPrice | undefined;
-        if (lIdx < top4Losers.length) {
-          coin = top4Losers[lIdx++];
-        } else if (rlIdx < remainLosers.length) {
-          coin = remainLosers[rlIdx++];
-        }
-        if (coin) {
-          row.appendChild(pyramidCoinCard(coin, false));
-        }
+      // Base strip — the middle of the ranking, best first.
+      if (middle.length > 0) {
+        const baseRow = el('div', { cls: 'parsec-pyramid__row parsec-pyramid__row--base' });
+        baseRow.style.width = '96%';
+        baseRow.style.maxWidth = '96%';
+        for (const coin of middle) baseRow.appendChild(card(coin, false));
+        pyramid.appendChild(baseRow);
       }
 
-      // Fill right side with gainers
-      for (let i = 0; i < rightCount; i++) {
-        let coin: CoinPrice | undefined;
-        if (giIdx < gainersForRows.length) {
-          coin = gainersForRows[giIdx++];
-        } else if (rgIdx < remainWinners.length) {
-          coin = remainWinners[rgIdx++];
-        }
-        if (coin) {
-          row.appendChild(pyramidCoinCard(coin, false));
-        }
-      }
+      // Cards not on the wall this time are forgotten, so the cache tracks the
+      // feed rather than growing with every coin that ever passed through.
+      for (const id of cardCache.keys()) if (!usedCards.has(id)) cardCache.delete(id);
 
-      pyramid.appendChild(row);
+      pyramidLayer.appendChild(pyramid);
+
+      // Triangle edge lines behind the rows
+      pyramidLayer.appendChild(pyramidLine(50, 0, 96, 58, 'rgba(16,185,129,0.1)'));
+      pyramidLayer.appendChild(pyramidLine(50, 0, 4, 58, 'rgba(239,68,68,0.1)'));
+
+      // This function wiped and rebuilt the layer, so re-assert visibility —
+      // otherwise a price tick would silently bring a hidden pyramid back.
+      applyOverlays();
+
+      // Icons streaming along the pyramid diagonals — winners climb right, losers slide left
+      renderEdgeStreams(pyramid, winners, losers);
+    } else {
+      applyOverlays();
     }
-
-    // Base row — any remaining coins that didn't fit
-    const baseCoins: CoinPrice[] = [];
-    while (rgIdx < remainWinners.length) baseCoins.push(remainWinners[rgIdx++]);
-    while (rlIdx < remainLosers.length) baseCoins.push(remainLosers[rlIdx++]);
-
-    if (baseCoins.length > 0) {
-      const baseRow = el('div', { cls: 'parsec-pyramid__row parsec-pyramid__row--base' });
-      baseRow.style.width = '96%';
-      baseRow.style.maxWidth = '96%';
-      baseCoins.forEach(coin => baseRow.appendChild(pyramidCoinCard(coin, false)));
-      pyramid.appendChild(baseRow);
-    }
-
-    pyramidLayer.appendChild(pyramid);
-
-    // Triangle edge lines behind the rows
-    pyramidLayer.appendChild(pyramidLine(50, 0, 96, 58, 'rgba(16,185,129,0.1)'));
-    pyramidLayer.appendChild(pyramidLine(50, 0, 4, 58, 'rgba(239,68,68,0.1)'));
-
-    // This function wiped and rebuilt the layer, so re-assert visibility —
-    // otherwise a price tick would silently bring a hidden pyramid back.
-    applyOverlays();
-
-    // Icons streaming along the pyramid diagonals — winners climb right, losers slide left
-    renderEdgeStreams(pyramid, winners, losers);
 
     // ── Stablecoin Ship — liquidity vessel floating at the bottom ──
-    const stableNames = new Set(['USDC', 'USDT', 'DAI', 'BUSD', 'TUSD', 'FDUSD', 'PYUSD', 'USDP', 'GUSD', 'FRAX', 'LUSD', 'PAXG', 'XAUT']);
-    const stables = stablecoinsPref.on ? prices.filter(c => stableNames.has(c.symbol)) : [];
-    if (stables.length > 0) {
-      // Total liquidity across all stablecoins
-      const totalLiquidity = stables.reduce((s, c) => s + c.marketCap, 0);
-
+    //
+    // Two things per coin: how much there is (the hold's width) and whether it
+    // is doing its one job, holding $1 (the peg chip). The hull lists when the
+    // fleet's cap-weighted peg slips, so a depeg is visible from across the room.
+    const stable = stablecoinsPref.on ? summarizeStables(prices) : null;
+    if (stable && stable.usd.length + stable.gold.length > 0) {
       const ship = el('div', { cls: 'parsec-ship' });
+      const list = shipList(stable.weightedBps);
+      const hull = el('div', {
+        cls: `parsec-ship__hull${stable.depegged > 0 ? ' parsec-ship__hull--alarm' : ''}`,
+        attrs: { style: `--parsec-ship-list:${list.toFixed(2)}deg` },
+      });
 
-      // Ship hull — the vessel
-      const hull = el('div', { cls: 'parsec-ship__hull' });
-
-      // Mast — total liquidity display
+      // Mast — dollar liquidity, where money is going, its share of the market,
+      // and the peg roll call.
+      const counted = stable.held + stable.drifting + stable.depegged;
+      const pegText = stable.depegged > 0 && stable.worst
+        ? `DEPEG ${stable.worst.coin.symbol} ${formatBps(stable.worst.peg!.bps)}`
+        : stable.drifting > 0 && stable.worst
+          ? `DRIFT ${stable.worst.coin.symbol} ${formatBps(stable.worst.peg!.bps)}`
+          : `PEGS ${stable.held}/${counted}`;
+      const pegState = stable.depegged > 0 ? 'depeg' : stable.drifting > 0 ? 'drift' : 'held';
+      const flowWord = stable.flow === 'inflow' ? 'INFLOW' : stable.flow === 'outflow' ? 'OUTFLOW' : 'FLAT';
+      const flowArrow = stable.flow === 'inflow' ? '\u25B2' : stable.flow === 'outflow' ? '\u25BC' : '\u25C6';
       hull.appendChild(el('div', {
         cls: 'parsec-ship__mast',
         children: [
-          el('div', { cls: 'parsec-ship__flag', text: formatMarketCap(totalLiquidity) }),
+          el('div', { cls: 'parsec-ship__flag', text: formatMarketCap(stable.usdLiquidity) }),
           el('div', { cls: 'parsec-ship__flag-label', text: 'STABLECOIN LIQUIDITY' }),
+          el('div', {
+            cls: `parsec-ship__flow parsec-ship__flow--${stable.flow}`,
+            text: `${flowArrow} ${formatPercent(stable.flowPct, 2)} 24H \u00B7 ${flowWord}`,
+            attrs: {
+              title: 'Change in dollar-stablecoin market cap over 24h. Stablecoins hold $1, so this is net minting '
+                + 'less redemption: positive is money arriving to invest, negative is money leaving the market.',
+            },
+          }),
+          el('div', {
+            cls: 'parsec-ship__mast-row',
+            children: [
+              el('span', {
+                cls: 'parsec-ship__powder',
+                text: stable.shareOfMarket === null ? '—' : `${(stable.shareOfMarket * 100).toFixed(1)}% DRY`,
+                attrs: { title: 'Dollar stablecoins as a share of the top-100 market cap — capital parked on the sidelines' },
+              }),
+              el('span', {
+                cls: `parsec-ship__peg-call parsec-ship__peg-call--${pegState}`,
+                text: pegText,
+                attrs: { title: `Held within ±${PEG_HELD_BPS} bp of $1 · drifting to ±${PEG_DEPEG_BPS} bp · depegged beyond` },
+              }),
+            ],
+          }),
         ],
       }));
 
-      // Deck — stablecoins as cargo
+      // Deck — stablecoins as cargo, each block as wide as its share. The block
+      // carries its 24h supply change; its keel line carries its peg.
       const deck = el('div', { cls: 'parsec-ship__deck' });
-      stables.sort((a, b) => b.marketCap - a.marketCap);
-      stables.forEach(coin => {
-        const isGold = coin.symbol === 'PAXG' || coin.symbol === 'XAUT';
-        // Width proportional to market cap share
-        const share = coin.marketCap / totalLiquidity;
-        const widthPct = Math.max(4, Math.round(share * 100));
-
+      // The biggest few get their own block; the tail is loaded as one, so no
+      // block is too narrow to read. Gold rides at the stern in its own colour.
+      const OWN_BLOCKS = 3;
+      const cargoTotal = [...stable.usd, ...stable.gold].reduce((n, r) => n + Math.max(0, r.coin.marketCap), 0) || 1;
+      const tail = stable.usd.slice(OWN_BLOCKS);
+      const addCargo = (o: { cls: string; symbol: string; cap: number; flow: number | null; title: string }) => {
         deck.appendChild(el('div', {
-          cls: `parsec-ship__cargo ${isGold ? 'parsec-ship__cargo--gold' : ''}`,
-          attrs: {
-            style: `flex-basis:${widthPct}%`,
-            title: `${coin.symbol} — ${formatMarketCap(coin.marketCap)} (${(share * 100).toFixed(1)}% of stablecoin liquidity)`,
-          },
+          cls: `parsec-ship__cargo ${o.cls}`,
+          attrs: { style: `flex-basis:${Math.max(4, Math.round((o.cap / cargoTotal) * 100))}%`, title: o.title },
           children: [
-            el('span', { cls: 'parsec-ship__cargo-symbol', text: coin.symbol }),
-            el('span', { cls: 'parsec-ship__cargo-cap', text: formatMarketCap(coin.marketCap) }),
+            el('span', { cls: 'parsec-ship__cargo-symbol', text: o.symbol }),
+            el('span', { cls: 'parsec-ship__cargo-cap', text: formatMarketCap(o.cap) }),
+            el('span', {
+              cls: 'parsec-ship__cargo-flow',
+              text: formatPercent(o.flow, 2),
+              attrs: { style: `color:${changeTone(o.flow)}` },
+            }),
           ],
         }));
-      });
+      };
+      for (const row of stable.usd.slice(0, OWN_BLOCKS)) {
+        const c = row.coin;
+        addCargo({
+          cls: `parsec-ship__cargo--${row.peg?.state ?? 'unknown'}`,
+          symbol: c.symbol, cap: c.marketCap, flow: row.flowPct,
+          title: `${c.symbol} — ${formatMarketCap(c.marketCap)} · `
+            + (row.peg ? `$${c.usd.toFixed(4)} (${formatBps(row.peg.bps)} from $1)` : 'no price')
+            + ` · market cap ${formatPercent(row.flowPct, 2)} in 24h`,
+        });
+      }
+      if (tail.length > 0) {
+        const cap = tail.reduce((n, r) => n + Math.max(0, r.coin.marketCap), 0);
+        const flow = aggregateFlow(tail.map((r) => ({ cap: r.coin.marketCap, pct: r.flowPct })));
+        const worstState = tail.some((r) => r.peg?.state === 'depeg') ? 'depeg'
+          : tail.some((r) => r.peg?.state === 'drift') ? 'drift' : 'held';
+        addCargo({
+          cls: `parsec-ship__cargo--${worstState}`,
+          symbol: `+${tail.length}`, cap, flow,
+          title: tail.map((r) => `${r.coin.symbol} ${formatMarketCap(r.coin.marketCap)}`
+            + `${r.peg ? ` ${formatBps(r.peg.bps)}` : ''} ${formatPercent(r.flowPct, 2)}`).join('\n'),
+        });
+      }
+      for (const row of stable.gold) {
+        const c = row.coin;
+        addCargo({
+          cls: 'parsec-ship__cargo--gold',
+          symbol: c.symbol, cap: c.marketCap, flow: row.flowPct,
+          title: `${c.symbol} — ${formatMarketCap(c.marketCap)} · ${formatPrice(c.usd)}/oz of gold · market cap ${formatPercent(row.flowPct, 2)} in 24h`,
+        });
+      }
       hull.appendChild(deck);
 
       // Water line
@@ -1758,10 +1967,52 @@ export function matrixView(): HTMLElement {
 
   }
 
+  /**
+   * Cards by coin id, kept across renders and updated in place.
+   *
+   * Every price tick and every CHANGE click used to rebuild all 86 cards --
+   * elements, four listeners and an <img> each -- when all that differs is a
+   * price, a percentage and its colour. A card is now built once per coin and
+   * its text and tint are rewritten; its icon never reloads. It is rebuilt
+   * only if what it IS changes: apex or not, symbol, icon.
+   */
+  interface CachedCard {
+    key: string;
+    el: HTMLElement;
+    price: HTMLElement;
+    change: HTMLElement;
+    icon: HTMLElement;
+    /** Read by the listeners, so an updated card hovers with its current figures. */
+    ref: { coin: CoinPrice; color: string };
+  }
+  const cardCache = new Map<string, CachedCard>();
+
   function pyramidCoinCard(coin: CoinPrice, isApex: boolean): HTMLElement {
     // The card's own tint follows the selected period, like its figure does.
     const shown = shownChange(coin);
     const color = changeTone(shown.pct);
+    const priceText = formatPrice(coin.usd);
+    const pctText = formatPercent(shown.pct);
+    const title = changeTitle(coin);
+    const key = `${isApex ? 1 : 0}|${coin.symbol}|${coin.image}`;
+
+    const hit = cardCache.get(coin.id);
+    if (hit && hit.key === key) {
+      hit.ref.coin = coin;
+      hit.ref.color = color;
+      // Write only what differs: an unchanged write still dirties layout.
+      if (hit.price.textContent !== priceText) hit.price.textContent = priceText;
+      if (hit.change.textContent !== pctText) hit.change.textContent = pctText;
+      if (hit.change.style.color !== color) hit.change.style.color = color;
+      if (hit.change.title !== title) hit.change.title = title;
+      if (!coin.image) {
+        hit.icon.style.background = `${color}33`;
+        hit.icon.style.color = color;
+      }
+      return hit.el;
+    }
+
+    const ref = { coin, color };
     const cls = isApex ? 'parsec-pyramid__card parsec-pyramid__card--apex' : 'parsec-pyramid__card';
 
     // Icon: CoinGecko image or fallback colored circle
@@ -1773,7 +2024,7 @@ export function matrixView(): HTMLElement {
       img.alt = coin.symbol;
       img.width = isApex ? 24 : 16;
       img.height = isApex ? 24 : 16;
-      img.loading = 'lazy';
+      img.decoding = 'async';
       img.onerror = () => { img.style.display = 'none'; };
       iconEl = img;
     } else {
@@ -1784,27 +2035,29 @@ export function matrixView(): HTMLElement {
       });
     }
 
+    const priceEl = el('div', { cls: 'parsec-pyramid__card-price', text: priceText });
+    const changeEl = el('div', {
+      cls: 'parsec-pyramid__card-change',
+      text: pctText,
+      attrs: { style: `color:${color}`, title },
+    });
     const cardEl = el('div', {
       cls,
       children: [
         iconEl,
         el('div', { cls: 'parsec-pyramid__card-symbol', text: coin.symbol }),
-        el('div', { cls: 'parsec-pyramid__card-price', text: formatPrice(coin.usd) }),
-        el('div', {
-          cls: 'parsec-pyramid__card-change',
-          text: formatPercent(shownChange(coin).pct),
-          attrs: { style: `color:${changeTone(shownChange(coin).pct)}`, title: changeTitle(coin) },
-        }),
+        priceEl,
+        changeEl,
       ],
     });
 
     // Hover: scale up + glow
     cardEl.addEventListener('mouseenter', () => {
-      showCoinPanel(coin, cardEl);
+      showCoinPanel(ref.coin, cardEl);
       cardEl.style.transform = 'scale(1.3)';
       cardEl.style.zIndex = '50';
-      cardEl.style.boxShadow = `0 0 20px ${color}40`;
-      cardEl.style.borderColor = `${color}60`;
+      cardEl.style.boxShadow = `0 0 20px ${ref.color}40`;
+      cardEl.style.borderColor = `${ref.color}60`;
     });
     cardEl.addEventListener('mouseleave', () => {
       hideCoinPanel();
@@ -1817,9 +2070,9 @@ export function matrixView(): HTMLElement {
     // Touch support
     cardEl.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      showCoinPanel(coin, cardEl);
+      showCoinPanel(ref.coin, cardEl);
       cardEl.style.transform = 'scale(1.3)';
-      cardEl.style.boxShadow = `0 0 20px ${color}40`;
+      cardEl.style.boxShadow = `0 0 20px ${ref.color}40`;
     }, { passive: false });
     cardEl.addEventListener('touchend', () => {
       hideCoinPanel();
@@ -1827,6 +2080,7 @@ export function matrixView(): HTMLElement {
       cardEl.style.boxShadow = '';
     });
 
+    cardCache.set(coin.id, { key, el: cardEl, price: priceEl, change: changeEl, icon: iconEl, ref });
     return cardEl;
   }
 
@@ -1835,21 +2089,52 @@ export function matrixView(): HTMLElement {
   function renderEdgeStreams(pyramidBody: HTMLElement, winners: CoinPrice[], losers: CoinPrice[]) {
     requestAnimationFrame(() => {
       const apexCard = pyramidBody.querySelector('.parsec-pyramid__row--apex .parsec-pyramid__card') as HTMLElement | null;
-      const rows = pyramidBody.querySelectorAll('.parsec-pyramid__row');
-      const lastRow = rows[rows.length - 1] as HTMLElement | undefined;
+      // Card rows only. The `--base` strip of small icons wraps and can run
+      // below the screen; aiming a stream at it made the line so steep it cut
+      // straight across the cards.
+      const rows = Array.from(pyramidBody.querySelectorAll<HTMLElement>('.parsec-pyramid__row:not(.parsec-pyramid__row--base)'));
+      const lastRow = rows[rows.length - 1];
       if (!apexCard || !lastRow) return;
 
       const layerRect = pyramidLayer.getBoundingClientRect();
       const apexRect = apexCard.getBoundingClientRect();
       const baseRect = lastRow.getBoundingClientRect();
-      const apexX = apexRect.left + apexRect.width / 2 - layerRect.left;
-      const apexY = apexRect.top + apexRect.height / 2 - layerRect.top;
-      const baseLeftX = baseRect.left - layerRect.left;
-      const baseRightX = baseRect.right - layerRect.left;
-      const baseY = baseRect.bottom - layerRect.top;
+      const rowRects = rows.map((r) => r.getBoundingClientRect());
 
-      pyramidLayer.appendChild(buildEdgeStream(winners.slice(0, 8), apexX, apexY, baseRightX, baseY, 'up'));
-      pyramidLayer.appendChild(buildEdgeStream(losers.slice(0, 8), apexX, apexY, baseLeftX, baseY, 'down'));
+      // Run each stream OUTSIDE the staircase. Start at the apex card's outer
+      // top corner and end at the last row's outer bottom corner, then push the
+      // whole line outward until every row's outer top corner is on the inside
+      // of it -- rows are not all the same height, so a straight corner-to-corner
+      // line alone still clips the middle rows.
+      const ICON = 14;
+      // Half the icon (it is centred on the line) plus breathing room.
+      const CLEAR = ICON / 2 + 4;
+      const y0 = apexRect.top;
+      const y1 = baseRect.bottom;
+      const along = (xa: number, xb: number, y: number) => xa + ((xb - xa) * (y - y0)) / (y1 - y0 || 1);
+      let rightA = apexRect.right + CLEAR;
+      let rightB = baseRect.right + CLEAR;
+      let leftA = apexRect.left - CLEAR;
+      let leftB = baseRect.left - CLEAR;
+      let pushR = 0;
+      let pushL = 0;
+      for (const r of rowRects) {
+        pushR = Math.max(pushR, r.right + CLEAR - along(rightA, rightB, r.top));
+        pushL = Math.max(pushL, along(leftA, leftB, r.top) - (r.left - CLEAR));
+      }
+      rightA += pushR; rightB += pushR;
+      leftA -= pushL; leftB -= pushL;
+
+      // Item positions are its top-left corner; centre the icon on the line.
+      const apexY = y0 - layerRect.top - ICON / 2;
+      const baseY = y1 - layerRect.top - ICON / 2;
+      const apexRightX = rightA - layerRect.left;
+      const baseRightX = rightB - layerRect.left;
+      const apexLeftX = leftA - layerRect.left - ICON;
+      const baseLeftX = leftB - layerRect.left - ICON;
+
+      pyramidLayer.appendChild(buildEdgeStream(winners.slice(0, 8), apexRightX, apexY, baseRightX, baseY, 'up'));
+      pyramidLayer.appendChild(buildEdgeStream(losers.slice(0, 8), apexLeftX, apexY, baseLeftX, baseY, 'down'));
     });
   }
 
@@ -2109,6 +2394,9 @@ export function matrixView(): HTMLElement {
       glyphLayer.style.display = '';
     }
 
+    // The pyramid is only built while it can be seen, so a pill that reveals
+    // it has to build it rather than just unhide it.
+    renderPyramid();
     applyOverlays();
     renderPanel();
   }

@@ -548,6 +548,10 @@
 
 // Brick card — each coin is a block in the pyramid step
 .parsec-pyramid__card {
+  // A card's contents cannot affect anything outside it, so a changed figure
+  // re-lays out one card, not the page. (Not `paint`: that would clip the
+  // hover scale-up.)
+  contain: layout style;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -935,8 +939,9 @@
   position: absolute;
   bottom: 2px;
   left: 3%;
-  width: 9%;
-  min-width: 120px;
+  width: 11%;
+  min-width: 170px;
+  max-width: 250px;
   pointer-events: auto;
   animation: parsec-ship-float 6s ease-in-out infinite;
   cursor: grab;
@@ -951,58 +956,117 @@
   50% { transform: translateY(-4px); }
 }
 
+// The hull carries the list; the ship's own transform carries the float, so
+// the two never overwrite each other.
 .parsec-ship__hull {
   position: relative;
-  background: linear-gradient(180deg, rgb(15 23 42 / 80%) 0%, rgb(15 23 42 / 95%) 100%);
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-bottom: 3px solid rgb(59 130 246 / 25%);
-  border-radius: $border-radius-xl $border-radius-xl 40% 40%;
-  padding: $spacing-1 $spacing-2 $spacing-2;
+  background: linear-gradient(180deg, rgb(15 23 42 / 80%) 0%, rgb(8 15 30 / 95%) 100%);
+  border: 1px solid rgb(59 130 246 / 14%);
+  border-bottom: 3px solid rgb(59 130 246 / 30%);
+  border-radius: #{$border-radius-xl} #{$border-radius-xl} 36% 36% / #{$border-radius-xl} #{$border-radius-xl} 18% 18%;
+  padding: $spacing-1 $spacing-2 $spacing-3;
   backdrop-filter: blur(8px);
+  box-shadow: 0 0 18px rgb(59 130 246 / 10%);
+  transform: rotate(var(--parsec-ship-list, 0deg));
+  transform-origin: 50% 100%;
+  transition: transform 2s ease, border-color 0.6s ease, box-shadow 0.6s ease;
+
+  &--alarm {
+    border-color: rgb(239 68 68 / 45%);
+    box-shadow: 0 0 22px rgb(239 68 68 / 25%);
+    animation: parsec-ship-alarm 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes parsec-ship-alarm {
+  0%, 100% { box-shadow: 0 0 14px rgb(239 68 68 / 18%); }
+  50% { box-shadow: 0 0 28px rgb(239 68 68 / 40%); }
 }
 
 .parsec-ship__mast {
   text-align: center;
   padding: $spacing-1 0;
-  border-bottom: 1px solid rgb(255 255 255 / 5%);
+  border-bottom: 1px solid rgb(255 255 255 / 6%);
   margin-bottom: $spacing-1;
 }
 
 .parsec-ship__flag {
   font-family: $font-family-mono;
   font-weight: $font-weight-bold;
-  font-size: $font-size-base;
-  color: rgb(59 130 246 / 80%);
+  font-size: 1rem;
+  color: rgb(96 165 250 / 90%);
   letter-spacing: 0.03em;
+  text-shadow: 0 0 10px rgb(59 130 246 / 35%);
 }
 
 .parsec-ship__flag-label {
-  font-size: 0.45em;
+  font-size: 0.5rem;
   letter-spacing: 0.2em;
-  color: rgb(255 255 255 / 25%);
+  color: rgb(255 255 255 / 30%);
   text-transform: uppercase;
+}
+
+.parsec-ship__flow {
+  margin-top: 2px;
+  font-family: $font-family-mono;
+  font-size: 0.6rem;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+
+  &--inflow { color: rgb(16 185 129 / 90%); }
+  &--outflow { color: #ef4444; }
+  &--flat { color: rgb(255 255 255 / 40%); }
+}
+
+.parsec-ship__mast-row {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-1;
+  margin-top: 2px;
+  font-family: $font-family-mono;
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+}
+
+.parsec-ship__powder {
+  color: rgb(255 255 255 / 40%);
+  white-space: nowrap;
+}
+
+.parsec-ship__peg-call {
+  white-space: nowrap;
+  font-weight: $font-weight-bold;
+
+  &--held { color: rgb(16 185 129 / 80%); }
+  &--drift { color: #f59e0b; }
+  &--depeg { color: #ef4444; }
 }
 
 .parsec-ship__deck {
   display: flex;
+  flex-wrap: wrap;
   gap: 1px;
   min-height: 18px;
   align-items: stretch;
 }
 
+// Cargo: as wide as its share. The bottom edge is its peg.
 .parsec-ship__cargo {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2px 4px;
+  flex-grow: 1;
+  min-width: 40px;
+  padding: 2px 3px;
   border-radius: $border-radius-sm;
   background: rgb(59 130 246 / 8%);
   border: 1px solid rgb(59 130 246 / 10%);
-  min-width: 0;
+  border-bottom: 2px solid rgb(59 130 246 / 30%);
   overflow: hidden;
   cursor: crosshair;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, border-color 0.4s ease, transform 0.2s ease;
 
   &:hover {
     background: rgb(59 130 246 / 18%);
@@ -1010,39 +1074,71 @@
     transform: translateY(-2px);
   }
 
+  &--held { border-bottom-color: rgb(16 185 129 / 70%); }
+  &--drift { border-bottom-color: #f59e0b; }
+
+  &--depeg {
+    border-bottom-color: #ef4444;
+    background: rgb(239 68 68 / 12%);
+  }
+
   &--gold {
     background: rgb(245 158 11 / 8%);
     border-color: rgb(245 158 11 / 15%);
+    border-bottom-color: rgb(245 158 11 / 50%);
 
     &:hover {
       background: rgb(245 158 11 / 18%);
       border-color: rgb(245 158 11 / 35%);
     }
 
-    .parsec-ship__cargo-symbol {
-      color: #f59e0b;
-      font-size: 0.8em;
-    }
-
-    .parsec-ship__cargo-cap {
-      font-size: 0.6em;
-      color: rgb(245 158 11 / 40%);
-    }
+    .parsec-ship__cargo-symbol { color: #f59e0b; }
+    .parsec-ship__cargo-cap { color: rgb(245 158 11 / 45%); }
   }
 }
 
 .parsec-ship__cargo-symbol {
   font-family: $font-family-mono;
   font-weight: $font-weight-bold;
-  font-size: 0.6em;
-  color: rgb(59 130 246 / 70%);
+  font-size: 0.6rem;
+  color: rgb(96 165 250 / 80%);
   white-space: nowrap;
 }
 
-.parsec-ship__cargo-cap {
-  font-size: 0.5em;
-  color: rgb(255 255 255 / 25%);
+.parsec-ship__cargo-cap,
+.parsec-ship__cargo-flow {
+  font-family: $font-family-mono;
+  font-size: 0.5rem;
   white-space: nowrap;
+}
+
+.parsec-ship__cargo-cap { color: rgb(255 255 255 / 30%); }
+.parsec-ship__cargo-flow { font-weight: $font-weight-semibold; }
+
+// Water the ship rides on: a slow-rolling swell under the keel.
+.parsec-ship__waterline {
+  position: absolute;
+  left: -6%;
+  right: -6%;
+  bottom: -7px;
+  height: 7px;
+  background:
+    radial-gradient(ellipse 10px 4px at 10px 0, rgb(59 130 246 / 45%) 60%, transparent 62%) repeat-x;
+  background-size: 20px 7px;
+  opacity: 0.7;
+  animation: parsec-ship-swell 5s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes parsec-ship-swell {
+  from { background-position: 0 0; }
+  to { background-position: 40px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parsec-ship,
+  .parsec-ship__waterline,
+  .parsec-ship__hull--alarm { animation: none; }
 }
 
 // ── Top 10 Assets — vertical column down the left side ──────────
@@ -1240,16 +1336,6 @@
   font-weight: $font-weight-semibold;
 }
 
-.parsec-ship__waterline {
-  position: absolute;
-  bottom: -6px;
-  left: 10%;
-  right: 10%;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, rgb(59 130 246 / 20%), rgb(59 130 246 / 30%), rgb(59 130 246 / 20%), transparent);
-  border-radius: 50%;
-}
-
 .parsec-pyramid__ticker {
   position: absolute;
   inset: 0;
@@ -1358,7 +1444,7 @@
   cursor: crosshair;
   transition: top 1.5s ease, color 0.5s ease, text-shadow 0.5s ease, transform 0.4s ease, opacity 0.5s ease;
   user-select: none;
-  will-change: transform, top, opacity;
+  will-change: translate, transform, opacity;
 
   &:hover {
     opacity: 1 !important;
