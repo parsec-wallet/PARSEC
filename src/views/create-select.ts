@@ -87,6 +87,9 @@ const OFFERS: readonly ChainOffer[] = [
 
 function held(account: WalletAccount | undefined, id: ChainId): string | undefined {
   if (!account) return undefined;
+  // Arweave is saved under its derivation's key, 'arweave-hd' (arweave-create.ts),
+  // so the plain 'arweave' lookup alone never saw it and the row never read as done.
+  if (id === 'arweave') return getAccountAddress(account, 'arweave-hd') ?? getAccountAddress(account, 'arweave');
   return getAccountAddress(account, id === 'ethereum' ? 'ethereum' : id);
 }
 

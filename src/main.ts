@@ -17,6 +17,7 @@ import { registerView, mountRouter } from './lib/router';
 import { createShell } from './views/shell';
 import { mountPalette } from './lib/ui/palette';
 import { store } from './lib/store';
+import { initViewport } from './lib/viewport';
 
 // Modules that register through the manifest (lib/modules.ts): one import,
 // one registration for router + rail + dashboard. Lightspeed is the template.
@@ -154,6 +155,8 @@ registerView('solana-import', lazyView(async () => (await import('./views/solana
 // root, so the shell (brand, tier rail, breadcrumb) survives navigation.
 const root = document.getElementById('root');
 if (root) {
+  // Before first paint: every screen sizes itself to the window it is in.
+  initViewport();
   const shell = createShell();
   root.appendChild(shell.element);
   mountRouter(shell.content);

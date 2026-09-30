@@ -1,114 +1,100 @@
-// Create a Solana destination address for the active Parsec account.
-// Used as the receiving address for the ARIO BASE→Solana migration.
+// Create a Solana address for the active Parsec account.
 //
-// Adds the new Solana address to the active WalletAccount's `chains` map
-// rather than creating a separate account row — one human identity, many
-// chain addresses (the BANKON-vault thesis).
+// Address first, then the backup: the private key (base58, the 64-byte keypair
+// Phantom and Solflare import) and the 24-word BIP-39 phrase (path
+// m/44'/501'/0'/0'), each hidden until revealed and each copyable. Then save.
+//
+// Adds the new Solana address to the active WalletAccount's `chains` map rather
+// than creating a separate account row — one human identity, many chain addresses.
 
 import * as bip39 from 'bip39';
-import { el, btn, toast } from '../lib/dom';
+import { el, btn } from '../lib/dom';
 import { store, setAccountAddress } from '../lib/store';
 import { keystoreStore } from '../lib/keystore';
 import { deriveSolanaFromMnemonic } from '../lib/solana/seed';
+import { base58Encode } from '../lib/solana/address';
+import { addressPanel, backupWarning, phrasePanel, secretPanel, stepStrip } from '../lib/ui/keyreveal';
 
 export function solanaCreateView(): HTMLElement {
-  let mnemonic = bip39.generateMnemonic(256);
+  const mnemonic = bip39.generateMnemonic(256);
   let derivedAddress = '';
-  let confirmed = false;
+  let saving = false;
 
-  const wordGrid = el('div', { cls: 'parsec-mnemonic-grid' });
-  const addressEl = el('div', { cls: 'parsec-arc52__primary-address', text: '...' });
+  const address = addressPanel('Solana');
+  const privateKey = secretPanel({
+    title: 'Private key',
+    hint: 'The keypair behind the address, in the format Phantom and Solflare import.',
+    format: 'Base58 · 64 bytes (secret seed + public key)',
+  });
+  const status = el('p', { cls: 'parsec-keyflow__status', attrs: { 'aria-live': 'polite' } });
 
-  function renderWords(): void {
-    wordGrid.innerHTML = '';
-    mnemonic.split(' ').forEach((word, i) => {
-      wordGrid.appendChild(
-        el('div', {
-          cls: 'parsec-mnemonic-word',
-          children: [
-            el('span', { cls: 'parsec-mnemonic-word__num', text: `${i + 1}` }),
-            el('span', { cls: 'parsec-mnemonic-word__text', text: word }),
-          ],
-        }),
-      );
-    });
-  }
-  renderWords();
+  const saveBtn = btn('I\'ve backed it up — save to vault', {
+    intent: 'primary', large: true, icon: 'tick', cls: 'parsec-create__continue', disabled: true,
+    onClick: () => { void save(); },
+  }) as HTMLButtonElement;
 
-  // Derive the address for display. The createWallet() path mints a fresh
-  // mnemonic; we use deriveSolanaFromMnemonic on our locally-generated one
-  // so the displayed words match what gets persisted.
   deriveSolanaFromMnemonic(mnemonic).then((kp) => {
     derivedAddress = kp.address;
-    addressEl.textContent = derivedAddress;
+    address.set(kp.address);
+    const full = new Uint8Array(64);
+    full.set(kp.secretSeed, 0);
+    full.set(kp.publicKey, 32);
+    privateKey.set(base58Encode(full));
+    full.fill(0);
+    saveBtn.disabled = false;
   }).catch((err) => {
-    toast(err instanceof Error ? err.message : 'Derivation failed', 'danger');
+    address.fail(err instanceof Error ? err.message : 'Derivation failed');
   });
 
+  function fail(message: string): void {
+    status.textContent = message;
+    status.classList.add('parsec-keyflow__status--error');
+  }
+
+  async function save(): Promise<void> {
+    if (saving || !derivedAddress) return;
+    saving = true;
+    saveBtn.disabled = true;
+    status.classList.remove('parsec-keyflow__status--error');
+    status.textContent = 'Saving to the vault…';
+    try {
+      const state = store.get();
+      const account = state.accounts[state.activeAccountIndex];
+      if (!account) { fail('No active account — create or unlock a wallet first.'); return; }
+      const passphrase = store.getPassphrase();
+      if (!passphrase) { fail('The wallet is locked — unlock it, then add Solana again.'); return; }
+      await keystoreStore(derivedAddress, mnemonic, passphrase, 'Solana', 'solana');
+      const updated = setAccountAddress(account, 'solana', derivedAddress);
+      const accounts = [...state.accounts];
+      accounts[state.activeAccountIndex] = updated;
+      store.set({ accounts });
+      status.textContent = 'Saved.';
+      store.navigate('create-select');
+    } catch (err) {
+      fail(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      saving = false;
+      if (!status.textContent?.startsWith('Saved')) saveBtn.disabled = !derivedAddress;
+    }
+  }
+
   return el('div', {
-    cls: 'parsec-view parsec-create parsec-arc52',
+    cls: 'parsec-view parsec-create parsec-keyflow',
     children: [
       el('div', {
         cls: 'parsec-view__header',
         children: [
-          btn('Back', {
-            minimal: true,
-            icon: 'arrow-left',
-            onClick: () => store.navigate('dashboard'),
-          }),
+          btn('Back', { minimal: true, icon: 'arrow-left', onClick: () => store.navigate('create-select') }),
         ],
       }),
-      el('h2', { cls: 'parsec-view__title', text: 'Solana Destination Address' }),
-      el('p', {
-        cls: 'parsec-view__desc',
-        text: 'Generate a Solana address inside the BANKON vault. This is the destination for the ARIO Solana migration — sol.ar.io will map your BASE ARIO to this Solana address.',
-      }),
-      el('div', {
-        cls: 'parsec-callout bp5-callout bp5-intent-warning',
-        text: 'Write down these 24 words in order. Same BIP-39 standard as Phantom / Solflare (path m/44\'/501\'/0\'/0\'). This is the ONLY way to recover this Solana address.',
-      }),
-      wordGrid,
-      el('div', { cls: 'parsec-arc52__primary-label', text: 'Solana address:' }),
-      addressEl,
-      btn("I've backed it up — save & continue", {
-        intent: 'primary',
-        large: true,
-        icon: 'tick',
-        onClick: async () => {
-          if (confirmed) return;
-          if (!derivedAddress) {
-            toast('Still deriving — try again in a moment', 'warning');
-            return;
-          }
-          confirmed = true;
-          try {
-            const state = store.get();
-            const account = state.accounts[state.activeAccountIndex];
-            if (!account) {
-              toast('No active account — create or unlock a wallet first', 'danger');
-              confirmed = false;
-              return;
-            }
-            const passphrase = store.getPassphrase();
-            if (!passphrase) {
-              toast('Wallet is locked', 'danger');
-              store.navigate('unlock');
-              return;
-            }
-            await keystoreStore(derivedAddress, mnemonic, passphrase, 'Solana destination', 'solana');
-            const updated = setAccountAddress(account, 'solana', derivedAddress);
-            const accounts = [...state.accounts];
-            accounts[state.activeAccountIndex] = updated;
-            store.set({ accounts });
-            toast('Solana address saved to vault', 'success');
-            // Land on the new Solana wallet, not the Algorand dashboard.
-            store.selectChain(state.activeAccountIndex, 'solana');
-          } catch (err) {
-            toast(err instanceof Error ? err.message : 'Save failed', 'danger');
-            confirmed = false;
-          }
-        },
-      }),
+      stepStrip(['Address', 'Back up', 'Save'], 0),
+      el('h2', { cls: 'parsec-view__title', text: 'Your Solana wallet' }),
+      address.el,
+      backupWarning(),
+      privateKey.el,
+      phrasePanel(mnemonic.split(' '), 'Write the 24 words down in order. Standard BIP-39, path m/44\'/501\'/0\'/0\' — it restores this address in Phantom, Solflare and Parsec.'),
+      saveBtn,
+      status,
     ],
   });
 }

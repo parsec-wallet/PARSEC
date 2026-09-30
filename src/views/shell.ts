@@ -31,6 +31,12 @@ const CHROMELESS = new Set([
   'unlock',
   'create-wallet',
   'verify-mnemonic',
+  // The rest of the creation flow owns the viewport too, so Red Pill → pick a chain
+  // → create → back to the picker is one continuous full-screen flow instead of
+  // switching between the shell and full-screen at every step.
+  'create-select',
+  'solana-create',
+  'arweave-create',
   'import-wallet',
 ]);
 

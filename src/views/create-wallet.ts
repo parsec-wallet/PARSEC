@@ -1,8 +1,24 @@
-// Parsec Wallet — Create Wallet View
+// Parsec Wallet — Create Wallet View (Algorand)
+//
+// Address first, then the backup: the private key and the 25-word recovery phrase,
+// each hidden until revealed and each copyable. Verification and the vault
+// passphrase follow on the next screen (verify-mnemonic).
 
-import { el, btn, toast } from '../lib/dom';
+import algosdk from 'algosdk';
+import { el, btn } from '../lib/dom';
 import { store } from '../lib/store';
 import { generateAccount } from '../lib/algorand/account';
+import { addressPanel, backupWarning, phrasePanel, secretPanel, stepStrip } from '../lib/ui/keyreveal';
+
+/** Algorand's private key as wallets export it: the 64-byte secret key, base64. */
+function privateKeyOf(mnemonic: string): string {
+  const { sk } = algosdk.mnemonicToSecretKey(mnemonic);
+  let bin = '';
+  for (const b of sk) bin += String.fromCharCode(b);
+  const out = btoa(bin);
+  sk.fill(0);
+  return out;
+}
 
 export function createWalletView(): HTMLElement {
   const state = store.get();
@@ -19,23 +35,17 @@ export function createWalletView(): HTMLElement {
   }
 
   const mnemonic = store.getTempMnemonic()!;
-  const words = mnemonic.split(' ');
+  const address = algosdk.mnemonicToSecretKey(mnemonic).addr.toString();
 
-  const wordGrid = el('div', { cls: 'parsec-mnemonic-grid' });
-  words.forEach((word, i) => {
-    wordGrid.appendChild(
-      el('div', {
-        cls: 'parsec-mnemonic-word',
-        children: [
-          el('span', { cls: 'parsec-mnemonic-word__num', text: `${i + 1}` }),
-          el('span', { cls: 'parsec-mnemonic-word__text', text: word }),
-        ],
-      })
-    );
+  const privateKey = secretPanel({
+    title: 'Private key',
+    hint: 'The raw key behind the address. Most Algorand wallets restore from the phrase below; keep this for tools that import a key.',
+    format: 'Base64 · 64-byte Ed25519 secret key',
   });
+  privateKey.set(privateKeyOf(mnemonic));
 
   return el('div', {
-    cls: 'parsec-view parsec-create',
+    cls: 'parsec-view parsec-create parsec-keyflow',
     children: [
       el('div', {
         cls: 'parsec-view__header',
@@ -46,29 +56,18 @@ export function createWalletView(): HTMLElement {
               const s = store.get();
               store.set({ accounts: s.accounts.slice(0, -1) });
               store.setTempMnemonic(null);
-              store.navigate('onboarding');
+              store.navigate('create-select');
             },
           }),
         ],
       }),
-      el('h2', { cls: 'parsec-view__title', text: 'Your Recovery Phrase' }),
-      el('p', {
-        cls: 'parsec-view__desc',
-        text: 'Write down these 25 words in order. This is the ONLY way to recover your wallet. Never share it.',
-      }),
-      el('div', {
-        cls: 'parsec-callout bp5-callout bp5-intent-warning',
-        children: [el('p', { text: 'Anyone with these words can steal your funds. Store them offline.' })],
-      }),
-      wordGrid,
-      btn('Copy to Clipboard', {
-        minimal: true, icon: 'clipboard',
-        onClick: () => {
-          navigator.clipboard.writeText(mnemonic);
-          toast('Copied — store it safely, then clear your clipboard', 'warning');
-        },
-      }),
-      btn('I\'ve Written It Down', {
+      stepStrip(['Address', 'Back up', 'Verify & save'], 0),
+      el('h2', { cls: 'parsec-view__title', text: 'Your Algorand wallet' }),
+      addressPanel('Algorand', address).el,
+      backupWarning(),
+      privateKey.el,
+      phrasePanel(mnemonic.split(' '), 'Write the 25 words down in order. This is Algorand\'s own 25-word format, not BIP-39; it restores this wallet in Parsec, Pera, Defly and any Algorand wallet.'),
+      btn('I\'ve backed it up — verify', {
         intent: 'primary', large: true, cls: 'parsec-create__continue',
         onClick: () => store.navigate('verify-mnemonic'),
       }),

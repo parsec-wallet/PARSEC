@@ -2,149 +2,123 @@
 // Used as: (1) the address that owns the `pythai` ANT after claim, and
 // (2) the signer for ANS-104 DataItems / AO process messages.
 //
+// Address first, then the backup: the private key (an RSA-4096 JWK — a file,
+// offered as a download as well as text) and the 24-word BIP-39 phrase it is
+// derived from. Then save.
+//
 // Adds the derived address to the active account's `chains['arweave-hd']`
 // so dashboard wiring and the injected window.arweaveWallet can find it.
 //
-// RSA-4096 derivation runs in a Web Worker (see lib/arweave/seed.ts) so the
-// UI stays responsive — the save button is disabled until the address lands.
+// RSA-4096 derivation runs in a Web Worker (see lib/arweave/seed.ts) so the UI
+// stays responsive — progress shows in the address panel, save waits for it.
 
 import * as bip39 from 'bip39';
-import { el, btn, toast } from '../lib/dom';
+import { el, btn } from '../lib/dom';
 import { store, setAccountAddress } from '../lib/store';
 import { keystoreStore } from '../lib/keystore';
 import { deriveJwkInWorker } from '../lib/arweave/seed';
 import { addressFromJwk } from '../lib/arweave/jwk';
-
-const GENERATING_MSG = 'Generating RSA-4096 key in a background worker — this can take up to a minute…';
+import { addressPanel, backupWarning, phrasePanel, secretPanel, stepStrip } from '../lib/ui/keyreveal';
 
 export function arweaveCreateView(): HTMLElement {
   const mnemonic = bip39.generateMnemonic(256);
   let derivedAddress = '';
   let derivedJwkJson = '';
-  let confirmed = false;
+  let saving = false;
 
-  const wordGrid = el('div', { cls: 'parsec-mnemonic-grid' });
-  const addressEl = el('div', { cls: 'parsec-arc52__primary-address', text: GENERATING_MSG });
-
-  function renderWords(): void {
-    wordGrid.innerHTML = '';
-    mnemonic.split(' ').forEach((word, i) => {
-      wordGrid.appendChild(
-        el('div', {
-          cls: 'parsec-mnemonic-word',
-          children: [
-            el('span', { cls: 'parsec-mnemonic-word__num', text: `${i + 1}` }),
-            el('span', { cls: 'parsec-mnemonic-word__text', text: word }),
-          ],
-        }),
-      );
-    });
-  }
-  renderWords();
-
-  const saveBtn = btn("I've backed it up — save & continue", {
-    intent: 'primary',
+  const address = addressPanel('Arweave');
+  const privateKey = secretPanel({
+    title: 'Private key',
+    hint: 'An Arweave key is a JSON Web Key file. ArConnect, Wander and arweave.app import it as a file.',
+    format: 'JWK · RSA-4096 · about 3 KB of JSON',
+    download: { filename: 'arweave-key.json', mime: 'application/json' },
     large: true,
-    icon: 'tick',
-    disabled: true,
-    onClick: () => { void save(); },
   });
+  const status = el('p', { cls: 'parsec-keyflow__status', attrs: { 'aria-live': 'polite' } });
+
+  const saveBtn = btn('I\'ve backed it up — save to vault', {
+    intent: 'primary', large: true, icon: 'tick', cls: 'parsec-create__continue', disabled: true,
+    onClick: () => { void save(); },
+  }) as HTMLButtonElement;
 
   const retryBtn = btn('Retry key generation', {
-    outlined: true,
-    icon: 'refresh',
+    outlined: true, icon: 'refresh',
     onClick: () => { void runDerivation(); },
-  });
-  retryBtn.style.display = 'none';
+  }) as HTMLButtonElement;
+  retryBtn.hidden = true;
 
-  // The 24 words are shown immediately; the RSA-4096 keygen runs in a worker
-  // and unblocks the save button once the address resolves.
   async function runDerivation(): Promise<void> {
-    retryBtn.style.display = 'none';
+    retryBtn.hidden = true;
     saveBtn.disabled = true;
-    addressEl.textContent = GENERATING_MSG;
+    address.pending('Generating an RSA-4096 key in the background. This can take up to a minute.');
     try {
       const jwk = await deriveJwkInWorker(mnemonic);
       derivedJwkJson = JSON.stringify(jwk);
       derivedAddress = await addressFromJwk(jwk);
-      addressEl.textContent = derivedAddress;
+      address.set(derivedAddress);
+      privateKey.set(JSON.stringify(jwk, null, 2));
       saveBtn.disabled = false;
     } catch (err) {
-      addressEl.textContent = 'Key generation failed';
-      toast(err instanceof Error ? err.message : 'Arweave key derivation failed', 'danger');
-      retryBtn.style.display = '';
+      address.fail(err instanceof Error ? err.message : 'Arweave key generation failed');
+      retryBtn.hidden = false;
     }
   }
 
+  function fail(message: string): void {
+    status.textContent = message;
+    status.classList.add('parsec-keyflow__status--error');
+  }
+
   async function save(): Promise<void> {
-    if (confirmed) return;
-    if (!derivedAddress || !derivedJwkJson) {
-      toast('Key is still generating — wait for the address to appear', 'warning');
-      return;
-    }
-    confirmed = true;
+    if (saving || !derivedAddress || !derivedJwkJson) return;
+    saving = true;
     saveBtn.disabled = true;
+    status.classList.remove('parsec-keyflow__status--error');
+    status.textContent = 'Saving to the vault…';
+    let saved = false;
     try {
       const state = store.get();
       const account = state.accounts[state.activeAccountIndex];
-      if (!account) {
-        toast('No active account — create or unlock a wallet first', 'danger');
-        confirmed = false;
-        saveBtn.disabled = false;
-        return;
-      }
+      if (!account) { fail('No active account — create or unlock a wallet first.'); return; }
       const passphrase = store.getPassphrase();
-      if (!passphrase) {
-        toast('Wallet is locked', 'danger');
-        store.navigate('unlock');
-        return;
-      }
-      // The vault stores the JWK directly (signTxFromVault expects it as
-      // JSON). The mnemonic stays cold-backup only.
+      if (!passphrase) { fail('The wallet is locked — unlock it, then add Arweave again.'); return; }
+      // The vault stores the JWK directly (signTxFromVault expects it as JSON).
       await keystoreStore(derivedAddress, derivedJwkJson, passphrase, 'Arweave HD', 'arweave-hd');
       const updated = setAccountAddress(account, 'arweave-hd', derivedAddress);
       const accounts = [...state.accounts];
       accounts[state.activeAccountIndex] = updated;
       store.set({ accounts });
-      toast('Arweave address saved to vault', 'success');
-      // Land on the new Arweave wallet, not the Algorand dashboard.
-      store.selectChain(state.activeAccountIndex, 'arweave-hd');
+      saved = true;
+      status.textContent = 'Saved.';
+      store.navigate('create-select');
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Save failed', 'danger');
-      confirmed = false;
-      saveBtn.disabled = false;
+      fail(err instanceof Error ? err.message : 'Save failed');
+    } finally {
+      saving = false;
+      if (!saved) saveBtn.disabled = !derivedAddress;
     }
   }
 
   void runDerivation();
 
   return el('div', {
-    cls: 'parsec-view parsec-create parsec-arc52',
+    cls: 'parsec-view parsec-create parsec-keyflow',
     children: [
       el('div', {
         cls: 'parsec-view__header',
         children: [
-          btn('Back', {
-            minimal: true,
-            icon: 'arrow-left',
-            onClick: () => store.navigate('dashboard'),
-          }),
+          btn('Back', { minimal: true, icon: 'arrow-left', onClick: () => store.navigate('create-select') }),
         ],
       }),
-      el('h2', { cls: 'parsec-view__title', text: 'Arweave (HD) Account' }),
-      el('p', {
-        cls: 'parsec-view__desc',
-        text: 'Generate a 24-word BIP-39 mnemonic → RSA-4096 JWK → 43-char Arweave address. The full JWK lives inside the BANKON vault; the 24 words are the only thing to write down. Used by Parsec to sign ANS-104 DataItems, AO process messages, and ArNS actions (including the pythai claim).',
-      }),
-      el('div', {
-        cls: 'parsec-callout bp5-callout bp5-intent-warning',
-        text: 'Write down these 24 words in order — this is the ONLY way to recover this Arweave key. RSA-4096 generation runs in a background worker and can take up to a minute; the save button enables once your address appears.',
-      }),
-      wordGrid,
-      el('div', { cls: 'parsec-arc52__primary-label', text: 'Arweave address:' }),
-      addressEl,
+      stepStrip(['Address', 'Back up', 'Save'], 0),
+      el('h2', { cls: 'parsec-view__title', text: 'Your Arweave wallet' }),
+      address.el,
       retryBtn,
+      backupWarning(),
+      privateKey.el,
+      phrasePanel(mnemonic.split(' '), 'Write the 24 words down in order. They re-derive this exact key in Parsec; most other Arweave wallets restore from the key file above.'),
       saveBtn,
+      status,
     ],
   });
 }

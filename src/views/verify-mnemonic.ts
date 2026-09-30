@@ -61,7 +61,9 @@ export function verifyMnemonicView(): HTMLElement {
             store.setPassphrase(passphrase);
             store.set({ isLoading: false });
             toast('Wallet created successfully', 'success');
-            store.navigate('dashboard');
+            // Back to the chain picker: Algorand is done, and adding Solana or
+            // Arweave is the next thing a new wallet usually wants.
+            store.navigate('create-select');
           } catch {
             store.set({ isLoading: false });
             toast('Failed to encrypt keys. Try again.', 'danger');

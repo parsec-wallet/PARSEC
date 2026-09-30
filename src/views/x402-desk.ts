@@ -31,6 +31,8 @@ import { signersForAccount } from '../lib/x402/adapters/parsec';
 import { quote } from '../lib/x402/quote';
 import { preparePayment } from '../lib/x402/client';
 import { approveThroughView } from './x402-confirm';
+import { formatDecimal } from '../lib/money';
+import { explorerTxUrl, sameNetwork } from '../lib/x402/networks';
 
 export function x402DeskView(): HTMLElement {
   const settings = getX402Settings();
@@ -42,7 +44,8 @@ export function x402DeskView(): HTMLElement {
   const facilitatorBox = el('div', { cls: 'parsec-card', children: [el('p', { cls: 'parsec-muted', text: 'Probing facilitator…' })] });
   const optInBox = el('div', { cls: 'parsec-card' });
   const receiptsBox = el('div', { cls: 'parsec-card' });
-  const probeBox = el('div', { cls: 'parsec-card' });
+  const probeBox = el('div');
+  const resultBox = el('div');
 
   const urlField = input({ placeholder: 'https://example.x402.goplausible.xyz/', cls: 'bp5-input parsec-input--wide' });
   // Many paid resources are POST with a JSON body (a name order, a query), so the
@@ -133,7 +136,7 @@ export function x402DeskView(): HTMLElement {
                 b.disabled = true;
                 try {
                   const { txId } = await optInToAsset(signers.avm!, Number(usdc), settings.preferNetwork);
-                  toast(`Opted in — ${txId}`, 'success');
+                  toast(`Opted in · ${trunc(txId)}`, 'success');
                   void renderOptIn();
                 } catch (err) {
                   toast(err instanceof Error ? err.message : String(err), 'danger');
@@ -155,7 +158,7 @@ export function x402DeskView(): HTMLElement {
         children: [
           el('h3', { text: `Receipts (${receipts.length})` }),
           ...(receipts.length
-            ? [btn('Clear', { minimal: true, onClick: () => { clearReceipts(); } })]
+            ? [clearButton()]
             : []),
         ],
       }),
@@ -171,19 +174,35 @@ export function x402DeskView(): HTMLElement {
   // ── Probe / pay a URL ──────────────────────────────────────────
 
   /** What the resource returned once paid, beside the settled transaction id. */
-  const showPaidResponse = async (result: { success: boolean; txId?: string; response?: Response }) => {
-    if (!result.response && !result.txId) return;
+  const showPaidResponse = async (
+    result: { success: boolean; txId?: string; response?: Response; error?: string },
+    network: string,
+  ) => {
+    if (!result.response && !result.txId && !result.error) return;
     let text = '';
     try { text = result.response ? await result.response.clone().text() : ''; } catch { /* body already read */ }
     let shown = text;
     try { shown = JSON.stringify(JSON.parse(text), null, 2); } catch { /* not JSON; show as is */ }
-    probeBox.appendChild(el('div', {
+    const link = result.txId ? explorerTxUrl(network, result.txId) : '';
+    resultBox.replaceChildren(el('div', {
       cls: 'parsec-card',
       children: [
-        el('h3', { text: result.success ? 'Paid response' : 'Response' }),
-        ...(result.txId ? [row('Settlement', result.txId)] : []),
+        el('h3', { text: result.success ? 'Paid ✓' : 'Not delivered' }),
+        ...(result.txId
+          ? [el('div', {
+              cls: 'parsec-row',
+              children: [
+                el('span', { cls: 'parsec-confirm__label', text: 'Settlement' }),
+                link
+                  ? el('a', { cls: 'parsec-mono', text: trunc(result.txId), attrs: { href: link, target: '_blank', rel: 'noreferrer' } })
+                  : el('span', { cls: 'parsec-mono', text: trunc(result.txId) }),
+                btn('Copy', { minimal: true, icon: 'duplicate', onClick: () => void navigator.clipboard.writeText(result.txId!).then(() => toast('Transaction id copied', 'success')) }),
+              ],
+            })]
+          : []),
         ...(result.response ? [row('HTTP', String(result.response.status))] : []),
-        el('pre', { cls: 'parsec-mono', text: shown.slice(0, 4000) }),
+        ...(result.error ? [el('p', { cls: 'parsec-error', text: result.error })] : []),
+        ...(shown ? [el('pre', { cls: 'parsec-mono parsec-desk__response', text: shown.slice(0, 4000) })] : []),
       ],
     }));
   };
@@ -197,6 +216,7 @@ export function x402DeskView(): HTMLElement {
       return;
     }
     probeBox.replaceChildren(el('p', { cls: 'parsec-muted', text: 'Probing…' }));
+    resultBox.replaceChildren();
     try {
       const challenge = await discoverRequirements(url, init);
       if (!challenge) {
@@ -204,30 +224,50 @@ export function x402DeskView(): HTMLElement {
         return;
       }
       const quotes = await Promise.all(challenge.accepts.map(quote));
-      probeBox.replaceChildren(
-        el('h3', { text: challenge.resource.description || 'Payment required' }),
-        row('x402 version', String(challenge.x402Version)),
-        ...quotes.map((q) =>
-          row(
-            `${q.networkLabel} · ${q.requirement.scheme}`,
-            `${q.amountDisplay} ${q.assetSymbol}${q.usdDisplay ? ` (${q.usdDisplay})` : ''}`,
-          ),
-        ),
-        btn('Pay this', {
-          intent: 'primary',
-          disabled: !Object.keys(signers).length,
-          onClick: async () => {
-            try {
-              const pending = await preparePayment(url, challenge, { signers }, init);
-              const result = await approveThroughView(pending);
-              if (!result.success && result.error) toast(result.error, 'danger');
-              await showPaidResponse(result);
-            } catch (err) {
-              toast(err instanceof Error ? err.message : String(err), 'danger');
-            }
-          },
-        }),
-      );
+      // Which rail pays is the participant's choice, made here in plain sight: a
+      // challenge commonly offers mainnet AND testnet, and a stored preference is
+      // too quiet a place for the difference between real money and none.
+      const railSelect = el('select', { cls: 'bp5-input', attrs: { 'aria-label': 'Pay on' } }) as HTMLSelectElement;
+      quotes.forEach((q, i) => {
+        const net = q.requirement.network;
+        const family = describeNetwork(net).family;
+        const signable = (family === 'avm' || family === 'evm' || family === 'svm') && Boolean(signers[family]);
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.disabled = !signable;
+        opt.textContent = `${q.networkLabel} · ${q.amountDisplay} ${q.assetSymbol}${q.usdDisplay ? ` (${q.usdDisplay})` : ''}${signable ? '' : ' · no key here'}${describeNetwork(net).testnet ? ' · test' : ''}`;
+        railSelect.appendChild(opt);
+      });
+      const preferred = quotes.findIndex((q, i) => !railSelect.options[i].disabled && sameNetwork(q.requirement.network, settings.preferNetwork));
+      const firstPayable = quotes.findIndex((_, i) => !railSelect.options[i].disabled);
+      railSelect.value = String(preferred >= 0 ? preferred : Math.max(0, firstPayable));
+      const payBtn = btn('Pay', {
+        intent: 'primary',
+        large: true,
+        disabled: firstPayable < 0,
+        onClick: async () => {
+          const q = quotes[Number(railSelect.value)];
+          if (!q) return;
+          try {
+            const pending = await preparePayment(url, challenge, { signers, preferNetwork: q.requirement.network }, init);
+            const result = await approveThroughView(pending);
+            if (!result.success && result.error) toast(result.error, 'danger');
+            await showPaidResponse(result, q.requirement.network);
+          } catch (err) {
+            toast(err instanceof Error ? err.message : String(err), 'danger');
+          }
+        },
+      });
+      probeBox.replaceChildren(el('div', {
+        cls: 'parsec-card',
+        children: [
+          el('h3', { text: challenge.resource.description || 'Payment required' }),
+          el('p', { cls: 'parsec-muted', text: `x402 v${challenge.x402Version} · ${quotes.length} rail${quotes.length === 1 ? '' : 's'} offered` }),
+          labelled('Pay on', railSelect),
+          ...(firstPayable < 0 ? [el('p', { cls: 'parsec-error', text: 'No offered rail has a key in this wallet.' })] : []),
+          payBtn,
+        ],
+      }));
     } catch (err) {
       probeBox.replaceChildren(el('p', { cls: 'parsec-error', text: err instanceof Error ? err.message : String(err) }));
     }
@@ -243,11 +283,6 @@ export function x402DeskView(): HTMLElement {
     if (settings.preferNetwork === n) opt.selected = true;
     networkSelect.appendChild(opt);
   }
-  networkSelect.addEventListener('change', () => {
-    setX402Settings({ preferNetwork: networkSelect.value as typeof settings.preferNetwork });
-    toast(`Preferred network: ${describeNetwork(networkSelect.value).label}`, 'success');
-    void renderOptIn();
-  });
 
   const facilitatorField = input({ value: settings.facilitatorUrl, placeholder: DEFAULT_FACILITATOR, cls: 'bp5-input parsec-input--wide' });
   const capField = input({ value: String(settings.autoApproveMicroUsd), type: 'number', cls: 'bp5-input' });
@@ -267,30 +302,20 @@ export function x402DeskView(): HTMLElement {
       el('div', {
         cls: 'parsec-card',
         children: [
-          el('h3', { text: 'Rails' }),
-          ...listRails().map((r) =>
-            row(r.label, `${r.schemes.join(', ')} · ${(r.networks ?? []).map((n) => describeNetwork(n).label).join(', ') || 'any network in family'}`),
-          ),
-          el('p', { cls: 'parsec-muted', text: 'A rail is registered per CAIP-2 namespace. A challenge offering a network with no registered rail is reported, never silently skipped.' }),
-        ],
-      }),
-
-      facilitatorBox,
-      optInBox,
-
-      el('div', {
-        cls: 'parsec-card',
-        children: [
           el('h3', { text: 'Pay a resource' }),
           el('div', { cls: 'parsec-row', children: [methodSelect, urlField] }),
           bodyField,
           el('div', {
             cls: 'parsec-confirm__actions',
-            children: [btn('Probe', { onClick: () => void showRequirements() })],
+            children: [btn('Probe', { intent: 'primary', onClick: () => void showRequirements() })],
           }),
-          probeBox,
         ],
       }),
+      probeBox,
+      resultBox,
+
+      optInBox,
+      receiptsBox,
 
       el('div', {
         cls: 'parsec-card',
@@ -306,10 +331,13 @@ export function x402DeskView(): HTMLElement {
                 intent: 'primary',
                 onClick: () => {
                   setX402Settings({
+                    preferNetwork: networkSelect.value as typeof settings.preferNetwork,
                     facilitatorUrl: facilitatorField.value.trim() || DEFAULT_FACILITATOR,
                     autoApproveMicroUsd: Math.max(0, Math.floor(Number(capField.value) || 0)),
                   });
+                  Object.assign(settings, getX402Settings());
                   toast('Saved.', 'success');
+                  void renderOptIn();
                   void probeFacilitator().then(renderFacilitator);
                 },
               }),
@@ -322,12 +350,43 @@ export function x402DeskView(): HTMLElement {
         ],
       }),
 
-      receiptsBox,
+      facilitatorBox,
+      el('div', {
+        cls: 'parsec-card',
+        children: [
+          el('h3', { text: 'Rails' }),
+          ...listRails().map((r) =>
+            row(r.label, `${r.schemes.join(', ')} · ${(r.networks ?? []).map((n) => describeNetwork(n).label).join(', ') || 'any network in family'}`),
+          ),
+          el('p', { cls: 'parsec-muted', text: 'A rail is registered per CAIP-2 namespace. A challenge offering a network with no registered rail is reported, never silently skipped.' }),
+        ],
+      }),
     ],
   });
 }
 
 // ── Helpers ──────────────────────────────────────────────────────
+
+/** Clear, but only on a second press within a few seconds — receipts are the proof of payment. */
+function clearButton(): HTMLElement {
+  let armed = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const b = btn('Clear', {
+    minimal: true,
+    onClick: () => {
+      if (!armed) {
+        armed = true;
+        b.textContent = 'Press again to clear all receipts';
+        b.classList.add('bp5-intent-danger');
+        timer = setTimeout(() => { armed = false; b.textContent = 'Clear'; b.classList.remove('bp5-intent-danger'); }, 4000);
+        return;
+      }
+      if (timer) clearTimeout(timer);
+      clearReceipts();
+    },
+  });
+  return b;
+}
 
 function trunc(a: string): string {
   return a.length > 16 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a;
@@ -352,7 +411,10 @@ function labelled(label: string, control: HTMLElement): HTMLElement {
 
 function receiptRow(r: X402Receipt): HTMLElement {
   const asset = describeAsset(r.network, r.asset);
-  const amount = `${Number(BigInt(r.amount)) / 10 ** r.decimals} ${r.assetSymbol || asset.symbol}`;
+  // Exact: the atomic amount scaled as a bigint, never through a float.
+  let atomic = 0n;
+  try { atomic = BigInt(r.amount); } catch { /* unreadable amount shows as 0 */ }
+  const amount = `${formatDecimal(atomic, r.decimals, { trim: true })} ${r.assetSymbol || asset.symbol}`;
   const link = receiptExplorerUrl(r);
   return el('div', {
     cls: 'parsec-confirm__row',
