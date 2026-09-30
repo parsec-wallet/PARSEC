@@ -213,9 +213,11 @@ class Store {
 
     this._pendingSend = null;
 
-    // Clear all cached chain data
+    // Clear all cached chain data, and the back stack: after a lock a back
+    // gesture must not walk into a view from the session that just ended.
     this.clearLockTimer();
-    this.set({ accountInfo: null, transactions: [] });
+    this.history = [];
+    this.set({ accountInfo: null, transactions: [], error: null, isLoading: false });
 
     // Lock the Tauri vault session if available
     if (isTauri()) keystoreLock();
@@ -245,7 +247,11 @@ class Store {
     this.clearLockTimer();
     const minutes = this.state.settings.autoLockMinutes;
     if (minutes > 0 && this._sessionPassphrase) {
-      this._lockTimer = setTimeout(() => this.lock(), minutes * 60 * 1000);
+      // Auto-lock is a complete logout, not a partial one: an armed wallet
+      // left idle must end up exactly where the Logout button leaves it.
+      this._lockTimer = setTimeout(() => {
+        void import('./session').then((m) => m.logout()).catch(() => this.lock());
+      }, minutes * 60 * 1000);
     }
   }
 

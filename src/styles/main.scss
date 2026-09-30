@@ -11,14 +11,21 @@
 // 3. BASE
 @use 'base/reset';
 @use 'base/typography';
+@use 'base/brand-tokens';
 @use 'base/animations';
 
 // 4. LAYOUT
 @use 'layout/app';
+@use 'layout/shell';
 
 // 5. COMPONENTS
 @use 'components/buttons';
 @use 'components/scrollbars';
+
+// Were never imported, so the command palette and the matrix toggles, depth
+// landing and event log shipped unstyled.
+@use 'components/palette';
+@use 'components/passphrase';
 
 // 6. THEMES
 @use 'themes/light';
@@ -32,3 +39,7 @@
 // 8. WALLET
 @use 'wallet/views';
 @use 'wallet/components';
+@use 'wallet/chainpick';
+@use 'wallet/linkage';
+@use 'wallet/permaweb';
+@use 'wallet/matrix-recovered';

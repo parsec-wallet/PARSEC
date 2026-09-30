@@ -148,7 +148,10 @@ export function settingsView(): HTMLElement {
       ]}),
       buildDiagnosticsSection(),
       el('div', { cls: 'parsec-settings__section', children: [
-        btn('Lock Wallet', { outlined: true, icon: 'lock', onClick: () => { store.lock(); toast('Wallet locked', 'success'); } }),
+        btn('Lock Wallet', { outlined: true, icon: 'lock', onClick: () => {
+          // Locking an armed wallet is the complete logout (lib/session.ts).
+          void import('../lib/session').then((m) => m.logout()).then(() => toast('Wallet locked and logged out', 'success'));
+        } }),
       ]}),
       el('div', { cls: 'parsec-settings__danger', children: [
         el('h3', { cls: 'parsec-section-title', text: 'Danger Zone' }),

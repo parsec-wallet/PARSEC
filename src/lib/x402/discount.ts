@@ -16,6 +16,8 @@ interface CachedHolder {
 }
 
 const holderCache = new Map<string, CachedHolder>();
+/** Most address+asset pairs remembered; oldest go first. */
+const MAX_HOLDERS = 256;
 
 /**
  * Check if an Algorand address holds BANKON (or any ASA).
@@ -51,7 +53,12 @@ export async function checkBankonHolder(
     /* treat as non-holder */
   }
 
+  holderCache.delete(cacheKey);
   holderCache.set(cacheKey, { status, timestamp: Date.now() });
+  for (const k of holderCache.keys()) {
+    if (holderCache.size <= MAX_HOLDERS) break;
+    holderCache.delete(k);
+  }
   return status;
 }
 

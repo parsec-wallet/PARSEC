@@ -10,6 +10,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { el, btn, input, toast } from '../lib/dom';
+import { onCleanup } from '../lib/lifecycle';
 import { store } from '../lib/store';
 import { describeChoices } from '../lib/module-choices';
 import { X402_CHOICES } from '../lib/x402/choices';
@@ -137,7 +138,8 @@ export function x402DeskView(): HTMLElement {
     );
   };
   renderReceipts(listReceipts());
-  onReceipts(renderReceipts);
+  // Unsubscribed with the view; the dropped unsubscribe left one listener per visit.
+  onCleanup(onReceipts(renderReceipts));
 
   // ── Probe / pay a URL ──────────────────────────────────────────
 

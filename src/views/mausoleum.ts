@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { el, btn, input, toast } from '../lib/dom';
+import { onCleanup } from '../lib/lifecycle';
 import { store } from '../lib/store';
 import { invoke } from '../lib/platform';
 import {
@@ -300,7 +301,29 @@ const FRAG_SRC = `
   }
 `;
 
-function renderCryptoHorizon(canvas: HTMLCanvasElement, cipher: CipherThreshold) {
+/**
+ * The running horizon's stop, if one is running. Only one canvas is ever on
+ * screen, so one slot; a new render stops the old one before starting.
+ */
+let stopHorizon: (() => void) | null = null;
+
+function stopCryptoHorizon(): void {
+  stopHorizon?.();
+  stopHorizon = null;
+}
+
+/**
+ * Draw the horizon. Returns its stop: cancel the frame loop, free the GL
+ * objects and release the context itself.
+ *
+ * This used to watch the whole document with a subtree MutationObserver to
+ * notice the canvas leaving — a callback on every DOM change anywhere in the
+ * app — and never released the WebGL context, so re-rendering the tab piled up
+ * contexts until the browser began dropping the oldest.
+ */
+function renderCryptoHorizon(canvas: HTMLCanvasElement, cipher: CipherThreshold): (() => void) | null {
+  // Scheduled on the next frame; the view may already have moved on.
+  if (!canvas.isConnected) return null;
   const gl = canvas.getContext('webgl', { antialias: true, alpha: false });
   if (!gl) {
     // Fallback: simple text
@@ -312,7 +335,7 @@ function renderCryptoHorizon(canvas: HTMLCanvasElement, cipher: CipherThreshold)
       ctx.font = '14px monospace';
       ctx.fillText('WebGL unavailable — upgrade browser', 20, 30);
     }
-    return;
+    return null;
   }
 
   // Compile shaders
@@ -330,13 +353,13 @@ function renderCryptoHorizon(canvas: HTMLCanvasElement, cipher: CipherThreshold)
 
   const vs = compileShader(gl.VERTEX_SHADER, VERT_SRC);
   const fs = compileShader(gl.FRAGMENT_SHADER, FRAG_SRC);
-  if (!vs || !fs) return;
+  if (!vs || !fs) return null;
 
   const prog = gl.createProgram()!;
   gl.attachShader(prog, vs);
   gl.attachShader(prog, fs);
   gl.linkProgram(prog);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return null;
   gl.useProgram(prog);
 
   // Full-screen quad
@@ -374,18 +397,14 @@ function renderCryptoHorizon(canvas: HTMLCanvasElement, cipher: CipherThreshold)
 
   draw();
 
-  // Cleanup when canvas leaves DOM
-  const observer = new MutationObserver(() => {
-    if (!document.contains(canvas)) {
-      cancelAnimationFrame(animId);
-      gl.deleteProgram(prog);
-      gl.deleteShader(vs);
-      gl.deleteShader(fs);
-      gl.deleteBuffer(buf);
-      observer.disconnect();
-    }
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
+  const stop = (): void => {
+    cancelAnimationFrame(animId);
+    gl.deleteProgram(prog);
+    gl.deleteShader(vs);
+    gl.deleteShader(fs);
+    gl.deleteBuffer(buf);
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+  };
 
   // Draw 2D overlay labels on top
   const overlay = document.createElement('canvas');
@@ -422,11 +441,13 @@ function renderCryptoHorizon(canvas: HTMLCanvasElement, cipher: CipherThreshold)
       ctx.fillText(tierLabels[i], canvas.width - 80, 60 + i * 14);
     }
   }
+  return stop;
 }
 
 // ── View Builder ─────────────────────────────────────────────
 
 export function mausoleumView(): HTMLElement {
+  onCleanup(stopCryptoHorizon);
   let tombStatus: TombStatus | null = null;
   let tombAvail: TombAvailability | null = null;
   let usbDrives: UsbDrive[] = [];
@@ -462,6 +483,8 @@ export function mausoleumView(): HTMLElement {
   }
 
   function render() {
+    // The canvas is about to be discarded with the old markup.
+    stopCryptoHorizon();
     root.innerHTML = '';
 
     // Header
@@ -1055,7 +1078,10 @@ export function mausoleumView(): HTMLElement {
     root.appendChild(panel);
 
     // Render 3D after DOM attachment
-    requestAnimationFrame(() => renderCryptoHorizon(canvas, selectedCipher));
+    requestAnimationFrame(() => {
+      stopCryptoHorizon();
+      stopHorizon = renderCryptoHorizon(canvas, selectedCipher);
+    });
   }
 
   // ── Initialize ─────────────────────────────────────────────

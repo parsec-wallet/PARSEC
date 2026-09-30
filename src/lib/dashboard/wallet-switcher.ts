@@ -6,6 +6,7 @@
 // each chain row also has a one-click address copy that does not switch.
 
 import { el, btn, toast } from '../dom';
+import { onCleanup } from '../lifecycle';
 import { store, getAccountAddress } from '../store';
 import { getChainDescriptor } from '../chains';
 import { defaultAvatarFor } from '../avatars';
@@ -61,6 +62,11 @@ export function createWalletSwitcher(): HTMLElement {
       document.removeEventListener('click', onDocClick, true);
     }
   }
+
+  // Closing removes the document click listener; do it with the view, not
+  // only on the next click, so a dashboard left with the popover open is
+  // not held until then.
+  onCleanup(() => setOpen(false));
 
   function copyChip(label: string, addr: string): HTMLElement {
     return el('span', {

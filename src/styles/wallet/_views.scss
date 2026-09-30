@@ -4588,3 +4588,248 @@
   border-left-color: $color-danger;
   background: rgba($color-danger, 0.06);
 }
+
+// ── Blue pill: tone on diagnostics rows ──
+// diagRow sets data-tone for a figure with a direction (a price move, breadth).
+// Colour is paired with the +/− sign in the text, so it is never the only cue.
+.parsec-matrix__diag-row[data-tone="ok"] .parsec-matrix__diag-row-value { color: #4fb97a; }
+.parsec-matrix__diag-row[data-tone="deficient"] .parsec-matrix__diag-row-value { color: #e06a52; }
+
+// Global tab rows carry long derivative readings; let them wrap rather than clip.
+.parsec-matrix__diag--global .parsec-matrix__diag-row { align-items: flex-start; gap: $spacing-2; }
+.parsec-matrix__diag--global .parsec-matrix__diag-row-value { white-space: normal; overflow-wrap: anywhere; }
+
+// ── Blue pill: market pulse ──
+// The whole market in one strip, shown the moment the blue pill opens.
+.parsec-pulse {
+  display: grid;
+
+  // The panel centres its children; without an explicit width the grid
+  // shrinks to one column.
+  width: 100%;
+  max-width: min(96vw, 60rem);
+  align-self: center;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 1px;
+  margin: $spacing-2 0 $spacing-3;
+  background: rgb(59 130 246 / 15%);
+  border: 1px solid rgb(59 130 246 / 25%);
+  font-family: $font-family-mono;
+}
+
+.parsec-pulse__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: $spacing-2 $spacing-3;
+  background: rgb(0 0 0 / 70%);
+  min-width: 0;
+}
+
+.parsec-pulse__label {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(59 130 246 / 70%);
+}
+
+.parsec-pulse__value {
+  font-size: 1.05rem;
+  font-weight: $font-weight-semibold;
+  color: rgb(255 255 255 / 90%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.parsec-pulse__sub {
+  font-size: 0.65rem;
+  color: rgb(255 255 255 / 45%);
+  min-height: 1em;
+
+  &[data-tone="ok"] { color: #4fb97a; }
+  &[data-tone="deficient"] { color: #e06a52; }
+}
+
+// ── Blue pill: focus row under the pulse ──
+.parsec-pulse-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.parsec-pulse--focus {
+  margin-top: 0;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+
+  .parsec-pulse__value { font-size: 0.85rem; }
+}
+
+// ── Blue pill: profile bar ──
+.parsec-bp-profilebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+  width: 100%;
+  max-width: min(96vw, 60rem);
+  margin-top: $spacing-2;
+  font-family: $font-family-mono;
+  font-size: 0.7rem;
+}
+
+.parsec-bp-profilebar__label {
+  letter-spacing: 0.14em;
+  color: rgb(59 130 246 / 70%);
+}
+
+.parsec-bp-profilebar__name {
+  color: rgb(255 255 255 / 90%);
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-bp-profilebar__dirty { color: #d9a23a; }
+
+.parsec-bp-profilebar__focus {
+  color: rgb(255 255 255 / 45%);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ── Blue pill: settings ──
+.parsec-bp-settings {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  grid-column: 1 / -1;
+}
+
+.parsec-bp-settings__group {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+}
+
+.parsec-bp-settings__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+
+  &--stack {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.parsec-bp-settings__select,
+.parsec-bp-settings__name,
+.parsec-bp-settings__addr {
+  background: rgb(0 0 0 / 60%);
+  color: rgb(255 255 255 / 85%);
+  border: 1px solid rgb(59 130 246 / 30%);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-family: $font-family-mono;
+  font-size: 0.75rem;
+}
+
+.parsec-bp-settings__addr { flex: 1 1 22rem; min-width: 0; }
+.parsec-bp-settings__name { flex: 0 1 12rem; }
+
+.parsec-bp-settings__sep {
+  width: 1px;
+  height: 1.2rem;
+  background: rgb(59 130 246 / 25%);
+}
+
+.parsec-bp-settings__hint {
+  font-family: $font-family-mono;
+  font-size: 0.7rem;
+  color: rgb(255 255 255 / 45%);
+}
+
+.parsec-bp-watchlist { display: flex; flex-direction: column; gap: 2px; }
+
+// ── Red pill: open session ──
+.parsec-redsession {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  max-width: 28rem;
+  margin: $spacing-2 auto $spacing-3;
+  font-family: $font-family-mono;
+  font-size: 0.75rem;
+}
+
+.parsec-redsession__row {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-3;
+  padding: 6px 10px;
+  border: 1px solid rgb(239 68 68 / 20%);
+  border-radius: 4px;
+  background: rgb(0 0 0 / 50%);
+
+  &--active { border-color: rgb(239 68 68 / 60%); }
+}
+
+.parsec-redsession__name { color: rgb(255 255 255 / 90%); }
+.parsec-redsession__chains { color: rgb(255 255 255 / 45%); text-align: right; }
+
+// ── Blue pill switches: state that reads at a glance ──
+// The dark theme styles every `button` (`.bp5-dark button`, specificity 0,1,1),
+// which outranked the single-class switch rules, so ON and OFF rendered alike.
+// The attribute selector lifts these to 0,2,0 without !important.
+.parsec-matrix__blue-switch[type='button'] {
+  background: rgb(59 130 246 / 16%);
+  border-color: rgb(59 130 246 / 70%);
+  color: #bfdbfe;
+}
+
+.parsec-matrix__blue-switch--off[type='button'] {
+  background: rgb(0 0 0 / 55%);
+  border-color: rgb(255 255 255 / 12%);
+  color: rgb(255 255 255 / 40%);
+}
+
+.parsec-matrix__blue-switch[type='button']:hover {
+  border-color: rgb(59 130 246 / 85%);
+  color: #dbeafe;
+}
+
+.parsec-bp-watchlist .parsec-matrix__diag-row-value {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+}
+
+// ── Mode badge: viewing (Blue Pill) or armed (Red Pill) ──
+.parsec-modebadge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-family: $font-family-mono;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+
+  &--viewing {
+    border: 1px solid rgb(59 130 246 / 55%);
+    color: #bfdbfe;
+    background: rgb(59 130 246 / 12%);
+  }
+
+  &--armed {
+    border: 1px solid rgb(239 68 68 / 70%);
+    color: #fecaca;
+    background: rgb(239 68 68 / 16%);
+  }
+}
+
+.parsec-matrix__panel .parsec-modebadge { margin: 4px auto 0; }

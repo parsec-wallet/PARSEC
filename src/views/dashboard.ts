@@ -67,10 +67,15 @@ export function dashboardView(): HTMLElement {
             minimal: true, icon: 'log-out', cls: 'parsec-dashboard__logout',
             onClick: () => {
               // Visual confirmation before clearing
-              const confirmed = confirm('Lock wallet and clear session?\n\nYour passphrase and all sensitive data will be wiped from memory. You will need your passphrase to re-enter.');
+              const confirmed = confirm('Log out completely?\n\nThe vault locks, every dApp and Arweave connection closes, and secrets, cached reads and session storage are cleared. Your wallets stay on this device; you will need your passphrase to re-enter.');
               if (confirmed) {
-                store.lock();
-                toast('Session cleared. No trace.', 'success');
+                // The complete teardown: channels, vault, caches, storage, then
+                // the store. lib/session.ts lists every step.
+                void import('../lib/session').then(({ logout }) => logout()).then((report) => {
+                  const failed = report.steps.filter((x) => !x.ok).map((x) => x.step);
+                  if (failed.length === 0) toast('Logged out. Nothing left in this session.', 'success');
+                  else toast(`Logged out, but ${failed.join(', ')} reported a problem.`, 'warning', 8000);
+                });
               }
             },
           }),

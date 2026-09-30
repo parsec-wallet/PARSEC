@@ -22,6 +22,7 @@ import {
 } from '../lib/nav';
 import type { Disclosure } from '../lib/nav';
 import { showPalette } from '../lib/ui/palette';
+import { getMode, onModeChange, type Mode } from '../lib/mode';
 
 /** Views that own the whole viewport — the shell stays out of their way. */
 const CHROMELESS = new Set([
@@ -54,6 +55,18 @@ export function createShell(): Shell {
   rail.setAttribute('aria-label', 'Sections');
 
   const crumb = el('span', { cls: 'parsec-shell__crumb' });
+  // Which pill the app is in, on every screen: viewing (Blue Pill, no keys) or
+  // armed (Red Pill, can sign). lib/mode.ts enforces it; this states it.
+  const modeBadge = el('span', { cls: 'parsec-modebadge' });
+  const paintMode = (m: Mode) => {
+    modeBadge.textContent = m === 'armed' ? 'ARMED' : 'VIEWING';
+    modeBadge.className = `parsec-modebadge parsec-modebadge--${m === 'armed' ? 'armed' : 'viewing'}`;
+    modeBadge.title = m === 'armed'
+      ? 'Red Pill: a live wallet that can sign. Log out to disarm.'
+      : 'Blue Pill: view-only. Nothing here can reach a key or sign.';
+  };
+  paintMode(getMode());
+  onModeChange(paintMode);
 
   const backBtn = btn('Back', { minimal: true, onClick: () => store.back() });
   backBtn.classList.add('parsec-shell__back');
@@ -68,7 +81,7 @@ export function createShell(): Shell {
 
   const header = el('header', {
     cls: 'parsec-shell__header',
-    children: [brand, backBtn, crumb, el('div', { cls: 'parsec-shell__spacer' }), paletteBtn],
+    children: [brand, backBtn, crumb, el('div', { cls: 'parsec-shell__spacer' }), modeBadge, paletteBtn],
   });
 
   const disclosure = el('div', { cls: 'parsec-shell__disclosure' });

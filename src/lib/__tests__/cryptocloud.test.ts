@@ -17,7 +17,7 @@ const ALL_OFF: OverlayState = { top10: false, favourites: false, stablecoins: fa
 function coin(over: Partial<CoinPrice> = {}): CoinPrice {
   return {
     id: 'x', symbol: 'X', usd: 1, marketCap: 1,
-    change24h: 0, change1h: 0, change5m: null, change15m: d(0), change4h: null, image: '',
+    change24h: 0, change1h: 0, change7d: null, change30d: null, change5m: null, change15m: d(0), change4h: null, image: '',
     ...over,
   };
 }

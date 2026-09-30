@@ -35,35 +35,24 @@ import { microAlgosToAlgo } from '../lib/algorand/format';
 import { formatAssetAmount } from '../lib/algorand/format';
 import { startPriceUpdates, fetchPricesByIds, formatPrice, formatMarketCap, getMarketActivity, getMarketSentiment, getMarketBreadth, getFeedStatus } from '../lib/prices';
 import type { CoinPrice } from '../lib/prices';
+import * as mg from '../lib/market-global';
+import * as profiles from '../lib/diag-profiles';
+import { FOCUS_CATALOG, focusAsset, type DiagProfile } from '../lib/diag-profiles';
+import * as watch from '../lib/watch';
+import { sanitizeWatched, type WatchedWallet } from '../lib/watch';
+import { logout, hasLiveSession } from '../lib/session';
+import { arm, disarm } from '../lib/mode';
 
 // Favourites strip — coins the wallet pins under the TOP 10 column. Some
 // of these sit outside CoinGecko's top-100 mcap window (0g, ARIO, …) so
-// they need a separate by-id fetch. Order matters: rows render top-to-
-// bottom in this sequence.
+// they need a separate by-id fetch. The list is the diagnostics focus
+// catalog, so a profile's emphasis and the landing's favourites are one set.
 /** Display names for the chooser, keyed by CoinGecko slug. */
-const FAVOURITE_LABELS: Readonly<Record<string, string>> = {
-  'blockstack': 'STX · Stacks',
-  'aave': 'AAVE',
-  'pyth-network': 'PYTH · Pyth Network',
-  'injective-protocol': 'INJ · Injective',
-  'zero-gravity': '0G · Zero Gravity',
-  'blast': 'BLAST',
-  'ar-io-network': 'ARIO · AR.IO',
-  'arweave': 'AR · Arweave',
-  'algorand': 'ALGO · Algorand',
-};
+const FAVOURITE_LABELS: Readonly<Record<string, string>> = Object.fromEntries(
+  FOCUS_CATALOG.map((a) => [a.id, `${a.symbol} · ${a.name}`]),
+);
 
-const FAVOURITE_COINS: ReadonlyArray<string> = [
-  'blockstack',           // STX — Stacks
-  'aave',                 // AAVE
-  'pyth-network',         // PYTH
-  'injective-protocol',   // INJ
-  'zero-gravity',         // 0G
-  'blast',                // BLAST
-  'ar-io-network',        // ARIO
-  'arweave',              // AR
-  'algorand',             // ALGO — the chain PARSEC settles on
-];
+const FAVOURITE_COINS: ReadonlyArray<string> = FOCUS_CATALOG.map((a) => a.id);
 import type { NetworkId, WalletState } from '../types/wallet';
 
 type PillChoice = 'none' | 'choose' | 'red' | 'blue';
@@ -82,6 +71,8 @@ export function matrixView(): HTMLElement {
   // Declared with the rest of the view state so no render path can read it
   // before initialization.
   let vaultHasAccounts = false;
+  // A fresh Matrix with no wallet session open is viewing mode.
+  if (!hasLiveSession()) disarm();
 
   // Which overlays are on the wall is a preference the participant holds,
   // persisted per device.
@@ -96,6 +87,8 @@ export function matrixView(): HTMLElement {
   interface OverlayPref {
     readonly on: boolean;
     toggle(): void;
+    /** Set outright — how a diagnostics profile is applied. */
+    set(on: boolean): void;
   }
 
   function overlayPref(storageKey: string, fallback = true): OverlayPref {
@@ -113,6 +106,10 @@ export function matrixView(): HTMLElement {
       get on() { return on; },
       toggle() {
         on = !on;
+        try { localStorage.setItem(storageKey, on ? 'on' : 'off'); } catch { /* best effort */ }
+      },
+      set(next: boolean) {
+        on = next;
         try { localStorage.setItem(storageKey, on ? 'on' : 'off'); } catch { /* best effort */ }
       },
     };
@@ -258,6 +255,100 @@ export function matrixView(): HTMLElement {
   // Newsfeed, default OFF. Ingestion is deliberately slow (see NEWS_MIN_INTERVAL)
   // and it reaches a third party, so it is opt-in rather than on by default.
   const newsPref = overlayPref('parsec:matrix-news', false);
+
+  // ── Diagnostics profile ──
+  //
+  // A profile is a named snapshot of every choice above plus the assets the
+  // diagnostics emphasise. The switches stay individually adjustable; the
+  // profile bar in the Blue Pill marks the state "unsaved" when they drift from
+  // the active profile, and saving captures them again.
+  const FOCUS_KEY = 'parsec:diag-focus';
+  let activeProfile: DiagProfile = profiles.getActiveProfile();
+  let currentFocus: string[] = (() => {
+    try {
+      const raw: unknown = JSON.parse(localStorage.getItem(FOCUS_KEY) ?? 'null');
+      if (Array.isArray(raw)) {
+        const ids = raw.filter((id): id is string => typeof id === 'string' && focusAsset(id) !== undefined);
+        if (ids.length > 0) return ids;
+      }
+    } catch { /* fall back to the profile */ }
+    return [...activeProfile.focus];
+  })();
+
+  function saveFocus(): void {
+    try { localStorage.setItem(FOCUS_KEY, JSON.stringify(currentFocus)); } catch { /* best effort */ }
+  }
+
+  // Wallets the Blue Pill watches. Public addresses only — watching reads
+  // balances and never signs, sends or connects (lib/watch.ts).
+  const WATCH_KEY = 'parsec:diag-watch';
+  let currentWatch: WatchedWallet[] = (() => {
+    try {
+      const raw: unknown = JSON.parse(localStorage.getItem(WATCH_KEY) ?? 'null');
+      if (Array.isArray(raw)) {
+        return raw.map(sanitizeWatched).filter((w): w is WatchedWallet => w !== null);
+      }
+    } catch { /* fall back to the profile */ }
+    return activeProfile.watch.map((w) => ({ ...w }));
+  })();
+
+  function saveWatch(): void {
+    try { localStorage.setItem(WATCH_KEY, JSON.stringify(currentWatch)); } catch { /* best effort */ }
+  }
+
+  /** The participant's current choices, in profile shape. */
+  function captureChoices(): Omit<DiagProfile, 'id' | 'name' | 'builtin'> {
+    return {
+      focus: [...currentFocus],
+      depth: diagLevel ?? activeProfile.depth,
+      period: pricePeriod,
+      scene: {
+        matrix: matrixPref.on, cryptocloud: cryptocloudPref.on, top10: top10Pref.on,
+        favourites: favouritesPref.on, stablecoins: stablecoinsPref.on, pyramid: pyramidPref.on,
+      },
+      panels: {
+        arweave: arweavePref.on, ario: arioPref.on, chainmarketcap: chainmarketcapPref.on,
+        prices: pricesPref.on, news: newsPref.on,
+      },
+      watch: currentWatch.map((w) => ({ ...w })),
+    };
+  }
+
+  /**
+   * Write a profile's choices into the live state. No rendering here: this also
+   * runs during setup, before the layers it would repaint exist.
+   */
+  function adoptChoices(p: DiagProfile): void {
+    matrixPref.set(p.scene.matrix);
+    cryptocloudPref.set(p.scene.cryptocloud);
+    top10Pref.set(p.scene.top10);
+    favouritesPref.set(p.scene.favourites);
+    stablecoinsPref.set(p.scene.stablecoins);
+    pyramidPref.set(p.scene.pyramid);
+    arweavePref.set(p.panels.arweave);
+    arioPref.set(p.panels.ario);
+    chainmarketcapPref.set(p.panels.chainmarketcap);
+    pricesPref.set(p.panels.prices);
+    newsPref.set(p.panels.news);
+    diagLevel = p.depth;
+    try { localStorage.setItem(DIAG_LEVEL_KEY, p.depth); } catch { /* best effort */ }
+    pricePeriod = p.period;
+    try { localStorage.setItem(PERIOD_KEY, p.period); } catch { /* best effort */ }
+    currentFocus = [...p.focus];
+    saveFocus();
+    currentWatch = p.watch.map((w) => ({ ...w }));
+    saveWatch();
+    // The favourites selection is the participant's own landing choice and is
+    // deliberately not part of a profile: applying one never rewrites it.
+  }
+
+  // First run of profiles on this device: the Parsec profile is seeded from the
+  // participant's own selections as they stand — the landing toggles, the
+  // extension switches, the depth and the period — plus the Parsec emphasis
+  // assets. Nothing the participant already chose is overwritten.
+  if (!profiles.isParsecSeeded()) {
+    activeProfile = profiles.seedParsecProfile(captureChoices());
+  }
   const PINNED_PRICES: ReadonlyArray<{ id: string; symbol: string }> = [
     { id: 'bitcoin', symbol: 'BTC' },
     { id: 'ethereum', symbol: 'ETH' },
@@ -354,6 +445,24 @@ export function matrixView(): HTMLElement {
     element.style.transform = 'none';
   }
 
+  // One set of window drag listeners for the whole view, dispatching to the
+  // element being dragged. makeDraggable runs on every fleet and ship rebuild —
+  // every price tick, toggle and period change — and used to register four
+  // window listeners each time. Tied to the view with bindGlobal, those still
+  // piled up for as long as the landing stayed open: eight per minute, each
+  // holding a discarded element, all of them running on every mousemove.
+  let activeDrag: { move(x: number, y: number): void; up(): void } | null = null;
+  const onWindowDragMove = (e: MouseEvent) => activeDrag?.move(e.clientX, e.clientY);
+  const onWindowDragTouch = (e: TouchEvent) => {
+    const t = e.touches[0];
+    if (t) activeDrag?.move(t.clientX, t.clientY);
+  };
+  const onWindowDragUp = () => { activeDrag?.up(); activeDrag = null; };
+  bindGlobal(window, 'mousemove', onWindowDragMove);
+  bindGlobal(window, 'mouseup', onWindowDragUp);
+  bindGlobal(window, 'touchmove', onWindowDragTouch, { passive: true });
+  bindGlobal(window, 'touchend', onWindowDragUp);
+
   function makeDraggable(element: HTMLElement, key?: string) {
     let dragOffsetX = 0, dragOffsetY = 0;
     let elemDragging = false;
@@ -366,6 +475,7 @@ export function matrixView(): HTMLElement {
       dragOffsetY = clientY - rect.top;
       element.style.cursor = 'grabbing';
       element.style.zIndex = '50';
+      activeDrag = { move: onMove, up: onUp };
     };
 
     const onMove = (clientX: number, clientY: number) => {
@@ -388,23 +498,10 @@ export function matrixView(): HTMLElement {
       element.style.zIndex = '';
     };
 
-    // Listeners on `element` die with the element. The four on `window` do not:
-    // they used to be inline arrows, which cannot be removed at all, and
-    // makeDraggable runs three times per matrix render. Every visit to this view
-    // therefore left twelve live handlers pinning a detached DOM tree, and every
-    // mousemove ran all of them. bindGlobal ties each removal to the view.
+    // Listeners on `element` die with the element; the window side is the
+    // shared set above, which only ever points at the element being dragged.
     element.addEventListener('mousedown', (e) => { e.stopPropagation(); onDown(e.clientX, e.clientY); });
     element.addEventListener('touchstart', (e) => { e.stopPropagation(); const t = e.touches[0]; onDown(t.clientX, t.clientY); }, { passive: true });
-
-    const onWindowMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY);
-    const onWindowTouchMove = (e: TouchEvent) => {
-      const t = e.touches[0];
-      if (t) onMove(t.clientX, t.clientY);
-    };
-    bindGlobal(window, 'mousemove', onWindowMouseMove);
-    bindGlobal(window, 'mouseup', onUp);
-    bindGlobal(window, 'touchmove', onWindowTouchMove, { passive: true });
-    bindGlobal(window, 'touchend', onUp);
   }
 
   // ── PARSEC brand — click opens pill choice screen ──
@@ -423,9 +520,13 @@ export function matrixView(): HTMLElement {
    * Closes on Escape, on a click outside, and on Done — and every one of those
    * listeners is registered through the view lifecycle so nothing outlives it.
    */
+  // The open chooser's full close — panel and its document listeners together.
+  // Toggling the chooser shut used to remove only the panel.
+  let closeChooser: (() => void) | null = null;
+  onCleanup(() => closeChooser?.());
+
   function openFavouritesChooser(): void {
-    const existing = container.querySelector('.parsec-favchooser');
-    if (existing) { existing.remove(); return; }
+    if (closeChooser) { closeChooser(); return; }
 
     const panel = el('div', { cls: 'parsec-favchooser' });
     panel.appendChild(el('div', { cls: 'parsec-favchooser__title', text: 'SHOW WHICH FAVOURITES' }));
@@ -471,7 +572,9 @@ export function matrixView(): HTMLElement {
       panel.remove();
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('pointerdown', onOutside, true);
+      if (closeChooser === close) closeChooser = null;
     }
+    closeChooser = close;
     function onKey(e: KeyboardEvent): void {
       if (e.key === 'Escape') { e.preventDefault(); close(); }
     }
@@ -483,9 +586,7 @@ export function matrixView(): HTMLElement {
     // Deferred: the pointerup that ended the long press would otherwise be seen
     // as the click-outside that closes the panel we just opened.
     setTimeout(() => document.addEventListener('pointerdown', onOutside, true), 0);
-    // Belt and braces — if the view is torn down while the panel is open, the
-    // document listeners must not outlive it.
-    onCleanup(close);
+    // View teardown closes it through the single onCleanup registered above.
 
     container.appendChild(panel);
   }
@@ -497,6 +598,8 @@ export function matrixView(): HTMLElement {
   // Stacked bottom-right, PYRAMID last so it stays exactly where it has always
   // been and the new controls grow upward from it.
   const toggleStack = el('div', { cls: 'parsec-matrix__toggles' });
+  /** Repaint every landing toggle — after a profile rewrites their state. */
+  const toggleRepaints: Array<() => void> = [];
 
   function makeToggle(
     label: string,
@@ -564,6 +667,7 @@ export function matrixView(): HTMLElement {
       createGlyphs();
     });
     paint();
+    toggleRepaints.push(paint);
     return b;
   }
 
@@ -575,8 +679,8 @@ export function matrixView(): HTMLElement {
   function paintPeriod(): void {
     periodToggle.textContent = `CHANGE ${pricePeriod.toUpperCase()}`;
     periodToggle.title =
-      'Period every percentage is measured over. 1h and 24h come from the feed; '
-      + '5m, 15m and 4h are measured here and show a dash until enough time has passed.';
+      'Period every percentage is measured over. 1h, 24h, 7d and 30d come from the feed; '
+      + '4h is measured here and shows a dash until about two hours have been watched.';
   }
   periodToggle.addEventListener('click', () => {
     const i = CHANGE_PERIODS.indexOf(pricePeriod);
@@ -590,6 +694,7 @@ export function matrixView(): HTMLElement {
     createGlyphs();
   });
   paintPeriod();
+  toggleRepaints.push(paintPeriod);
   toggleStack.appendChild(periodToggle);
 
   toggleStack.appendChild(makeToggle('MATRIX', matrixPref, 'the matrix rain'));
@@ -884,6 +989,13 @@ export function matrixView(): HTMLElement {
   // The explicit calls below are now redundant but harmless: every operation in
   // cancelAnimation is idempotent.
   onCleanup(cancelAnimation);
+  // Release the GPU context with the view. Without this every visit to the
+  // Matrix left a WebGL context alive until the browser reclaimed it, and
+  // browsers cap live contexts — the oldest are lost without warning.
+  onCleanup(() => {
+    try { gl?.getExtension('WEBGL_lose_context')?.loseContext(); } catch { /* already gone */ }
+    gl = null;
+  });
 
   // ── Crypto Glyphs — riding the rain, entropy-selected from top 100 ──
 
@@ -904,6 +1016,8 @@ export function matrixView(): HTMLElement {
   const FEATURED_SYMBOLS = new Set<string>();
 
   function createGlyphs() {
+    // Its anchors are about to be rebuilt; a panel pinned to one would orphan.
+    dropCoinPanel();
     glyphLayer.innerHTML = '';
     glyphLayer.classList.remove('parsec-matrix__glyph-layer--storm');
     cryptoGlyphs = [];
@@ -1276,7 +1390,13 @@ export function matrixView(): HTMLElement {
    * one failure mode, and `pyramidLayer.innerHTML = ''` was also wiping the strip
    * on every price tick.
    */
+  // Which renderFleet call is current. The favourites column arrives on a
+  // promise; one that resolves after a newer render must not attach a second,
+  // stale column (and its drag handlers) beside the new one.
+  let fleetGen = 0;
+
   function renderFleet() {
+    const gen = ++fleetGen;
     fleetLayer.innerHTML = '';
     // ── Top 10 by market cap — vertical column down the left side ──
     const excludeFromFleet = new Set([
@@ -1378,11 +1498,12 @@ export function matrixView(): HTMLElement {
         ? fetchPricesByIds(wanted)
         : Promise.resolve([] as CoinPrice[]);
       favourites.then((favs) => {
+        if (gen !== fleetGen) return;
         if (favs.length === 0) return;
-        // Preserve the order declared in FAVOURITE_COINS rather than CG's
-        // mcap-desc ordering so the user sees their list as written.
+        // The profile's emphasis order first, then any other chosen coin in
+        // catalog order — never CoinGecko's mcap-desc ordering.
         const byId = new Map(favs.map((c) => [c.id, c] as const));
-        const ordered = FAVOURITE_COINS
+        const ordered = [...currentFocus, ...FAVOURITE_COINS.filter((id) => !currentFocus.includes(id))]
           .filter((id) => favouriteSelection.has(id))
           .map((id) => byId.get(id))
           .filter((c): c is CoinPrice => Boolean(c));
@@ -1452,6 +1573,8 @@ export function matrixView(): HTMLElement {
   }
 
   function renderPyramid() {
+    // Its anchors are about to be rebuilt; a panel pinned to one would orphan.
+    dropCoinPanel();
     pyramidLayer.innerHTML = '';
     // Before the guard below: the column has its own data sources and must not
     // be held hostage by the top-100 feed.
@@ -1847,6 +1970,20 @@ export function matrixView(): HTMLElement {
       pendingHide = null;
     }, delay);
   }
+  /**
+   * Remove the coin panel now. It lives on document.body, outside the view, so
+   * the router's teardown never saw it: leaving the Matrix with a panel open
+   * left it there for good. And the glyph or tile it is anchored to is rebuilt
+   * on every rotation and price tick; a removed anchor never fires mouseleave,
+   * so the panel used to stay until another coin was hovered.
+   */
+  function dropCoinPanel(): void {
+    cancelPendingHide();
+    activeCoinPanel?.remove();
+    activeCoinPanel = null;
+  }
+  onCleanup(dropCoinPanel);
+
 
   function pyramidLine(x1: number, y1: number, x2: number, y2: number, color: string): HTMLElement {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -1906,6 +2043,10 @@ export function matrixView(): HTMLElement {
     pyramidLayer.classList.toggle('parsec-matrix__pyramid--bodyoff', !showBody);
     container.classList.toggle('parsec-matrix--withpyramid', choice === 'blue' && showBody);
     container.classList.toggle('parsec-matrix--norain', !matrixPref.on);
+    // The toggle stack belongs to the landing. With a pill open it would float
+    // over the panel's own controls, and the Blue Pill's Settings carries the
+    // same switches.
+    toggleStack.style.display = choice === 'none' ? '' : 'none';
 
     // The brand is prominent and centred when the rain has the wall to itself,
     // and steps up out of the way once a market layer needs the middle. A
@@ -1918,7 +2059,24 @@ export function matrixView(): HTMLElement {
   }
 
   function setPill(p: PillChoice) {
+    // The pills are two modes (lib/mode.ts). The Red Pill arms; everything
+    // else is viewing. Taking the Blue Pill with a wallet session open ends the
+    // session completely first: diagnostics never run beside live keys.
+    if (p === 'red') {
+      arm();
+    } else if (p === 'blue' && hasLiveSession()) {
+      void logout().then((report) => {
+        disarm();
+        toast(report.ok ? 'Wallet logged out. Blue Pill runs view-only.' : 'Wallet logged out with warnings. Blue Pill runs view-only.', report.ok ? 'primary' : 'warning');
+        setPill('blue');
+      });
+      return;
+    } else if (!hasLiveSession()) {
+      disarm();
+    }
     choice = p;
+    // Release the Blue Pill's panel closures whenever it is not the open pill.
+    if (p !== 'blue') { blueTabImpl = null; blueTickImpl = null; }
     // Shader pill tint: 0 = green (landing/choose), 1 = red, 2 = blue
     pillUniform = p === 'red' ? 1.0 : p === 'blue' ? 2.0 : 0.0;
     // Glitch spin on every transition
@@ -2264,11 +2422,32 @@ export function matrixView(): HTMLElement {
     }));
   }
 
+  // One Tab-key listener and one refresh timer for the Blue Pill, registered
+  // once per view. Each render only repoints them at its own panel, so a
+  // re-render (a switch flip, a profile change) adds nothing: no second
+  // listener, no second timer, no cleanup entry holding the discarded panel.
+  // They are pointed at nothing whenever the Blue Pill is not open.
+  let blueTabImpl: ((e: KeyboardEvent) => void) | null = null;
+  let blueTickImpl: (() => void) | null = null;
+  const onBlueKey = (e: KeyboardEvent) => blueTabImpl?.(e);
+  bindGlobal(window, 'keydown', onBlueKey);
+  bindInterval(() => blueTickImpl?.(), 20000);
+
   function renderBluePill() {
     const state = store.get();
 
     // Header + back always visible
     panel.appendChild(el('div', { cls: 'parsec-matrix__choice-label parsec-matrix__choice-label--blue', text: 'BLUE PILL — DIAGNOSTICS' }));
+    panel.appendChild(el('div', {
+      cls: 'parsec-modebadge parsec-modebadge--viewing',
+      text: 'VIEWING MODE · no keys · cannot sign',
+      attrs: { title: 'The Blue Pill cannot reach the vault, sign, or connect dApps. Take the Red Pill for a live wallet.' },
+    }));
+
+    // The active profile, then the whole market — both on entry, before a
+    // depth is chosen.
+    panel.appendChild(renderProfileBar());
+    panel.appendChild(renderMarketPulse());
 
     // Landing: pick a depth first. Opening straight onto every instrument is
     // not diagnostics, it is noise.
@@ -2290,7 +2469,7 @@ export function matrixView(): HTMLElement {
     // ── Tabs ──
     // What each panel actually reads, named in its provenance line.
     const TAB_SOURCE: Record<string, string> = {
-      global: 'coingecko.com',
+      global: 'coingecko.com (coinpaprika.com fallback) · alternative.me · llama.fi · bybit.com · algonode.cloud',
       gas: 'coingecko.com · algonode.cloud',
       chains: 'public RPC endpoints',
       network: `${state.settings.network}-api.algonode.cloud`,
@@ -2304,6 +2483,8 @@ export function matrixView(): HTMLElement {
       prices: 'api.coingecko.com (cached 5m)',
       standard: 'this repo — CLAUDE.md, docs/cypherpunk4096.md, QUANTUM.md',
       news: 'coinmarketcap.com/community via parsec.pythai.net proxy',
+      watch: 'algonode.cloud · publicnode.com · arweave.net · mempool.space · rpc.hyperliquid.xyz',
+      settings: 'this device — profiles and preferences, no wallet data',
     };
 
     // INTERNAL vs EXTERNAL, stated per panel.
@@ -2324,6 +2505,8 @@ export function matrixView(): HTMLElement {
       prices: 'external',
       standard: 'internal',
       news: 'external',
+      watch: 'external',
+      settings: 'internal',
       portfolio: 'internal',
       wallets: 'internal',
       events: 'internal',
@@ -2334,12 +2517,14 @@ export function matrixView(): HTMLElement {
     const TABS_BY_LEVEL: Record<DiagLevel, ReadonlyArray<{ id: string; label: string }>> = {
       basic: [
         { id: 'global', label: 'Global' },
+        { id: 'watch', label: 'Watching' },
         { id: 'wallets', label: 'Wallets' },
         { id: 'portfolio', label: 'Portfolio' },
         { id: 'standard', label: 'Standard' },
       ],
       scientific: [
         { id: 'global', label: 'Global' },
+        { id: 'watch', label: 'Watching' },
         { id: 'wallets', label: 'Wallets' },
         { id: 'portfolio', label: 'Portfolio' },
         { id: 'gas', label: 'Gas & Fees' },
@@ -2350,6 +2535,7 @@ export function matrixView(): HTMLElement {
       ],
       advanced: [
         { id: 'global', label: 'Global' },
+        { id: 'watch', label: 'Watching' },
         { id: 'wallets', label: 'Wallets' },
         { id: 'portfolio', label: 'Portfolio' },
         { id: 'gas', label: 'Gas & Fees' },
@@ -2370,6 +2556,7 @@ export function matrixView(): HTMLElement {
       ...(arioPref.on ? [{ id: 'ario', label: 'AR.IO' }] : []),
       ...(pricesPref.on ? [{ id: 'prices', label: 'Prices' }] : []),
       ...(newsPref.on ? [{ id: 'news', label: 'News' }] : []),
+      { id: 'settings', label: 'Settings' },
     ];
 
     // Permaweb switches — in the panel, above the tabs they control.
@@ -2443,7 +2630,7 @@ export function matrixView(): HTMLElement {
         (t as HTMLElement).classList.toggle('parsec-matrix__blue-tab--active', t.getAttribute('data-tab') === tabId);
       });
 
-      const box = el('div', { cls: 'parsec-matrix__diag parsec-matrix__diag--defi' });
+      const box = el('div', { cls: `parsec-matrix__diag parsec-matrix__diag--defi${tabId === 'global' ? ' parsec-matrix__diag--global' : ''}` });
       tabContent.appendChild(box);
 
       if (tabId === 'global') loadGlobalTab(box, netLog);
@@ -2460,6 +2647,8 @@ export function matrixView(): HTMLElement {
       else if (tabId === 'prices') void loadPricesTab(box, netLog);
       else if (tabId === 'standard') loadStandardTab(box);
       else if (tabId === 'news') void loadNewsTab(box, netLog);
+      else if (tabId === 'watch') void loadWatchTab(box, netLog);
+      else if (tabId === 'settings') loadSettingsTab(box);
 
       // Every panel says where its figures came from and when they were read.
       const reach = TAB_REACH[tabId] ?? 'external';
@@ -2484,6 +2673,9 @@ export function matrixView(): HTMLElement {
 
     // Tab key cycles through tabs
     const tabHandler = (e: KeyboardEvent) => {
+      // Inside a form field Tab moves between fields, as it should.
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'SELECT' || t.tagName === 'TEXTAREA' || t.tagName === 'BUTTON')) return;
       if (e.key === 'Tab' && choice === 'blue') {
         e.preventDefault();
         const idx = tabs.findIndex(t => t.id === activeTab);
@@ -2491,7 +2683,7 @@ export function matrixView(): HTMLElement {
         renderTab(next.id);
       }
     };
-    bindGlobal(window, 'keydown', tabHandler);
+    blueTabImpl = tabHandler;
 
     // Auto-refresh: reload active tab every 20s.
     //
@@ -2500,11 +2692,13 @@ export function matrixView(): HTMLElement {
     // the life of the process — still firing network refreshes every 20 seconds,
     // once per visit to this view, against a tab that is no longer on screen.
     // bindInterval ties it to the view; the guard below is now just a fast exit.
-    bindInterval(() => {
+    blueTickImpl = () => {
       if (choice !== 'blue') return;
+      // Settings is a form: refreshing it would throw away what is being typed.
+      if (activeTab === 'settings') return;
       logNet(netLog, 'SYNC', `refreshing ${activeTab}`);
       renderTab(activeTab);
-    }, 20000);
+    };
 
     // Load initial tab — Global overview, or whatever a switch just revealed.
     renderTab(activeTab);
@@ -2513,131 +2707,706 @@ export function matrixView(): HTMLElement {
     backButton();
   }
 
-  // ── Blue Pill Tab: Global Overview (The Tank View) ──
-  async function loadGlobalTab(box: HTMLElement, netLog: HTMLElement) {
-    box.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'GLOBAL CRYPTO OVERVIEW' }));
+  // ── Blue Pill: profile, settings and watching ──
+  //
+  // The Blue Pill is diagnostics and the control of diagnostics. Everything the
+  // participant can set lives in its Settings tab, and a profile saves it all
+  // under a name. The Watching tab reads the balances of the profile's watched
+  // wallets — read only. Signing, sending and dApp sessions belong to the Red
+  // Pill, where wallets are logged into.
 
-    const now = new Date();
-    box.appendChild(diagRow('Timestamp', now.toISOString().replace('T', ' ').slice(0, 19) + ' UTC'));
+  /** Whether the live choices have drifted from the active profile. */
+  function profileDirty(): boolean {
+    return profiles.differsFrom(activeProfile, captureChoices());
+  }
 
-    // Market from CoinGecko (already loaded)
-    if (prices.length > 0) {
-      const totalCap = prices.reduce((s, c) => s + c.marketCap, 0);
-      const btc = prices.find(p => p.symbol === 'BTC');
-      const eth = prices.find(p => p.symbol === 'ETH');
-      const algo = prices.find(p => p.symbol === 'ALGO');
-      const breadth = getMarketBreadth(prices);
+  /** Repaint the landing and reopen the Blue Pill on `tab` after a change. */
+  function afterChoiceChange(tab = 'settings'): void {
+    for (const paint of toggleRepaints) paint();
+    applyOverlays();
+    renderFleet();
+    renderPyramid();
+    createGlyphs();
+    blueInitialTab = tab;
+    renderPanel();
+  }
 
-      box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Market' }));
-      box.appendChild(diagRow('Total Market Cap', formatMarketCap(totalCap)));
-      // A 24h move is the one figure here with an unambiguous direction, so it
-      // carries the tone. Everything else stays neutral rather than inventing
-      // a good/bad reading for a number that has none.
-      const moveTone = (pct: number): Status => (pct >= 0 ? 'ok' : 'deficient');
+  function applyProfile(p: DiagProfile): void {
+    activeProfile = profiles.setActiveProfile(p.id);
+    adoptChoices(activeProfile);
+    events.record({ kind: 'participant', label: `profile:${activeProfile.id}`, outcome: 'ok' });
+    void refreshPinnedExtras().then(() => afterChoiceChange());
+  }
 
-      if (btc) {
-        box.appendChild(diagRow('BTC', `${formatPrice(btc.usd)} (${btc.change24h >= 0 ? '+' : ''}${btc.change24h.toFixed(1)}%) — ${((btc.marketCap / totalCap) * 100).toFixed(1)}% dom`, moveTone(btc.change24h)));
+  /** One line under the Blue Pill header: which profile, and whether it is saved. */
+  function renderProfileBar(): HTMLElement {
+    const dirty = profileDirty();
+    const bar = el('div', { cls: 'parsec-bp-profilebar' });
+    bar.appendChild(el('span', { cls: 'parsec-bp-profilebar__label', text: 'PROFILE' }));
+    bar.appendChild(el('span', { cls: 'parsec-bp-profilebar__name', text: activeProfile.name }));
+    if (dirty) {
+      bar.appendChild(el('span', {
+        cls: 'parsec-bp-profilebar__dirty',
+        text: '● unsaved changes',
+        attrs: { title: 'Your settings differ from this profile. Save them in Settings.' },
+      }));
+    }
+    const focusSyms = currentFocus.map((id) => focusAsset(id)?.symbol ?? id).join(' · ');
+    bar.appendChild(el('span', { cls: 'parsec-bp-profilebar__focus', text: focusSyms }));
+    if (currentWatch.length > 0) {
+      bar.appendChild(el('span', { cls: 'parsec-bp-profilebar__focus', text: `watching ${currentWatch.length}` }));
+    }
+    const open = el('button', { cls: 'parsec-matrix__blue-switch', text: 'SETTINGS', attrs: { type: 'button' } });
+    open.addEventListener('click', () => {
+      // Settings sits behind the tab bar, which the depth landing does not
+      // show; opening Settings from the landing takes the profile's depth.
+      if (diagLevel === null) {
+        diagLevel = activeProfile.depth;
+        try { localStorage.setItem(DIAG_LEVEL_KEY, diagLevel); } catch { /* best effort */ }
       }
-      if (eth) {
-        box.appendChild(diagRow('ETH', `${formatPrice(eth.usd)} (${eth.change24h >= 0 ? '+' : ''}${eth.change24h.toFixed(1)}%)`, moveTone(eth.change24h)));
+      blueInitialTab = 'settings';
+      renderPanel();
+    });
+    bar.appendChild(open);
+    return bar;
+  }
+
+  /** A labelled on/off switch bound to an overlay pref. */
+  function settingsSwitch(label: string, pref: OverlayPref, tab = 'settings'): HTMLElement {
+    const b = el('button', {
+      cls: `parsec-matrix__blue-switch${pref.on ? '' : ' parsec-matrix__blue-switch--off'}`,
+      text: `${label} ${pref.on ? 'ON' : 'OFF'}`,
+      attrs: { type: 'button', 'aria-pressed': String(pref.on) },
+    });
+    b.addEventListener('click', () => {
+      pref.toggle();
+      if (pref === pricesPref && pricesPref.on && !cryptocloudPref.on) cryptocloudPref.toggle();
+      void refreshPinnedExtras().then(() => afterChoiceChange(tab));
+    });
+    return b;
+  }
+
+  function settingsGroup(title: string, note?: string): { wrap: HTMLElement; body: HTMLElement } {
+    const wrap = el('section', { cls: 'parsec-bp-settings__group' });
+    wrap.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: title }));
+    if (note) wrap.appendChild(el('p', { cls: 'parsec-matrix__diag-note', text: note }));
+    const body = el('div', { cls: 'parsec-bp-settings__row' });
+    wrap.appendChild(body);
+    return { wrap, body };
+  }
+
+  function loadSettingsTab(box: HTMLElement): void {
+    box.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'SETTINGS — CONTROL OF DIAGNOSTICS' }));
+    const settings = el('div', { cls: 'parsec-bp-settings' });
+    box.appendChild(settings);
+
+    // Profile
+    {
+      const { wrap, body } = settingsGroup(
+        'Profile',
+        'A profile saves every choice on this page under a name. Parsec is the default, seeded from your own selections; it can be saved over but not deleted.',
+      );
+      const all = profiles.listProfiles();
+      const select = document.createElement('select');
+      select.className = 'parsec-bp-settings__select';
+      select.setAttribute('aria-label', 'Active profile');
+      for (const p of all) {
+        const o = document.createElement('option');
+        o.value = p.id;
+        o.textContent = p.builtin ? `${p.name} (default)` : p.name;
+        o.selected = p.id === activeProfile.id;
+        select.appendChild(o);
       }
-      if (algo) {
-        box.appendChild(diagRow('ALGO', `${formatPrice(algo.usd)} (${algo.change24h >= 0 ? '+' : ''}${algo.change24h.toFixed(1)}%)`, moveTone(algo.change24h)));
+      select.addEventListener('change', () => {
+        const next = all.find((p) => p.id === select.value);
+        if (next) applyProfile(next);
+      });
+      body.appendChild(select);
+
+      const dirty = profileDirty();
+      body.appendChild(btn(dirty ? 'Save' : 'Saved', {
+        minimal: true, intent: dirty ? 'primary' : 'none', disabled: !dirty,
+        onClick: () => {
+          try {
+            activeProfile = profiles.updateProfile(activeProfile.id, captureChoices());
+            toast(`Saved to ${activeProfile.name}`, 'success');
+          } catch (e) { toast(e instanceof Error ? e.message : 'Save failed', 'danger'); }
+          afterChoiceChange();
+        },
+      }));
+
+      const nameInput = input({
+        type: 'text', placeholder: 'New profile name', cls: 'bp5-input parsec-bp-settings__name',
+        onEnter: () => saveAs(),
+      }) as HTMLInputElement;
+      const saveAs = () => {
+        const name = nameInput.value.trim();
+        if (!name) { toast('Name the profile first', 'warning'); nameInput.focus(); return; }
+        activeProfile = profiles.saveProfileAs(name, captureChoices());
+        toast(`Saved as ${activeProfile.name}`, 'success');
+        afterChoiceChange();
+      };
+      body.appendChild(nameInput);
+      body.appendChild(btn('Save as new', { minimal: true, onClick: saveAs }));
+
+      if (!activeProfile.builtin) {
+        body.appendChild(btn('Delete', {
+          minimal: true, intent: 'danger',
+          onClick: () => {
+            const gone = activeProfile.name;
+            profiles.deleteProfile(activeProfile.id);
+            toast(`Deleted ${gone}. Parsec is active.`, 'primary');
+            applyProfile(profiles.getActiveProfile());
+          },
+        }));
       }
-      box.appendChild(diagRow('Green / Red / Flat', `${breadth.greenPct}% / ${breadth.redPct}% / ${breadth.flatPct}%`, breadth.greenPct >= breadth.redPct ? 'ok' : 'deficient'));
-      box.appendChild(diagRow('Volatility', `${(getMarketActivity(prices) * 100).toFixed(0)}%`));
-      box.appendChild(diagRow('Coins Tracked', `${prices.length}`));
-      logNet(netLog, 'OK', `Market: ${formatMarketCap(totalCap)} — ${breadth.greenPct}% green`);
+      if (dirty) {
+        body.appendChild(btn('Revert', {
+          minimal: true,
+          onClick: () => applyProfile(activeProfile),
+        }));
+      }
+      settings.appendChild(wrap);
     }
 
-    // Global TVL
+    // Landing — the same controls as the toggle stack, here as well.
+    {
+      const { wrap, body } = settingsGroup('Landing', 'What the Matrix screen shows. Mirrors the toggles in its bottom-right corner.');
+      body.appendChild(settingsSwitch('MATRIX', matrixPref));
+      body.appendChild(settingsSwitch('CRYPTOCLOUD', cryptocloudPref));
+      body.appendChild(settingsSwitch('TOP 10', top10Pref));
+      body.appendChild(settingsSwitch('FAVOURITES', favouritesPref));
+      body.appendChild(settingsSwitch('STABLECOINS', stablecoinsPref));
+      body.appendChild(settingsSwitch('PYRAMID', pyramidPref));
+      const period = document.createElement('select');
+      period.className = 'parsec-bp-settings__select';
+      period.setAttribute('aria-label', 'Change period');
+      for (const p of CHANGE_PERIODS) {
+        const o = document.createElement('option');
+        o.value = p; o.textContent = `CHANGE ${p.toUpperCase()}`; o.selected = p === pricePeriod;
+        period.appendChild(o);
+      }
+      period.addEventListener('change', () => {
+        pricePeriod = period.value as ChangePeriod;
+        try { localStorage.setItem(PERIOD_KEY, pricePeriod); } catch { /* best effort */ }
+        afterChoiceChange();
+      });
+      body.appendChild(period);
+      settings.appendChild(wrap);
+    }
+
+    // Diagnostics depth and extensions
+    {
+      const { wrap, body } = settingsGroup('Diagnostics', 'How deep the instruments go, and which extension panels are on.');
+      for (const lv of ['basic', 'scientific', 'advanced'] as const) {
+        const b = el('button', {
+          cls: `parsec-matrix__blue-switch${diagLevel === lv ? '' : ' parsec-matrix__blue-switch--off'}`,
+          text: lv.toUpperCase(),
+          attrs: { type: 'button', 'aria-pressed': String(diagLevel === lv) },
+        });
+        b.addEventListener('click', () => {
+          diagLevel = lv;
+          try { localStorage.setItem(DIAG_LEVEL_KEY, lv); } catch { /* best effort */ }
+          afterChoiceChange();
+        });
+        body.appendChild(b);
+      }
+      body.appendChild(el('span', { cls: 'parsec-bp-settings__sep' }));
+      body.appendChild(settingsSwitch('ARWEAVE', arweavePref));
+      body.appendChild(settingsSwitch('AR.IO', arioPref));
+      body.appendChild(settingsSwitch('CHAINMARKETCAP', chainmarketcapPref));
+      body.appendChild(settingsSwitch('PRICES', pricesPref));
+      body.appendChild(settingsSwitch('NEWSFEED', newsPref));
+      settings.appendChild(wrap);
+    }
+
+    // Emphasis
+    {
+      const { wrap, body } = settingsGroup(
+        'Emphasis',
+        'The assets the diagnostics put first — the pulse strip, the Focus section and the derivatives. Order is the order you switch them on.',
+      );
+      for (const a of FOCUS_CATALOG) {
+        const on = currentFocus.includes(a.id);
+        const chip = el('button', {
+          cls: `parsec-matrix__blue-switch${on ? '' : ' parsec-matrix__blue-switch--off'}`,
+          text: a.symbol,
+          attrs: { type: 'button', 'aria-pressed': String(on), title: a.name },
+        });
+        chip.addEventListener('click', () => {
+          currentFocus = on ? currentFocus.filter((id) => id !== a.id) : [...currentFocus, a.id];
+          saveFocus();
+          afterChoiceChange();
+        });
+        body.appendChild(chip);
+      }
+      settings.appendChild(wrap);
+    }
+
+    // Watched wallets
+    {
+      const { wrap, body } = settingsGroup(
+        'Wallets to watch',
+        'Read only. The Blue Pill reads public balances for these addresses and never signs, sends or connects for them. Each read tells that chain\'s public endpoint which address was asked about.',
+      );
+      body.classList.add('parsec-bp-settings__row--stack');
+      const list = el('div', { cls: 'parsec-bp-watchlist' });
+      if (currentWatch.length === 0) {
+        list.appendChild(el('p', { cls: 'bp5-text-muted', text: 'Not watching any wallet.' }));
+      }
+      currentWatch.forEach((w, i) => {
+        const row = el('div', { cls: 'parsec-matrix__diag-row' });
+        row.appendChild(el('span', { cls: 'parsec-matrix__diag-row-label', text: `${w.label || watch.WATCH_CHAIN_LABEL[w.chain]} · ${watch.WATCH_CHAIN_LABEL[w.chain]}` }));
+        const v = el('span', { cls: 'parsec-matrix__diag-row-value' });
+        v.appendChild(el('span', { text: watch.shortAddress(w.address), attrs: { title: w.address } }));
+        v.appendChild(btn('Remove', {
+          minimal: true, intent: 'danger',
+          onClick: () => { currentWatch = currentWatch.filter((_, j) => j !== i); saveWatch(); afterChoiceChange(); },
+        }));
+        row.appendChild(v);
+        list.appendChild(row);
+      });
+      body.appendChild(list);
+
+      // Add by address. The format suggests the chain; Rust confirms it.
+      const form = el('div', { cls: 'parsec-bp-settings__row' });
+      const addr = input({ type: 'text', placeholder: 'Address to watch', cls: 'bp5-input parsec-bp-settings__addr' }) as HTMLInputElement;
+      const label = input({ type: 'text', placeholder: 'Label (optional)', cls: 'bp5-input parsec-bp-settings__name' }) as HTMLInputElement;
+      const chainSel = document.createElement('select');
+      chainSel.className = 'parsec-bp-settings__select';
+      chainSel.setAttribute('aria-label', 'Chain');
+      const status = el('p', { cls: 'parsec-matrix__diag-note' });
+      const suggest = () => {
+        const cands = watch.classifyAddress(addr.value);
+        chainSel.innerHTML = '';
+        for (const c of cands) {
+          const o = document.createElement('option');
+          o.value = c; o.textContent = watch.WATCH_CHAIN_LABEL[c];
+          chainSel.appendChild(o);
+        }
+        chainSel.disabled = cands.length === 0;
+        status.textContent = addr.value.trim() === '' ? ''
+          : cands.length === 0 ? 'Not an address format Parsec can watch.'
+          : cands.length > 1 ? 'This fits more than one chain. Pick which.' : '';
+      };
+      addr.addEventListener('input', suggest);
+      suggest();
+      const add = async () => {
+        const address = addr.value.trim();
+        const chain = chainSel.value as watch.WatchChain;
+        if (!address || !chain) { status.textContent = 'Enter an address first.'; return; }
+        if (currentWatch.length >= profiles.MAX_WATCHED) { status.textContent = `A profile watches at most ${profiles.MAX_WATCHED} wallets.`; return; }
+        if (currentWatch.some((w) => w.chain === chain && w.address === address)) { status.textContent = 'Already watching that wallet.'; return; }
+        status.textContent = 'Checking…';
+        const v = await import('../lib/validate');
+        const verdict = await watch.confirmChain(chain, address, {
+          algorand: v.validateAlgorandAddress, solana: v.validateSolanaAddress,
+          bitcoin: v.validateBitcoinAddress, evm: v.validateEvmAddress,
+        });
+        if (!verdict.ok) { status.textContent = `Not added: ${verdict.reason}`; return; }
+        const clean = sanitizeWatched({ chain, address, label: label.value });
+        if (!clean) { status.textContent = 'Not added: that address could not be stored.'; return; }
+        currentWatch = [...currentWatch, clean];
+        saveWatch();
+        afterChoiceChange('watch');
+      };
+      form.appendChild(addr);
+      form.appendChild(chainSel);
+      form.appendChild(label);
+      form.appendChild(btn('Watch', { minimal: true, intent: 'primary', onClick: () => { void add(); } }));
+      body.appendChild(form);
+      body.appendChild(status);
+
+      // Quick add: this device's own wallets, by their public addresses.
+      const own: WatchedWallet[] = [];
+      for (const acct of store.get().accounts) {
+        for (const [chainId, a] of Object.entries(acct.chains ?? {})) {
+          const chain: watch.WatchChain | null =
+            chainId === 'algorand' ? 'algorand'
+            : chainId === 'solana' ? 'solana'
+            : chainId.startsWith('arweave') ? 'arweave'
+            : chainId === 'bitcoin' ? 'bitcoin'
+            : chainId === 'evm' || chainId === 'base' || chainId === 'ethereum' ? 'evm' : null;
+          const w = chain ? sanitizeWatched({ chain, address: a, label: acct.name }) : null;
+          if (w && !own.some((o) => o.chain === w.chain && o.address === w.address)
+              && !currentWatch.some((c) => c.chain === w.chain && c.address === w.address)) own.push(w);
+        }
+      }
+      if (own.length > 0) {
+        const quick = el('div', { cls: 'parsec-bp-settings__row' });
+        quick.appendChild(el('span', { cls: 'parsec-bp-settings__hint', text: 'This device:' }));
+        for (const w of own) {
+          const b = el('button', {
+            cls: 'parsec-matrix__blue-switch parsec-matrix__blue-switch--off',
+            text: `+ ${w.label} · ${watch.WATCH_CHAIN_LABEL[w.chain]}`,
+            attrs: { type: 'button', title: w.address },
+          });
+          b.addEventListener('click', () => {
+            if (currentWatch.length >= profiles.MAX_WATCHED) return;
+            currentWatch = [...currentWatch, w];
+            saveWatch();
+            afterChoiceChange();
+          });
+          quick.appendChild(b);
+        }
+        body.appendChild(quick);
+      }
+      settings.appendChild(wrap);
+    }
+  }
+
+  /** Read-only balances of the profile's watched wallets. */
+  async function loadWatchTab(box: HTMLElement, netLog: HTMLElement): Promise<void> {
+    box.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'WATCHING — READ ONLY' }));
+    box.appendChild(el('p', {
+      cls: 'parsec-matrix__diag-note',
+      text: 'Balances only. Nothing here can sign, send or connect — for that, take the Red Pill and log in.',
+    }));
+    if (currentWatch.length === 0) {
+      box.appendChild(el('p', { cls: 'bp5-text-muted', text: 'Not watching any wallet. Add one in Settings.' }));
+      return;
+    }
+    const sections = currentWatch.map((w) => {
+      const wrap = el('div');
+      const desc = getChainDescriptor(w.chain === 'evm' ? 'ethereum' : w.chain === 'arweave' ? 'arweave' : w.chain);
+      const head = el('div', { cls: 'parsec-matrix__diag-subsection', text: `${w.label || watch.WATCH_CHAIN_LABEL[w.chain]} · ${watch.WATCH_CHAIN_LABEL[w.chain]} · ${watch.shortAddress(w.address)}` });
+      wrap.appendChild(head);
+      const url = w.chain === 'evm' ? `https://blockscan.com/address/${w.address}`
+        : w.chain === 'bitcoin' ? `https://mempool.space/address/${w.address}`
+        : desc.explorerUrl(w.address);
+      if (url && url !== '#') {
+        wrap.appendChild(el('a', {
+          cls: 'parsec-matrix__diag-link', text: 'explorer ↗',
+          attrs: { href: url, target: '_blank', rel: 'noreferrer noopener', title: `Opens ${new URL(url).hostname} — it will see this address` },
+        }));
+      }
+      const body = el('div');
+      body.appendChild(el('p', { cls: 'parsec-matrix__diag-loading', text: 'Reading…' }));
+      wrap.appendChild(body);
+      box.appendChild(wrap);
+      return { w, body };
+    });
+    logNet(netLog, 'FETCH', `watching ${currentWatch.length} wallet(s)`);
+    await Promise.all(sections.map(async ({ w, body }) => {
+      const readings = await watch.readWatched(w);
+      body.innerHTML = '';
+      const shown = w.chain === 'evm' ? readings.filter((r) => r.raw === null || r.raw > 0n) : readings;
+      for (const r of shown) {
+        body.appendChild(diagRow(r.network, r.raw === null ? `— ${r.error ?? 'unavailable'}` : watch.formatReading(r)));
+      }
+      if (w.chain === 'evm' && shown.length < readings.length) {
+        body.appendChild(el('p', { cls: 'parsec-matrix__diag-note', text: `Empty on ${readings.filter((r) => r.raw === 0n).map((r) => r.network).join(', ')}.` }));
+      }
+    }));
+    logNet(netLog, 'OK', 'watch balances');
+  }
+
+  // ── Blue Pill: market pulse ──
+  //
+  // The first thing the blue pill shows, before a depth is chosen: the whole
+  // market in one line. Every cell starts as "…" and stays "—" if its source
+  // cannot be read; nothing here renders a confident zero for a missing figure.
+  function renderMarketPulse(): HTMLElement {
+    const strip = el('div', { cls: 'parsec-pulse', attrs: { role: 'group', 'aria-label': 'Market pulse' } });
+    const cell = (label: string) => {
+      const value = el('span', { cls: 'parsec-pulse__value', text: '…' });
+      const sub = el('span', { cls: 'parsec-pulse__sub' });
+      strip.appendChild(el('div', { cls: 'parsec-pulse__cell', children: [
+        el('span', { cls: 'parsec-pulse__label', text: label }), value, sub,
+      ]}));
+      return (v: string, s = '', tone: Status = 'unknown') => {
+        value.textContent = v;
+        sub.textContent = s;
+        if (tone !== 'unknown') sub.dataset.tone = tone; else delete sub.dataset.tone;
+      };
+    };
+    const moveTone = (p: number | null): Status => (p === null ? 'unknown' : p >= 0 ? 'ok' : 'deficient');
+
+    const cap = cell('Market cap');
+    const vol = cell('24h volume');
+    const dom = cell('BTC dom');
+    const fng = cell('Fear & Greed');
+    const funding = cell('BTC funding');
+
+    void mg.fetchGlobalMarket().then((g) => {
+      if (!g) { cap('—'); vol('—'); dom('—'); return; }
+      cap(mg.compactUsd(g.totalMarketCapUsd), mg.signedPct(g.marketCapChange24hPct), moveTone(g.marketCapChange24hPct));
+      vol(mg.compactUsd(g.totalVolumeUsd), mg.signedPct(g.volumeChange24hPct));
+      const split = mg.dominanceSplit(g.dominance);
+      dom(g.dominance.btc === undefined ? '—' : `${split.btc.toFixed(1)}%`,
+        g.dominance.eth === undefined ? '' : `ETH ${split.eth.toFixed(1)}%`);
+    });
+    void mg.fetchFearGreed().then((f) => {
+      if (!f) { fng('—'); return; }
+      const d = f.yesterday ? f.now.value - f.yesterday.value : null;
+      fng(String(f.now.value), `${f.now.label}${d === null || d === 0 ? '' : ` · ${d > 0 ? '+' : '−'}${Math.abs(d)} 1d`}`);
+    });
+    void mg.fetchPerps(['BTC']).then(([p]) => {
+      if (!p) { funding('—'); return; }
+      funding(`${(p.fundingRate * 100).toFixed(4)}%`, mg.fundingBias(p.fundingRate));
+    });
+
+    // The profile's emphasis, in its order: one compact cell per asset.
+    const wrap = el('div', { cls: 'parsec-pulse-wrap' });
+    wrap.appendChild(strip);
+    if (currentFocus.length > 0) {
+      const focus = el('div', { cls: 'parsec-pulse parsec-pulse--focus', attrs: { role: 'group', 'aria-label': `Focus — ${activeProfile.name}` } });
+      const fills = new Map<string, (v: string, s: string, t: Status) => void>();
+      for (const id of currentFocus) {
+        const a = focusAsset(id);
+        const value = el('span', { cls: 'parsec-pulse__value', text: '…' });
+        const sub = el('span', { cls: 'parsec-pulse__sub' });
+        focus.appendChild(el('div', { cls: 'parsec-pulse__cell', children: [
+          el('span', { cls: 'parsec-pulse__label', text: a?.symbol ?? id }), value, sub,
+        ]}));
+        fills.set(id, (v, sText, tone) => {
+          value.textContent = v; sub.textContent = sText;
+          if (tone !== 'unknown') sub.dataset.tone = tone;
+        });
+      }
+      wrap.appendChild(focus);
+      void mg.fetchCoinsDetail(currentFocus).then((coins) => {
+        const byId = new Map(coins.map((c) => [c.id, c]));
+        for (const [id, fill] of fills) {
+          const c = byId.get(id);
+          if (!c) fill('—', '', 'unknown');
+          else fill(formatPrice(c.priceUsd), mg.signedPct(c.change24hPct), moveTone(c.change24hPct));
+        }
+      });
+    }
+    return wrap;
+  }
+
+  // ── Blue Pill Tab: Global Overview (The Tank View) ──
+  //
+  // Whole-market readings a trader starts from, then the same questions asked
+  // of Algorand. Sections are laid out first and filled as each source answers,
+  // so a slow feed never reorders the page.
+  async function loadGlobalTab(box: HTMLElement, netLog: HTMLElement) {
+    box.appendChild(el('div', { cls: 'parsec-matrix__diag-section-title', text: 'GLOBAL CRYPTO MARKET' }));
+    box.appendChild(diagRow('Timestamp', new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC'));
+
+    const moveTone = (p: number | null | undefined): Status =>
+      p === null || p === undefined || !Number.isFinite(p) ? 'unknown' : p >= 0 ? 'ok' : 'deficient';
+
+    /** A titled section whose rows arrive later. `fill` replaces the placeholder. */
+    const section = (title: string) => {
+      const wrap = el('div');
+      wrap.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: title }));
+      const body = el('div');
+      body.appendChild(el('p', { cls: 'parsec-matrix__diag-loading', text: 'Reading…' }));
+      wrap.appendChild(body);
+      box.appendChild(wrap);
+      return {
+        fill(rows: HTMLElement[]) {
+          body.innerHTML = '';
+          if (rows.length === 0) body.appendChild(el('p', { cls: 'bp5-text-muted', text: 'Source unavailable right now.' }));
+          rows.forEach((r) => body.appendChild(r));
+        },
+      };
+    };
+
+    const sMarket = section('Market');
+    const sDominance = section('Dominance');
+    const sSentiment = section('Sentiment');
+    const focusAssets = currentFocus.map((id) => focusAsset(id)).filter((a): a is NonNullable<typeof a> => a !== undefined);
+    const sFocus = section(`Focus — ${activeProfile.name} profile`);
+    const withAlgo = currentFocus.includes('algorand');
+    const sAlgo = withAlgo ? section('Algorand') : null;
+    const sDerivs = section('Derivatives — perpetual funding & open interest (Bybit)');
+    const sLiquidity = section('Liquidity');
+    const sInfra = section('Infrastructure');
+
+    logNet(netLog, 'FETCH', `global market · sentiment · perps · DEX · focus ${focusAssets.length}`);
+    const perpBases = focusAssets.map((a) => a.perp).filter((b): b is string => Boolean(b));
+    const [g, f, perps, dex, focusCoins, algoDex, focusTvl] = await Promise.all([
+      mg.fetchGlobalMarket(),
+      mg.fetchFearGreed(),
+      mg.fetchPerps(perpBases.length > 0 ? perpBases : ['BTC', 'ETH']),
+      mg.fetchDexVolume(),
+      mg.fetchCoinsDetail(currentFocus),
+      withAlgo ? mg.fetchDexVolume('algorand') : Promise.resolve(null),
+      mg.fetchChainTvls(focusAssets.map((a) => a.llamaChain).filter((n): n is string => Boolean(n))),
+    ]);
+    const algo = focusCoins.find((c) => c.id === 'algorand')
+      ?? (withAlgo ? await mg.fetchCoinDetail('algorand') : null);
+    const algoTvl = focusTvl.get('Algorand') ?? null;
+
+    // Focus: one row per emphasised asset, in the profile's order.
+    {
+      const byId = new Map(focusCoins.map((c) => [c.id, c]));
+      sFocus.fill(focusAssets.map((a) => {
+        const c = byId.get(a.id);
+        if (!c) return diagRow(a.symbol, '— not returned by the price source');
+        const turnover = mg.turnoverPct(c.volume24hUsd, c.marketCapUsd);
+        const tvl = a.llamaChain ? focusTvl.get(a.llamaChain) : undefined;
+        const parts = [
+          formatPrice(c.priceUsd),
+          `1h ${mg.signedPct(c.change1hPct, 1)} · 24h ${mg.signedPct(c.change24hPct, 1)} · 7d ${mg.signedPct(c.change7dPct, 1)}`,
+          `cap ${mg.compactUsd(c.marketCapUsd)}${c.rank ? ` #${c.rank}` : ''}`,
+          `vol ${mg.compactUsd(c.volume24hUsd)}${turnover === null ? '' : ` (${turnover.toFixed(1)}%)`}`,
+        ];
+        if (tvl !== undefined) parts.push(`TVL ${mg.compactUsd(tvl)}`);
+        return diagRow(a.symbol, parts.join('  ·  '), moveTone(c.change24hPct));
+      }));
+    }
+
+    // Market
+    if (g) {
+      const turnover = mg.turnoverPct(g.totalVolumeUsd, g.totalMarketCapUsd);
+      sMarket.fill([
+        diagRow('Total market cap', `${mg.compactUsd(g.totalMarketCapUsd)}  (${mg.signedPct(g.marketCapChange24hPct)} 24h)`, moveTone(g.marketCapChange24hPct)),
+        diagRow('24h volume', `${mg.compactUsd(g.totalVolumeUsd)}  (${mg.signedPct(g.volumeChange24hPct)} vs prior day)`),
+        diagRow('Volume / market cap', turnover === null ? '—' : `${turnover.toFixed(2)}% turnover`),
+        diagRow('Active coins · markets', `${g.activeCryptocurrencies?.toLocaleString() ?? '—'} · ${g.markets?.toLocaleString() ?? '—'}`),
+        diagRow('Source', g.source === 'coingecko' ? 'CoinGecko' : 'CoinPaprika (CoinGecko rate-limited)'),
+      ]);
+      const split = mg.dominanceSplit(g.dominance);
+      const bar = (pct: number) => '█'.repeat(Math.round(pct / 5)).padEnd(20, '░');
+      const domRows = [diagRow('Bitcoin', g.dominance.btc === undefined ? '—' : `${split.btc.toFixed(2)}%  ${bar(split.btc)}`)];
+      // The fallback source reports BTC only. The rest stays unknown rather
+      // than rendering as 0 % and an inflated "altcoins" remainder.
+      if (g.dominance.eth !== undefined) {
+        domRows.push(
+          diagRow('Ethereum', `${split.eth.toFixed(2)}%  ${bar(split.eth)}`),
+          diagRow('Stablecoins', `${split.stables.toFixed(2)}%  ${bar(split.stables)}`),
+          diagRow('Altcoins (rest)', `${split.alts.toFixed(2)}%  ${bar(split.alts)}`),
+          diagRow('ETH / BTC dominance', split.btc > 0 ? (split.eth / split.btc).toFixed(3) : '—'),
+        );
+      } else {
+        domRows.push(diagRow('ETH · stables · alts', '— (not in the fallback source)'));
+      }
+      sDominance.fill(domRows);
+      logNet(netLog, 'OK', `Market ${mg.compactUsd(g.totalMarketCapUsd)} · vol ${mg.compactUsd(g.totalVolumeUsd)}`);
+    } else {
+      sMarket.fill([]); sDominance.fill([]);
+      logNet(netLog, 'ERR', 'coingecko /global');
+    }
+
+    // Sentiment
+    const sentimentRows: HTMLElement[] = [];
+    if (f) {
+      const vs = (p: mg.FearGreedPoint | null, label: string) => {
+        if (!p) return;
+        const d = f.now.value - p.value;
+        sentimentRows.push(diagRow(`  vs ${label}`, `${p.value} ${p.label}  (${d >= 0 ? '+' : '−'}${Math.abs(d)})`));
+      };
+      sentimentRows.push(diagRow('Fear & Greed', `${f.now.value} / 100 — ${f.now.label}`));
+      vs(f.yesterday, 'yesterday');
+      vs(f.weekAgo, 'last week');
+      vs(f.monthAgo, 'last month');
+      if (f.nextUpdateSec !== null) sentimentRows.push(diagRow('Next reading in', `${Math.round(f.nextUpdateSec / 3600)}h`));
+      logNet(netLog, 'OK', `F&G ${f.now.value} ${f.now.label}`);
+    }
+    if (prices.length > 0) {
+      const breadth = getMarketBreadth(prices);
+      const avgMove = prices.reduce((s, c) => s + Math.abs(c.change24h), 0) / prices.length;
+      sentimentRows.push(diagRow('Breadth (top 100)', `${breadth.greenPct}% up · ${breadth.redPct}% down · ${breadth.flatPct}% flat`, breadth.greenPct >= breadth.redPct ? 'ok' : 'deficient'));
+      sentimentRows.push(diagRow('Avg 24h move (top 100)', `${avgMove.toFixed(2)}%`));
+      for (const sym of ['BTC', 'ETH', 'SOL']) {
+        const c = prices.find((p) => p.symbol === sym);
+        if (c) sentimentRows.push(diagRow(sym, `${formatPrice(c.usd)}  (${mg.signedPct(c.change24h)})`, moveTone(c.change24h)));
+      }
+    }
+    sSentiment.fill(sentimentRows);
+
+    // Derivatives
+    sDerivs.fill(perps.map((p) => {
+      const base = p.symbol.replace(/USDT$/, '');
+      return diagRow(
+        base,
+        `funding ${(p.fundingRate * 100).toFixed(4)}%/8h (${mg.fundingAnnualPct(p.fundingRate).toFixed(1)}% APR, ${mg.fundingBias(p.fundingRate)}) · OI ${mg.compactUsd(p.openInterestUsd)} · 24h turnover ${mg.compactUsd(p.turnover24hUsd)}`,
+      );
+    }));
+    if (perps.length) logNet(netLog, 'OK', `perps ${perps.length}`);
+
+    // Liquidity
+    const liqRows: HTMLElement[] = [];
+    if (dex) {
+      liqRows.push(diagRow('DEX spot volume 24h', `${mg.compactUsd(dex.total24hUsd)}  (${mg.signedPct(dex.change1dPct)} 1d · ${mg.signedPct(dex.change7dPct)} 7d)`));
+      if (g) {
+        const share = dex.total24hUsd / g.totalVolumeUsd * 100;
+        if (Number.isFinite(share)) liqRows.push(diagRow('DEX share of volume', `${share.toFixed(1)}%`));
+      }
+    }
+    if (g && g.dominance.usdt !== undefined) {
+      const stables = mg.dominanceSplit(g.dominance).stables;
+      liqRows.push(diagRow('Stablecoin cap (est.)', `${mg.compactUsd(g.totalMarketCapUsd * stables / 100)}  — dry powder`));
+    }
     try {
-      logNet(netLog, 'FETCH', 'Global TVL');
       const res = await fetch('https://api.llama.fi/v2/historicalChainTvl', { signal: AbortSignal.timeout(8000) });
       if (res.ok) {
         const data = await res.json() as Array<{ date: number; tvl: number }>;
         const latest = data[data.length - 1];
         const week = data[data.length - 8];
         const month = data[data.length - 31];
-        box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'DeFi' }));
-        box.appendChild(diagRow('Global TVL', formatMarketCap(latest.tvl)));
-        if (week) box.appendChild(diagRow('7d TVL Change', `${((latest.tvl - week.tvl) / week.tvl * 100) >= 0 ? '+' : ''}${((latest.tvl - week.tvl) / week.tvl * 100).toFixed(1)}%`));
-        if (month) box.appendChild(diagRow('30d TVL Change', `${((latest.tvl - month.tvl) / month.tvl * 100) >= 0 ? '+' : ''}${((latest.tvl - month.tvl) / month.tvl * 100).toFixed(1)}%`));
-        logNet(netLog, 'OK', `TVL: ${formatMarketCap(latest.tvl)}`);
+        const ch = (a?: { tvl: number }) => (a ? ((latest.tvl - a.tvl) / a.tvl) * 100 : null);
+        liqRows.push(diagRow('DeFi TVL', `${mg.compactUsd(latest.tvl)}  (${mg.signedPct(ch(week), 1)} 7d · ${mg.signedPct(ch(month), 1)} 30d)`, moveTone(ch(week))));
       }
-    } catch { /* skip */ }
+    } catch { /* the row is simply absent */ }
+    sLiquidity.fill(liqRows);
 
-    // Gas snapshot (ETH only for global view)
-    try {
-      logNet(netLog, 'FETCH', 'ETH gas');
-      const res = await fetch('https://eth.llamarpc.com', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_gasPrice', params: [], id: 1 }),
-        signal: AbortSignal.timeout(5000),
-      });
-      if (res.ok) {
-        const data = await res.json() as { result?: string };
-        if (data.result) {
-          const gwei = parseInt(data.result, 16) / 1e9;
-          box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Infrastructure' }));
-          box.appendChild(diagRow('ETH Gas', `${gwei.toFixed(1)} gwei`));
-          box.appendChild(diagRow('ALGO Tx Fee', '0.001 ALGO'));
-          logNet(netLog, 'OK', `Gas: ${gwei.toFixed(1)} gwei`);
-        }
+    // Algorand
+    const algoRows: HTMLElement[] = [];
+    if (algo) {
+      const pos = mg.rangePosition(algo.priceUsd, algo.low24h, algo.high24h);
+      const turnover = mg.turnoverPct(algo.volume24hUsd, algo.marketCapUsd);
+      const btc = prices.find((p) => p.symbol === 'BTC');
+      algoRows.push(diagRow('Price', `${formatPrice(algo.priceUsd)}${algo.rank ? `  · rank #${algo.rank}` : ''}${algo.source === 'coinpaprika' ? '  (CoinPaprika)' : ''}`));
+      algoRows.push(diagRow('Change 1h · 24h', `${mg.signedPct(algo.change1hPct)} · ${mg.signedPct(algo.change24hPct)}`, moveTone(algo.change24hPct)));
+      algoRows.push(diagRow('Change 7d · 30d', `${mg.signedPct(algo.change7dPct)} · ${mg.signedPct(algo.change30dPct)}`, moveTone(algo.change7dPct)));
+      if (algo.low24h !== null && algo.high24h !== null) {
+        algoRows.push(diagRow('24h range', `${formatPrice(algo.low24h)} – ${formatPrice(algo.high24h)}${pos === null ? '' : `  (at ${pos.toFixed(0)}% of range)`}`));
       }
-    } catch { /* skip */ }
-
-    // Algorand round
+      algoRows.push(diagRow('Market cap · volume', `${mg.compactUsd(algo.marketCapUsd)} · ${mg.compactUsd(algo.volume24hUsd)}${turnover === null ? '' : `  (${turnover.toFixed(1)}% turnover)`}`));
+      if (btc && btc.usd > 0) algoRows.push(diagRow('ALGO / BTC', `${Math.round((algo.priceUsd / btc.usd) * 1e8).toLocaleString()} sats`));
+      if (algo.athUsd !== null) algoRows.push(diagRow('From all-time high', `${mg.signedPct(algo.athChangePct, 1)}  (ATH ${formatPrice(algo.athUsd)})`));
+      if (algo.circulatingSupply !== null) {
+        const of = algo.maxSupply ? ` of ${(algo.maxSupply / 1e9).toFixed(1)}B (${((algo.circulatingSupply / algo.maxSupply) * 100).toFixed(1)}%)` : '';
+        algoRows.push(diagRow('Circulating supply', `${(algo.circulatingSupply / 1e9).toFixed(2)}B${of}`));
+      }
+    }
+    if (algoTvl !== null) algoRows.push(diagRow('Algorand DeFi TVL', mg.compactUsd(algoTvl)));
+    if (algoDex) algoRows.push(diagRow('Algorand DEX volume 24h', `${mg.compactUsd(algoDex.total24hUsd)}  (${mg.signedPct(algoDex.change1dPct)} 1d)`));
+    const algoPerp = perps.find((p) => p.symbol === 'ALGOUSDT');
+    if (algoPerp) algoRows.push(diagRow('ALGO perp', `funding ${(algoPerp.fundingRate * 100).toFixed(4)}%/8h · OI ${mg.compactUsd(algoPerp.openInterestUsd)}`));
     try {
-      const algodUrl = `https://${store.get().settings.network}-api.algonode.cloud`;
-      const res = await fetch(`${algodUrl}/v2/status`, { signal: AbortSignal.timeout(5000) });
+      const res = await fetch(`https://${store.get().settings.network}-api.algonode.cloud/v2/status`, { signal: AbortSignal.timeout(5000) });
       if (res.ok) {
         const status = await res.json() as Record<string, unknown>;
-        const round = Number(status['last-round'] || 0);
-        box.appendChild(diagRow('Algorand Round', round.toLocaleString()));
-        logNet(netLog, 'OK', `Round ${round.toLocaleString()}`);
+        algoRows.push(diagRow('Round', Number(status['last-round'] || 0).toLocaleString(), 'ok'));
       }
-    } catch { /* skip */ }
+    } catch { /* absent, not zero */ }
+    algoRows.push(diagRow('Min tx fee', '0.001 ALGO'));
+    sAlgo?.fill(algoRows);
+    if (algo) logNet(netLog, 'OK', `ALGO ${formatPrice(algo.priceUsd)} ${mg.signedPct(algo.change24hPct)}`);
 
-    // Ethereum block
-    try {
-      const res = await fetch('https://eth.llamarpc.com', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 }),
-        signal: AbortSignal.timeout(5000),
-      });
-      if (res.ok) {
+    // Infrastructure
+    const infraRows: HTMLElement[] = [];
+    const ethRpc = async (method: string): Promise<number | null> => {
+      try {
+        const res = await fetch('https://ethereum-rpc.publicnode.com', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', method, params: [], id: 1 }),
+          signal: AbortSignal.timeout(5000),
+        });
+        if (!res.ok) return null;
         const data = await res.json() as { result?: string };
-        if (data.result) {
-          box.appendChild(diagRow('ETH Block', parseInt(data.result, 16).toLocaleString()));
-        }
-      }
-    } catch { /* skip */ }
-
-    // Fear & Greed
-    try {
-      logNet(netLog, 'FETCH', 'Sentiment');
-      const res = await fetch('https://api.alternative.me/fng/?limit=1', { signal: AbortSignal.timeout(5000) });
-      if (res.ok) {
-        const data = await res.json() as { data: Array<{ value: string; value_classification: string }> };
-        if (data.data?.[0]) {
-          box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Sentiment' }));
-          box.appendChild(diagRow('Fear & Greed', `${data.data[0].value} — ${data.data[0].value_classification}`));
-          logNet(netLog, 'OK', `F&G: ${data.data[0].value}`);
-        }
-      }
-    } catch { /* skip */ }
-
-    // Top 5 chains by TVL (compact)
+        return data.result ? parseInt(data.result, 16) : null;
+      } catch { return null; }
+    };
+    const [gas, block] = await Promise.all([ethRpc('eth_gasPrice'), ethRpc('eth_blockNumber')]);
+    if (gas !== null) infraRows.push(diagRow('ETH gas', `${(gas / 1e9).toFixed(2)} gwei`));
+    if (block !== null) infraRows.push(diagRow('ETH block', block.toLocaleString()));
     try {
       const res = await fetch('https://api.llama.fi/v2/chains', { signal: AbortSignal.timeout(8000) });
       if (res.ok) {
         const chains = await res.json() as Array<{ name: string; tvl: number }>;
-        const top = chains.filter(c => c.tvl > 0).sort((a, b) => b.tvl - a.tvl).slice(0, 5);
-        box.appendChild(el('div', { cls: 'parsec-matrix__diag-subsection', text: 'Top Chains' }));
-        top.forEach((c, i) => box.appendChild(diagRow(`${i + 1}. ${c.name}`, formatMarketCap(c.tvl))));
+        chains.filter((c) => c.tvl > 0).sort((a, b) => b.tvl - a.tvl).slice(0, 5)
+          .forEach((c, i) => infraRows.push(diagRow(`TVL #${i + 1} ${c.name}`, mg.compactUsd(c.tvl))));
       }
-    } catch { /* skip */ }
+    } catch { /* absent */ }
+    sInfra.fill(infraRows);
   }
 
   // ── Blue Pill Tab: Gas & Fees ──
@@ -3950,8 +4719,42 @@ export function matrixView(): HTMLElement {
 
     panel.appendChild(el('div', { cls: 'parsec-matrix__pill-screen', children: [
       el('div', { cls: 'parsec-matrix__choice-label parsec-matrix__choice-label--red', text: 'RED PILL — LIVE WALLET' }),
+      el('div', {
+        cls: 'parsec-modebadge parsec-modebadge--armed',
+        text: 'ARMED · signing authority',
+        attrs: { title: 'The Red Pill can open the vault and sign. Leaving it logs out completely.' },
+      }),
       el('p', { cls: 'parsec-matrix__lead', text: 'Sovereign access. Signing authority.' }),
     ]}));
+
+    // A session is already open: the Red Pill is the logged-in perspective on
+    // every wallet this vault holds. Offer the way in, and the way fully out.
+    if (hasLiveSession()) {
+      panel.appendChild(el('p', { cls: 'parsec-matrix__recover', text: 'Session open. Your wallets are unlocked.' }));
+      const list = el('div', { cls: 'parsec-redsession' });
+      state.accounts.forEach((acct, i) => {
+        const chains = Object.keys(acct.chains ?? {}).map((c) => getChainDescriptor(c).label).join(' · ');
+        list.appendChild(el('div', { cls: `parsec-redsession__row${i === state.activeAccountIndex ? ' parsec-redsession__row--active' : ''}`, children: [
+          el('span', { cls: 'parsec-redsession__name', text: acct.name + (acct.watchOnly ? ' (watch-only)' : '') }),
+          el('span', { cls: 'parsec-redsession__chains', text: chains || 'no chains yet' }),
+        ]}));
+      });
+      panel.appendChild(list);
+      panel.appendChild(btn('Enter Wallet', {
+        intent: 'primary', large: true, cls: 'parsec-matrix__action parsec-matrix__action--red',
+        onClick: () => { void partAndEnter(); },
+      }));
+      panel.appendChild(btn('Log Out Completely', {
+        outlined: true, large: true, intent: 'danger', cls: 'parsec-matrix__action',
+        onClick: () => { void doLogout(); },
+      }));
+      panel.appendChild(el('p', {
+        cls: 'parsec-matrix__diag-note',
+        text: 'Logging out locks the vault, closes every dApp and Arweave connection, and clears secrets, cached reads and session storage. Your wallets stay on this device.',
+      }));
+      backButton();
+      return;
+    }
 
     if (hasAccounts && hasKeys) {
       // The keystore knows about a wallet this session does not — say so, so
@@ -4055,6 +4858,16 @@ export function matrixView(): HTMLElement {
       passphrase = '\0'.repeat(passphrase.length);
       passphrase = '';
     }
+  }
+
+  async function doLogout(): Promise<void> {
+    const report = await logout();
+    const failed = report.steps.filter((x) => !x.ok);
+    if (failed.length === 0) toast('Logged out. Nothing left in this session.', 'success');
+    else toast(`Logged out, but ${failed.map((x) => x.step).join(', ')} reported a problem.`, 'warning', 8000);
+    // store.lock() routes to the matrix; if we are already on it, re-render.
+    choice = 'red';
+    renderPanel();
   }
 
   // Animate the matrix screen apart, then hand off to the dashboard.

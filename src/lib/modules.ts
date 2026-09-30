@@ -92,6 +92,10 @@ function lazyFactory(route: ModuleRoute): () => HTMLElement {
 
     load
       .then((factory) => {
+        // Navigated away before the chunk arrived: building the view now would
+        // register its listeners and timers into the NEXT view's cleanup list
+        // (or nowhere at all), and nothing would ever show it.
+        if (!placeholder.isConnected) return;
         const real = factory();
         real.classList.add('parsec-view--enter');
         placeholder.replaceWith(real);

@@ -45,6 +45,10 @@ function lazyView(loader: () => Promise<() => HTMLElement>): () => HTMLElement {
     placeholder.innerHTML = '<div class="parsec-view-loading__spinner" aria-hidden="true"></div>';
     loader()
       .then((factory) => {
+        // Navigated away before the chunk arrived: building the view now would
+        // register its listeners and timers into the NEXT view's cleanup list
+        // (or nowhere at all), and nothing would ever show it.
+        if (!placeholder.isConnected) return;
         const real = factory();
         real.classList.add('parsec-view--enter');
         placeholder.replaceWith(real);
@@ -231,11 +235,20 @@ function deferredInit(): void {
 
     // Auto-start connect server when the wallet reaches the dashboard.
     const { connectStart } = await import('./lib/connect');
+    // Start the bridge once per address, and only for an armed wallet. This
+    // used to fire on every store change while on the dashboard; Rust refused
+    // the repeats, but each was still an IPC round trip.
+    const { isArmed, onModeChange } = await import('./lib/mode');
+    let bridgeFor: string | null = null;
+    onModeChange((m) => { if (m === 'viewing') bridgeFor = null; });
     store.subscribe((state) => {
       preloadFor(state.view);
-      if (state.accounts.length > 0 && state.view === 'dashboard') {
+      if (isArmed() && state.accounts.length > 0 && state.view === 'dashboard') {
         const address = state.accounts[state.activeAccountIndex]?.address;
-        if (address) connectStart(address).catch(() => { /* may already be running */ });
+        if (address && address !== bridgeFor) {
+          bridgeFor = address;
+          connectStart(address).catch(() => { /* may already be running */ });
+        }
       }
     });
   });

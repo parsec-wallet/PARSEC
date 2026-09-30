@@ -13,6 +13,7 @@
 // In web mode, Tauri-only commands throw a clear error so callers can route
 // to the Web Crypto + localStorage fallback (see src/lib/keystore.ts).
 
+import { assertAllowed } from './mode';
 export const isTauri: boolean =
   typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
@@ -28,6 +29,9 @@ export async function invoke<T = unknown>(
   if (!isTauri) {
     throw new Error(`Tauri command "${cmd}" not available in web build`);
   }
+  // The one place every command passes: viewing mode (the Blue Pill) cannot
+  // reach keys, signing, the dApp bridge or the encrypted volume. lib/mode.ts.
+  assertAllowed(cmd);
   const mod = await import('@tauri-apps/api/core');
   return mod.invoke<T>(cmd, args);
 }

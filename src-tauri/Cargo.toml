@@ -81,3 +81,5 @@ base64 = "0.22"
 # network_monitor — read-only local interface enumeration + CPU/GPU snapshot
 network-interface = "1"
 sysinfo = "0.32"
+russh = "0.54"
+russh-keys = "0.49"

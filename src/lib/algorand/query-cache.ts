@@ -13,6 +13,22 @@ interface CacheEntry<T> {
 }
 
 const cache = new Map<string, CacheEntry<unknown>>();
+
+/**
+ * Most entries kept. Keys include asset, NFT and transaction queries, so the
+ * map grew with everything ever looked at; expired entries were never removed.
+ */
+const MAX_ENTRIES = 500;
+
+function evict(now: number): void {
+  if (cache.size <= MAX_ENTRIES) return;
+  for (const [k, e] of cache) if (e.expiresAt <= now) cache.delete(k);
+  // Still over: Map iterates in insertion order, so the first keys are oldest.
+  for (const k of cache.keys()) {
+    if (cache.size <= MAX_ENTRIES) break;
+    cache.delete(k);
+  }
+}
 const inflight = new Map<string, Promise<unknown>>();
 
 /**
@@ -60,10 +76,12 @@ export async function queryCache<T>(
   const now = Date.now();
   const hit = cache.get(key) as CacheEntry<T> | undefined;
   if (hit && hit.expiresAt > now) return hit.value;
+  if (hit) cache.delete(key);
 
   return inflightDedupe(key, async () => {
     const value = await fetchFn();
     cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+    evict(Date.now());
     return value;
   });
 }
@@ -92,6 +110,12 @@ export function invalidateCachePrefix(prefix: string): void {
   for (const key of cache.keys()) {
     if (key.startsWith(prefix)) cache.delete(key);
   }
+}
+
+/** Forget every cached read and in-flight dedupe. Called on logout. */
+export function clearQueryCache(): void {
+  cache.clear();
+  inflight.clear();
 }
 
 /** Test-only: clear everything. */

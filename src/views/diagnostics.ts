@@ -24,6 +24,7 @@ import {
 } from '../lib/diagnostics/system';
 import { ENDPOINTS, probeEndpoint } from '../lib/diagnostics/endpoints';
 import type { EndpointStatus, InterfaceInfo, NetworkInfo } from '../lib/diagnostics/types';
+import { bindInterval, onCleanup } from '../lib/lifecycle';
 
 type Tab = 'connection' | 'system' | 'services';
 const POLL_MS = 5000;
@@ -306,14 +307,12 @@ export function diagnosticsView(): HTMLElement {
   renderShields();
 
   // ── Live auto-poll with self-cleanup ────────────────────────────────────
-  const timer = setInterval(() => {
-    if (!root.isConnected) {
-      clearInterval(timer);
-      if (rustEnabled && isTauri) { void setNetworkMonitorEnabled(false); }
-      return;
-    }
-    void poll();
-  }, POLL_MS);
+  // Bound to the view: stops the moment the view is left, rather than on the
+  // next tick that notices, and turns the Rust network monitor off with it.
+  bindInterval(() => { void poll(); }, POLL_MS);
+  onCleanup(() => {
+    if (rustEnabled && isTauri) { void setNetworkMonitorEnabled(false); }
+  });
 
   root.append(
     header(),

@@ -14,6 +14,8 @@ export interface TerminalInstance {
   terminal: Terminal;
   fitAddon: FitAddon;
   destroy: () => void;
+  /** Set by mountTerminal: disconnects the resize observer. */
+  detach?: () => void;
 }
 
 /**
@@ -53,11 +55,16 @@ export function createTerminal(sessionId: string): TerminalInstance {
   });
 
   // Server output → terminal
+  // The Tauri listener is registered asynchronously. If the terminal is
+  // destroyed before that resolves, `unlisten` is still null — so the listener
+  // is removed the moment it arrives instead of living for the process.
   let unlisten: (() => void) | null = null;
+  let disposed = false;
   onTerminalData(sessionId, (data) => {
-    terminal.write(data);
+    if (!disposed) terminal.write(data);
   }).then((fn) => {
-    unlisten = fn;
+    if (disposed) fn();
+    else unlisten = fn;
   });
 
   // Resize → server
@@ -65,12 +72,18 @@ export function createTerminal(sessionId: string): TerminalInstance {
     resizeTerminal(sessionId, cols, rows).catch(() => {});
   });
 
+  const instance: TerminalInstance = { terminal, fitAddon, destroy };
+
   function destroy(): void {
+    if (disposed) return;
+    disposed = true;
     unlisten?.();
+    unlisten = null;
+    instance.detach?.();
     terminal.dispose();
   }
 
-  return { terminal, fitAddon, destroy };
+  return instance;
 }
 
 /**
@@ -93,5 +106,8 @@ export function mountTerminal(instance: TerminalInstance, container: HTMLElement
     instance.fitAddon.fit();
   });
   observer.observe(container);
+  // Disconnected with the terminal, not only with the view: each connect mounts
+  // a fresh terminal, and the old observer kept fitting a disposed one.
+  instance.detach = () => observer.disconnect();
   bindObserver(observer);
 }
