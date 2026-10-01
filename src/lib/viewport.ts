@@ -39,7 +39,11 @@ export function onViewportChange(fn: (v: ViewportClass) => void): () => void {
 
 function apply(): void {
   const root = document.documentElement;
-  root.style.setProperty('--px-app-h', `${window.innerHeight}px`);
+  // The visible app height: the window, less the desktop title bar when present.
+  const bar = root.dataset.titlebar === 'on'
+    ? parseFloat(getComputedStyle(root).getPropertyValue('--px-titlebar-h')) || 0
+    : 0;
+  root.style.setProperty('--px-app-h', `${window.innerHeight - bar}px`);
   const next = classify(window.innerWidth);
   if (next === current) return;
   current = next;
