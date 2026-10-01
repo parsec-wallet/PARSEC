@@ -181,4 +181,4 @@ that generates keys, derives them from a seed or mnemonic, holds key material, o
 server-side AO processes. Per-path mapping in [REUSE.toml](REUSE.toml); full texts in
 [LICENSES/](LICENSES/). See [LICENSE](LICENSE).
 
-Contact: github@deltav.exchange
+Contact: sales@pythai.net
