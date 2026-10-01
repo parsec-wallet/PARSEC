@@ -1,4 +1,6 @@
-// Stores tab — browse the open .algo subdomain stores and quote a name.
+// Name stores — browse the open stores of one registry (.algo subdomains or
+// ArNS undernames), quote a name and buy it. Used by the .algo Names Stores tab
+// and by the BANKON Marketspace (buildMarketspaceStores, both registries).
 //
 // Every store is a root .algo name whose owner sells subdomains under it at
 // their own tier prices. A quote shows the tier, the owner's price, the BANKON
@@ -6,22 +8,22 @@
 // registry).
 //
 // BUY places an order (free; it freezes the figures), then pays it over x402 in
-// two settlements the buyer can see: the BANKON fee, which holds the name for
+// two settlements the buyer can see: the BANKON facilitation fee (10 %, at
+// least $0.05, on top of the price), which holds the name for
 // 15 minutes, then the price, straight to the store owner. The owner's wallet
 // mints the name for the buyer. A step that fails leaves the order where it
 // was, and "Your orders" resumes it without charging a paid step twice.
 
 import { el, btn, toast } from '../lib/dom';
-import { store } from '../lib/store';
 import { onCleanup } from '../lib/lifecycle';
 import { x402Ready } from '../lib/ui/x402-ready';
 import { signersForAccount } from '../lib/x402/adapters/parsec';
 import { explorerTxUrl } from '../lib/x402/networks';
 import {
-  buyerOrders, createOrder, listStores, payOrderStep, quoteName, stepTerms, usd, TIER_LABEL,
-  type OrderStep, type Store, type StoreOrder, type Tier,
+  algoRegistry, buyerOrders, createOrder, labelValid, listStores, payOrderStep, quoteName, stepTerms, usd, TIER_LABEL,
+  type OrderStep, type Store, type StoreOrder, type StoreRegistry, type Tier,
 } from '../lib/nfd/stores';
-import type { NetworkId } from '../types/wallet';
+import { store, getAccountAddress } from '../lib/store';
 
 const STATE_LABEL: Record<string, string> = {
   quoted: 'Ordered — not paid',
@@ -31,7 +33,10 @@ const STATE_LABEL: Record<string, string> = {
   refunded: 'Refunded',
 };
 
-export function buildStoresTab(buyer: string, network: NetworkId): HTMLElement {
+const REGISTRY_LABEL: Record<StoreRegistry, string> = { mainnet: '.algo', testnet: '.algo (testnet)', arns: 'ar:// · ArNS' };
+
+export function buildStoresTab(buyer: string, network: StoreRegistry): HTMLElement {
+  const arns = network === 'arns';
   const root = el('div', { cls: 'parsec-stores' });
   const list = el('div', { cls: 'parsec-stores__list' });
   const shop = el('section', { cls: 'parsec-stores__shop' });
@@ -42,14 +47,14 @@ export function buildStoresTab(buyer: string, network: NetworkId): HTMLElement {
 
   function openShop(s: Store): void {
     for (const c of list.querySelectorAll('.parsec-stores__store')) c.classList.toggle('parsec-stores__store--on', (c as HTMLElement).dataset.parent === s.parent);
-    const field = el('input', { cls: 'parsec-stores__input', attrs: { type: 'search', placeholder: `a name under ${s.parent}`, 'aria-label': 'Name to quote', maxlength: '27', spellcheck: 'false', autocomplete: 'off' } }) as HTMLInputElement;
+    const field = el('input', { cls: 'parsec-stores__input', attrs: { type: 'search', placeholder: arns ? `an undername of ${s.parent}` : `a name under ${s.parent}`, 'aria-label': 'Name to quote', maxlength: arns ? '61' : '27', spellcheck: 'false', autocomplete: 'off' } }) as HTMLInputElement;
     const quote = el('div', { cls: 'parsec-stores__quote' });
 
     async function run(): Promise<void> {
       const my = ++seq;
       const label = field.value.trim().toLowerCase();
       if (!label) { quote.replaceChildren(); return; }
-      if (!/^[a-z0-9]{1,27}$/.test(label)) { quote.replaceChildren(el('p', { cls: 'parsec-stores__error', text: 'Names use a–z and 0–9, up to 27 characters.' })); return; }
+      if (!labelValid(network, label)) { quote.replaceChildren(el('p', { cls: 'parsec-stores__error', text: arns ? 'Undernames use a–z, 0–9 and inner hyphens, up to 61 characters.' : 'Names use a–z and 0–9, up to 27 characters.' })); return; }
       quote.replaceChildren(el('p', { cls: 'parsec-stores__muted', text: 'Quoting…' }));
       try {
         const q = await quoteName(s.parent, label, network);
@@ -62,12 +67,12 @@ export function buildStoresTab(buyer: string, network: NetworkId): HTMLElement {
           el('div', { cls: 'parsec-stores__rows', children: [
             row('Tier', TIER_LABEL[q.tier as Tier] ?? q.tier),
             row(`Price, to the owner of ${s.parent}`, `${usd(q.price_micro_usd)} USDC`),
-            row('BANKON fee (5 %, min $0.10)', `${usd(q.bankon_fee_micro_usd)} USDC`),
+            row('BANKON facilitation fee (10 %, min $0.05)', `${usd(q.bankon_fee_micro_usd)} USDC`),
             row('You pay', `${usd(q.total_micro_usd)} USDC`, true),
           ] }),
           ...(q.available ? [
             btn(`BUY ${q.name} · ${usd(q.total_micro_usd)} USDC`, { intent: 'primary', onClick: () => void order(s, label) }),
-            el('p', { cls: 'parsec-stores__muted', text: `Two x402 payments in USDC: the BANKON fee, then the price straight to the owner of ${s.parent}. The owner’s wallet then mints the name for ${short(buyer)}.` }),
+            el('p', { cls: 'parsec-stores__muted', text: `Two x402 payments in USDC on Algorand: the BANKON facilitation fee, then the price straight to the owner of ${s.parent}, in full. The owner’s wallet then ${arns ? 'sets the undername and hands it to your Solana address' : 'mints the name for'} ${short(buyer)}.` }),
           ] : []),
         );
       } catch (e) {
@@ -122,9 +127,9 @@ export function buildStoresTab(buyer: string, network: NetworkId): HTMLElement {
     function stepRow(step: OrderStep | 'mint'): HTMLElement {
       const done = step === 'fee' ? o.state !== 'quoted' : step === 'pay' ? ['paid', 'minted'].includes(o.state) : o.state === 'minted';
       const tx = step === 'fee' ? o.fee_settlement : step === 'pay' ? o.settlement : o.mint_tx;
-      const title = step === 'fee' ? `BANKON fee · ${usd(o.bankon_fee_micro_usd)} USDC`
+      const title = step === 'fee' ? `BANKON facilitation fee · ${usd(o.bankon_fee_micro_usd)} USDC`
         : step === 'pay' ? `Price · ${usd(o.price_micro_usd)} USDC to ${short(o.payout)}`
-        : `Minted by the owner of ${o.parent}`;
+        : arns ? `Set and handed over by the owner of ${o.parent}` : `Minted by the owner of ${o.parent}`;
       const link = tx ? el('a', { cls: 'parsec-stores__tx', text: short(tx), attrs: { href: explorerTxUrl(stepTerms(o, 'fee').network, tx), target: '_blank', rel: 'noopener noreferrer' } }) : null;
       return el('div', { cls: `parsec-stores__step${done ? ' parsec-stores__step--done' : ''}`, children: [
         el('span', { cls: 'parsec-stores__dot', text: done ? '✓' : '○', attrs: { 'aria-hidden': 'true' } }),
@@ -143,7 +148,7 @@ export function buildStoresTab(buyer: string, network: NetworkId): HTMLElement {
       const signers = signersForAccount(account);
       try {
         if (o.state === 'quoted') {
-          status.textContent = 'Paying the BANKON fee…';
+          status.textContent = 'Paying the BANKON facilitation fee…';
           o = (await payOrderStep(o, 'fee', signers)).order;
           paint();
         }
@@ -176,7 +181,7 @@ export function buildStoresTab(buyer: string, network: NetworkId): HTMLElement {
           x402Ready({ compact: true }),
         ] : [
           el('p', { cls: 'parsec-stores__muted', text: o.state === 'paid'
-            ? `Paid. The owner of ${o.parent} mints ${o.name} to ${short(o.buyer)}; it then appears in My Names.`
+            ? `Paid. The owner of ${o.parent} ${arns ? 'sets' : 'mints'} ${o.name} for ${short(o.buyer)}${arns ? ` — then served at ${o.name}.ar.io` : '; it then appears in My Names'}.`
             : `${o.name} is yours.` }),
         ]),
         status,
@@ -207,7 +212,7 @@ export function buildStoresTab(buyer: string, network: NetworkId): HTMLElement {
 
   void listStores(network).then((stores) => {
     if (stores.length === 0) {
-      list.replaceChildren(el('p', { cls: 'parsec-stores__muted', text: `No stores are open on ${network} yet. Own a root .algo name? Open one from My Names.` }));
+      list.replaceChildren(el('p', { cls: 'parsec-stores__muted', text: arns ? 'No ArNS stores are open yet. Own an ArNS name? Open a store from its name controller.' : `No ${REGISTRY_LABEL[network]} stores are open yet. Own a root .algo name? Open one from My Names.` }));
       return;
     }
     list.replaceChildren(...stores.map((s) => {
@@ -238,4 +243,44 @@ function short(a: string): string {
 
 function heldUntil(o: StoreOrder): string {
   return o.held_until ? new Date(o.held_until).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'soon';
+}
+
+/**
+ * The Marketspace's name stores: every open store, .algo and ArNS, behind one switch.
+ * The buyer address follows the registry — Algorand for .algo, Solana for ArNS.
+ */
+export function buildMarketspaceStores(): HTMLElement {
+  const state = store.get();
+  const account = state.accounts[state.activeAccountIndex];
+  const algo = algoRegistry(state.settings.network);
+  const registries: StoreRegistry[] = ['arns', algo];
+  let current: StoreRegistry = 'arns';
+  const body = el('div');
+  const chips = registries.map((r) => {
+    const b = el('button', { cls: 'parsec-stores__chip', text: r === 'arns' ? 'ar:// BANKON' : REGISTRY_LABEL[r], attrs: { type: 'button' } });
+    b.addEventListener('click', () => { current = r; paint(); });
+    return b;
+  });
+
+  function paint(): void {
+    chips.forEach((c, i) => c.classList.toggle('parsec-stores__chip--on', registries[i] === current));
+    const buyer = account ? getAccountAddress(account, current === 'arns' ? 'solana' : 'algorand') : undefined;
+    if (!buyer) {
+      body.replaceChildren(el('div', { cls: 'parsec-callout bp5-callout', children: [
+        el('p', { text: current === 'arns' ? 'ArNS undernames are handed to a Solana address. Add one to this account to buy.' : 'Add an Algorand account to buy .algo names.' }),
+        ...(current === 'arns' ? [btn('Import Solana key', { intent: 'primary', onClick: () => store.navigate('solana-import') })] : []),
+      ] }));
+      return;
+    }
+    body.replaceChildren(buildStoresTab(buyer, current));
+  }
+  paint();
+  return el('section', { cls: 'parsec-stores__market', children: [
+    el('div', { cls: 'parsec-stores__market-head', children: [
+      el('h3', { text: 'Name stores' }),
+      el('p', { cls: 'parsec-stores__muted', text: 'Names sold by their owners, priced by length. You pay the owner in USDC over x402, plus the BANKON facilitation fee of 10 % (at least $0.05), shown before you pay.' }),
+      el('div', { cls: 'parsec-stores__featured', children: chips }),
+    ] }),
+    body,
+  ] });
 }

@@ -547,3 +547,24 @@
   font-size: 0.8rem;
   color: var(--px-accent, #7aa2ff);
 }
+
+// ── Marketspace name stores (buildMarketspaceStores) ─────────────────────────
+
+.parsec-stores__market {
+  display: grid;
+  gap: 1rem;
+  margin: 0 0 1.5rem;
+}
+
+.parsec-stores__market-head {
+  display: grid;
+  gap: 0.5rem;
+
+  h3 { margin: 0; }
+}
+
+.parsec-stores .parsec-stores__chip--on,
+.parsec-stores__market .parsec-stores__chip--on {
+  border-color: var(--px-accent, #7aa2ff);
+  color: var(--px-text, #e6e9ef);
+}

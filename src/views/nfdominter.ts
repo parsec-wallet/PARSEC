@@ -10,6 +10,7 @@ import { buildMintTab } from './nfdominter-mint';
 import { buildNamesTab } from './nfdominter-manage';
 import { buildSubdomainsTab } from './nfdominter-subdomains';
 import { buildStoresTab } from './nfdominter-stores';
+import { algoRegistry } from '../lib/nfd/stores';
 
 export type NfdominterTab = 'mint' | 'names' | 'subdomains' | 'stores';
 
@@ -51,7 +52,7 @@ export function nfdominterView(): HTMLElement {
         body.appendChild(buildSubdomainsTab(account.address, network, switchTab));
         break;
       case 'stores':
-        body.appendChild(buildStoresTab(account.address, network));
+        body.appendChild(buildStoresTab(account.address, algoRegistry(network)));
         break;
     }
     for (const t of tabs) {
