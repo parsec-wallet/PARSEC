@@ -7,7 +7,7 @@
 // write is followed by a live re-read; estimates are labelled; empty states point to the next step.
 
 import { el, btn, input, toast } from '../lib/dom';
-import { store } from '../lib/store';
+import { store, getAccountAddress } from '../lib/store';
 import {
   activeNamespaceId,
   getNamespace,
@@ -31,6 +31,7 @@ import {
   validateUndername,
 } from '../lib/names/controller-model';
 import { setUploadReturn, takeUploadedTarget } from '../lib/permaweb/handoff';
+import { storeEditor } from '../lib/ui/store-editor';
 
 const C = 'parsec-namectl';
 
@@ -116,7 +117,21 @@ async function render(ns: NamespaceAdapter, name: string, body: HTMLElement): Pr
   body.appendChild(undernamesSection(ctx, true));
   if (ns.getIdentity && ns.setIdentity) body.appendChild(await identitySection(ctx));
   body.appendChild(accessSection(ctx, isOwner));
+  if (isOwner && ns.id === 'solana-arns') body.appendChild(storeSection(ctx, account ? getAccountAddress(account, 'algorand') : undefined));
   if (isOwner) body.appendChild(dangerSection(ctx));
+}
+
+// ── Undername store: sell undernames of this name in the BANKON Marketspace ────
+
+function storeSection(ctx: Ctx, algorand: string | undefined): HTMLElement {
+  const used = Object.keys(ctx.record.undernames).length;
+  const limit = ctx.record.undernameLimit;
+  return section('Undername store', [
+    el('p', { cls: 'parsec-view__desc', text: `Sell undernames of ${ctx.name} at your prices, by length, in the BANKON Marketspace. ${limit !== undefined ? `${used} of ${limit} undername slots are in use; add slots below as sales need them.` : ''}` }),
+    algorand
+      ? storeEditor(ctx.name, ctx.address, 'arns', algorand)
+      : callout('Buyers pay you in USDC on Algorand. Add an Algorand account, opted in to USDC, to receive payments.'),
+  ]);
 }
 
 // ── Header: the one number and the state stamps ──────────────────────────────

@@ -1,7 +1,40 @@
-# .algo registry and subdomain stores — design
+# Name stores — .algo subdomains and ArNS undernames (BANKON Marketspace) — design
 
-**Status (2026-10-01):** phase 1 (listings, quotes) is live; phase 2 (buying over x402) is built —
-see *Buying, as built* below. Fulfilment (phase 3) and root names in USDC (phase 4) are next.
+**Status (2026-10-01):** listings, quotes and buying over x402 are live for .algo stores, and the same
+scheme now covers **ArNS undername stores** (BANKON's own: `bankon`). All stores are browsed in the
+**BANKON Marketspace**. Fulfilment (phase 3) and root names in USDC (phase 4) are next.
+
+## The BANKON facilitation fee (all stores)
+
+**10 % of the price, at least $0.05**, paid by the buyer **on top** as its own x402 payment to BANKON.
+The owner receives their price in full. Integer micro-USD throughout (USDC atomic units); the same
+function and figures on both sides — `bankon_fee_micro` (mindX) and `bankonFeeMicro` (PARSEC):
+
+| Price | Fee | Buyer pays | Owner receives |
+|---|---|---|---|
+| $50 | $5.00 | $55.00 | $50 |
+| $15 | $1.50 | $16.50 | $15 |
+| $3 | $0.30 | $3.30 | $3 |
+| $0.50 | $0.05 (floor) | $0.55 | $0.50 |
+
+## ArNS undername stores
+
+Same listing, tiers, orders and payments as .algo, with the registry set to `arns`:
+
+| | .algo store | ArNS store |
+|---|---|---|
+| The store | a root `.algo` name | an ArNS name (e.g. `bankon`) |
+| Sells | `alice.yourname.algo` | undername `alice_yourname` → `alice_yourname.ar.io` |
+| Listing signed by | the owner's Algorand key (`MX` + bytes) | the ANT owner's Solana key (bytes as they are) |
+| Ownership checked against | the NFD registry | the ANT's owner (`permaweb_agent/arns_read.mjs`, read-only) |
+| Buyer receives at | an Algorand address | a Solana address |
+| Buyers pay | USDC on that Algorand network | USDC on Algorand mainnet; payout = an Algorand address opted in to USDC |
+| Fulfilment (phase 3) | the owner mints `reservedFor` the buyer | the owner sets the undername and transfers it (`transferRecord`) |
+
+Undernames: a–z, 0–9 and inner hyphens, up to 61. An ArNS name starts with 10 undername slots;
+more cost about 62.6 ARIO each (2026-10-01), added by the owner from the name controller. In PARSEC:
+*Name controller → Undername store* (owner only) opens or edits the store; *Marketspace → Name stores*
+browses and buys from both registries.
 
 ## The idea
 

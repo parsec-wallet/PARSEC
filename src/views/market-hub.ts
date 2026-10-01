@@ -7,6 +7,8 @@
 //   * My offers
 //   * Browse-all with filter by namespace / status
 //   * "Create listing" CTA (forwards to market-create)
+//   * Name stores — .algo subdomains and ArNS undernames sold by their owners
+//     over x402, BANKON facilitation fee 10 % (views/nfdominter-stores.ts)
 
 import { el, btn, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
@@ -20,6 +22,7 @@ import {
   type Namespace,
 } from '../lib/marketplace';
 import { getBmrProcessId } from '../lib/marketplace/process-id';
+import { buildMarketspaceStores } from './nfdominter-stores';
 
 export function marketHubView(): HTMLElement {
   const root = el('div', { cls: 'parsec-view parsec-confirm' });
@@ -60,6 +63,9 @@ export function marketHubView(): HTMLElement {
       }),
     ],
   }));
+
+  // Name stores need no AO registry: they live in the store registry and settle over x402.
+  root.appendChild(buildMarketspaceStores());
 
   if (!isBmrConfigured()) {
     root.appendChild(el('div', {
