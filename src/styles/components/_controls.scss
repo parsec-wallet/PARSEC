@@ -1,0 +1,272 @@
+// ==========================================================================
+// CONTROLS — PARSEC's own styles for the bp5-* class vocabulary
+// ==========================================================================
+
+// PARSEC's component kit (lib/dom.ts) emits Blueprint's v5 class names —
+// bp5-button, bp5-input, bp5-callout, intents and sizes — because Blueprint was
+// the visual reference the UI was designed against. Blueprint's own CSS is not
+// loaded: it never matched (the package installed was v6, which emits bp6-*),
+// and PARSEC keeps no UI dependency. These rules give that vocabulary PARSEC's
+// look from the brand tokens. Screen-specific rules (vendors/blueprint-overrides
+// and the wallet/* partials) load later and refine them.
+
+// Reference for the vocabulary: https://blueprintjs.com/docs/ (Core: Button,
+// InputGroup, Callout, Checkbox/Switch, Icon). See docs/design/controls.md.
+
+@use '../abstracts' as *;
+
+// ── Buttons ─────────────────────────────────────────────────────────────────
+
+.bp5-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-2;
+  min-height: 36px;
+  padding: 0 $spacing-4;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-md;
+  background: $px-panel;
+  color: $px-text;
+  font: inherit;
+  font-size: $font-size-sm;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, filter 0.15s ease;
+
+  &:hover:not(:disabled) { border-color: $px-steel-hi; }
+
+  &:focus-visible {
+    outline: 2px solid $px-gold;
+    outline-offset: 2px;
+  }
+
+  &:disabled,
+  &.bp5-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .bp5-button-text:empty { display: none; }
+}
+
+.bp5-button.bp5-large {
+  min-height: 44px;
+  padding: 0 $spacing-5;
+  font-size: $font-size-base;
+}
+
+.bp5-button.bp5-small {
+  min-height: 28px;
+  padding: 0 $spacing-3;
+  font-size: $font-size-xs;
+}
+
+.bp5-button.bp5-fill {
+  display: flex;
+  width: 100%;
+}
+
+// Intents: primary is PARSEC gold; the others are tinted, readable on dark.
+.bp5-button.bp5-intent-primary {
+  border-color: $px-gold;
+  background: linear-gradient(180deg, $px-gold-hi, $px-gold);
+  color: #1a1205;
+
+  &:hover:not(:disabled) { filter: brightness(1.06); border-color: $px-gold-hi; }
+}
+
+.bp5-button.bp5-intent-success {
+  border-color: rgba($px-success, 0.7);
+  background: rgba($px-success, 0.18);
+  color: $px-success;
+}
+
+.bp5-button.bp5-intent-warning {
+  border-color: rgba($px-warning, 0.7);
+  background: rgba($px-warning, 0.16);
+  color: $px-warning;
+}
+
+.bp5-button.bp5-intent-danger {
+  border-color: rgba($px-danger, 0.7);
+  background: rgba($px-danger, 0.16);
+  color: $px-danger;
+}
+
+// Minimal: no chrome until hovered. Outlined: a border, no fill.
+.bp5-button.bp5-minimal {
+  border-color: transparent;
+  background: transparent;
+  color: $px-text;
+
+  &:hover:not(:disabled) { background: rgba($px-steel, 0.22); border-color: transparent; }
+}
+
+.bp5-button.bp5-outlined {
+  background: transparent;
+
+  &.bp5-intent-primary { color: $px-gold; border-color: rgba($px-gold, 0.7); }
+  &.bp5-intent-success { color: $px-success; }
+  &.bp5-intent-warning { color: $px-warning; }
+  &.bp5-intent-danger { color: $px-danger; }
+}
+
+.bp5-button.bp5-minimal.bp5-intent-danger { color: $px-danger; background: transparent; border-color: transparent; }
+.bp5-button.bp5-minimal.bp5-intent-primary { color: $px-gold; background: transparent; border-color: transparent; }
+
+// ── Inputs, selects, text areas ─────────────────────────────────────────────
+
+.bp5-input {
+  min-height: 38px;
+  padding: 0 $spacing-3;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-md;
+  background: $px-void;
+  color: $px-text;
+  font: inherit;
+  font-size: $font-size-sm;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &::placeholder { color: $px-muted; }
+
+  &:focus {
+    border-color: $px-gold;
+    box-shadow: 0 0 0 3px rgba($px-gold, 0.16);
+  }
+
+  &:disabled,
+  &[readonly] { opacity: 0.7; }
+
+  &.bp5-large {
+    min-height: 44px;
+    padding: 0 $spacing-4;
+    font-size: $font-size-base;
+  }
+
+  &.bp5-small {
+    min-height: 30px;
+    font-size: $font-size-xs;
+  }
+
+  &.bp5-fill { width: 100%; }
+}
+
+textarea.bp5-input {
+  min-height: 88px;
+  padding: $spacing-3;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+select.bp5-input { padding-right: $spacing-6; cursor: pointer; }
+
+// ── Callouts ────────────────────────────────────────────────────────────────
+
+.bp5-callout {
+  padding: $spacing-3 $spacing-4;
+  border: 1px solid $px-line;
+  border-left: 3px solid $px-steel;
+  border-radius: $border-radius-md;
+  background: rgba($px-steel, 0.1);
+  color: $px-text;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+
+  p { margin: 0; }
+  p + p { margin-top: $spacing-2; }
+
+  &.bp5-intent-primary { border-left-color: $px-gold; background: rgba($px-gold, 0.07); }
+  &.bp5-intent-success { border-left-color: $px-success; background: rgba($px-success, 0.08); }
+  &.bp5-intent-warning { border-left-color: $px-warning; background: rgba($px-warning, 0.08); }
+  &.bp5-intent-danger { border-left-color: $px-danger; background: rgba($px-danger, 0.09); }
+}
+
+// ── Text ────────────────────────────────────────────────────────────────────
+
+.bp5-text-muted { color: $px-muted; }
+
+// ── Checkboxes and switches ─────────────────────────────────────────────────
+// The native control is shown, tinted gold; Blueprint's drawn indicator is not
+// needed.
+
+.bp5-control {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-2;
+  margin: $spacing-2 0;
+  color: $px-text;
+  font-size: $font-size-sm;
+  line-height: 1.45;
+  cursor: pointer;
+
+  input {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    margin: 2px 0 0;
+    accent-color: $px-gold;
+    cursor: pointer;
+  }
+
+  .bp5-control-indicator { display: none; }
+}
+
+.bp5-switch input {
+  width: 32px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 9px;
+  background: $px-line;
+  appearance: none;
+  position: relative;
+  transition: background-color 0.15s ease;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: $px-text;
+    transition: transform 0.15s ease;
+  }
+
+  &:checked { background: $px-gold; }
+  &:checked::after { transform: translateX(14px); background: #1a1205; }
+}
+
+// ── Icons ───────────────────────────────────────────────────────────────────
+// Blueprint's icon font is gone (it never loaded). The icons PARSEC uses are
+// drawn as text glyphs; any other renders nothing and takes no room.
+
+.bp5-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-style: normal;
+  line-height: 1;
+}
+
+@each $name, $glyph in (
+  'arrow-left': '←', 'plus': '+', 'add': '+', 'refresh': '↻', 'duplicate': '⧉', 'clipboard': '⧉',
+  'import': '⤓', 'download': '⤓', 'cloud-upload': '⤒', 'tag': '#', 'tick': '✓', 'confirm': '✓',
+  'key': '⚿', 'unlock': '⚿', 'lock': '🔒', 'search': '⌕', 'link': '↗', 'exchange': '⇄',
+  'swap-horizontal': '⇄', 'shop': '◫', 'shopping-cart': '◫', 'send-message': '➤', 'send-to': '➤',
+  'send-to-map': '➤', 'play': '▶', 'floppy-disk': '⤓', 'cog': '⚙', 'star': '★', 'shield': '⛨',
+  'globe-network': '◍', 'eye-open': '◉', 'edit': '✎', 'warning-sign': '⚠', 'trash': '✕',
+  'tree': '⋔', 'satellite': '◎', 'random': '⤮', 'pulse': '∿', 'offline': '○', 'new-person': '+',
+  'caret-down': '▾', 'arrow-right': '→', 'cross': '✕', 'chevron-right': '›', 'chevron-down': '⌄'
+) {
+  .bp5-icon-#{$name}::before {
+    content: '#{$glyph}';
+    display: inline-block;
+  }
+}

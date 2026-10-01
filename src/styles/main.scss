@@ -5,7 +5,9 @@
 // 1. ABSTRACTS
 @use 'abstracts' as *;
 
-// 2. VENDORS
+// 2. CONTROLS — PARSEC's own styles for the bp5-* vocabulary (no Blueprint CSS),
+//    then the long-standing per-control refinements.
+@use 'components/controls';
 @use 'vendors/blueprint-overrides';
 
 // 3. BASE
@@ -45,6 +47,7 @@
 @use 'wallet/profiles';
 @use 'wallet/receive';
 @use 'wallet/agents';
+@use 'wallet/store';
 @use 'wallet/linkage';
 @use 'wallet/permaweb';
 @use 'wallet/matrix-recovered';

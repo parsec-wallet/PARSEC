@@ -752,7 +752,7 @@ export function matrixView(): HTMLElement {
   });
   paintPeriod();
   toggleRepaints.push(paintPeriod);
-  /** + PYRAMID ON − : the switch, with a row more on the left and a row fewer on the right. */
+  /** + PYRAMID ON − : the switch, with + (one row fewer) on the left and − (one row more) on the right. */
   function pyramidToggleGroup(): HTMLElement {
     const toggle = makeToggle('PYRAMID', pyramidPref, 'the market pyramid');
     const step = (sign: 1 | -1, text: string, what: string) => {
@@ -770,13 +770,15 @@ export function matrixView(): HTMLElement {
       });
       return b;
     };
-    const plus = step(1, '+', 'Show one more pyramid row');
-    const minus = step(-1, '−', 'Show one fewer pyramid row');
+    // As the participant asked: + takes a row off the pyramid's brick rows
+    // (more of the market gathers in the base), − adds one.
+    const plus = step(-1, '+', 'One fewer pyramid row');
+    const minus = step(1, '−', 'One more pyramid row');
     const paintSteps = () => {
-      plus.toggleAttribute('disabled', pyramidRows >= PYRAMID_ROWS_MAX);
-      minus.toggleAttribute('disabled', pyramidRows <= PYRAMID_ROWS_MIN);
-      plus.title = `${pyramidRows} rows — add one`;
-      minus.title = `${pyramidRows} rows — remove one`;
+      plus.toggleAttribute('disabled', pyramidRows <= PYRAMID_ROWS_MIN);
+      minus.toggleAttribute('disabled', pyramidRows >= PYRAMID_ROWS_MAX);
+      plus.title = `${pyramidRows} rows — one fewer`;
+      minus.title = `${pyramidRows} rows — one more`;
     };
     paintSteps();
     return el('div', { cls: 'parsec-matrix__toggle-group', children: [plus, toggle, minus] });

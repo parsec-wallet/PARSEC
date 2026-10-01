@@ -8,8 +8,8 @@ if (typeof globalThis.Buffer === 'undefined') {
   (globalThis as unknown as { Buffer: typeof BufferPolyfill }).Buffer = BufferPolyfill;
 }
 
-import '@blueprintjs/core/lib/css/blueprint.css';
-import '@blueprintjs/icons/lib/css/blueprint-icons.css';
+// No Blueprint CSS: PARSEC styles the bp5-* class vocabulary itself
+// (styles/components/_controls.scss). Blueprint stays the design reference.
 import './styles/main.scss';
 import './styles/pmvpn.scss';
 

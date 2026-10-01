@@ -90,7 +90,6 @@ export default defineConfig(async () => ({
       output: {
         manualChunks: {
           algosdk: ["algosdk"],
-          blueprint: ["@blueprintjs/core", "@blueprintjs/icons"],
         },
       },
     },

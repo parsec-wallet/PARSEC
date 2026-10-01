@@ -174,8 +174,10 @@ Four registries, all "self-register, iterate, never branch on chain name":
 
 - Vanilla TS, strict mode, no `any`. Target es2022.
 - Build UI with `el()` / `btn()` / `input()` from `lib/dom.ts`; they emit
-  Blueprint CSS classes (`bp5-*`). Blueprint is a **devDependency consumed as
-  CSS only** — never import its React components.
+  Blueprint's class vocabulary (`bp5-*`), styled in-house by
+  `src/styles/components/_controls.scss`. Blueprint is **not installed**; it is
+  the design reference only (`docs/design/controls.md`). Never add it back or
+  import its React components.
 - Views are `() => HTMLElement` factories, lazily loaded via `lazyView()` in
   `main.ts` unless they are on the first-paint path.
 - Style in `src/styles/`; brand tokens are CSS custom properties (`--px-*`).

@@ -1,0 +1,260 @@
+// ==========================================================================
+// STORE — BUY ALGO (views/onramp.ts)
+// ==========================================================================
+
+@use '../abstracts' as *;
+
+.parsec-view.parsec-store {
+  width: min(100%, 1180px);
+  max-width: none;
+}
+
+.parsec-store__hero {
+  padding: $spacing-6 0 $spacing-5;
+}
+
+.parsec-store__kicker {
+  margin: 0 0 $spacing-2;
+  color: $px-gold;
+  font-size: $font-size-xs;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.parsec-store__title {
+  margin: 0 0 $spacing-3;
+  color: $px-text;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.parsec-store__lede {
+  max-width: 44em;
+  margin: 0 0 $spacing-5;
+  color: #c3cdd6;
+  font-size: $font-size-lg;
+  line-height: 1.5;
+}
+
+.parsec-store__trust {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $spacing-3;
+}
+
+.parsec-store__trust-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: $spacing-3 $spacing-4;
+  border: 1px solid $px-line;
+  border-left: 3px solid $px-gold;
+  border-radius: $border-radius-md;
+  background: rgba($px-gold, 0.04);
+
+  strong {
+    color: $px-text;
+    font-size: $font-size-sm;
+  }
+
+  span {
+    color: $px-muted;
+    font-size: $font-size-sm;
+    line-height: 1.45;
+  }
+}
+
+// Where the ALGO goes — on one line, copyable.
+.parsec-store__deliver {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: $spacing-4;
+  align-items: center;
+  margin-bottom: $spacing-5;
+  padding: $spacing-4 $spacing-5;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: $px-panel;
+}
+
+.parsec-store__label {
+  color: $px-muted;
+  font-size: $font-size-xs;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.parsec-store__account {
+  color: $px-text;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.parsec-store__address {
+  overflow: hidden;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $border-radius-sm;
+  background: $px-void;
+  color: $px-gold-hi;
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parsec-store__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: $spacing-4;
+}
+
+.parsec-store__card {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+  padding: $spacing-5;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: linear-gradient(180deg, rgba($px-steel, 0.08), transparent 40%), $px-panel;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: rgba($px-gold, 0.5);
+    box-shadow: 0 14px 34px rgb(0 0 0 / 35%);
+    transform: translateY(-2px);
+  }
+}
+
+.parsec-store__card-head {
+  display: flex;
+  gap: $spacing-3;
+  align-items: center;
+}
+
+.parsec-store__tile {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: hsl(var(--hue, 40) 40% 20%);
+  color: hsl(var(--hue, 40) 85% 74%);
+  font-size: 1.35rem;
+  font-weight: 800;
+}
+
+.parsec-store__name {
+  margin: 0;
+  color: $px-text;
+  font-size: $font-size-lg;
+}
+
+.parsec-store__tagline {
+  margin: 2px 0 0;
+  color: $px-muted;
+  font-size: $font-size-sm;
+  line-height: 1.4;
+}
+
+.parsec-store__facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: $spacing-2 $spacing-3;
+  margin: 0;
+  font-size: $font-size-sm;
+
+  dt { color: $px-muted; }
+
+  dd {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0;
+    color: $px-text;
+  }
+}
+
+.parsec-store__chip {
+  padding: 1px 8px;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-full;
+  color: #c3cdd6;
+  font-size: $font-size-xs;
+}
+
+.parsec-store__go.bp5-button {
+  width: 100%;
+  margin-top: auto;
+}
+
+.parsec-store__host {
+  margin: -#{$spacing-2} 0 0;
+  color: $px-muted;
+  font-size: $font-size-xs;
+  text-align: center;
+}
+
+.parsec-store__how {
+  margin-top: $spacing-6;
+  padding: $spacing-5;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+
+  h3 {
+    margin: 0 0 $spacing-4;
+    font-size: $font-size-base;
+  }
+
+  ol {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: $spacing-4;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    display: flex;
+    gap: $spacing-3;
+  }
+
+  li div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: $font-size-sm;
+
+    span { color: $px-muted; line-height: 1.45; }
+  }
+}
+
+.parsec-store__step-n {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid $px-gold-deep;
+  border-radius: 50%;
+  color: $px-gold;
+  font-weight: 700;
+}
+
+.parsec-store__note {
+  max-width: 62em;
+  margin: $spacing-5 0 0;
+  color: $px-muted;
+  font-size: $font-size-xs;
+  line-height: 1.55;
+}
+
+:root[data-viewport='compact'] {
+  .parsec-store__trust,
+  .parsec-store__how ol { grid-template-columns: 1fr; }
+
+  .parsec-store__deliver { grid-template-columns: 1fr; }
+}

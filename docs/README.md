@@ -10,6 +10,7 @@ codebase: a chain or tool is a self-contained module, and each gets its own doc.
 - [DEVELOPMENT_PLAN.md](./DEVELOPMENT_PLAN.md) — roadmap
 - [technical.md](./technical.md) — the Rust backend module by module (16 modules, 112 commands), and the optional infrastructure: what it does and what it needs to run
 - [bankon-vault.md](./bankon-vault.md) — **the vault, explained**: how keys are kept, profiles (several vaults on one device), a forgotten passphrase, the commands, and how code uses it
+- [design/controls.md](./design/controls.md) — the interface's controls: in-house styles for Blueprint's class vocabulary, with Blueprint kept as the design reference
 - [modules.md](./modules.md) — **the expansion contract**: one module registration adds a chain, a name registry or a dApp surface
 - [cypherpunk4096.md](./cypherpunk4096.md) — the consortium standard PARSEC joins on completion, and an honest gap list against its five commitments
 - [../README.md](../README.md) — project overview, architecture, security model

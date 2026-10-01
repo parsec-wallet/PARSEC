@@ -15,7 +15,7 @@ export const algorandDashboardModule: DashboardModule = {
         btn('Send', { intent: 'primary', icon: 'arrow-top-right', onClick: () => ctx.navigate('send') }),
         btn('Swap', { intent: 'warning', icon: 'swap-horizontal', onClick: () => ctx.navigate('swap') }),
         btn('Receive', { intent: 'success', icon: 'arrow-bottom-left', onClick: () => ctx.navigate('receive') }),
-        btn('Buy', { outlined: true, icon: 'dollar', onClick: () => ctx.navigate('onramp') }),
+        btn('BUY', { outlined: true, icon: 'dollar', onClick: () => ctx.navigate('onramp') }),
       ],
     });
   },
