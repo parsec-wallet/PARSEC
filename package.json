@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "PARSEC Wallet \u2014 Algorand desktop wallet built on cypherpunk2048 principles",
+  "description": "PARSEC Wallet — Algorand desktop wallet built on cypherpunk2048 principles",
   "author": "cypherpunk2048",
   "license": "(Apache-2.0 AND GPL-3.0-or-later AND MIT)",
   "scripts": {
@@ -61,7 +61,7 @@
     "stylelint": "^16.21.0",
     "stylelint-config-standard-scss": "^15.0.1",
     "stylelint-scss": "^6.12.1",
-    "tsx": "^4.19.2",
+    "tsx": "^4.23.12",
     "typescript": "~5.6.2",
     "vite": "^6.0.3",
     "vitest": "^4.1.2"
