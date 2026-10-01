@@ -1,10 +1,11 @@
 // pmVPN Module — Wallet Authentication
-// GPL-3.0 (Parsec client module)
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Challenge-response auth using viem signMessage via bankon_vault.
 // Private key never leaves Rust memory.
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '../platform';
 import type { ChallengeResponse } from './types';
 
 /**

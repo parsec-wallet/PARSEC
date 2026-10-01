@@ -1,8 +1,8 @@
 # Parsec Wallet — Development Plan
 
-> **Updated:** 2026-03-29
-> **Status:** Alpha — Matrix entry gate, x402 payments, multi-chain builder (8 families), Mausoleum vault, aORC contracts (4 compiled, testnet-verified), PROOF.md attestation, deployer pipeline
-> **Vision:** The evolution of the cryptocurrency wallet. Sovereign, modular, Algorand-first. Every client is a server.
+> **Updated:** 2026-05-16 (Phase Q)
+> **Status:** Alpha — Matrix entry gate, x402 payments, multi-chain builder (8 families + Solana), Mausoleum vault, aORC contracts (testnet-verified + TS clients in `src/lib/aorc/`), PROOF.md attestation, deployer pipeline, **Arweave/AO foundation**, **permaweb deploy infra**, **ARIO Solana migration handler**, **BANKON Names** sovereign namespace (in-wallet spawn UI), **AR.IO module parity** (hub / name / transfer / resolve / claim), **named-NFT bindings** (ARC-3/19/69 + aORC TypeMinter), **BANKON Marketspace** (order book + auctions; web mirror at agenticplace.pythai.net/marketspace)
+> **Vision:** The evolution of the cryptocurrency wallet. Sovereign, modular, Algorand-first. Every client is a server. Every namespace is forkable. Every name is for sale.
 
 ## Mission
 
@@ -14,16 +14,63 @@ Build Parsec as a sovereign universal wallet: Tauri desktop shell, zero-dependen
 
 ```
 Frontend (vanilla TypeScript + Blueprint CSS)
-├── src/views/          # View modules (matrix, dashboard, send, receive, agents, identity, x402-confirm, admin-keygen, mausoleum, etc.)
-├── src/lib/            # Core modules (store, router, dom, keystore, vault, tomb, prices)
+├── src/views/          # View modules (matrix, dashboard, send, receive, agents, identity, x402-confirm, admin-keygen, mausoleum, arweave-*, solana-create, ario-*, bankon-*)
+├── src/lib/            # Core modules (store, router, dom, keystore, vault, tomb, prices, platform)
 ├── src/lib/algorand/   # Chain pack: account, transactions, assets, client
+├── src/lib/algorand-hd/# ARC-52 HD derivation (24-word BIP-39 → algorand sub-accounts)
+├── src/lib/arweave/    # ans104, ao, ario, ant, signer, inject (window.arweaveWallet), tx, jwk, seed, client
+├── src/lib/aorc/       # aORC TS clients: ids, minter (ARC-3/19/69), type-minter (aNFT/dNFT/iNFT/THOT)
+├── src/lib/bankon-names/ # Sovereign BANKON namespace client: process-id, payment, client, lua-source
+├── src/lib/marketplace/ # BANKON Marketspace client: process-id, client, escrow, lua-source
+├── src/lib/solana/     # ed25519 chain module: seed (SLIP-0010), address (base58), module
 ├── src/lib/x402/       # AgenticPlace integration: types, oracle, bridge, payment, discount, client
-├── src/lib/pouch/      # Chain adapter system: algorand, ethereum, bitcoin, litecoin, monero, zilliqa, cardano, arweave
+├── src/lib/pouch/      # Chain adapter system: algorand, algorand-hd, ethereum, bitcoin, litecoin, monero, zilliqa, cardano, arweave, arweave-hd, solana
 ├── src/lib/builder/    # Multi-chain tx builder: types, multichain, walletconnect, registry, isolation
 ├── src/lib/dex/        # SpinTrade DEX aggregator: tinyman-onchain, tinyman-api
 ├── src/lib/pmvpn/      # Private Mesh VPN: auth, connector, store, terminal
+├── src/lib/platform.ts # Tauri-vs-web shim: isTauri + dynamic invoke/listen
+├── src/lib/xchain/     # EVM-controlled Algorand LogicSig (MetaMask custody, x402 path)
 ├── src/assets/matrix/  # WebGL textures: glyphs.png (16x16 katakana atlas), noise.png
 └── src/types/          # TypeScript types
+
+BANKON Names Registry contract
+└── bankon-names-process/  # Lua AO process source (sovereign Parsec namespace)
+    ├── state.lua           # Records, Reserved, Policy, Treasury, Controllers, PrimaryNames
+    ├── main.lua            # Boot-tag wiring, handler manifest, Info diagnostic
+    └── handlers/
+        ├── claim.lua       # Buy-Name (token-agnostic via Payment-Method + Payment-Proof)
+        ├── transfer.lua    # Transfer (owner-only)
+        ├── records.lua     # Set/Get/Record/Resolve, Paginated-Records, Get-Owned-Records
+        ├── lease.lua       # Extend-Lease
+        ├── primary.lua     # Primary-Name-Request + Acknowledge + Get-Primary-Name
+        ├── cost.lua        # Token-Cost + Cost-Details
+        ├── governance.lua  # Set-Policy / Set-Treasury / Add-Controller / Remove-Controller
+        └── admin.lua       # Reserved-name seeding + Set-Reserved / Clear-Reserved
+
+BANKON Marketspace Registry contract
+└── marketplace-process/  # Lua AO process source (order book + auctions for names)
+    ├── state.lua           # Listings, Offers, Bids, Trades, Treasury, Policy, FeesAccrued
+    ├── main.lua            # Handler manifest, Info + read handlers
+    └── handlers/
+        ├── list.lua        # Create-Listing (fixed-price + auction)
+        ├── cancel.lua      # Cancel-Listing
+        ├── offer.lua       # Make-Offer / Cancel-Offer / Accept-Offer / Reject-Offer
+        ├── auction.lua     # Bid / Settle-Auction
+        ├── escrow.lua      # Receive-Asset (BNR Transfer-Notice) + Reconcile-Escrow
+        ├── settle.lua      # Settle-Trade (verifies Payment-Proof, emits BNR/ANT Transfer)
+        ├── fees.lua        # Record-Fee + Fees-Info + Withdraw-Fees
+        └── governance.lua  # Set-Policy / Set-Treasury / Add/Remove-Controller / pause
+
+Standalone apps
+└── apps/bankon-resolver/    # 3.70 kB SPA — public permaweb resolver for BANKON names
+    ├── index.html
+    ├── main.ts              # Reads ?name=, dry-runs Resolve, redirects to <txid>.arweave.net
+    └── vite.config.ts       # Permaweb-deployable bundle
+
+Scripts
+├── scripts/spawn-bnr.mjs    # One-time BNR spawn (maintainer fallback)
+└── scripts/spawn-bmr.mjs    # One-time BMR spawn (Marketspace; maintainer fallback)
+   (preferred: in-wallet spawn via Dashboard → BANKON Names → admin)
 
 Backend (Rust via Tauri IPC)
 ├── bankon_vault/       # Modular encrypted vault (portable across wallets)
@@ -149,6 +196,69 @@ Backend (Rust via Tauri IPC)
 - [x] x402-integration.md: complete integration guide (types, oracle, bridge, payment, views)
 - [x] Hash routing: docs.html#dev-plan, docs.html#x402-integration, etc.
 
+## Permaweb & Sovereign Naming (Phase P / 2026-05)
+
+A three-track expansion landed in May 2026 that puts Parsec on the permaweb itself, handles the ARIO Solana migration, and ships a sovereign alternative to AR.IO's ArNS.
+
+### Arweave / AO foundation
+
+- [x] ANS-104 DataItem encoding + sign + verify (`src/lib/arweave/ans104.ts`)
+- [x] AO MU/CU/SU transport (`src/lib/arweave/ao.ts`) — message / result / dry-run / spawn
+- [x] Vault-bridged Arweave signer with `dispose()` (`src/lib/arweave/signer.ts`)
+- [x] `window.arweaveWallet` injected API — ArConnect/Wander parity (`src/lib/arweave/inject.ts`)
+- [x] dApp approval view (`src/views/arweave-approve.ts`)
+- [x] Per-account multi-chain address map: `WalletAccount.chains: Record<ChainId, string>`
+- [x] Arweave HD account creation view (`src/views/arweave-create.ts`)
+
+### Permaweb deploy
+
+- [x] Platform shim (`src/lib/platform.ts`): `isTauri` + dynamic `invoke`/`listen`; 13 callers migrated
+- [x] `permaweb-deploy@^3.4.0` devDep + scripts `deploy:permaweb` (binds to `pythai`), `deploy:permaweb:txid` (initial deploy without ArNS), `build:resolver`, `deploy:resolver`
+- [x] Production web build excludes static `@tauri-apps/api` imports — Parsec runs in any browser as a permaweb SPA
+
+### ARIO Solana migration handler
+
+- [x] Solana chain module (`src/lib/solana/`): BIP-39 → SLIP-0010 ed25519 (`m/44'/501'/0'/0'`) → base58
+- [x] Solana account view (`src/views/solana-create.ts`)
+- [x] Migration view (`src/views/ario-migrate-solana.ts`): reads BASE ARIO balance via MetaMask `eth_call balanceOf`, surfaces Solana destination, hands off to `sol.ar.io`. Countdown to **June 1, 2026** snapshot.
+
+### pythai ArNS claim path
+
+- [x] AR.IO Registry client (`src/lib/arweave/ario.ts`): `getArioBalance`, `getArnsRecord`, `getReservedName`, `getTokenCost`, `buildBuyNameInput`, `buildTransferArioInput`, `formatArio`/`parseArio`. Mainnet process = `qNvAoz0Tg...`.
+- [x] ANT helpers (`src/lib/arweave/ant.ts`): `getLatestAntModuleId`, `spawnAnt` (with confirmation polling), `setAntRootRecord`
+- [x] Claim view (`src/views/ario-claim-pythai.ts`): preflight → confirm → spawn ANT → Buy-Name → bind manifest tx-id. Live cost preview (1-yr lease = 8,242.02 ARIO verified 2026-05-15).
+
+### BANKON Names — sovereign permaweb namespace
+
+The Parsec-controlled alternative to ArNS. Single AO process, token-agnostic claims, no AR.IO dependency.
+
+- [x] BNR Lua contract (`bankon-names-process/`): state schema + 7 handler modules (claim / transfer / records / lease / primary / cost / governance / admin)
+- [x] Token-agnostic payment: `Payment-Method` + `Payment-Proof` tags (`free` / `algorand` / `arweave-stake` / `bankon`)
+- [x] One-time spawn script (`scripts/spawn-bnr.mjs`): bundles Lua, signs Spawn DataItem from `DEPLOY_KEY`, polls confirmation, writes `BNR_PROCESS_ID` to `src/lib/bankon-names/process-id.ts`
+- [x] Parsec client (`src/lib/bankon-names/`): `process-id.ts` guard, `payment.ts` discriminated union, `client.ts` (read+write helpers mirroring `ario.ts`)
+- [x] UI: `bankon-hub`, `bankon-claim`, `bankon-name` (root @ + undernames + extend + primary + transfer), `bankon-resolve`
+- [x] Public permaweb resolver SPA (`apps/bankon-resolver/`): 3.70 kB, dependency-free, redirects to `<txid>.arweave.net`
+- [x] Dashboard wiring: `BANKON Names` + `Resolve` row conditional on an Arweave address
+
+### Snapshot investigation
+
+- [x] `docs/snapshot-investigation.md`: snapshot date confirmed firm; Solana mint authority + reclaim-window length **not publicly disclosed** (flagged as medium risk); BASE bridge contract `0x138746...effb6` + relayer EOA `0x79B5B6F47F865194EAa02756883a003f06F7Ba6c` documented; risk table + pre-snapshot action sequence
+
+### Verification (full Phase P)
+
+- [x] `npx tsc --noEmit` clean across all three rounds
+- [x] `npx vitest run` 101/101 pass (incl. new `ans104.test.ts` roundtrip)
+- [x] `npm run build` succeeds; web bundle has zero static Tauri imports
+- [x] `npm run build:resolver` produces a 3.70 kB Vite SPA
+
+### Pending pre-June 1 user actions
+
+- [ ] One-time `node scripts/spawn-bnr.mjs` to instantiate the BNR
+- [ ] Bridge a small test amount BASE → AO (relayer sanity check) before bulk
+- [ ] Deploy Parsec to a tx-id, then later to `pythai.arweave.net`
+- [ ] Complete sol.ar.io registration for the 99,600 ARIO BASE holding (deadline: **June 1, 2026**)
+- [ ] Deploy `apps/bankon-resolver/` via `npm run deploy:resolver`
+
 ## Roadmap
 
 ### Phase C — Input Recognition & Validation
@@ -199,10 +309,14 @@ Informed by: ailgo/pera-wallet, developer.algorand.org
 - [ ] QR code generation for receive (algorand:// URI)
 
 ### Phase G — Modular Extensions
-Informed by: parsec-wallet/parsec-pod, ailgo/mint-arc19, ailgo/ExtendableDAO
+Informed by: parsec-wallet/parsec-pod, ailgo/mint-arc19, ailgo/ExtendableDAO, AlgoNode/algostack
 
 - [ ] ASA minter extension
 - [ ] NFT minter extension (ARC-19)
+- [x] **NFT metadata normalization (ARC-3 / ARC-19 / ARC-69)** — `src/lib/algorand/nft-metadata.ts` + `nft-arc19.ts`. Single normalized shape regardless of source ARC; pattern adapted from algostack's Medias module. Wired into `enrichAssets` and dashboard.
+- [x] **Query cache + dedup + rate-limit** — `src/lib/algorand/query-cache.ts`. Per-endpoint p-ratelimit, in-flight Promise dedup, TTL cache. Foundation for everything that touches indexer/algod. Pattern adapted from algostack's Query module.
+- [x] **IPFS gateway abstraction** — `src/lib/algorand/ipfs-gateway.ts`. Multi-gateway sequential fallback (algonode.xyz → ipfs.io → cf-ipfs → pinata). Future participant-controlled override via `parsec_mesh` Kubo (Phase I).
+- [x] **ARC-26 transaction-request URIs** — `src/lib/algorand/arc26.ts`. `algorand://...` encode/parse; receive view shows shareable URI; input classifier recognizes pasted URIs. Pattern adapted from `AlgoNode/algourl` (Go, public domain → TS reimpl).
 - [ ] Plugin/extension system architecture
 - [ ] DAO interaction module
 - [ ] Staking/governance participation
@@ -226,6 +340,8 @@ public/private key pairs across all chains. True sovereign holding.
 - [x] Arweave (AR) — RSA-4096 family, vault signing LIVE via WebCrypto RSA-PSS (zero deps)
 - [x] EVM L2/L3/sidechains — Polygon, Arbitrum, Optimism, Base, zkSync, etc. via EVM family
 - [x] MetaMask injection sandboxing (EIP-1193 passthrough, PARSEC never touches key)
+- [x] **xchain (EVM-controls-Algorand)** — `algo-x-evm-sdk`; MetaMask signs EIP-712, on-chain LogicSig verifies via `ecdsa_pk_recover`. Each EVM address maps to one Algorand LogicSig address. `chainId='algorand-xchain'`, `signingAuthority='metamask'`. Module: `src/lib/xchain/`, view: `src/views/xchain-connect.ts`.
+- [x] **algorand-hd (ARC-52 / BIP32-Ed25519)** — `@algorandfoundation/xhd-wallet-api`; 24-word BIP-39 seed → many sub-accounts (path `m/44'/283'/account'/0/index`) plus Identity-context keys (`m/44'/0'/...`) for DID/W3C-VC. Parallel to the canonical 25-word algosdk path — never disturbs the default. Module: `src/lib/algorand-hd/`, view: `src/views/arc52-create.ts`. Rust port (`chain_algo_hd`) deferred — vitest suite pinned against the lib's behavior makes the future port byte-exact.
 - [ ] Solana (SOL) — ed25519, SPL tokens
 - [ ] Each chain: send, receive, private key export
 - [ ] Atomic-style key pair display (participant sees all their keys)

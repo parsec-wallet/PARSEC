@@ -6,6 +6,8 @@
 // Interface: create, unlock, lock, store, retrieve, remove, list
 
 pub mod crypto;
+pub mod kdf;
+pub mod secure_mem;
 pub mod store;
 pub mod commands;
 pub mod tomb;
@@ -74,5 +76,45 @@ impl VaultSession {
 
     pub fn dir(&self) -> Option<&std::path::Path> {
         self.vault_dir.as_deref()
+    }
+
+    /// The unlocked session's key and directory, or a refusal naming which is missing.
+    ///
+    /// Every chain pack needs the same pair, and each deriving it by hand is how one of
+    /// them ends up reading `key()` without checking `dir()`.
+    fn unlocked(&self) -> Result<(&std::path::Path, &[u8]), String> {
+        match (self.vault_dir.as_deref(), self.session_key.as_deref()) {
+            (Some(dir), Some(key)) => Ok((dir, key)),
+            _ => Err("vault is locked".to_string()),
+        }
+    }
+
+    /// Store a chain secret under its own address.
+    ///
+    /// The seam every chain pack stores through, so none of them handles the session key
+    /// or the vault path itself. Thin by design: the encryption, the manifest and the
+    /// on-disk format are `store`'s, unchanged.
+    pub fn store_by_address(
+        &self,
+        chain: &str,
+        address: &str,
+        label: &str,
+        secret: &[u8],
+    ) -> Result<(), String> {
+        let (dir, key) = self.unlocked()?;
+        store::VaultStore::store_secret(dir, key, address, chain, label, secret)
+    }
+
+    /// Retrieve a chain secret by address.
+    ///
+    /// Returns [`secure_mem::SecretBytes`] rather than a `Vec<u8>` so the plaintext is
+    /// wiped when the caller drops it. A `Vec` would leave it in the allocator for
+    /// whatever reads that page next.
+    pub fn retrieve_by_address(&self, address: &str) -> Result<secure_mem::SecretBytes, String> {
+        let (dir, key) = self.unlocked()?;
+        let mut plain = store::VaultStore::retrieve_secret(dir, key, address)?;
+        let out = secure_mem::SecretBytes::from_slice(&plain);
+        secure_mem::wipe(&mut plain);
+        Ok(out)
     }
 }

@@ -1,11 +1,40 @@
-// Parsec x402 Integration — Module Index
-// Re-exports all x402 types, constants, oracle, discount, and client.
-// (c) 2026 BANKON — GPL-3.0
+// Parsec x402 — module index.
+//
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
-export * from './types';
+// The short way in
+export * from './pay';
+
+// Ports — how a host plugs in its signing, storage and nodes
+export * from './host';
+export * from './adapters/wallets';
+
+// The wire
+export * from './protocol';
+export * from './networks';
+
+// The rails
+export * from './rails';
+export { avmRail, buildPaymentGroup, signPaymentGroup, preflightAvm, optInToAsset, isOptedIn, signAndSend, sendAlgoPayment, walletNetworkFor } from './rails/avm';
+export type { AvmPaymentPayload } from './rails/avm';
+export { evmRail, buildAuthorization, preflightEvm, validityWindow, chainIdOf, randomNonce, setEvmRpc } from './rails/evm';
+export type { EvmPaymentPayload } from './rails/evm';
+export { svmRail, buildSvmPayment, preflightSvm, associatedTokenAddress, encodeTransferChecked, tokenBalance, TOKEN_PROGRAM, TOKEN_2022_PROGRAM } from './rails/svm';
+export type { SvmPaymentPayload } from './rails/svm';
+
+// The flow
+export * from './client';
+export * from './quote';
+export * from './receipts';
+export * from './settings';
+export * from './facilitator';
+export * from './bazaar';
+
+// AgenticPlace and BANKON
 export * from './constants';
+export * from './types';
 export { PriceOracle } from './oracle';
-export { checkBankonHolder, applyDiscount } from './discount';
+export { checkBankonHolder, applyDiscountExact, clearHolderCache } from './discount';
 export { AgenticPlaceClient, type AgenticPlaceConfig } from './agenticplace-client';
 export { buildAlgorandX402Signer, signBytesWithVault, type X402Signer } from './bridge';
-export { parsePaymentRequirement, executeX402Payment, x402Fetch, type PendingX402Payment, type X402PaymentResult } from './payment';

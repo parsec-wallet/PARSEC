@@ -1,13 +1,17 @@
 // Parsec Wallet — Algorand Input Validation
-// Detects and validates: addresses, 25-word mnemonics, base64 private keys.
+// Detects and validates: addresses, 25-word mnemonics, base64 private keys,
+// and ARC-26 algorand:// transaction-request URIs.
 // Frontend classifies, backend (Rust) validates in production.
 
 import algosdk from 'algosdk';
+import { parseArc26 } from './arc26';
+import type { Arc26Payload } from './arc26';
 
 export type InputKind =
   | 'algorand_address'
   | 'algorand_mnemonic'
   | 'algorand_private_key'
+  | 'algorand_uri'
   | 'watch_only'
   | 'unknown';
 
@@ -17,12 +21,34 @@ export interface ClassifiedInput {
   reason: string;
   address?: string;
   valid: boolean;
+  uri?: Arc26Payload;
 }
 
 /** Classify and validate raw user input */
 export function classifyInput(raw: string): ClassifiedInput {
   const trimmed = raw.trim();
   if (!trimmed) return { kind: 'unknown', confidence: 0, reason: '', valid: false };
+
+  // ARC-26 algorand:// URI — recognized before splitting on whitespace
+  if (trimmed.startsWith('algorand://')) {
+    const parsed = parseArc26(trimmed);
+    if (parsed) {
+      return {
+        kind: 'algorand_uri',
+        confidence: 1.0,
+        reason: 'Valid ARC-26 transaction-request URI',
+        address: parsed.address,
+        uri: parsed,
+        valid: true,
+      };
+    }
+    return {
+      kind: 'algorand_uri',
+      confidence: 0.4,
+      reason: 'algorand:// URI present but address invalid',
+      valid: false,
+    };
+  }
 
   const words = trimmed.split(/\s+/).filter(Boolean);
 

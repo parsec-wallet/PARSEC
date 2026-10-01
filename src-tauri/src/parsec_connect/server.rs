@@ -33,6 +33,7 @@ use axum::{
 use serde_json::json;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tauri::Emitter;
 use tokio::sync::{mpsc, RwLock};
 use tower_http::cors::{AllowOrigin, CorsLayer};
 

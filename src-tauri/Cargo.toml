@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Parsec Wallet — Algorand desktop wallet built on cypherpunk2048 principles"
 authors = ["cypherpunk2048"]
 edition = "2021"
-license = "LicenseRef-BANKON"
+license = "GPL-3.0-or-later AND Apache-2.0"
 
 [lib]
 name = "parsec_wallet_lib"
@@ -62,3 +62,24 @@ libc = "0.2"
 
 # parsec_validate — Algorand SHA-512/256 checksum + chain address validation
 sha2 = "0.10"
+
+# chain_algo / chain_sol — ed25519 keys and signatures (Algorand 25-word accounts,
+# Solana SLIP-0010). Added deliberately: moving key generation for Algorand,
+# Solana and Arweave out of the renderer and into Rust is what lets `algosdk`,
+# `@solana/kit` and `node-forge` leave the frontend, which NARROWS the cp4096
+# commitment-II gap described in docs/cypherpunk4096.md rather than widening it.
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+
+# chain_ar — Arweave RSA-4096 JWK keys and RSA-PSS signatures
+rsa = "0.9"
+
+# chain_btc — Bitcoin chain pack (BIP-32/39/44/84 HD keys, P2WPKH/P2SH-P2WPKH/P2PKH)
+bitcoin = { version = "0.32", features = ["rand-std"] }
+bip39 = "2.1"
+base64 = "0.22"
+
+# network_monitor — read-only local interface enumeration + CPU/GPU snapshot
+network-interface = "1"
+sysinfo = "0.32"
+russh = "0.54"
+russh-keys = "0.49"

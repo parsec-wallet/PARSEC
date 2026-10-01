@@ -6,6 +6,13 @@ mod parsec_throttle;
 mod parsec_sandbox;
 mod parsec_validate;
 mod parsec_connect;
+mod chain_algo;
+mod chain_ar;
+mod chain_btc;
+mod chain_evm;
+mod chain_ltc;
+mod chain_sol;
+mod network_monitor;
 
 use bankon_vault::VaultState;
 use bankon_vault::commands::*;
@@ -23,6 +30,14 @@ use parsec_sandbox::commands::*;
 use parsec_validate::commands::*;
 use parsec_connect::ConnectState;
 use parsec_connect::commands::*;
+use chain_algo::commands::*;
+use chain_ar::commands::*;
+use chain_btc::commands::*;
+use chain_evm::commands::*;
+use chain_ltc::commands::*;
+use chain_sol::commands::*;
+use network_monitor::NetworkMonitorState;
+use network_monitor::commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -42,6 +57,7 @@ pub fn run() {
         .manage(ThrottleState::default())
         .manage(SandboxState::default())
         .manage(ConnectState::default())
+        .manage(NetworkMonitorState::default())
         .invoke_handler(tauri::generate_handler![
             // pmvpn — wallet-authenticated SSH
             pmvpn_connect,
@@ -121,6 +137,47 @@ pub fn run() {
             validate_address_solana,
             validate_address_cosmos,
             validate_address_any,
+            // chain_btc — Bitcoin chain pack (scaffold: derivation + addresses only)
+            chain_btc_generate_mnemonic,
+            chain_btc_validate_mnemonic,
+            chain_btc_derive_address,
+            chain_btc_import_account,
+            chain_btc_create_account,
+            chain_btc_derive_from_vault,
+            chain_btc_sign_psbt,
+            // chain_ltc — Litecoin (BIP-44 coin type 2', ltc1… native segwit)
+            chain_ltc_derive_address,
+            chain_ltc_import_account,
+            chain_ltc_create_account,
+            chain_ltc_derive_from_vault,
+            chain_ltc_sign_psbt,
+            // chain_algo — Algorand chain pack (25-word mnemonic, ed25519).
+            // Signs the x402 payment group: the seed never leaves Rust.
+            chain_algo_address_from_mnemonic,
+            chain_algo_validate_mnemonic,
+            chain_algo_create_account,
+            chain_algo_import_account,
+            chain_algo_reveal_mnemonic,
+            chain_algo_sign_bytes,
+            chain_algo_sign_transaction,
+            // chain_evm — EVM chain pack (EIP-1559 transactions, EIP-3009 x402 authorizations)
+            chain_evm_sign_tx,
+            chain_evm_address_from_key,
+            chain_evm_sign_transfer_authorization,
+            // chain_ar — Arweave chain pack (RSA-4096 JWK, ANS-104 data items)
+            chain_ar_create_account,
+            chain_ar_import_account,
+            chain_ar_account_info,
+            chain_ar_sign,
+            chain_ar_export_jwk,
+            // chain_sol — Solana chain pack (ed25519, BIP-44 m/44'/501')
+            chain_sol_address_from_mnemonic,
+            chain_sol_import_account,
+            chain_sol_sign,
+            // network_monitor — opt-in local network + system snapshot
+            network_monitor_set_enabled,
+            network_info,
+            network_set_mac,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Parsec Wallet");

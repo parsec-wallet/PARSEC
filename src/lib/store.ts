@@ -2,25 +2,69 @@
 // Parsec never holds private keys. Sensitive data (passphrase, mnemonic)
 // is held in private class fields — never serialized, never in localStorage.
 
-import type { WalletState, AppView, PendingSend } from '../types/wallet';
+import type { WalletState, AppView, PendingSend, WalletAccount } from '../types/wallet';
+import type { ChainId } from './pouch/types';
+import { isTauri } from './vault';
+import { keystoreLock } from './keystore';
+import { defaultAvatarFor } from './avatars';
+import { isModalRoute } from './nav';
 
 type Listener = (state: WalletState) => void;
 
 const STORAGE_KEY = 'parsec-wallet-state';
+
+// Older persisted accounts predate the multi-chain `chains` map.
+// Backfill so every account has at least { algorand: <primary address> }.
+function migrateAccount(raw: unknown): WalletAccount {
+  const a = raw as Partial<WalletAccount> & { address: string };
+  const chains = (a.chains && typeof a.chains === 'object') ? { ...a.chains } : {};
+  if (a.address && !chains['algorand']) chains['algorand'] = a.address;
+  return {
+    address: a.address,
+    name: a.name ?? 'Account',
+    createdAt: a.createdAt ?? Date.now(),
+    watchOnly: a.watchOnly,
+    chains,
+    activeChain: a.activeChain ?? 'algorand',
+    avatar: a.avatar ?? defaultAvatarFor(a.address),
+  };
+}
 
 function loadPersistedState(): Partial<WalletState> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
     const saved = JSON.parse(raw);
+    const accounts = Array.isArray(saved.accounts) ? saved.accounts.map(migrateAccount) : [];
     return {
-      accounts: saved.accounts || [],
+      accounts,
       activeAccountIndex: saved.activeAccountIndex || 0,
       settings: saved.settings || undefined,
     };
   } catch {
     return {};
   }
+}
+
+/** Get the address an account uses on a specific chain. Falls back to the
+ * primary `address` when the chain is unmapped (legacy Algorand-only accounts). */
+export function getAccountAddress(account: WalletAccount, chainId: ChainId): string | undefined {
+  if (account.chains && account.chains[chainId]) return account.chains[chainId];
+  if (chainId === 'algorand') return account.address;
+  return undefined;
+}
+
+/** Set the address an account uses on a specific chain. Returns a new
+ * WalletAccount — caller is responsible for persisting via store.set(). */
+export function setAccountAddress(
+  account: WalletAccount,
+  chainId: ChainId,
+  address: string,
+): WalletAccount {
+  return {
+    ...account,
+    chains: { ...account.chains, [chainId]: address },
+  };
 }
 
 function persistState(state: WalletState): void {
@@ -85,13 +129,65 @@ class Store {
   // --- State management ---
 
   set(partial: Partial<WalletState>): void {
+    // Normalize any incoming accounts so the chains map is always present.
+    // Callers (create-wallet, import-wallet) can stay schema-agnostic.
+    if (partial.accounts) {
+      partial = { ...partial, accounts: partial.accounts.map(migrateAccount) };
+    }
     this.state = { ...this.state, ...partial };
     persistState(this.state);
     this.notify();
   }
 
+  /**
+   * Views visited, most recent last. Not persisted: a back stack that survives a
+   * restart would let a gesture walk into a context the participant never opened.
+   */
+  private history: AppView[] = [];
+
   navigate(view: AppView): void {
+    const from = this.state.view;
+    // An approval surface never joins the stack. A back gesture must not be able to
+    // silently cancel — or silently re-enter — a signing decision, which is the same
+    // rule `nav.ts` states with `modal: true` and `isModalRoute()` enforces.
+    if (from && from !== view && !isModalRoute(from)) {
+      this.history.push(from);
+      if (this.history.length > 50) this.history.shift();
+    }
     this.set({ view, error: null });
+  }
+
+  /** Whether there is anywhere to go back to. */
+  canGoBack(): boolean {
+    return this.history.length > 0;
+  }
+
+  /**
+   * Return to the previous view, or to the dashboard when there is none.
+   *
+   * Never a no-op: a back control that sometimes does nothing reads as broken, and the
+   * dashboard is always a defensible place to be.
+   */
+  /** Go to the previous view. Returns false, without navigating, when there is
+   *  no history, so callers choose their own fallback. */
+  back(): boolean {
+    const previous = this.history.pop();
+    if (previous === undefined) return false;
+    this.set({ view: previous, error: null });
+    return true;
+  }
+
+  /** Switch the active account and the chain it is viewed on. Clears the
+   *  cached Algorand account data (stale across a switch) and routes to the
+   *  dashboard. Single switch path for the wallet switcher and the per-chain
+   *  create flows (solana-create, arweave-create). */
+  selectChain(accountIndex: number, chainId: ChainId): void {
+    const accounts = [...this.state.accounts];
+    const acct = accounts[accountIndex];
+    if (!acct) return;
+    accounts[accountIndex] = { ...acct, activeChain: chainId };
+    this.set({ accounts, activeAccountIndex: accountIndex, accountInfo: null, transactions: [] });
+    this.navigate('dashboard');
   }
 
   subscribe(listener: Listener): () => void {
@@ -121,16 +217,14 @@ class Store {
 
     this._pendingSend = null;
 
-    // Clear all cached chain data
+    // Clear all cached chain data, and the back stack: after a lock a back
+    // gesture must not walk into a view from the session that just ended.
     this.clearLockTimer();
-    this.set({ accountInfo: null, transactions: [] });
+    this.history = [];
+    this.set({ accountInfo: null, transactions: [], error: null, isLoading: false });
 
     // Lock the Tauri vault session if available
-    import('./vault').then(v => {
-      if (v.isTauri()) {
-        import('./keystore').then(k => k.keystoreLock());
-      }
-    });
+    if (isTauri()) keystoreLock();
 
     // Disconnect all pmVPN sessions
     import('./pmvpn/connector').then(c => c.disconnectAll()).catch(() => {});
@@ -157,7 +251,11 @@ class Store {
     this.clearLockTimer();
     const minutes = this.state.settings.autoLockMinutes;
     if (minutes > 0 && this._sessionPassphrase) {
-      this._lockTimer = setTimeout(() => this.lock(), minutes * 60 * 1000);
+      // Auto-lock is a complete logout, not a partial one: an armed wallet
+      // left idle must end up exactly where the Logout button leaves it.
+      this._lockTimer = setTimeout(() => {
+        void import('./session').then((m) => m.logout()).catch(() => this.lock());
+      }, minutes * 60 * 1000);
     }
   }
 

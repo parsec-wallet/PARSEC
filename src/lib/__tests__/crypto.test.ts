@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { saveMnemonic, loadMnemonic, hasVault, removeAccount, verifyPassphrase } from '../crypto';
+import { saveMnemonic, loadMnemonic, hasVault, removeAccount, verifyPassphrase, listAccounts } from '../crypto';
 
 // Mock localStorage
 const localStorageMock = (() => {
@@ -69,5 +69,12 @@ describe('Web Crypto Encryption (PBKDF2 + AES-256-GCM)', () => {
     await saveMnemonic(address, mnemonic, passphrase);
     expect(await verifyPassphrase(passphrase)).toBe(true);
     expect(await verifyPassphrase('wrong')).toBe(false);
+  });
+
+  it('listAccounts returns addresses only, never ciphertext', async () => {
+    await saveMnemonic(address, mnemonic, passphrase);
+    expect(listAccounts()).toEqual([{ address }]);
+    removeAccount(address);
+    expect(listAccounts()).toEqual([]);
   });
 });

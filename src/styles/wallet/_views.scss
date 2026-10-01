@@ -13,6 +13,44 @@
   inset: 0;
   overflow: hidden;
   background: #000;
+
+  // Parting transition: triggered on successful unlock from the matrix
+  // screen. The two halves slide outward, the centre fades, and the
+  // dashboard underneath is revealed. Total duration ≈ 700ms.
+  &--parting {
+    pointer-events: none;
+    animation: parsec-matrix-fade 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  &--parting .parsec-matrix__canvas,
+  &--parting .parsec-matrix__overlay {
+    animation: parsec-matrix-part 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  // Floating widgets (pyramid, glyphs, brand, panel) ride the parting:
+  // they drift up and fade so they don't look pinned against the slit.
+  &--parting .parsec-matrix__panel,
+  &--parting .parsec-matrix__pyramid,
+  &--parting .parsec-matrix__glyph-layer,
+  &--parting .parsec-matrix__brand {
+    animation: parsec-matrix-lift 700ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+}
+
+@keyframes parsec-matrix-part {
+  0%   { clip-path: inset(0 0 0 0); opacity: 1; }
+  60%  { clip-path: inset(0 48% 0 48%); opacity: 0.7; }
+  100% { clip-path: inset(0 50% 0 50%); opacity: 0; }
+}
+
+@keyframes parsec-matrix-fade {
+  0%   { background: #000; }
+  100% { background: transparent; }
+}
+
+@keyframes parsec-matrix-lift {
+  0%   { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-24px); opacity: 0; }
 }
 
 .parsec-matrix__canvas {
@@ -510,6 +548,10 @@
 
 // Brick card — each coin is a block in the pyramid step
 .parsec-pyramid__card {
+  // A card's contents cannot affect anything outside it, so a changed figure
+  // re-lays out one card, not the page. (Not `paint`: that would clip the
+  // hover scale-up.)
+  contain: layout style;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -775,6 +817,95 @@
   pointer-events: none;
 }
 
+// Streaming icons running up the green edge and down the red edge
+.parsec-pyramid__stream {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.parsec-pyramid__stream-item {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 14px;
+  height: 14px;
+  animation-name: parsec-pyramid-stream;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+  will-change: transform, opacity;
+
+  img {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    display: block;
+    filter: drop-shadow(0 0 3px rgb(255 255 255 / 40%));
+  }
+}
+
+.parsec-pyramid__stream-fallback {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+  font-weight: 700;
+  font-family: $font-family-mono;
+}
+
+.parsec-pyramid__stream--up .parsec-pyramid__stream-item img {
+  filter: drop-shadow(0 0 4px rgb(16 185 129 / 50%));
+}
+
+.parsec-pyramid__stream--down .parsec-pyramid__stream-item img {
+  filter: drop-shadow(0 0 4px rgb(239 68 68 / 50%));
+}
+
+@keyframes parsec-pyramid-stream {
+  0% {
+    transform: translate(var(--from-x, 0), var(--from-y, 0)) scale(0.6);
+    opacity: 0;
+  }
+
+  8% {
+    transform:
+      translate(
+        calc(var(--from-x, 0) + (var(--to-x, 0) - var(--from-x, 0)) * 0.08),
+        calc(var(--from-y, 0) + (var(--to-y, 0) - var(--from-y, 0)) * 0.08)
+      )
+      scale(0.9);
+    opacity: 0.85;
+  }
+
+  92% {
+    transform:
+      translate(
+        calc(var(--from-x, 0) + (var(--to-x, 0) - var(--from-x, 0)) * 0.92),
+        calc(var(--from-y, 0) + (var(--to-y, 0) - var(--from-y, 0)) * 0.92)
+      )
+      scale(0.9);
+    opacity: 0.85;
+  }
+
+  100% {
+    transform: translate(var(--to-x, 0), var(--to-y, 0)) scale(0.6);
+    opacity: 0;
+  }
+}
+
+// Hover isolation — dim the row so the focused card breathes
+.parsec-pyramid__row:has(.parsec-pyramid__card:hover) {
+  .parsec-pyramid__card:not(:hover) {
+    opacity: 0.4;
+    filter: blur(0.5px);
+    transition: opacity 0.2s ease, filter 0.2s ease;
+  }
+}
+
 // Featured winners — right side detail
 .parsec-pyramid__feature {
   position: absolute;
@@ -808,8 +939,9 @@
   position: absolute;
   bottom: 2px;
   left: 3%;
-  width: 9%;
-  min-width: 120px;
+  width: 11%;
+  min-width: 170px;
+  max-width: 250px;
   pointer-events: auto;
   animation: parsec-ship-float 6s ease-in-out infinite;
   cursor: grab;
@@ -824,58 +956,117 @@
   50% { transform: translateY(-4px); }
 }
 
+// The hull carries the list; the ship's own transform carries the float, so
+// the two never overwrite each other.
 .parsec-ship__hull {
   position: relative;
-  background: linear-gradient(180deg, rgb(15 23 42 / 80%) 0%, rgb(15 23 42 / 95%) 100%);
-  border: 1px solid rgb(255 255 255 / 8%);
-  border-bottom: 3px solid rgb(59 130 246 / 25%);
-  border-radius: $border-radius-xl $border-radius-xl 40% 40%;
-  padding: $spacing-1 $spacing-2 $spacing-2;
+  background: linear-gradient(180deg, rgb(15 23 42 / 80%) 0%, rgb(8 15 30 / 95%) 100%);
+  border: 1px solid rgb(59 130 246 / 14%);
+  border-bottom: 3px solid rgb(59 130 246 / 30%);
+  border-radius: #{$border-radius-xl} #{$border-radius-xl} 36% 36% / #{$border-radius-xl} #{$border-radius-xl} 18% 18%;
+  padding: $spacing-1 $spacing-2 $spacing-3;
   backdrop-filter: blur(8px);
+  box-shadow: 0 0 18px rgb(59 130 246 / 10%);
+  transform: rotate(var(--parsec-ship-list, 0deg));
+  transform-origin: 50% 100%;
+  transition: transform 2s ease, border-color 0.6s ease, box-shadow 0.6s ease;
+
+  &--alarm {
+    border-color: rgb(239 68 68 / 45%);
+    box-shadow: 0 0 22px rgb(239 68 68 / 25%);
+    animation: parsec-ship-alarm 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes parsec-ship-alarm {
+  0%, 100% { box-shadow: 0 0 14px rgb(239 68 68 / 18%); }
+  50% { box-shadow: 0 0 28px rgb(239 68 68 / 40%); }
 }
 
 .parsec-ship__mast {
   text-align: center;
   padding: $spacing-1 0;
-  border-bottom: 1px solid rgb(255 255 255 / 5%);
+  border-bottom: 1px solid rgb(255 255 255 / 6%);
   margin-bottom: $spacing-1;
 }
 
 .parsec-ship__flag {
   font-family: $font-family-mono;
   font-weight: $font-weight-bold;
-  font-size: $font-size-base;
-  color: rgb(59 130 246 / 80%);
+  font-size: 1rem;
+  color: rgb(96 165 250 / 90%);
   letter-spacing: 0.03em;
+  text-shadow: 0 0 10px rgb(59 130 246 / 35%);
 }
 
 .parsec-ship__flag-label {
-  font-size: 0.45em;
+  font-size: 0.5rem;
   letter-spacing: 0.2em;
-  color: rgb(255 255 255 / 25%);
+  color: rgb(255 255 255 / 30%);
   text-transform: uppercase;
+}
+
+.parsec-ship__flow {
+  margin-top: 2px;
+  font-family: $font-family-mono;
+  font-size: 0.6rem;
+  font-weight: $font-weight-bold;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+
+  &--inflow { color: rgb(16 185 129 / 90%); }
+  &--outflow { color: #ef4444; }
+  &--flat { color: rgb(255 255 255 / 40%); }
+}
+
+.parsec-ship__mast-row {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-1;
+  margin-top: 2px;
+  font-family: $font-family-mono;
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+}
+
+.parsec-ship__powder {
+  color: rgb(255 255 255 / 40%);
+  white-space: nowrap;
+}
+
+.parsec-ship__peg-call {
+  white-space: nowrap;
+  font-weight: $font-weight-bold;
+
+  &--held { color: rgb(16 185 129 / 80%); }
+  &--drift { color: #f59e0b; }
+  &--depeg { color: #ef4444; }
 }
 
 .parsec-ship__deck {
   display: flex;
+  flex-wrap: wrap;
   gap: 1px;
   min-height: 18px;
   align-items: stretch;
 }
 
+// Cargo: as wide as its share. The bottom edge is its peg.
 .parsec-ship__cargo {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2px 4px;
+  flex-grow: 1;
+  min-width: 40px;
+  padding: 2px 3px;
   border-radius: $border-radius-sm;
   background: rgb(59 130 246 / 8%);
   border: 1px solid rgb(59 130 246 / 10%);
-  min-width: 0;
+  border-bottom: 2px solid rgb(59 130 246 / 30%);
   overflow: hidden;
   cursor: crosshair;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, border-color 0.4s ease, transform 0.2s ease;
 
   &:hover {
     background: rgb(59 130 246 / 18%);
@@ -883,39 +1074,157 @@
     transform: translateY(-2px);
   }
 
+  &--held { border-bottom-color: rgb(16 185 129 / 70%); }
+  &--drift { border-bottom-color: #f59e0b; }
+
+  &--depeg {
+    border-bottom-color: #ef4444;
+    background: rgb(239 68 68 / 12%);
+  }
+
   &--gold {
     background: rgb(245 158 11 / 8%);
     border-color: rgb(245 158 11 / 15%);
+    border-bottom-color: rgb(245 158 11 / 50%);
 
     &:hover {
       background: rgb(245 158 11 / 18%);
       border-color: rgb(245 158 11 / 35%);
     }
 
-    .parsec-ship__cargo-symbol {
-      color: #f59e0b;
-      font-size: 0.8em;
-    }
-
-    .parsec-ship__cargo-cap {
-      font-size: 0.6em;
-      color: rgb(245 158 11 / 40%);
-    }
+    .parsec-ship__cargo-symbol { color: #f59e0b; }
+    .parsec-ship__cargo-cap { color: rgb(245 158 11 / 45%); }
   }
 }
+
+.parsec-ship__cargo-share {
+  align-self: stretch;
+  height: 2px;
+  margin-bottom: 2px;
+  border-radius: 1px;
+  background: rgb(255 255 255 / 6%);
+  overflow: hidden;
+
+  > span {
+    display: block;
+    height: 100%;
+    background: rgb(96 165 250 / 70%);
+  }
+
+  .parsec-ship__cargo--gold & > span { background: rgb(245 158 11 / 70%); }
+}
+
+.parsec-ship__cargo-peg {
+  font-family: $font-family-mono;
+  font-size: 0.5rem;
+  white-space: nowrap;
+  color: rgb(255 255 255 / 40%);
+
+  &--held { color: rgb(16 185 129 / 85%); }
+  &--drift { color: #f59e0b; }
+  &--depeg { color: #ef4444; font-weight: $font-weight-bold; }
+
+  .parsec-ship__cargo--gold & { color: rgb(245 158 11 / 70%); }
+}
+
+// The rest of the dollar fleet, one row per coin under the blocks.
+.parsec-ship__tail {
+  flex-basis: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 2px;
+}
+
+.parsec-ship__tail-row {
+  display: grid;
+  grid-template-columns: 3.2em 1fr auto 3.6em 3.8em;
+  align-items: center;
+  gap: 4px;
+  padding: 0 3px;
+  border-left: 2px solid rgb(59 130 246 / 30%);
+  font-family: $font-family-mono;
+  font-size: 0.5rem;
+  line-height: 1.5;
+  cursor: crosshair;
+
+  &:hover { background: rgb(59 130 246 / 12%); }
+
+  &--held { border-left-color: rgb(16 185 129 / 70%); }
+  &--held .parsec-ship__tail-peg { color: rgb(16 185 129 / 85%); }
+  &--drift { border-left-color: #f59e0b; }
+  &--drift .parsec-ship__tail-peg { color: #f59e0b; }
+  &--depeg { border-left-color: #ef4444; background: rgb(239 68 68 / 10%); }
+  &--depeg .parsec-ship__tail-peg { color: #ef4444; font-weight: $font-weight-bold; }
+}
+
+.parsec-ship__tail-symbol {
+  font-weight: $font-weight-bold;
+  color: rgb(147 197 253 / 85%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.parsec-ship__tail-bar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 6%);
+  overflow: hidden;
+
+  > span {
+    display: block;
+    height: 100%;
+    background: rgb(96 165 250 / 60%);
+  }
+}
+
+.parsec-ship__tail-cap { color: rgb(255 255 255 / 35%); white-space: nowrap; }
+.parsec-ship__tail-peg { text-align: right; white-space: nowrap; color: rgb(255 255 255 / 40%); }
+.parsec-ship__tail-flow { text-align: right; white-space: nowrap; }
 
 .parsec-ship__cargo-symbol {
   font-family: $font-family-mono;
   font-weight: $font-weight-bold;
-  font-size: 0.6em;
-  color: rgb(59 130 246 / 70%);
+  font-size: 0.6rem;
+  color: rgb(96 165 250 / 80%);
   white-space: nowrap;
 }
 
-.parsec-ship__cargo-cap {
-  font-size: 0.5em;
-  color: rgb(255 255 255 / 25%);
+.parsec-ship__cargo-cap,
+.parsec-ship__cargo-flow {
+  font-family: $font-family-mono;
+  font-size: 0.5rem;
   white-space: nowrap;
+}
+
+.parsec-ship__cargo-cap { color: rgb(255 255 255 / 30%); }
+.parsec-ship__cargo-flow { font-weight: $font-weight-semibold; }
+
+// Water the ship rides on: a slow-rolling swell under the keel.
+.parsec-ship__waterline {
+  position: absolute;
+  left: -6%;
+  right: -6%;
+  bottom: -7px;
+  height: 7px;
+  background:
+    radial-gradient(ellipse 10px 4px at 10px 0, rgb(59 130 246 / 45%) 60%, transparent 62%) repeat-x;
+  background-size: 20px 7px;
+  opacity: 0.7;
+  animation: parsec-ship-swell 5s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes parsec-ship-swell {
+  from { background-position: 0 0; }
+  to { background-position: 40px 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parsec-ship,
+  .parsec-ship__waterline,
+  .parsec-ship__hull--alarm { animation: none; }
 }
 
 // ── Top 10 Assets — vertical column down the left side ──────────
@@ -1113,16 +1422,6 @@
   font-weight: $font-weight-semibold;
 }
 
-.parsec-ship__waterline {
-  position: absolute;
-  bottom: -6px;
-  left: 10%;
-  right: 10%;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, rgb(59 130 246 / 20%), rgb(59 130 246 / 30%), rgb(59 130 246 / 20%), transparent);
-  border-radius: 50%;
-}
-
 .parsec-pyramid__ticker {
   position: absolute;
   inset: 0;
@@ -1156,7 +1455,10 @@
   padding: $spacing-3 $spacing-4;
   backdrop-filter: blur(16px);
   min-width: 160px;
-  pointer-events: none;
+
+  // pointer-events: auto (default) — the panel must register hover events
+  // so the cursor can travel from the trigger onto the panel and into the
+  // CoinGecko / Chart links without the panel being torn down.
   animation: parsec-panel-in 0.15s ease;
 }
 
@@ -1228,7 +1530,7 @@
   cursor: crosshair;
   transition: top 1.5s ease, color 0.5s ease, text-shadow 0.5s ease, transform 0.4s ease, opacity 0.5s ease;
   user-select: none;
-  will-change: transform, top, opacity;
+  will-change: translate, transform, opacity;
 
   &:hover {
     opacity: 1 !important;
@@ -2012,6 +2314,33 @@
   }
 }
 
+// Primary .algo identity — a quiet, confident mark above the raw key.
+.parsec-pubkey__nfd {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-1;
+  margin-bottom: $spacing-2;
+  padding: $spacing-1 $spacing-3;
+  border-radius: $border-radius-full;
+  cursor: pointer;
+  background: rgba($color-primary, 0.08);
+  transition: background 0.15s ease;
+
+  &:hover { background: rgba($color-primary, 0.14); }
+  &[hidden] { display: none; }
+}
+
+.parsec-pubkey__nfd-mark {
+  font-size: $font-size-xs;
+  color: $color-primary;
+}
+
+.parsec-pubkey__nfd-name {
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.02em;
+  color: $color-primary;
+}
+
 .parsec-network-badge {
   display: inline-block;
   font-size: $font-size-xs;
@@ -2230,9 +2559,117 @@
   color: var(--bp-text-color, $color-gray-900);
 }
 
+// Primary .algo name — shown above the raw address when one resolves.
+.parsec-receive__nfd {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-2;
+  margin-bottom: $spacing-3;
+  padding: $spacing-1 $spacing-3;
+  border-radius: $border-radius-lg;
+  background: rgba($color-primary, 0.1);
+}
+
+.parsec-receive__nfd-tag {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: $color-primary;
+}
+
+.parsec-receive__nfd-name {
+  font-weight: $font-weight-semibold;
+  color: var(--bp-text-color, $color-gray-900);
+}
+
 .parsec-receive__note {
   margin-top: $spacing-4;
   font-size: $font-size-xs;
+  text-align: center;
+}
+
+// ==========================================================================
+// ONRAMP — fiat → ALGO provider picker
+// ==========================================================================
+
+.parsec-onramp__address {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-4;
+  margin: $spacing-4 0;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  border-radius: $border-radius-lg;
+}
+
+.parsec-onramp__address-label {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-onramp__address-value {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  word-break: break-all;
+  text-align: center;
+  color: var(--bp-text-color, $color-gray-900);
+}
+
+.parsec-onramp__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: $spacing-3;
+  margin-top: $spacing-3;
+}
+
+.parsec-onramp__card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: $spacing-4;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  border: 1px solid var(--bp-divider-color, rgb(0 0 0 / 10%));
+  border-radius: $border-radius-lg;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover {
+    border-color: var(--bp-intent-primary, #{$color-primary});
+    transform: translateY(-2px);
+  }
+}
+
+.parsec-onramp__card-header {
+  margin-bottom: $spacing-3;
+}
+
+.parsec-onramp__card-name {
+  font-weight: $font-weight-bold;
+  font-size: $font-size-base;
+  color: var(--bp-text-color, $color-gray-900);
+}
+
+.parsec-onramp__card-tagline {
+  margin-top: $spacing-1;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-onramp__card-link {
+  display: inline-block;
+  font-weight: $font-weight-semibold;
+  color: var(--bp-intent-primary, #{$color-primary});
+  text-decoration: none;
+
+  &:hover { text-decoration: underline; }
+}
+
+.parsec-onramp__note {
+  margin-top: $spacing-5;
   text-align: center;
 }
 
@@ -2476,6 +2913,44 @@
   font-family: $font-family-mono;
   font-size: $font-size-xs;
   color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-settings__account-wrap {
+  margin-bottom: $spacing-2;
+}
+
+.parsec-settings__account-name {
+  font-weight: $font-weight-medium;
+}
+
+.parsec-settings__avatar.bp5-button {
+  min-width: 2rem;
+  padding: 0;
+  font-size: $font-size-lg;
+  line-height: 1;
+}
+
+.parsec-settings__avatar-picker {
+  display: none;
+  flex-wrap: wrap;
+  gap: $spacing-1;
+  padding: $spacing-2 $spacing-3;
+  margin-top: -$spacing-1;
+
+  &--open {
+    display: flex;
+  }
+}
+
+.parsec-settings__avatar-option.bp5-button {
+  min-width: 2.25rem;
+  padding: $spacing-1;
+  font-size: $font-size-lg;
+  line-height: 1;
+
+  &:hover {
+    background: var(--bp-background-color-tertiary, $color-gray-200);
+  }
 }
 
 .parsec-settings__danger {
@@ -3188,3 +3663,1345 @@
     color: $color-danger;
   }
 }
+
+// ==========================================================================
+// NFDOMINTER — .algo name minting (Mint · Search · Mine · Manage)
+// ==========================================================================
+
+.parsec-nfdominter {
+  max-width: 560px;
+}
+
+// --- Tab bar ---------------------------------------------------------------
+.parsec-nfdominter__tabs {
+  display: flex;
+  gap: $spacing-1;
+  border-bottom: 1px solid var(--bp-border-color, $color-gray-200);
+  margin-bottom: $spacing-5;
+}
+
+.parsec-nfdominter__tab.bp5-button {
+  flex: 1;
+  justify-content: center;
+  border-radius: 0;
+  padding: $spacing-3 $spacing-2;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  border-bottom: 2px solid transparent;
+  transition: $transition-colors;
+
+  &:hover {
+    color: var(--bp-text-color, $color-gray-900);
+  }
+}
+
+.parsec-nfdominter__tab--active.bp5-button {
+  color: $color-primary;
+  border-bottom-color: $color-primary;
+  font-weight: $font-weight-semibold;
+}
+
+// --- Mint tab --------------------------------------------------------------
+.parsec-nfdominter__mint {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+}
+
+.parsec-nfdominter__name-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+}
+
+.parsec-nfdominter__name-input {
+  flex: 1;
+}
+
+.parsec-nfdominter__suffix {
+  flex-shrink: 0;
+  font-family: $font-family-mono;
+  font-weight: $font-weight-semibold;
+  font-size: $font-size-lg;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__years-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+}
+
+.parsec-nfdominter__label {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__years-input {
+  width: 5rem;
+}
+
+// --- Feedback chips --------------------------------------------------------
+.parsec-nfdominter__feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+  min-height: 1.75rem;
+}
+
+.parsec-nfdominter__hint {
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+
+  &--error {
+    color: $color-danger;
+  }
+}
+
+.parsec-nfdominter__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $border-radius-full;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: capitalize;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+// length chips — neutral info tint, one shared rule for --len-1 … --len-10
+.parsec-nfdominter__chip[class*='--len-'] {
+  background: rgba($color-info, 0.12);
+  color: $color-info;
+}
+
+// tier chips — curated | premium | common-short | common
+.parsec-nfdominter__chip--tier-curated {
+  background: rgba($color-primary, 0.15);
+  color: $color-primary;
+}
+
+.parsec-nfdominter__chip--tier-premium {
+  background: rgba($color-warning, 0.15);
+  color: $color-warning;
+}
+
+.parsec-nfdominter__chip--tier-common-short {
+  background: rgba($color-success, 0.15);
+  color: $color-success;
+}
+
+// tier-common keeps the neutral base.
+
+// state chips — available | yours | owned | reserved | forSale | …
+.parsec-nfdominter__chip--state-available {
+  background: rgba($color-success, 0.15);
+  color: $color-success;
+}
+
+.parsec-nfdominter__chip--state-yours {
+  background: rgba($color-primary, 0.15);
+  color: $color-primary;
+}
+
+.parsec-nfdominter__chip--state-owned,
+.parsec-nfdominter__chip--state-reserved {
+  background: rgba($color-danger, 0.15);
+  color: $color-danger;
+}
+
+.parsec-nfdominter__chip--state-forSale {
+  background: rgba($color-warning, 0.15);
+  color: $color-warning;
+}
+
+// --- Quote box -------------------------------------------------------------
+.parsec-nfdominter__quote-box {
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-lg;
+  background: var(--bp-background-color-secondary, $color-gray-50);
+  padding: $spacing-2 $spacing-4;
+}
+
+.parsec-nfdominter__quote-row {
+  display: flex;
+  justify-content: space-between;
+  padding: $spacing-2 0;
+  font-size: $font-size-sm;
+  border-bottom: 1px solid var(--bp-border-color, $color-gray-200);
+
+  span:last-child {
+    font-family: $font-family-mono;
+  }
+
+  &--bankon {
+    color: $color-primary;
+  }
+}
+
+.parsec-nfdominter__quote-total {
+  display: flex;
+  justify-content: space-between;
+  margin-top: $spacing-1;
+  padding-top: $spacing-3;
+  border-top: 2px solid var(--bp-border-color, $color-gray-300);
+  font-weight: $font-weight-bold;
+  font-size: $font-size-base;
+
+  span:last-child {
+    font-family: $font-family-mono;
+  }
+}
+
+.parsec-nfdominter__mint-btn {
+  width: 100%;
+  margin-top: $spacing-2;
+}
+
+// --- Search tab ------------------------------------------------------------
+.parsec-nfdominter__search {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.parsec-nfdominter__search-controls {
+  display: flex;
+  gap: $spacing-2;
+}
+
+.parsec-nfdominter__search-input {
+  flex: 1;
+}
+
+.parsec-nfdominter__search-status {
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: $spacing-3;
+}
+
+.parsec-nfdominter__card {
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-left: 3px solid var(--bp-border-color, $color-gray-300);
+  border-radius: $border-radius-md;
+  padding: $spacing-3;
+  transition: $transition-all;
+
+  &:hover {
+    box-shadow: $shadow-md;
+  }
+
+  &--state-available { border-left-color: $color-success; }
+  &--state-yours { border-left-color: $color-primary; }
+
+  &--state-owned,
+  &--state-reserved { border-left-color: $color-danger; }
+  &--state-forSale { border-left-color: $color-warning; }
+}
+
+.parsec-nfdominter__card-name {
+  font-weight: $font-weight-semibold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: $spacing-1;
+}
+
+.parsec-nfdominter__card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-1 $spacing-2;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__card-state {
+  text-transform: capitalize;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-nfdominter__card-owner {
+  font-family: $font-family-mono;
+}
+
+.parsec-nfdominter__card-sale {
+  margin-top: $spacing-1;
+  font-size: $font-size-xs;
+  color: $color-success;
+}
+
+// --- Mine / Manage tab -----------------------------------------------------
+.parsec-nfdominter__mine {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.parsec-nfdominter__list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.parsec-nfdominter__list-status {
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__row {
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-md;
+  padding: $spacing-3;
+}
+
+.parsec-nfdominter__row-head {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  cursor: pointer;
+  user-select: none;
+}
+
+.parsec-nfdominter__row-avatar {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  border-radius: $border-radius-full;
+}
+
+.parsec-nfdominter__row-avatar--ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: $font-weight-semibold;
+  color: $color-primary;
+  background: rgba($color-primary, 0.12);
+}
+
+.parsec-nfdominter__row-badge {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $border-radius-full;
+  color: $color-primary;
+  background: rgba($color-primary, 0.12);
+}
+
+.parsec-nfdominter__row-caret {
+  margin-left: auto;
+  font-size: $font-size-lg;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  transition: transform 0.15s ease;
+}
+
+.parsec-nfdominter__row--open .parsec-nfdominter__row-caret {
+  transform: rotate(90deg);
+}
+
+.parsec-nfdominter__row-name {
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-nfdominter__row-state {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: capitalize;
+  padding: $spacing-1 $spacing-2;
+  border-radius: $border-radius-full;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__row-body {
+  margin-top: $spacing-2;
+}
+
+.parsec-nfdominter__row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-1 $spacing-3;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__row-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+  margin-top: $spacing-3;
+
+  .bp5-input {
+    flex: 1;
+    min-width: 12rem;
+  }
+}
+
+// --- My Names: expandable rows --------------------------------------------
+.parsec-nfdominter__list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin-top: $spacing-3;
+}
+
+.parsec-nfdominter__row-body[hidden] { display: none; }
+
+.parsec-nfdominter__control-group {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin-top: $spacing-3;
+  padding-top: $spacing-3;
+  border-top: 1px solid var(--bp-border-color, $color-gray-200);
+}
+
+.parsec-nfdominter__inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+
+  .bp5-input { flex: 1; min-width: 10rem; }
+}
+
+.parsec-nfdominter__linked-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-2;
+}
+
+.parsec-nfdominter__mono {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+}
+
+.parsec-nfdominter__meta-warn {
+  font-weight: $font-weight-semibold;
+  color: $color-warning;
+}
+
+.parsec-nfdominter__primary-ok {
+  font-size: $font-size-sm;
+  line-height: $line-height-relaxed;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $border-radius-md;
+  color: $color-success;
+  background: rgba($color-success, 0.1);
+}
+
+.parsec-nfdominter__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-6 $spacing-4;
+}
+
+.parsec-nfdominter__card-actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  margin-top: $spacing-2;
+}
+
+.parsec-nfdominter__card-link {
+  font-size: $font-size-xs;
+}
+
+// --- Confirm view ----------------------------------------------------------
+.parsec-nfdominter__confirm-summary {
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  border-radius: $border-radius-xl;
+  padding: $spacing-2 $spacing-4;
+  margin-bottom: $spacing-4;
+}
+
+.parsec-nfdominter__summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-4;
+  padding: $spacing-2 0;
+  border-bottom: 1px solid var(--bp-border-color, $color-gray-200);
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.parsec-nfdominter__summary-label {
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-nfdominter__summary-value {
+  font-family: $font-family-mono;
+  text-align: right;
+  word-break: break-all;
+}
+
+.parsec-nfdominter__confirm-note {
+  font-size: $font-size-sm;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  margin: $spacing-4 0;
+
+  p {
+    margin: $spacing-2 0;
+  }
+}
+
+.parsec-nfdominter__muted {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  word-break: break-all;
+}
+
+.parsec-nfdominter__progress {
+  font-size: $font-size-sm;
+  color: $color-primary;
+  margin: $spacing-3 0;
+}
+
+.parsec-nfdominter__sign-btn {
+  width: 100%;
+}
+
+// --- Confirm: persistent failure panel ------------------------------------
+.parsec-nfdominter__error {
+  margin: $spacing-3 0;
+
+  .parsec-callout {
+    display: flex;
+    flex-direction: column;
+    gap: $spacing-2;
+  }
+}
+
+.parsec-nfdominter__error-title {
+  font-weight: 600;
+}
+
+.parsec-nfdominter__error-message {
+  margin: 0;
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+// --- Mint tab: "this name is for sale" buy option -------------------------
+.parsec-nfdominter__buy-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-3;
+  margin-top: $spacing-3;
+  padding: $spacing-3;
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-lg;
+  background: rgba($color-success, 0.06);
+}
+
+.parsec-nfdominter__buy-info {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+}
+
+.parsec-nfdominter__buy-tag {
+  align-self: flex-start;
+  padding: 0 $spacing-2;
+  border-radius: $border-radius-sm;
+  font-size: $font-size-xs;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: $color-success;
+  background: rgba($color-success, 0.15);
+}
+
+.parsec-nfdominter__buy-price {
+  font-size: $font-size-base;
+  font-weight: 600;
+}
+
+// --- Manage tab: transfer / send an owned .algo name ----------------------
+.parsec-nfdominter__transfer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+  width: 100%;
+  margin-top: $spacing-2;
+  padding-top: $spacing-2;
+  border-top: 1px solid var(--bp-border-color, $color-gray-200);
+}
+
+.parsec-nfdominter__control-label {
+  font-size: $font-size-xs;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: $color-gray-500;
+}
+
+.parsec-nfdominter__price-input {
+  max-width: 6rem;
+}
+
+// --- .algo profile editor -------------------------------------------------
+.parsec-nfdominter__edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+  margin: $spacing-4 0;
+}
+
+.parsec-nfdominter__edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.parsec-nfdominter__edit-label {
+  font-size: $font-size-xs;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: $color-gray-500;
+}
+
+.parsec-nfdominter__edit-textarea {
+  resize: vertical;
+  min-height: 4rem;
+  font-family: inherit;
+}
+
+.parsec-nfdominter__edit-hint {
+  font-size: $font-size-xs;
+  color: $color-gray-500;
+}
+
+.parsec-nfdominter__avatar-preview {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: $border-radius-lg;
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+}
+
+.parsec-nfdominter__avatar-upload {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+}
+
+// --- Subdomains tab -------------------------------------------------------
+.parsec-nfdominter__sub-panel {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  margin-top: $spacing-4;
+  padding: $spacing-4;
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-lg;
+  background: var(--bp-background-color-secondary, $color-gray-50);
+}
+
+.parsec-nfdominter__owned-picker {
+  margin-top: $spacing-3;
+}
+
+.parsec-nfdominter__manual {
+  margin-top: $spacing-5;
+
+  summary {
+    cursor: pointer;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-semibold;
+    color: $color-primary;
+  }
+}
+
+// --- Confirm: network prominence, balance check, success ------------------
+.parsec-nfdominter__confirm-network {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  margin-bottom: $spacing-4;
+
+  .parsec-network-badge {
+    margin-bottom: 0;
+  }
+}
+
+.parsec-nfdominter__balance {
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-lg;
+  background: var(--bp-background-color-secondary, $color-gray-50);
+  padding: $spacing-2 $spacing-4;
+  margin-top: $spacing-4;
+
+  .parsec-callout {
+    margin: $spacing-2 0;
+  }
+}
+
+.parsec-nfdominter__success {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: $spacing-3;
+  padding: $spacing-6 0;
+}
+
+.parsec-nfdominter__success-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: $border-radius-full;
+  background: rgba($color-success, 0.15);
+  color: $color-success;
+  font-size: $font-size-2xl;
+  font-weight: $font-weight-bold;
+}
+
+.parsec-nfdominter__success-name {
+  margin: 0;
+  font-size: $font-size-xl;
+  font-weight: $font-weight-bold;
+}
+
+.parsec-nfdominter__success-links {
+  display: flex;
+  gap: $spacing-4;
+}
+
+// ==========================================================================
+// WALLET SWITCHER — header pill + popover (account × chain picker)
+// ==========================================================================
+
+.parsec-wallet-switcher {
+  position: relative;
+}
+
+.parsec-wallet-switcher__pill {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-1 $spacing-3;
+  border-radius: $border-radius-full;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  cursor: pointer;
+  font-size: $font-size-sm;
+  transition: $transition-colors;
+
+  &:hover {
+    background: var(--bp-background-color-tertiary, $color-gray-200);
+  }
+
+  .bp5-icon {
+    color: var(--bp-text-color-muted, $color-gray-500);
+  }
+}
+
+.parsec-wallet-switcher__pill-name {
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-wallet-switcher__pill-chain {
+  padding: 0 $spacing-2;
+  border-radius: $border-radius-full;
+  background: rgba($color-primary, 0.15);
+  color: $color-primary;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-wallet-switcher__popover {
+  display: none;
+  position: absolute;
+  top: calc(100% + #{$spacing-2});
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: $z-index-popover;
+  min-width: 16rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: $spacing-2;
+  border-radius: $border-radius-lg;
+  background: var(--bp-background-color, $color-white);
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  box-shadow: $shadow-lg;
+
+  &--open {
+    display: block;
+  }
+}
+
+.parsec-wallet-switcher__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: $border-radius-full;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  font-size: $font-size-sm;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.parsec-wallet-switcher__account {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  margin-top: $spacing-2;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $border-radius-md;
+  cursor: pointer;
+  transition: $transition-colors;
+
+  &:first-child {
+    margin-top: 0;
+  }
+
+  &:hover {
+    background: var(--bp-background-color-secondary, $color-gray-100);
+  }
+
+  &--active {
+    background: rgba($color-primary, 0.1);
+  }
+}
+
+.parsec-wallet-switcher__account-name {
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-wallet-switcher__chain {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  margin-left: $spacing-4;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $border-radius-md;
+  cursor: pointer;
+  transition: $transition-colors;
+
+  &:hover {
+    background: var(--bp-background-color-secondary, $color-gray-100);
+  }
+
+  &--active {
+    background: rgba($color-primary, 0.12);
+  }
+}
+
+.parsec-wallet-switcher__chain-label {
+  font-weight: $font-weight-medium;
+}
+
+.parsec-wallet-switcher__chain-addr {
+  flex: 1;
+  text-align: right;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-wallet-switcher__chain-copy {
+  flex-shrink: 0;
+  padding: $spacing-1;
+  border-radius: $border-radius-base;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  cursor: pointer;
+
+  &:hover {
+    color: $color-primary;
+    background: var(--bp-background-color-tertiary, $color-gray-200);
+  }
+}
+
+.parsec-wallet-switcher__footer {
+  display: flex;
+  gap: $spacing-2;
+  margin-top: $spacing-2;
+  padding-top: $spacing-2;
+  border-top: 1px solid var(--bp-border-color, $color-gray-200);
+
+  .bp5-button {
+    flex: 1;
+  }
+}
+
+// --- Per-chain wallet panel ------------------------------------------------
+.parsec-chain-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.parsec-chain-panel .parsec-network-badge {
+  margin-top: $spacing-4;
+}
+
+.parsec-chain-panel .parsec-dashboard__pubkey {
+  width: 100%;
+}
+
+.parsec-chain-panel__actions {
+  display: flex;
+  gap: $spacing-3;
+  width: 100%;
+  margin: $spacing-4 0;
+
+  .bp5-button {
+    flex: 1;
+  }
+}
+
+// ===========================================================================
+// Diagnostics — opt-in network/system monitor with shield toggles
+// ===========================================================================
+.parsec-diag__shields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+  margin: $spacing-4 0;
+}
+
+// Shield toggle — dim/outline when off, lit when on. Reused in Settings.
+.parsec-diag__shield {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-1;
+  min-width: 5.5rem;
+  padding: $spacing-2 $spacing-3;
+  cursor: pointer;
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-lg;
+  background: var(--bp-background-color-secondary, $color-gray-100);
+  transition: $transition-colors;
+}
+
+.parsec-diag__shield-glyph {
+  font-size: 1.5rem;
+  filter: grayscale(1);
+  opacity: 0.4;
+  transition: $transition-colors;
+}
+
+.parsec-diag__shield-label {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-diag__shield-state {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.06em;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-diag__shield--on {
+  border-color: $color-primary;
+  background: rgba($color-primary, 0.1);
+
+  .parsec-diag__shield-glyph {
+    filter: none;
+    opacity: 1;
+    text-shadow: 0 0 8px rgba($color-primary, 0.6);
+  }
+
+  .parsec-diag__shield-state {
+    color: $color-primary;
+  }
+}
+
+.parsec-diag__tabs {
+  display: flex;
+  gap: $spacing-1;
+  border-bottom: 1px solid var(--bp-border-color, $color-gray-200);
+  margin-bottom: $spacing-4;
+}
+
+.parsec-diag__tab.bp5-button {
+  flex: 1;
+  justify-content: center;
+  border-radius: 0;
+  padding: $spacing-3 $spacing-2;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  border-bottom: 2px solid transparent;
+}
+
+.parsec-diag__tab--active.bp5-button {
+  color: $color-primary;
+  border-bottom-color: $color-primary;
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-diag__panel {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.parsec-diag__kv {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-3;
+  padding: $spacing-1 0;
+}
+
+.parsec-diag__kv-label {
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-diag__kv-value {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  word-break: break-all;
+  text-align: right;
+}
+
+.parsec-diag__section {
+  margin: $spacing-3 0 0;
+  font-size: $font-size-sm;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-diag__hint {
+  font-size: $font-size-xs;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-diag__off {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-6 $spacing-4;
+  text-align: center;
+  color: var(--bp-text-color-muted, $color-gray-500);
+}
+
+.parsec-diag__off-glyph {
+  font-size: 2.5rem;
+  filter: grayscale(1);
+  opacity: 0.35;
+}
+
+.parsec-diag__if-card {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+  padding: $spacing-3;
+  border: 1px solid var(--bp-border-color, $color-gray-200);
+  border-radius: $border-radius-md;
+}
+
+.parsec-diag__if-name {
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-diag__svc {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $border-radius-md;
+  border-left: 3px solid transparent;
+  background: var(--bp-background-color-secondary, $color-gray-50);
+}
+
+.parsec-diag__svc-group {
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--bp-text-color-muted, $color-gray-500);
+  min-width: 5.5rem;
+}
+
+.parsec-diag__svc-label {
+  flex: 1;
+}
+
+.parsec-diag__svc-stat {
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+}
+
+.parsec-diag__svc--ok { border-left-color: $color-success; }
+.parsec-diag__svc--slow { border-left-color: $color-warning; }
+
+.parsec-diag__svc--down {
+  border-left-color: $color-danger;
+  background: rgba($color-danger, 0.06);
+}
+
+// ── Blue pill: tone on diagnostics rows ──
+// diagRow sets data-tone for a figure with a direction (a price move, breadth).
+// Colour is paired with the +/− sign in the text, so it is never the only cue.
+.parsec-matrix__diag-row[data-tone="ok"] .parsec-matrix__diag-row-value { color: #4fb97a; }
+.parsec-matrix__diag-row[data-tone="deficient"] .parsec-matrix__diag-row-value { color: #e06a52; }
+
+// Global tab rows carry long derivative readings; let them wrap rather than clip.
+.parsec-matrix__diag--global .parsec-matrix__diag-row { align-items: flex-start; gap: $spacing-2; }
+.parsec-matrix__diag--global .parsec-matrix__diag-row-value { white-space: normal; overflow-wrap: anywhere; }
+
+// ── Blue pill: market pulse ──
+// The whole market in one strip, shown the moment the blue pill opens.
+.parsec-pulse {
+  display: grid;
+
+  // The panel centres its children; without an explicit width the grid
+  // shrinks to one column.
+  width: 100%;
+  max-width: min(96vw, 60rem);
+  align-self: center;
+  grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr));
+  gap: 1px;
+  margin: $spacing-2 0 $spacing-3;
+  background: rgb(59 130 246 / 15%);
+  border: 1px solid rgb(59 130 246 / 25%);
+  font-family: $font-family-mono;
+}
+
+.parsec-pulse__cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: $spacing-2 $spacing-3;
+  background: rgb(0 0 0 / 70%);
+  min-width: 0;
+}
+
+.parsec-pulse__label {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgb(59 130 246 / 70%);
+}
+
+.parsec-pulse__value {
+  font-size: 1.05rem;
+  font-weight: $font-weight-semibold;
+  color: rgb(255 255 255 / 90%);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.parsec-pulse__sub {
+  font-size: 0.65rem;
+  color: rgb(255 255 255 / 45%);
+  min-height: 1em;
+
+  &[data-tone="ok"] { color: #4fb97a; }
+  &[data-tone="deficient"] { color: #e06a52; }
+}
+
+// ── Blue pill: focus row under the pulse ──
+.parsec-pulse-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.parsec-pulse--focus {
+  margin-top: 0;
+  grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr));
+
+  .parsec-pulse__value { font-size: 0.85rem; }
+}
+
+// ── Blue pill: profile bar ──
+.parsec-bp-profilebar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+  width: 100%;
+  max-width: min(96vw, 60rem);
+  margin-top: $spacing-2;
+  font-family: $font-family-mono;
+  font-size: 0.7rem;
+}
+
+.parsec-bp-profilebar__label {
+  letter-spacing: 0.14em;
+  color: rgb(59 130 246 / 70%);
+}
+
+.parsec-bp-profilebar__name {
+  color: rgb(255 255 255 / 90%);
+  font-weight: $font-weight-semibold;
+}
+
+.parsec-bp-profilebar__dirty { color: #d9a23a; }
+
+.parsec-bp-profilebar__focus {
+  color: rgb(255 255 255 / 45%);
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// ── Blue pill: settings ──
+.parsec-bp-settings {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  grid-column: 1 / -1;
+}
+
+.parsec-bp-settings__group {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+}
+
+.parsec-bp-settings__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-2;
+
+  &--stack {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.parsec-bp-settings__select,
+.parsec-bp-settings__name,
+.parsec-bp-settings__addr {
+  background: rgb(0 0 0 / 60%);
+  color: rgb(255 255 255 / 85%);
+  border: 1px solid rgb(59 130 246 / 30%);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-family: $font-family-mono;
+  font-size: 0.75rem;
+}
+
+.parsec-bp-settings__addr { flex: 1 1 22rem; min-width: 0; }
+.parsec-bp-settings__name { flex: 0 1 12rem; }
+
+.parsec-bp-settings__sep {
+  width: 1px;
+  height: 1.2rem;
+  background: rgb(59 130 246 / 25%);
+}
+
+.parsec-bp-settings__hint {
+  font-family: $font-family-mono;
+  font-size: 0.7rem;
+  color: rgb(255 255 255 / 45%);
+}
+
+.parsec-bp-watchlist { display: flex; flex-direction: column; gap: 2px; }
+
+// ── Red pill: open session ──
+.parsec-redsession {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  max-width: 28rem;
+  margin: $spacing-2 auto $spacing-3;
+  font-family: $font-family-mono;
+  font-size: 0.75rem;
+}
+
+.parsec-redsession__row {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-3;
+  padding: 6px 10px;
+  border: 1px solid rgb(239 68 68 / 20%);
+  border-radius: 4px;
+  background: rgb(0 0 0 / 50%);
+
+  &--active { border-color: rgb(239 68 68 / 60%); }
+}
+
+.parsec-redsession__name { color: rgb(255 255 255 / 90%); }
+.parsec-redsession__chains { color: rgb(255 255 255 / 45%); text-align: right; }
+
+// ── Blue pill switches: state that reads at a glance ──
+// The dark theme styles every `button` (`.bp5-dark button`, specificity 0,1,1),
+// which outranked the single-class switch rules, so ON and OFF rendered alike.
+// The attribute selector lifts these to 0,2,0 without !important.
+.parsec-matrix__blue-switch[type='button'] {
+  background: rgb(59 130 246 / 16%);
+  border-color: rgb(59 130 246 / 70%);
+  color: #bfdbfe;
+}
+
+.parsec-matrix__blue-switch--off[type='button'] {
+  background: rgb(0 0 0 / 55%);
+  border-color: rgb(255 255 255 / 12%);
+  color: rgb(255 255 255 / 40%);
+}
+
+.parsec-matrix__blue-switch[type='button']:hover {
+  border-color: rgb(59 130 246 / 85%);
+  color: #dbeafe;
+}
+
+.parsec-bp-watchlist .parsec-matrix__diag-row-value {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+}
+
+// ── Mode badge: viewing (Blue Pill) or armed (Red Pill) ──
+.parsec-modebadge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-family: $font-family-mono;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  white-space: nowrap;
+
+  &--viewing {
+    border: 1px solid rgb(59 130 246 / 55%);
+    color: #bfdbfe;
+    background: rgb(59 130 246 / 12%);
+  }
+
+  &--armed {
+    border: 1px solid rgb(239 68 68 / 70%);
+    color: #fecaca;
+    background: rgb(239 68 68 / 16%);
+  }
+}
+
+.parsec-matrix__panel .parsec-modebadge { margin: 4px auto 0; }

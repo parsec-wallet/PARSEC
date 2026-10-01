@@ -1,12 +1,12 @@
 # PARSEC Wallet
 
-Sovereign Algorand wallet. Your keys. Your coins. No compromises.
+Sovereign multi-chain wallet — Algorand, Solana, Arweave. Your keys. Your coins. No compromises.
 
-(c) BANKON. All rights reserved.
+(c) 2026 BANKON. GPL-3.0-or-later (key generation, signing & privacy) · Apache-2.0 (the rest) · MIT (server side) — see [LICENSE](LICENSE).
 
 ## What Is Parsec
 
-Parsec is a sovereign universal wallet built on cypherpunk2048 principles. No React, no frameworks, no runtime dependencies beyond algosdk. Vanilla TypeScript frontend with Blueprint.js CSS. Rust backend via Tauri with bankon_vault encrypted key storage.
+Parsec is a sovereign universal wallet built on cypherpunk2048 principles. No React, no frameworks — a lean dependency set (algosdk, @noble curves, arweave). Vanilla TypeScript frontend with Blueprint.js CSS. Rust backend via Tauri with bankon_vault encrypted key storage.
 
 Every Parsec node is both client and server. P2P mesh with IPFS content handoffs. PostgreSQL + pgvectorscale for search (no Elasticsearch). Resource-aware throttling maps CPU, bandwidth, and electricity to crypto exchange value. dApp filesystem access controlled by participant choice on a 1-10 scale.
 
@@ -16,13 +16,18 @@ Parsec never holds your private key or mnemonic. Keys are encrypted on your devi
 
 - **Create or import** Algorand wallets (25-word mnemonic, base64 private key, or watch-only address)
 - **Send & receive** ALGO and any Algorand Standard Asset (ASA)
+- **Multi-chain** — one account holds addresses on Algorand, Solana, and Arweave; each chain created or imported from its own recovery phrase
+- **Wallet switcher** — Phantom-style header picker: switch account or chain in one click, copy any chain address, per-account emoji avatars
+- **Solana** — create or import a Solana wallet (SLIP-0010 ed25519, Phantom-compatible derivation), view SOL balance, send SOL
+- **Arweave** — create an RSA-4096 Arweave wallet (deterministic keygen runs in a background Web Worker), view AR balance, send AR
+- **NFDominter** — mint and manage `.algo` names via NFD contracts
 - **SpinTrade swap** — in-wallet DEX via Tinyman v2 pools
 - **ASA management** — opt-in, opt-out, verified registry (USDC, USDt)
 - **Transaction confirmation** — review recipient, amount, fee, and network before signing
 - **Freeze/clawback warnings** — flagged before opt-in and on dashboard
 - **bankon_vault** — Rust-side Argon2id + AES-256-GCM encrypted key storage
 - **Tomb cold storage** — Linux LUKS encrypted volumes with USB key separation
-- **Auto-lock** — session clears after inactivity (configurable)
+- **Auto-lock** — enforced in Rust, on by default (5 min), configurable; the DEK is dropped even if the UI is wedged or compromised
 - **Multi-account** — create, import, switch between accounts
 - **Watch-only mode** — view balances without signing keys
 - **In-wallet docs** — quickstart, FAQ, security model, asset guide
@@ -82,13 +87,18 @@ src/                          # Frontend — vanilla TypeScript
 │   ├── crypto.ts             # Web Crypto fallback (PBKDF2 + AES-256-GCM)
 │   ├── vault.ts              # Tauri vault IPC client
 │   ├── tomb.ts               # Tomb IPC client (Linux cold storage)
-│   └── algorand/
-│       ├── account.ts        # Account create, import, validate
-│       ├── client.ts         # Algod/Indexer client config (AlgoNode)
-│       ├── transactions.ts   # Send ALGO, send ASA, fetch history
-│       ├── assets.ts         # ASA opt-in/out, lookup, enrichment, registry
-│       ├── swap.ts           # SpinTrade engine (Tinyman v2 quotes + execution)
-│       └── validate.ts       # Input classifier (mnemonic, key, address)
+│   ├── algorand/
+│   │   ├── account.ts        # Account create, import, validate
+│   │   ├── client.ts         # Algod/Indexer client config (AlgoNode)
+│   │   ├── transactions.ts   # Send ALGO, send ASA, fetch history
+│   │   ├── assets.ts         # ASA opt-in/out, lookup, enrichment, registry
+│   │   ├── swap.ts           # SpinTrade engine (Tinyman v2 quotes + execution)
+│   │   └── validate.ts       # Input classifier (mnemonic, key, address)
+│   ├── solana/               # Solana — SLIP-0010 ed25519 derivation, balance, transfer
+│   ├── arweave/              # Arweave — RSA-4096 keygen (Web Worker), tx, AO, ANS-104
+│   ├── dashboard/            # Dashboard module registry + wallet switcher
+│   ├── chains.ts             # Chain registry — CAIP-2 ids, per-chain metadata
+│   └── avatars.ts            # Deterministic per-account emoji avatars
 ├── views/                    # UI views (vanilla DOM)
 │   ├── onboarding.ts         # Welcome screen
 │   ├── create-wallet.ts      # Generate mnemonic
@@ -102,7 +112,12 @@ src/                          # Frontend — vanilla TypeScript
 │   ├── add-asset.ts          # ASA opt-in
 │   ├── swap.ts               # SpinTrade DEX
 │   ├── docs.ts               # In-wallet documentation
-│   └── settings.ts           # Network, accounts, lock, reset
+│   ├── settings.ts           # Network, accounts, avatars, lock, reset
+│   ├── solana-create.ts      # Create a Solana wallet
+│   ├── solana-send.ts        # Send SOL
+│   ├── arweave-create.ts     # Create an Arweave (RSA-4096) wallet
+│   ├── arweave-send.ts       # Send AR
+│   └── nfdominter.ts         # Mint / manage .algo names (NFD)
 ├── types/wallet.ts           # TypeScript types
 └── styles/                   # SCSS design system + Blueprint CSS
 
@@ -138,7 +153,7 @@ src-tauri/                    # Backend — Rust
 - **Web encryption** — PBKDF2 600K iterations + AES-256-GCM (Web Crypto API)
 - **Session isolation** — passphrase held in private class fields, never serialized to localStorage
 - **Mnemonic zeroing** — secrets overwritten after signing, cleared in finally blocks
-- **Auto-lock** — configurable timer, clears session on inactivity
+- **Auto-lock** — Rust-enforced idle timer, on by default, drops the vault key independently of the frontend
 - **CSP hardened** — no unsafe-inline, no unsafe-eval, whitelisted endpoints only
 - **Cold storage** — optional Tomb encrypted volumes with USB key separation (Linux)
 - **Watch-only** — explicit flag, signing blocked at view level
@@ -159,6 +174,11 @@ npm run lint:css         # SCSS lint
 
 ## License
 
-BANKON License. (c) 2026 BANKON. All rights reserved. See [LICENSE](LICENSE).
+(c) 2026 BANKON. Licensed by component: **GPL-3.0-or-later** for client-facing encryption software — every file
+that generates keys, derives them from a seed or mnemonic, holds key material, or signs
+(`bankon_vault`, the `chain_*` packs, pmVPN, and the TypeScript key paths enumerated in
+`REUSE.toml`), **Apache-2.0** for the rest of the wallet, **MIT** for the
+server-side AO processes. Per-path mapping in [REUSE.toml](REUSE.toml); full texts in
+[LICENSES/](LICENSES/). See [LICENSE](LICENSE).
 
 Contact: github@deltav.exchange

@@ -1,5 +1,6 @@
 // pmVPN Module — Types
-// GPL-3.0 (Parsec client module)
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 export interface PmvpnHost {
   id: string;

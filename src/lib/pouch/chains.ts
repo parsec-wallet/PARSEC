@@ -5,6 +5,10 @@
 import type { WalletModule, CreatedWallet, ImportedWallet, PublicSurface } from './types';
 import { generateAccount, recoverAccount, validateMnemonic } from '../algorand/account';
 import { signBytesWithVault } from '../x402/bridge';
+import { xchainModule } from '../xchain/module';
+import { algorandHdModule } from '../algorand-hd/module';
+import { arweaveHdModule } from '../arweave';
+import { solanaModule } from '../solana/module';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 
@@ -355,6 +359,8 @@ function bytesToBase64url(bytes: Uint8Array): string {
 
 const MODULES: WalletModule[] = [
   algorandModule,
+  xchainModule,
+  algorandHdModule,
   bitcoinModule,
   ethereumModule,
   litecoinModule,
@@ -362,6 +368,8 @@ const MODULES: WalletModule[] = [
   zilliqaModule,
   cardanoModule,
   arweaveModule,
+  arweaveHdModule,
+  solanaModule,
 ];
 
 export function getChainModule(chainId: string): WalletModule | undefined {

@@ -1,5 +1,6 @@
 // pmVPN SSH Client — russh connection manager
-// GPL-3.0 (Parsec client module)
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Each SshSession wraps a russh connection + channel.
 // The session pipes terminal I/O through Tauri events.

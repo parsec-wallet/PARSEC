@@ -1,6 +1,7 @@
 // Parsec x402 Integration — Constants
 // Adapted from x402-demo/modules/bankon-payments/constants.ts
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
 import type { Network } from './types';
 

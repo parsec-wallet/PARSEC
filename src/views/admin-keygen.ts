@@ -2,9 +2,11 @@
 // Defensive key ceremony: generates ADMIN keypair with provable airgap.
 // Network must be OFF. Diagnostics confirm isolation before key material appears.
 // Beautiful, professional, interactive — the most important 60 seconds in your wallet's life.
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 import { el, btn, input } from '../lib/dom';
+import { passphraseField } from '../lib/passphrase-field';
 import { store } from '../lib/store';
 import { generateAccount } from '../lib/algorand/account';
 import { keystoreCreate, keystoreStore, keystoreStatus } from '../lib/keystore';
@@ -390,6 +392,14 @@ export function adminKeygenView(): HTMLElement {
     // Brief visual pause for ceremony weight
     await new Promise(r => setTimeout(r, 800));
 
+    // KNOWN GAP: this admin ceremony still mints the key in the renderer with
+    // algosdk, unlike the participant-facing path in create-wallet.ts, which
+    // generates inside Rust straight into the vault. Moving it means inverting
+    // this ceremony too — it sets its passphrase *after* generating, so there is
+    // no vault to write into at this point. Tracked as A8 in
+    // docs/security/threat-model.md. Until then `adminMnemonic` below is an
+    // ordinary JS string and the `'\0'.repeat()` on teardown does not actually
+    // erase it; it allocates a new string and leaves the original for the GC.
     const { mnemonic, address } = generateAccount();
     adminMnemonic = mnemonic;
     adminAddress = address;
@@ -561,22 +571,23 @@ export function adminKeygenView(): HTMLElement {
       text: 'Set a passphrase to encrypt the admin key into the PARSEC vault. This passphrase is separate from your wallet passphrase.',
     }));
 
-    const passInput = input({
-      type: 'password',
+    const passField = passphraseField({
       placeholder: 'Admin vault passphrase',
-      cls: 'parsec-admin-keygen__pass-input bp5-input bp5-large',
+      meter: true,
+      generate: true,
     });
+    const passInput = passField.input;
 
-    const confirmInput = input({
-      type: 'password',
+    const confirmField = passphraseField({
       placeholder: 'Confirm passphrase',
-      cls: 'parsec-admin-keygen__pass-input bp5-input bp5-large',
+      meter: false,
     });
+    const confirmInput = confirmField.input;
 
     const feedback = el('div', { cls: 'parsec-admin-keygen__verify-feedback' });
 
-    panel.appendChild(passInput);
-    panel.appendChild(confirmInput);
+    panel.appendChild(passField.el);
+    panel.appendChild(confirmField.el);
     panel.appendChild(feedback);
 
     panel.appendChild(btn('Encrypt & Store in Vault', {
@@ -585,11 +596,11 @@ export function adminKeygenView(): HTMLElement {
         const pass = passInput.value;
         const confirm = confirmInput.value;
 
-        if (pass.length < 8) {
+        if (!pass) {
           feedback.innerHTML = '';
           feedback.appendChild(el('div', {
             cls: 'parsec-admin-keygen__alert parsec-admin-keygen__alert--danger',
-            text: 'Passphrase must be at least 8 characters.',
+            text: 'Enter a passphrase.',
           }));
           return;
         }

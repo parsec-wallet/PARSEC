@@ -2,7 +2,7 @@
 // PostgreSQL + pgvectorscale hybrid search engine.
 // All search operations go through Tauri invoke → Rust → PostgreSQL.
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './platform';
 
 // --- Types ---
 

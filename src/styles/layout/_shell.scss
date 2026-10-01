@@ -1,0 +1,253 @@
+// ==========================================================================
+// APPLICATION SHELL
+// ==========================================================================
+// The persistent frame: brand + breadcrumb header, tier rail, disclosure
+// control, and the router's content host. Mirrors the four tiers of the
+// product architecture (see PARSEC.png).
+
+@use '../abstracts' as *;
+
+.parsec-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: $px-void;
+  color: $px-text;
+}
+
+.parsec-shell__header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+  padding: $spacing-3 $spacing-5;
+  border-bottom: 1px solid $px-line;
+  background: linear-gradient(180deg, $px-panel-2 0%, $px-panel 100%);
+}
+
+.parsec-shell__brand {
+  cursor: pointer;
+  user-select: none;
+}
+
+.parsec-shell__crumb {
+  color: $px-muted;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.parsec-shell__spacer {
+  flex: 1 1 auto;
+}
+
+.parsec-shell__body {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: stretch;
+  min-height: 0;
+}
+
+.parsec-shell__sidebar {
+  flex: 0 0 auto;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: $spacing-4;
+  padding: $spacing-4 0;
+  overflow-y: auto;
+  border-right: 1px solid $px-line;
+  background: $px-panel;
+}
+
+.parsec-shell__section {
+  margin-bottom: $spacing-5;
+}
+
+// Tier heading — brushed-steel small caps, echoing the diagram's panel bars.
+.parsec-shell__tier {
+  margin: 0 0 $spacing-2;
+  padding: 0 $spacing-4;
+  color: $px-steel-hi;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+// Accordion section header: the whole header toggles its section.
+.parsec-shell__accordion {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  width: 100%;
+  margin: 0;
+  padding: $spacing-2 $spacing-4;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { color: var(--px-text); }
+
+  &:focus-visible {
+    outline: 2px solid var(--px-gold);
+    outline-offset: -2px;
+  }
+}
+
+.parsec-shell__accordion-label { flex: 1; }
+
+.parsec-shell__accordion-count {
+  color: var(--px-muted);
+  font-size: 0.7em;
+  letter-spacing: 0;
+}
+
+.parsec-shell__accordion-chevron {
+  display: inline-block;
+  font-size: 1.1em;
+  transition: transform 0.15s ease;
+
+  .parsec-shell__section--open & { transform: rotate(90deg); }
+}
+
+.parsec-shell__section-body {
+  padding-bottom: $spacing-2;
+
+  &[hidden] { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parsec-shell__accordion-chevron { transition: none; }
+}
+
+.parsec-shell__link {
+  display: block;
+  width: 100%;
+  padding: $spacing-2 $spacing-4;
+  border: 0;
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: $px-muted;
+  font-size: $font-size-sm;
+  text-align: left;
+  cursor: pointer;
+  transition: color $transition-duration-fast, background-color $transition-duration-fast;
+
+  &:hover {
+    color: $px-text;
+    background: rgba($px-steel, 0.16);
+  }
+
+  &--active {
+    color: $px-gold;
+    border-left-color: $px-gold;
+    background: rgba($px-gold, 0.08);
+  }
+
+  &:focus-visible {
+    outline: 2px solid $px-cyan;
+    outline-offset: -2px;
+  }
+}
+
+// Progressive disclosure — a segmented control the person holds.
+.parsec-shell__disclosure {
+  display: flex;
+  margin: 0 $spacing-4;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-md;
+  overflow: hidden;
+}
+
+.parsec-shell__level {
+  flex: 1 1 0;
+  padding: $spacing-1 $spacing-2;
+  border: 0;
+  border-right: 1px solid $px-line;
+  background: transparent;
+  color: $px-muted;
+  font-family: $font-family-mono;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+
+  &:last-child { border-right: 0; }
+
+  &[aria-pressed='true'] {
+    background: $px-gold;
+    color: $px-grid;
+    font-weight: $font-weight-semibold;
+  }
+}
+
+.parsec-shell__content {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+// Collapse to a horizontal rail on narrow viewports.
+@include media-down(md) {
+  .parsec-shell__body {
+    flex-direction: column;
+  }
+
+  .parsec-shell__sidebar {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid $px-line;
+  }
+
+  .parsec-shell__section {
+    display: flex;
+    align-items: center;
+    gap: $spacing-1;
+    margin-bottom: 0;
+  }
+
+  .parsec-shell__link {
+    width: auto;
+    white-space: nowrap;
+    border-left: 0;
+    border-bottom: 3px solid transparent;
+
+    &--active {
+      border-left: 0;
+      border-bottom-color: $px-gold;
+    }
+  }
+}
+
+// Views were written to sit directly under #root, so they claim `min-height:
+// 100vh`. Inside the shell they sit below a header, so that full viewport
+// height would force a scrollbar on every screen — scope it back to the host.
+.parsec-shell__content > .parsec-view {
+  min-height: 100%;
+}
+
+// Chromeless views (matrix gate, onboarding, approval sheets) take the whole
+// viewport; the shell collapses to just the content host. The host also drops
+// its scroll container here, so the matrix gate's absolutely-positioned
+// overlays are neither clipped nor scrolled.
+.parsec-shell--bare {
+  .parsec-shell__header,
+  .parsec-shell__sidebar {
+    display: none;
+  }
+
+  .parsec-shell__content {
+    overflow: visible;
+  }
+
+  .parsec-shell__content > .parsec-view {
+    min-height: 100vh;
+  }
+}

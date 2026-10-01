@@ -3,7 +3,8 @@
 // in its own signing context. Keys never cross family lines.
 // External signers (MetaMask, WalletConnect) are fully sandboxed —
 // PARSEC never touches their private keys.
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 import type {
   ChainFamily,

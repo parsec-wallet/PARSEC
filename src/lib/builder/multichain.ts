@@ -1,7 +1,8 @@
 // PARSEC — Multi-Chain Transaction Builder
 // Isolation-first: each chain family builds in its own context.
 // Plugs into WalletConnect, MetaMask, or local vault signing.
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
 import algosdk from 'algosdk';
 import type {

@@ -5,6 +5,7 @@
 // The frontend never decides which backend to use at the call site.
 // This module picks the right one automatically.
 
+import { assertAllowed } from './mode';
 import { isTauri, vaultCreate, vaultUnlock, vaultLock, vaultStatus, vaultStoreKey, vaultRetrieveKey, vaultRemoveAccount, vaultDestroy } from './vault';
 import * as webCrypto from './crypto';
 
@@ -70,6 +71,8 @@ export async function keystoreStore(
     }
     await vaultStoreKey(address, chain, label, secret);
   } else {
+    // The browser build has no IPC, so the mode guard is applied here.
+    assertAllowed('keystore_store');
     await webCrypto.saveMnemonic(address, secret, passphrase);
   }
 }
@@ -90,6 +93,8 @@ export async function keystoreRetrieve(
     }
     return vaultRetrieveKey(address);
   } else {
+    // The browser build has no IPC, so the mode guard is applied here.
+    assertAllowed('keystore_retrieve');
     return webCrypto.loadMnemonic(address, passphrase);
   }
 }
@@ -99,6 +104,8 @@ export async function keystoreRemove(address: string): Promise<void> {
   if (isTauri()) {
     await vaultRemoveAccount(address);
   } else {
+    // The browser build has no IPC, so the mode guard is applied here.
+    assertAllowed('keystore_remove');
     webCrypto.removeAccount(address);
   }
 }
@@ -108,6 +115,8 @@ export async function keystoreDestroy(passphrase: string): Promise<void> {
   if (isTauri()) {
     await vaultDestroy(passphrase);
   } else {
+    // The browser build has no IPC, so the mode guard is applied here.
+    assertAllowed('keystore_destroy');
     localStorage.removeItem('parsec-encrypted-keys');
   }
 }

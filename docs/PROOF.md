@@ -470,4 +470,4 @@ The asymmetric layers (signing) are classically impregnable but quantum-vulnerab
 
 *PARSEC Mausoleum — bankon-vault from bankon.pythai.net*
 *cypherpunk2048 standard*
-*(c) 2026 BANKON — GPL-3.0*
+*(c) 2026 BANKON — Apache-2.0*

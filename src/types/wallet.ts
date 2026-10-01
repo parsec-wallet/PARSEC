@@ -1,12 +1,24 @@
 // Parsec Wallet — Core Types
 
+import type { ChainId } from '../lib/pouch/types';
+
 export type NetworkId = 'mainnet' | 'testnet' | 'betanet';
 
+// One human identity = one WalletAccount with addresses on many chains.
+// `address` stays as the primary Algorand address for back-compat with all
+// existing read sites. `chains` is the authoritative per-chain mapping.
 export interface WalletAccount {
   address: string;
   name: string;
   createdAt: number;
   watchOnly?: boolean;
+  /** Per-chain address map. The store normalizes this on every set(); callers
+   * that mint fresh accounts can omit it and let the store backfill. */
+  chains?: Record<string, string>;
+  activeChain?: ChainId;
+  /** Emoji avatar (Phantom-style personalization). The store backfills a
+   * deterministic default when absent — see lib/avatars.ts. */
+  avatar?: string;
 }
 
 export interface AccountInfo {
@@ -18,6 +30,15 @@ export interface AccountInfo {
   round: number;
 }
 
+export interface NftMeta {
+  name?: string;
+  description?: string;
+  image?: string;
+  mimeType?: string;
+  traits: Record<string, string | number>;
+  arcVariant: 'arc-3' | 'arc-19' | 'arc-69' | 'unknown';
+}
+
 export interface AssetHolding {
   assetId: number;
   amount: number;
@@ -27,6 +48,7 @@ export interface AssetHolding {
   decimals?: number;
   hasFreezeAddr?: boolean;
   hasClawbackAddr?: boolean;
+  nft?: NftMeta;
 }
 
 export interface TransactionRecord {
@@ -50,6 +72,8 @@ export interface WalletSettings {
   network: NetworkId;
   autoLockMinutes: number;
   showTestnetWarning: boolean;
+  /** Opt-in Diagnostics screen. Undefined / false = off (the default). */
+  enableDiagnostics?: boolean;
 }
 
 // Pending send — held in memory only for confirm-send flow
@@ -66,25 +90,71 @@ export interface PendingSend {
 export type AppView =
   | 'matrix'
   | 'onboarding'
+  | 'create-select'
   | 'create-wallet'
   | 'verify-mnemonic'
   | 'import-wallet'
   | 'unlock'
   | 'dashboard'
+  | 'linkage'
+  | 'lightspeed'
   | 'send'
   | 'confirm-send'
   | 'receive'
   | 'add-asset'
   | 'swap'
+  | 'onramp'
+  | 'nfdominter'
+  | 'nfdominter-confirm'
+  | 'nfdominter-buy'
+  | 'diagnostics'
   | 'docs'
   | 'settings'
   | 'pmvpn'
   | 'x402-confirm'
+  | 'x402-desk'
+  | 'x402-bazaar'
   | 'agents'
   | 'identity'
   | 'connect-approve'
   | 'admin-keygen'
-  | 'mausoleum';
+  | 'mausoleum'
+  | 'xchain-connect'
+  | 'arc52-create'
+  | 'arweave-approve'
+  | 'arweave-ario-migrate'
+  | 'solana-create'
+  | 'solana-send'
+  | 'ario-migrate-solana'
+  | 'arweave-create'
+  | 'arweave-send'
+  | 'ario-claim-pythai'
+  | 'bankon-hub'
+  | 'bankon-claim'
+  | 'bankon-name'
+  | 'bankon-resolve'
+  | 'bankon-admin'
+  | 'ario-hub'
+  | 'ario-claim'
+  | 'ario-name'
+  | 'ario-transfer'
+  | 'ario-resolve'
+  | 'name-mint'
+  | 'name-hub'
+  | 'name-claim'
+  | 'name-manage'
+  | 'name-controller'
+  | 'connect-name-approve'
+  | 'name-resolve'
+  | 'market-hub'
+  | 'market-listing'
+  | 'market-create'
+  | 'market-auction'
+  | 'permaweb-desk'
+  | 'permaweb-gateway-join'
+  | 'permaweb-bridge'
+  | 'permaweb-upload'
+  | 'solana-import';
 
 export interface WalletState {
   view: AppView;

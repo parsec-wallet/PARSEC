@@ -2,7 +2,7 @@
 // Rust-side chain address validators.
 // The frontend classifier suggests; Rust validators are the gatekeepers.
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './platform';
 import { isTauri } from './vault';
 
 export interface ValidationResult {

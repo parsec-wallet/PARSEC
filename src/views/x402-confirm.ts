@@ -1,146 +1,189 @@
-// Parsec Wallet — x402 Payment Confirmation View
-// Shows payment details before signing. Displays BANKON holder discount.
+// Parsec Wallet — x402 Payment Confirmation.
+//
+// The last thing a participant sees before a payment group is signed. It shows what is
+// actually being signed: the atomic amount and its asset, the network, who receives it,
+// and — when the rail could read them — the reasons it would fail. A mainnet payment says
+// so in a colour, because the difference between a testnet cent and a real one is the
+// whole difference.
+//
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
 import { el, btn, toast } from '../lib/dom';
 import { store } from '../lib/store';
-import { microAlgosToAlgo } from '../lib/algorand/account';
-import type { PendingX402Payment } from '../lib/x402/payment';
-import { executeX402Payment } from '../lib/x402/payment';
+import { explorerTxUrl } from '../lib/x402/networks';
+import { signPayment, submitPayment, type PendingX402Payment, type X402PaymentResult } from '../lib/x402/client';
 
-// The pending payment is set by the x402 payment flow before navigating here.
+type Resolver = (result: X402PaymentResult) => void;
+
 let pendingPayment: PendingX402Payment | null = null;
-let resolvePayment: ((result: { success: boolean; response?: Response; error?: string }) => void) | null = null;
+let resolvePayment: Resolver | null = null;
 
-/** Set the pending payment before navigating to this view */
-export function setX402Pending(
-  payment: PendingX402Payment,
-  resolve: (result: { success: boolean; response?: Response; error?: string }) => void,
-): void {
+/** Hand the confirmation surface a payment, then navigate to `x402-confirm`. */
+export function setX402Pending(payment: PendingX402Payment, resolve: Resolver): void {
   pendingPayment = payment;
   resolvePayment = resolve;
 }
 
-export function x402ConfirmView(): HTMLElement {
-  const state = store.get();
-  const account = state.accounts[state.activeAccountIndex];
-  const pending = pendingPayment;
+/**
+ * Approve a payment through this view.
+ *
+ * The shape `x402Request({ approve })` wants: it navigates here, waits for a decision,
+ * and — because signing and sending happen here where the participant is watching —
+ * resolves with the completed result rather than a bare boolean. The caller's `approve`
+ * returns false either way, so the flow does not then pay a second time.
+ */
+export function approveThroughView(pending: PendingX402Payment): Promise<X402PaymentResult> {
+  return new Promise<X402PaymentResult>((resolve) => {
+    setX402Pending(pending, resolve);
+    store.navigate('x402-confirm');
+  });
+}
 
-  if (!account || !pending) {
+export function x402ConfirmView(): HTMLElement {
+  const pending = pendingPayment;
+  if (!pending) {
     store.navigate('dashboard');
     return el('div');
   }
 
-  const truncAddr = (a: string) => `${a.slice(0, 8)}...${a.slice(-6)}`;
+  const truncAddr = (a: string) => (a.length > 16 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a);
+  const blockers = pending.preflight?.blockers ?? [];
+  const blocked = blockers.length > 0;
+
+  const finish = (result: X402PaymentResult) => {
+    resolvePayment?.(result);
+    pendingPayment = null;
+    resolvePayment = null;
+    store.navigate('dashboard');
+  };
+
+  const decline = () => finish({ success: false, error: 'Declined by user' });
+
+  const pay = async () => {
+    store.set({ isLoading: true });
+    try {
+      const payment = await signPayment(pending);
+      const result = await submitPayment(pending, payment);
+      if (result.success) {
+        const link = result.txId ? explorerTxUrl(pending.requirement.network, result.txId) : '';
+        toast(result.txId ? `Settled — ${result.txId}` : 'Settled.', 'success', link ? 12_000 : undefined);
+      } else if (result.txId) {
+        // The payment settled; the resource did not deliver. Two different facts.
+        toast(`Paid (${result.txId}) but the resource failed: ${result.error}`, 'warning', 15_000);
+      } else {
+        toast(result.error || 'Payment failed.', 'danger');
+      }
+      finish(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast(message, 'danger');
+      finish({ success: false, error: message });
+    } finally {
+      store.set({ isLoading: false });
+    }
+  };
 
   return el('div', {
     cls: 'parsec-view parsec-confirm',
     children: [
-      // Header
       el('div', {
         cls: 'parsec-view__header',
         children: [
-          btn('Cancel', {
-            minimal: true, icon: 'arrow-left',
-            onClick: () => {
-              resolvePayment?.({ success: false, error: 'Cancelled by user' });
-              pendingPayment = null;
-              resolvePayment = null;
-              store.navigate('dashboard');
-            },
-          }),
+          btn('Cancel', { minimal: true, icon: 'arrow-left', onClick: decline }),
           el('h2', { cls: 'parsec-view__title', text: 'x402 Payment' }),
         ],
       }),
 
-      // Service info
+      pending.mainnet
+        ? el('div', {
+            cls: 'parsec-callout bp5-callout bp5-intent-warning',
+            children: [el('p', { text: `${pending.quote.networkLabel} — this moves real value.` })],
+          })
+        : el('div', {
+            cls: 'parsec-callout bp5-callout',
+            children: [el('p', { text: `${pending.quote.networkLabel} — test funds.` })],
+          }),
+
       el('div', {
         cls: 'parsec-confirm__details',
         children: [
-          row('Service', pending.description),
-          row('Endpoint', new URL(pending.url).pathname),
-          row('Pay To', truncAddr(pending.requirement.payTo)),
-          row('From', truncAddr(account.address)),
+          row('Resource', pending.challenge.resource.description || new URL(pending.url).pathname),
+          row('Endpoint', pending.url),
+          ...(pending.bazaar?.input?.method ? [row('Method', String(pending.bazaar.input.method))] : []),
           divider(),
-          row('Price (USD)', `$${pending.priceUsd.toFixed(4)}`),
-          row('ALGO/USD', `$${pending.exchangeRate.toFixed(4)}`),
-          ...(pending.isHolder ? [
+          row('You pay', `${pending.quote.amountDisplay} ${pending.quote.assetSymbol}`),
+          ...(pending.quote.usdDisplay
+            ? [row(pending.quote.usdSource === 'oracle' ? 'Approx. USD' : 'USD', pending.quote.usdDisplay)]
+            : []),
+          row('Atomic units', `${pending.quote.amountAtomic} (${pending.quote.decimals} decimals)`),
+          divider(),
+          row('To', truncAddr(pending.requirement.payTo)),
+          row('From', truncAddr(pending.payer)),
+          row('Network', pending.quote.networkLabel),
+          row('Scheme', pending.requirement.scheme),
+          row(
+            'Fees',
+            typeof pending.requirement.extra?.feePayer === 'string'
+              ? `sponsored by ${truncAddr(pending.requirement.extra.feePayer as string)}`
+              : 'paid by you',
+          ),
+          ...(pending.preflight?.balance !== undefined
+            ? [row('Your balance', `${pending.preflight.balance} atomic units`)]
+            : []),
+        ],
+      }),
+
+      ...(pending.alternatives.length > 1
+        ? [
             el('div', {
-              cls: 'parsec-confirm__row parsec-confirm__discount',
+              cls: 'parsec-confirm__details',
               children: [
-                el('span', { cls: 'parsec-confirm__label', text: 'BANKON Holder' }),
-                el('span', {
-                  cls: 'parsec-confirm__value parsec-confirm__badge-holder',
-                  text: `${pending.bankonBalance.toLocaleString()} BANKON — 50% OFF`,
-                }),
+                el('p', { cls: 'parsec-muted', text: 'The server also offered:' }),
+                ...pending.alternatives
+                  .filter((q) => q.requirement !== pending.requirement)
+                  .map((q) => row(q.networkLabel, `${q.amountDisplay} ${q.assetSymbol}`)),
               ],
             }),
-            row('Discounted Price', `$${pending.effectivePriceUsd.toFixed(4)}`),
-          ] : []),
-          divider(),
-          row('You Pay', `${pending.effectivePriceAlgo.toFixed(6)} ALGO`),
-          row('', `(${microAlgosToAlgo(Math.ceil(pending.effectivePriceAlgo * 1e6))} ALGO + ~0.001 fee)`),
-          row('Network', state.settings.network.toUpperCase()),
-        ],
-      }),
+          ]
+        : []),
 
-      // Warning
-      el('div', {
-        cls: 'parsec-callout bp5-callout bp5-intent-primary',
-        children: [
-          el('p', { text: 'Payment is sent to the x402 facilitator and settled on Algorand.' }),
-        ],
-      }),
+      ...blockers.map((b) =>
+        el('div', {
+          cls: 'parsec-callout bp5-callout bp5-intent-danger',
+          children: [
+            el('p', { text: b.message }),
+            ...(b.remedy
+              ? [
+                  btn(b.remedy.label, {
+                    intent: 'primary',
+                    onClick: async (e) => {
+                      const button = e.currentTarget as HTMLButtonElement;
+                      button.disabled = true;
+                      try {
+                        await b.remedy!.run();
+                        toast('Done — reopen the payment to re-check.', 'success');
+                      } catch (err) {
+                        toast(err instanceof Error ? err.message : String(err), 'danger');
+                        button.disabled = false;
+                      }
+                    },
+                  }),
+                ]
+              : []),
+          ],
+        }),
+      ),
 
-      // Actions
       el('div', {
         cls: 'parsec-confirm__actions',
         children: [
-          btn('Decline', {
-            large: true, outlined: true,
-            onClick: () => {
-              resolvePayment?.({ success: false, error: 'Declined by user' });
-              pendingPayment = null;
-              resolvePayment = null;
-              store.navigate('dashboard');
-            },
-          }),
-          btn('Pay & Continue', {
-            intent: 'primary', large: true,
-            onClick: async () => {
-              const passphrase = store.getPassphrase();
-              if (!passphrase) {
-                toast('Session expired.', 'danger');
-                store.navigate('unlock');
-                return;
-              }
-
-              store.set({ isLoading: true });
-              try {
-                const result = await executeX402Payment(
-                  pending,
-                  account.address,
-                  passphrase,
-                  state.settings.network,
-                );
-
-                if (result.success) {
-                  toast('Payment settled.', 'success');
-                  resolvePayment?.({ success: true, response: result.response });
-                } else {
-                  toast(result.error || 'Payment failed.', 'danger');
-                  resolvePayment?.({ success: false, error: result.error });
-                }
-              } catch (err) {
-                const msg = err instanceof Error ? err.message : 'Unknown error';
-                toast(msg, 'danger');
-                resolvePayment?.({ success: false, error: msg });
-              } finally {
-                store.set({ isLoading: false });
-                pendingPayment = null;
-                resolvePayment = null;
-                store.navigate('dashboard');
-              }
-            },
+          btn('Decline', { large: true, outlined: true, onClick: decline }),
+          btn(blocked ? 'Blocked' : 'Pay & Continue', {
+            intent: 'primary',
+            large: true,
+            disabled: blocked,
+            onClick: pay,
           }),
         ],
       }),

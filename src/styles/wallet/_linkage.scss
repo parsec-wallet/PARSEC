@@ -1,0 +1,196 @@
+// ==========================================================================
+// LINKAGE MAP
+// ==========================================================================
+// A live rendering of PARSEC.png: brushed-steel panel headers, capability
+// bullets, and glowing connectors between tiers. Status is carried by a chip
+// AND by the panel's left edge, so it never depends on colour alone.
+
+@use '../abstracts' as *;
+
+.parsec-linkage {
+  // Wider than the standard 480px view — this is a map, not a form.
+  max-width: 860px;
+}
+
+.parsec-linkage__lede {
+  color: $px-muted;
+  font-size: $font-size-sm;
+  line-height: $line-height-relaxed;
+  margin-bottom: $spacing-6;
+}
+
+// ── Tier 1: the module row ────────────────────────────────────
+
+.parsec-linkage__modules {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: $spacing-3;
+}
+
+.parsec-linkage__module {
+  padding: $spacing-3;
+  border: 1px solid $px-line;
+  border-top: 3px solid $px-steel;
+  border-radius: $border-radius-md;
+  background: $px-panel;
+
+  &--ok { border-top-color: $px-gold; }
+  &--unknown { border-top-color: $px-steel; }
+
+  &--deficient {
+    border-top-color: $px-danger;
+    opacity: 0.62;
+  }
+}
+
+.parsec-linkage__module-head,
+.parsec-linkage__panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-2;
+}
+
+.parsec-linkage__module-name {
+  margin: 0;
+  font-size: $font-size-sm;
+  font-weight: $font-weight-semibold;
+  color: $px-text;
+}
+
+// ── Status chip — shape + colour, never colour alone ──────────
+
+.parsec-linkage__chip {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: $border-radius-full;
+
+  &--ok {
+    background: $px-gold;
+    box-shadow: 0 0 8px rgba($px-gold, 0.6);
+  }
+
+  &--unknown {
+    background: transparent;
+    border: 2px solid $px-steel;
+  }
+
+  &--deficient {
+    background: $px-danger;
+    border-radius: 0;          // a square reads as "wrong" without colour
+    transform: rotate(45deg);
+  }
+}
+
+// ── Shared bullet + detail typography ─────────────────────────
+
+.parsec-linkage__bullets {
+  margin: $spacing-2 0 0;
+  padding-left: $spacing-4;
+  list-style: none;
+
+  li {
+    position: relative;
+    color: $px-muted;
+    font-size: $font-size-xs;
+    line-height: 1.7;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: -#{$spacing-3};
+      top: 0.62em;
+      width: 4px;
+      height: 4px;
+      background: $px-gold-mid;
+    }
+  }
+}
+
+.parsec-linkage__detail {
+  margin: $spacing-2 0 0;
+  color: $px-steel-hi;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  word-break: break-all;
+}
+
+// ── Connectors between tiers ──────────────────────────────────
+
+.parsec-linkage__flow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: $spacing-3 0;
+  color: $px-steel-lo;
+
+  &--ok {
+    color: $px-gold;
+    text-shadow: 0 0 12px rgba($px-gold, 0.5);
+  }
+
+  &--deficient { color: $px-danger; }
+}
+
+.parsec-linkage__arrow {
+  font-size: $font-size-lg;
+  line-height: 1;
+}
+
+.parsec-linkage__flow-label {
+  color: $px-muted;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  letter-spacing: 0.06em;
+  text-shadow: none;
+}
+
+// ── Tier panels 2–4 ───────────────────────────────────────────
+
+.parsec-linkage__panel {
+  padding: $spacing-4;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: linear-gradient(180deg, $px-panel-2 0%, $px-panel 100%);
+
+  // The pouch is the diagram's glass cylinder.
+  &--pouch {
+    background: linear-gradient(180deg, $px-glass 0%, $px-panel 100%);
+    border-color: rgba($px-cyan, 0.25);
+  }
+
+  &--agentic {
+    border-color: rgba($px-gold, 0.25);
+  }
+}
+
+.parsec-linkage__panel-title {
+  margin: 0;
+  color: $px-text;
+  font-size: $font-size-base;
+  font-weight: $font-weight-semibold;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.parsec-linkage__open {
+  margin-top: $spacing-3;
+}
+
+.parsec-linkage__provenance {
+  margin-top: $spacing-6;
+  color: $px-steel-lo;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parsec-linkage__chip--ok,
+  .parsec-linkage__flow--ok {
+    box-shadow: none;
+    text-shadow: none;
+  }
+}

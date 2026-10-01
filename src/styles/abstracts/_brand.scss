@@ -1,0 +1,60 @@
+// ==========================================================================
+// PARSEC BRAND PALETTE
+// ==========================================================================
+
+// The single source of truth for Parsec's colour identity. Sampled directly
+// from the two brand images at the repo root:
+
+//   PARSEC2.png — the EMBLEM. Ornate gold on black. Identity moments only:
+//                 entry gate, pill screen, onboarding hero, about.
+//   PARSEC.png  — the INTERFACE LANGUAGE. Brushed-steel panel headers, amber
+//                 accents and connector arrows on a cool near-black grid.
+//                 This is the wallet chrome.
+
+// Three registers, deliberately kept apart:
+//   matrix green  → the entry gate's signature (never chrome)
+//   steel + amber → the wallet chrome
+//   gold          → identity and brand
+
+// These are raw Sass colours, NOT `var()` references — ~129 call sites across
+// the stylesheets apply Sass colour functions (rgba/tint/shade) to the
+// semantic tokens in _variables.scss, and those cannot operate on var().
+// The matching CSS custom properties are emitted by base/_brand-tokens.scss.
+
+// Ground — cool near-black + faint grid (PARSEC.png)
+$px-void: #06090b;
+$px-panel: #0f1314;
+$px-panel-2: #131a1d;
+$px-grid: #030404;
+$px-line: #24313a;
+$px-text: #e8eef7;
+$px-muted: #8a9aa4;
+
+// Brushed steel — panel headers, chrome, rules
+$px-steel: #50646e;
+$px-steel-hi: #747c82;
+$px-steel-lo: #324650;
+$px-glass: #132735;   // the Wallet Pouch cylinder
+
+// Brand gold / amber — the emblem's ramp meets the diagram's accents
+$px-gold: #f2c14b;   // primary accent
+$px-gold-hi: #fad282;
+$px-gold-mid: #c08418;
+$px-gold-deep: #6c3c0c;
+$px-amber-hot: #e6640a;
+
+// Cold accent — the emblem's orbital ring
+$px-cyan: #4fa8e8;
+$px-cyan-deep: #00347e;
+
+// Matrix signature — ENTRY GATE ONLY, never chrome
+$px-matrix: #1aff59;
+$px-pill-red: #ff3319;
+$px-pill-blue: #1a66ff;
+
+// Status — kept close to the previous values so existing intent styling reads
+// the same, but warmed slightly to sit with the gold.
+$px-success: #3dcc91;
+$px-warning: #f59e0b;
+$px-danger: #e06a52;
+$px-info: $px-cyan;

@@ -2,7 +2,7 @@
 // P2P mesh where every client is a server.
 // IPFS content-addressed handoffs. Resource-aware throttling.
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './platform';
 
 // --- Types ---
 

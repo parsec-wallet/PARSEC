@@ -1,9 +1,11 @@
 // pmVPN Module — Terminal Manager
-// GPL-3.0 (Parsec client module)
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Manages xterm.js terminal instances.
 // Data flow: xterm → Tauri command → russh → server PTY → russh → Tauri event → xterm
 
+import { bindObserver } from '../lifecycle';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { sendTerminalData, resizeTerminal, onTerminalData } from './connector';
@@ -12,6 +14,8 @@ export interface TerminalInstance {
   terminal: Terminal;
   fitAddon: FitAddon;
   destroy: () => void;
+  /** Set by mountTerminal: disconnects the resize observer. */
+  detach?: () => void;
 }
 
 /**
@@ -51,11 +55,16 @@ export function createTerminal(sessionId: string): TerminalInstance {
   });
 
   // Server output → terminal
+  // The Tauri listener is registered asynchronously. If the terminal is
+  // destroyed before that resolves, `unlisten` is still null — so the listener
+  // is removed the moment it arrives instead of living for the process.
   let unlisten: (() => void) | null = null;
+  let disposed = false;
   onTerminalData(sessionId, (data) => {
-    terminal.write(data);
+    if (!disposed) terminal.write(data);
   }).then((fn) => {
-    unlisten = fn;
+    if (disposed) fn();
+    else unlisten = fn;
   });
 
   // Resize → server
@@ -63,12 +72,18 @@ export function createTerminal(sessionId: string): TerminalInstance {
     resizeTerminal(sessionId, cols, rows).catch(() => {});
   });
 
+  const instance: TerminalInstance = { terminal, fitAddon, destroy };
+
   function destroy(): void {
+    if (disposed) return;
+    disposed = true;
     unlisten?.();
+    unlisten = null;
+    instance.detach?.();
     terminal.dispose();
   }
 
-  return { terminal, fitAddon, destroy };
+  return instance;
 }
 
 /**
@@ -81,9 +96,18 @@ export function mountTerminal(instance: TerminalInstance, container: HTMLElement
     instance.fitAddon.fit();
   });
 
-  // Re-fit on window resize
+  // Re-fit on window resize.
+  //
+  // This observer was never disconnected. A ResizeObserver holds a strong
+  // reference to everything it observes, so each terminal mount kept its
+  // container — and the xterm instance behind the closure — alive for the life
+  // of the process.
   const observer = new ResizeObserver(() => {
     instance.fitAddon.fit();
   });
   observer.observe(container);
+  // Disconnected with the terminal, not only with the view: each connect mounts
+  // a fresh terminal, and the old observer kept fitting a disposed one.
+  instance.detach = () => observer.disconnect();
+  bindObserver(observer);
 }

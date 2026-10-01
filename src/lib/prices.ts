@@ -9,12 +9,376 @@ export interface CoinPrice {
   marketCap: number;
   change24h: number;
   image: string;
+  /** 1 h change. From the feed; derived from observed history only if the feed omits it. */
+  change1h: number;
+  /** 7 d and 30 d change, from the feed. `null` when the feed did not supply one. */
+  change7d: number | null;
+  change30d: number | null;
+  /** The feed's own 1 h figure, kept apart from the derived fallback. */
+  feed1h?: number | null;
+  /** A measured 4 h figure from the exchange feed. Absent when the coin is not listed there. */
+  feed4h?: number | null;
+  /** 24 h change in market cap, from the feed. For a stablecoin this is net mint or redemption. */
+  mcapChange24h?: number | null;
+  /** Derived. `null` until this process has watched long enough to say. */
+  change5m: DerivedChange | null;
+  change15m: DerivedChange | null;
+  change4h: DerivedChange | null;
+}
+
+/**
+ * A change this process derived, and how long it actually watched to derive it.
+ *
+ * `pct` may be null while `observedMinutes` is not: that is the honest state of a feed
+ * that is working but young, and it reads differently from a feed that is broken.
+ */
+export interface DerivedChange {
+  pct: number | null;
+  observedMinutes?: number;
+}
+
+// ── Derived short-horizon change ─────────────────────────────────────────────
+//
+// The feed gives one number: 24 hours. Everything shorter is derived here, from
+// prices this process has actually watched.
+//
+// The contract that matters is the null. Zero asserts a flat market; null says *we
+// have not been watching long enough to know*, and those must never render the same.
+// A dashboard that shows 0.00% because it just started lies about the market with
+// total confidence.
+
+/**
+ * Periods the participant can measure change over.
+ *
+ * 1h, 24h, 7d and 30d come straight from CoinGecko's free tier in the one markets
+ * call the wallet already makes, so each has a figure the moment the wallet opens.
+ * 4h has no CoinGecko free-tier figure. It comes from Binance's public market-data
+ * mirror (a rolling 4 h window, keyless), matched by ticker and cross-checked
+ * against CoinGecko's price. A coin Binance does not list falls back to the change
+ * derived from prices this process has watched, which reads as a dash until about
+ * two hours have been observed.
+ *
+ * 5m and 15m are no longer offered. They are still derived for the price
+ * cloud's surge detection.
+ */
+export const CHANGE_PERIODS = ['1h', '4h', '24h', '7d', '30d'] as const;
+export type ChangePeriod = (typeof CHANGE_PERIODS)[number];
+/** Windows this process can derive from its own observations. */
+export type DerivedPeriod = '5m' | '15m' | '1h' | '4h' | '24h';
+
+/** Window lengths in milliseconds. `5m` is accepted for callers that ask. */
+const WINDOW_MS: Record<string, number> = {
+  '5m': 5 * 60_000,
+  '15m': 15 * 60_000,
+  '1h': 60 * 60_000,
+  '4h': 4 * 60 * 60_000,
+  '24h': 24 * 60 * 60_000,
+};
+
+/** How far outside a window a sample may sit and still be used, as a fraction. */
+const TOLERANCE = 0.5;
+
+interface Sample { at: number; usd: number }
+
+/** id → samples, oldest first. Memory only: a restart starts watching again. */
+const history = new Map<string, Sample[]>();
+const MAX_SAMPLES = 400;
+
+/** Record a reading. Called on every successful fetch. */
+export function recordPrices(prices: CoinPrice[], at = Date.now()): void {
+  const horizon = at - WINDOW_MS['24h'] * 1.5;
+  for (const coin of prices) {
+    if (!Number.isFinite(coin.usd) || coin.usd <= 0) continue;
+    const series = history.get(coin.id) ?? [];
+    series.push({ at, usd: coin.usd });
+    // Drop what no window can reach, then cap — a long-running session must not grow
+    // without bound just because it stayed open.
+    let trimmed = series.filter((s) => s.at >= horizon);
+    if (trimmed.length > MAX_SAMPLES) trimmed = trimmed.slice(trimmed.length - MAX_SAMPLES);
+    history.set(coin.id, trimmed);
+  }
+  // A coin that left the top 100 is no longer recorded, so its samples were
+  // never trimmed and its key never removed. Drop any series gone stale.
+  for (const [id, series] of history) {
+    const last = series[series.length - 1];
+    if (!last || last.at < horizon) history.delete(id);
+  }
+}
+
+/**
+ * Percentage change over `period`, or `null` when it cannot honestly be stated.
+ *
+ * Null when: the coin has never been seen, the current price is unusable, or no sample
+ * sits far enough back to cover the window. The last is the common one on a fresh start
+ * and is exactly what must not be reported as zero.
+ */
+export function derivedChange(id: string, currentUsd: number, period: DerivedPeriod, now = Date.now()): number | null {
+  if (!Number.isFinite(currentUsd) || currentUsd <= 0) return null;
+  const window = WINDOW_MS[period];
+  if (!window) return null;
+
+  const series = history.get(id);
+  if (!series || series.length === 0) return null;
+
+  const target = now - window;
+  // The newest sample at or before the target — the closest honest comparison.
+  let chosen: Sample | undefined;
+  for (const s of series) {
+    if (s.at <= target) chosen = s;
+    else break;
+  }
+  // Nothing old enough. Accept a sample slightly inside the window rather than none,
+  // but only slightly: comparing a 15-minute claim against 2 minutes of data is a
+  // different number wearing the same label.
+  if (!chosen) {
+    const oldest = series[0];
+    if (!oldest || now - oldest.at < window * (1 - TOLERANCE)) return null;
+    chosen = oldest;
+  }
+  if (!Number.isFinite(chosen.usd) || chosen.usd <= 0) return null;
+  return ((currentUsd - chosen.usd) / chosen.usd) * 100;
+}
+
+/** How long this process has been watching a coin, in minutes. */
+export function observedMinutes(id: string, now = Date.now()): number | undefined {
+  const series = history.get(id);
+  if (!series || series.length === 0) return undefined;
+  return Math.round((now - series[0].at) / 60_000);
+}
+
+/**
+ * The change to show for a coin over a period.
+ *
+ * 24h comes from the feed, which has been watching far longer than this process.
+ * Everything shorter is derived, and carries how long we watched — so a UI can say
+ * "not yet" rather than showing a confident nothing.
+ */
+export function changeFor(coin: CoinPrice, period: ChangePeriod | DerivedPeriod, now = Date.now()): DerivedChange {
+  const fin = (v: number | null | undefined) => (v !== null && v !== undefined && Number.isFinite(v) ? v : null);
+  if (period === '24h') return { pct: fin(coin.change24h) };
+  if (period === '7d') return { pct: fin(coin.change7d) };
+  if (period === '30d') return { pct: fin(coin.change30d) };
+  if (period === '1h' && fin(coin.feed1h) !== null) return { pct: fin(coin.feed1h) };
+  if (period === '4h' && fin(coin.feed4h) !== null) return { pct: fin(coin.feed4h) };
+  return {
+    pct: derivedChange(coin.id, coin.usd, period, now),
+    observedMinutes: observedMinutes(coin.id, now),
+  };
+}
+
+export type FeedStatus = 'live' | 'stale' | 'down' | 'starting';
+
+/** Whether the price feed is currently believable, and why. */
+export function getFeedStatus(now = Date.now()): { status: FeedStatus; detail: string } {
+  if (lastFetch === 0) return { status: 'starting', detail: 'no reading yet' };
+  const age = now - lastFetch;
+  if (lastFetchFailed && age > CACHE_TTL * 3) {
+    return { status: 'down', detail: `no reading for ${Math.round(age / 60_000)}m` };
+  }
+  if (age > CACHE_TTL * 2) return { status: 'stale', detail: `${Math.round(age / 1000)}s old` };
+  return { status: 'live', detail: `${Math.round(age / 1000)}s ago` };
+}
+
+/**
+ * Forget every cached price and observation. Called on logout, so a new
+ * session starts from a fresh reading rather than the last one's memory.
+ */
+export function clearPriceCaches(): void {
+  cache = null;
+  lastFetch = 0;
+  lastFetchFailed = false;
+  byIdCache.clear();
+  feed4hCache.clear();
+  history.clear();
+}
+
+/** Forget every observation. For tests, and for a session that changed feeds. */
+export function __resetHistory(): void {
+  history.clear();
+}
+
+/** A feed percentage, or null when absent or not a finite number. Never 0 for missing. */
+function feedPct(v: unknown): number | null {
+  if (v === null || v === undefined) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 let cache: CoinPrice[] | null = null;
 let lastFetch = 0;
+let lastFetchFailed = false;
 const CACHE_TTL = 60 * 1000;
-let refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+/** Fetch a specific set of coins by CoinGecko id. Used for the favourites
+ *  strip — these may sit outside the top-100-by-mcap window returned by
+ *  fetchPrices(). Cached 60s per sorted-id-list key. */
+const byIdCache: Map<string, { at: number; data: CoinPrice[] }> = new Map();
+export async function fetchPricesByIds(ids: string[]): Promise<CoinPrice[]> {
+  if (ids.length === 0) return [];
+  const key = [...ids].sort().join(',');
+  const hit = byIdCache.get(key);
+  if (hit && Date.now() - hit.at < CACHE_TTL) return hit.data;
+
+  try {
+    const csv = encodeURIComponent(ids.join(','));
+    const response = await fetch(
+      `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids=${csv}&order=market_cap_desc&sparkline=false&price_change_percentage=1h,24h,7d,30d`,
+      { signal: AbortSignal.timeout(10000) }
+    );
+    if (!response.ok) return hit?.data || [];
+    const data = await response.json() as Record<string, unknown>[];
+
+    const mapped: CoinPrice[] = data.map(coin => ({
+      id: String(coin.id || ''),
+      symbol: String(coin.symbol || '').toUpperCase(),
+      usd: Number(coin.current_price || 0),
+      marketCap: Number(coin.market_cap || 0),
+      change24h: Number(coin.price_change_percentage_24h || 0),
+      image: String(coin.image || ''),
+      change1h: feedPct(coin.price_change_percentage_1h_in_currency) ?? 0,
+      feed1h: feedPct(coin.price_change_percentage_1h_in_currency),
+      change7d: feedPct(coin.price_change_percentage_7d_in_currency),
+      change30d: feedPct(coin.price_change_percentage_30d_in_currency),
+      mcapChange24h: feedPct(coin.market_cap_change_percentage_24h),
+      change5m: null,
+      change15m: null,
+      change4h: null,
+    })).filter(c => c.id && c.usd > 0);
+
+    await attachFeed4h(mapped);
+    for (const coin of mapped) coin.change4h = changeFor(coin, '4h');
+    byIdCache.delete(key);
+    byIdCache.set(key, { at: Date.now(), data: mapped });
+    // One entry per distinct id list — favourites, pinned extras, profiles.
+    // Keep the most recent few; the oldest go first.
+    for (const k of byIdCache.keys()) {
+      if (byIdCache.size <= 32) break;
+      byIdCache.delete(k);
+    }
+    return mapped;
+  } catch {
+    return hit?.data || [];
+  }
+}
+
+// ── Measured 4h change ───────────────────────────────────────────────────────
+//
+// Binance's public market-data mirror answers a rolling-window ticker for up to
+// 100 symbols in one keyless call. Two traps, both handled here:
+//
+//   * one unknown symbol fails the WHOLE request, so symbols are checked against
+//     the exchange's own list first (fetched rarely, cached);
+//   * a ticker is not an identity: two unrelated coins can share one. A match
+//     counts only when Binance's price sits within 3% of CoinGecko's.
+
+const BINANCE = 'https://data-api.binance.vision/api/v3';
+const LISTING_TTL = 6 * 60 * 60_000;
+const FEED4H_TTL = 60_000;
+/** Symbols that are the quote asset itself, or have no honest USDT pair. */
+const NO_PAIR = new Set(['USDT']);
+let listed: { at: number; symbols: Set<string> } | null = null;
+const feed4hCache = new Map<string, { at: number; pct: number }>();
+
+async function binanceListing(): Promise<Set<string> | null> {
+  if (listed && Date.now() - listed.at < LISTING_TTL) return listed.symbols;
+  try {
+    const r = await fetch(`${BINANCE}/ticker/price`, { signal: AbortSignal.timeout(10000) });
+    if (!r.ok) return listed?.symbols ?? null;
+    const rows = await r.json() as Array<{ symbol?: unknown }>;
+    const symbols = new Set(rows.map((row) => String(row.symbol ?? '')).filter((x) => x.endsWith('USDT')));
+    listed = { at: Date.now(), symbols };
+    return symbols;
+  } catch {
+    return listed?.symbols ?? null;
+  }
+}
+
+/** The 4h change from a rolling-window row, or null if it cannot be read. */
+export function parseFeed4h(
+  row: { openPrice?: unknown; lastPrice?: unknown },
+  referenceUsd: number,
+): number | null {
+  const open = Number(row.openPrice);
+  const last = Number(row.lastPrice);
+  if (!Number.isFinite(open) || !Number.isFinite(last) || open <= 0 || last <= 0) return null;
+  // Same ticker, different coin: refuse rather than attribute its move.
+  if (!(referenceUsd > 0) || Math.abs(last - referenceUsd) / referenceUsd > 0.03) return null;
+  return ((last - open) / open) * 100;
+}
+
+/** Set `feed4h` on every coin Binance lists. Never throws; a failure leaves the fallback. */
+async function attachFeed4h(coins: CoinPrice[]): Promise<void> {
+  const now = Date.now();
+  const need: CoinPrice[] = [];
+  for (const coin of coins) {
+    const hit = feed4hCache.get(coin.id);
+    if (hit && now - hit.at < FEED4H_TTL) coin.feed4h = hit.pct;
+    else need.push(coin);
+  }
+  if (need.length === 0) return;
+  const symbols = await binanceListing();
+  if (!symbols) return;
+  const bySymbol = new Map<string, CoinPrice[]>();
+  for (const coin of need) {
+    if (NO_PAIR.has(coin.symbol)) continue;
+    const pair = `${coin.symbol}USDT`;
+    if (!symbols.has(pair)) continue;
+    bySymbol.set(pair, [...(bySymbol.get(pair) ?? []), coin]);
+  }
+  const pairs = [...bySymbol.keys()];
+  for (let i = 0; i < pairs.length; i += 100) {
+    const batch = pairs.slice(i, i + 100);
+    try {
+      const q = encodeURIComponent(JSON.stringify(batch));
+      const r = await fetch(`${BINANCE}/ticker?windowSize=4h&type=MINI&symbols=${q}`, { signal: AbortSignal.timeout(10000) });
+      if (!r.ok) continue;
+      const rows = await r.json() as Array<{ symbol?: unknown; openPrice?: unknown; lastPrice?: unknown }>;
+      for (const row of rows) {
+        for (const coin of bySymbol.get(String(row.symbol ?? '')) ?? []) {
+          const pct = parseFeed4h(row, coin.usd);
+          if (pct === null) continue;
+          coin.feed4h = pct;
+          feed4hCache.set(coin.id, { at: now, pct });
+        }
+      }
+    } catch { /* this batch keeps the derived fallback */ }
+  }
+}
+
+// ── Last good reading ─────────────────────────────────────────────────────────
+//
+// CoinGecko's free tier rate-limits by IP. A reload during a limited minute used
+// to come up with no prices at all, and the landing -- pyramid, cloud, ship --
+// drew nothing but the rain until the next successful poll. The last good
+// reading is kept so a start in that minute still draws, and the feed status
+// says it is stale. Public market prices only; nothing about the participant.
+
+const LAST_READING_KEY = 'parsec:price-last-reading';
+/** Older than this, a saved reading is not worth drawing. */
+const LAST_READING_MAX_AGE = 24 * 60 * 60_000;
+
+function saveLastReading(coins: CoinPrice[], at: number): void {
+  try {
+    localStorage.setItem(LAST_READING_KEY, JSON.stringify({ at, coins }));
+  } catch { /* best effort: storage full or unavailable */ }
+}
+
+/** The saved reading and when it was taken, or null if absent, unreadable or too old. */
+export function loadLastReading(now = Date.now()): { at: number; coins: CoinPrice[] } | null {
+  try {
+    const raw = localStorage.getItem(LAST_READING_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { at?: unknown; coins?: unknown };
+    const at = Number(parsed.at);
+    if (!Number.isFinite(at) || now - at > LAST_READING_MAX_AGE || !Array.isArray(parsed.coins)) return null;
+    const coins = (parsed.coins as CoinPrice[]).filter(
+      (c) => c && typeof c.id === 'string' && typeof c.symbol === 'string' && Number.isFinite(c.usd) && c.usd > 0,
+    );
+    return coins.length > 0 ? { at, coins } : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Fetch top 100 coins by market cap from CoinGecko markets endpoint */
 export async function fetchPrices(): Promise<CoinPrice[]> {
@@ -22,10 +386,10 @@ export async function fetchPrices(): Promise<CoinPrice[]> {
 
   try {
     const response = await fetch(
-      'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=24h',
+      'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false&price_change_percentage=1h,24h,7d,30d',
       { signal: AbortSignal.timeout(10000) }
     );
-    if (!response.ok) return cache || [];
+    if (!response.ok) { lastFetchFailed = true; return cache || fallbackReading(); }
     const data = await response.json() as Record<string, unknown>[];
 
     cache = data.map(coin => ({
@@ -35,13 +399,49 @@ export async function fetchPrices(): Promise<CoinPrice[]> {
       marketCap: Number(coin.market_cap || 0),
       change24h: Number(coin.price_change_percentage_24h || 0),
       image: String(coin.image || ''),
+      change1h: feedPct(coin.price_change_percentage_1h_in_currency) ?? 0,
+      feed1h: feedPct(coin.price_change_percentage_1h_in_currency),
+      change7d: feedPct(coin.price_change_percentage_7d_in_currency),
+      change30d: feedPct(coin.price_change_percentage_30d_in_currency),
+      mcapChange24h: feedPct(coin.market_cap_change_percentage_24h),
+      change5m: null,
+      change15m: null,
+      change4h: null,
     })).filter(c => c.id && c.usd > 0);
 
+    await attachFeed4h(cache);
     lastFetch = Date.now();
+    lastFetchFailed = false;
+    // Every successful reading feeds the derived short-horizon changes. Without this
+    // `derivedChange` is honest but permanently null.
+    recordPrices(cache, lastFetch);
+    // Attach what can be stated now; null where the window is not covered yet.
+    for (const coin of cache) {
+      if (coin.feed1h === null || coin.feed1h === undefined) {
+        coin.change1h = derivedChange(coin.id, coin.usd, '1h', lastFetch) ?? 0;
+      }
+      coin.change5m = changeFor(coin, '5m', lastFetch);
+      coin.change15m = changeFor(coin, '15m', lastFetch);
+      coin.change4h = changeFor(coin, '4h', lastFetch);
+    }
+    saveLastReading(cache, lastFetch);
     return cache;
   } catch {
-    return cache || [];
+    lastFetchFailed = true;
+    return cache || fallbackReading();
   }
+}
+
+/**
+ * The saved reading, for a start that could not fetch. Not put in `cache`, so
+ * the next poll still fetches; `lastFetch` takes the reading's own time so the
+ * feed status reports it as the stale reading it is.
+ */
+function fallbackReading(): CoinPrice[] {
+  const saved = loadLastReading();
+  if (!saved) return [];
+  if (lastFetch === 0) lastFetch = saved.at;
+  return saved.coins;
 }
 
 export function formatPrice(usd: number): string {
@@ -53,18 +453,22 @@ export function formatPrice(usd: number): string {
 
 /** Start casual realtime price updates — call once, auto-refreshes */
 export function startPriceUpdates(onUpdate: (prices: CoinPrice[]) => void): () => void {
-  // Initial fetch
-  fetchPrices().then(onUpdate);
+  let stopped = false;
+  // Initial fetch. A reading that lands after stop() is dropped, so a view
+  // torn down mid-fetch is not called back (and not kept alive) by it.
+  fetchPrices().then((p) => { if (!stopped) onUpdate(p); });
 
-  // Refresh every 60s — within CoinGecko free tier (10-30 calls/min)
-  refreshTimer = setInterval(() => {
+  // Refresh every 60s — within CoinGecko free tier (10-30 calls/min).
+  // The timer is this caller's own: a shared module slot let a second caller
+  // overwrite the first's id, leaving that interval impossible to clear.
+  const timer = setInterval(() => {
     lastFetch = 0; // force refresh
-    fetchPrices().then(onUpdate);
+    fetchPrices().then((p) => { if (!stopped) onUpdate(p); });
   }, CACHE_TTL);
 
   return () => {
-    if (refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = null;
+    stopped = true;
+    clearInterval(timer);
   };
 }
 

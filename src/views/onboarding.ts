@@ -80,6 +80,18 @@ export function onboardingView(): HTMLElement {
           icon: 'import',
           onClick: () => store.navigate('import-wallet'),
         }),
+        btn('Connect MetaMask (xchain)', {
+          large: true,
+          outlined: true,
+          icon: 'link',
+          onClick: () => store.navigate('xchain-connect'),
+        }),
+        btn('Create HD Wallet (ARC-52, advanced)', {
+          large: true,
+          outlined: true,
+          icon: 'tree',
+          onClick: () => store.navigate('arc52-create'),
+        }),
       ],
     }));
   }

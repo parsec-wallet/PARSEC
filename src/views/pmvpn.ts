@@ -1,10 +1,12 @@
 // pmVPN View — Remote Machine Manager
-// GPL-3.0 (Parsec client module)
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Vanilla TypeScript using Parsec's dom.ts helpers.
 // Layout: host sidebar | terminal | status bar
 
 import { el, btn, input, toast } from '../lib/dom';
+import { onCleanup } from '../lib/lifecycle';
 import { store } from '../lib/store';
 import { pmvpnStore } from '../lib/pmvpn/store';
 import { connectToHost, disconnectFromHost } from '../lib/pmvpn/connector';
@@ -150,8 +152,12 @@ export function pmvpnView(): HTMLElement {
     }));
   }
 
-  // Subscribe to state changes
-  pmvpnStore.subscribe(() => renderHosts());
+  // Subscribe to state changes. Unsubscribed with the view: the returned
+  // function used to be dropped, so every visit left a listener re-rendering a
+  // discarded host list on every pmVPN change.
+  onCleanup(pmvpnStore.subscribe(() => renderHosts()));
+  // The terminal (xterm, its data listener, its container) goes with the view.
+  onCleanup(() => destroyTerminal());
 
   // Initial render
   renderHosts();

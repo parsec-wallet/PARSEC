@@ -1,7 +1,7 @@
 // Parsec Wallet — parsec_throttle IPC client
 // Resource-aware API rate limiting with energy cost tracking.
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './platform';
 
 // --- Types ---
 

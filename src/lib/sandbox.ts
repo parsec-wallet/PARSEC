@@ -2,7 +2,7 @@
 // dApp filesystem access control with 1-10 participant choice scale.
 // The participant ALWAYS chooses. No silent escalation.
 
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from './platform';
 
 // --- Types ---
 

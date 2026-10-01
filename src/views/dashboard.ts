@@ -1,14 +1,21 @@
 // Parsec Wallet — Dashboard View
 
 import { el, btn, toast } from '../lib/dom';
-import { store } from '../lib/store';
+import { store, getAccountAddress } from '../lib/store';
+import { listDashboardModules } from '../lib/dashboard';
+import { createWalletSwitcher } from '../lib/dashboard/wallet-switcher';
+import { getChainDescriptor } from '../lib/chains';
+import type { ChainId } from '../lib/pouch/types';
+import type { DashboardContext } from '../lib/dashboard-modules';
 import { fetchAccountInfo, microAlgosToAlgo } from '../lib/algorand/account';
 import { fetchTransactions } from '../lib/algorand/transactions';
 import { enrichAssets, formatAssetAmount, optOutFromAsset, lookupAsset } from '../lib/algorand/assets';
+import { resolveIpfsUrl } from '../lib/algorand/ipfs-gateway';
+import { resolveAddress, searchByOwner } from '../lib/nfd';
 import { keystoreRetrieve } from '../lib/keystore';
-import { startPriceUpdates, formatPrice } from '../lib/prices';
+import { formatPrice, fetchPrices, fetchPricesByIds } from '../lib/prices';
 import type { CoinPrice } from '../lib/prices';
-import type { AccountInfo, TransactionRecord, NetworkId } from '../types/wallet';
+import type { AccountInfo, TransactionRecord, NetworkId, WalletAccount } from '../types/wallet';
 
 export function dashboardView(): HTMLElement {
   const state = store.get();
@@ -17,13 +24,16 @@ export function dashboardView(): HTMLElement {
 
   const container = el('div', { cls: 'parsec-view parsec-dashboard' });
 
-  // Header — PARSEC + live ticking price
+  // Which chain this account is being viewed on — drives the price tag,
+  // the panel below, and (via the router) re-render on a chain switch.
+  const activeChain = (account.activeChain ?? 'algorand') as ChainId;
+
+  // Header — PARSEC + price for the active chain's native asset.
   const priceTag = el('span', { cls: 'parsec-dashboard__price-tag', text: '$...' });
+  const priceCoinId = getChainDescriptor(activeChain).priceId ?? 'algorand';
 
   function updatePriceTag(coinPrices: CoinPrice[]) {
-    const chainPriceId: Record<string, string> = { mainnet: 'algorand', testnet: 'algorand', betanet: 'algorand' };
-    const id = chainPriceId[state.settings.network] || 'algorand';
-    const coin = coinPrices.find(p => p.id === id);
+    const coin = coinPrices.find(p => p.id === priceCoinId);
     if (coin) {
       const sign = coin.change24h >= 0 ? '+' : '';
       const changeCls = coin.change24h >= 0 ? 'parsec-dashboard__change--up' : 'parsec-dashboard__change--down';
@@ -38,8 +48,8 @@ export function dashboardView(): HTMLElement {
     }
   }
 
-  // Live price — updates every 60s
-  startPriceUpdates(updatePriceTag);
+  // Fetch by explicit id — Arweave can sit outside the top-100 markets list.
+  fetchPricesByIds([priceCoinId]).then(updatePriceTag);
 
   const header = el('div', {
     cls: 'parsec-dashboard__header',
@@ -48,6 +58,7 @@ export function dashboardView(): HTMLElement {
         el('div', { cls: 'parsec-logo parsec-logo--small', text: 'PARSEC' }),
         priceTag,
       ]}),
+      createWalletSwitcher(),
       el('div', {
         cls: 'parsec-dashboard__nav',
         children: [
@@ -56,10 +67,15 @@ export function dashboardView(): HTMLElement {
             minimal: true, icon: 'log-out', cls: 'parsec-dashboard__logout',
             onClick: () => {
               // Visual confirmation before clearing
-              const confirmed = confirm('Lock wallet and clear session?\n\nYour passphrase and all sensitive data will be wiped from memory. You will need your passphrase to re-enter.');
+              const confirmed = confirm('Log out completely?\n\nThe vault locks, every dApp and Arweave connection closes, and secrets, cached reads and session storage are cleared. Your wallets stay on this device; you will need your passphrase to re-enter.');
               if (confirmed) {
-                store.lock();
-                toast('Session cleared. No trace.', 'success');
+                // The complete teardown: channels, vault, caches, storage, then
+                // the store. lib/session.ts lists every step.
+                void import('../lib/session').then(({ logout }) => logout()).then((report) => {
+                  const failed = report.steps.filter((x) => !x.ok).map((x) => x.step);
+                  if (failed.length === 0) toast('Logged out. Nothing left in this session.', 'success');
+                  else toast(`Logged out, but ${failed.join(', ')} reported a problem.`, 'warning', 8000);
+                });
               }
             },
           }),
@@ -68,6 +84,13 @@ export function dashboardView(): HTMLElement {
       }),
     ],
   });
+
+  // Non-Algorand chains render a focused per-chain wallet panel. Algorand
+  // keeps the full dashboard below (balance + assets + transactions + modules).
+  if (activeChain !== 'algorand') {
+    container.append(header, renderChainPanel(account, activeChain));
+    return container;
+  }
 
   // Public Receive Key
   const addr = account.address;
@@ -81,10 +104,18 @@ export function dashboardView(): HTMLElement {
   keyValue.addEventListener('mouseenter', () => { keyText.textContent = addr; keyValue.classList.add('parsec-pubkey--expanded'); });
   keyValue.addEventListener('mouseleave', () => { keyText.textContent = `${addr.slice(0, 6)} ···· ${addr.slice(-6)}`; keyValue.classList.remove('parsec-pubkey--expanded'); });
 
+  // Primary .algo name — a quiet mark of identity above the raw key. Shown
+  // only when the address actually carries one; clicking it copies the name.
+  const nfdLine = el('div', {
+    cls: 'parsec-pubkey__nfd',
+    attrs: { hidden: 'true', title: 'Your .algo name — click to copy' },
+  });
+
   const publicKey = el('div', {
     cls: 'parsec-dashboard__pubkey',
     children: [
       el('div', { cls: 'parsec-dashboard__pubkey-label', text: 'Public Receive Key' }),
+      nfdLine,
       keyValue,
     ],
   });
@@ -92,6 +123,31 @@ export function dashboardView(): HTMLElement {
   // Network badge
   const network = state.settings.network;
   const networkBadge = el('div', { cls: `parsec-network-badge parsec-network-badge--${network}`, text: network.toUpperCase() });
+
+  // Recognize the wallet's .algo name and reveal the identity line. Primary
+  // reverse-resolution first; if the address owns a name without a primary
+  // reverse record, fall back to its owned name so it is still recognized.
+  void (async () => {
+    try {
+      let algoName = (await resolveAddress(network, addr))?.name ?? null;
+      if (!algoName) {
+        const owned = await searchByOwner(network, addr, { limit: 1, view: 'brief' });
+        algoName = owned.nfds[0]?.name ?? null;
+      }
+      if (!algoName) return;
+      const name = algoName;
+      nfdLine.innerHTML = '';
+      nfdLine.append(
+        el('span', { cls: 'parsec-pubkey__nfd-mark', text: '◆' }),
+        el('span', { cls: 'parsec-pubkey__nfd-name', text: name }),
+      );
+      nfdLine.removeAttribute('hidden');
+      nfdLine.addEventListener('click', () => {
+        navigator.clipboard.writeText(name);
+        toast('.algo name copied', 'success');
+      });
+    } catch { /* no NFD / offline — the line stays hidden */ }
+  })();
 
   // Testnet faucet
   const faucetLink = network === 'testnet'
@@ -113,24 +169,21 @@ export function dashboardView(): HTMLElement {
     ],
   });
 
-  // Actions — participant choices after signature-based login
-  const actions = el('div', {
-    cls: 'parsec-dashboard__actions',
-    children: [
-      btn('Send', { intent: 'primary', icon: 'arrow-top-right', onClick: () => store.navigate('send') }),
-      btn('Swap', { intent: 'warning', icon: 'swap-horizontal', onClick: () => store.navigate('swap') }),
-      btn('Receive', { intent: 'success', icon: 'arrow-bottom-left', onClick: () => store.navigate('receive') }),
-    ],
-  });
-
-  // x402 / AgenticPlace actions
-  const x402Actions = el('div', {
-    cls: 'parsec-dashboard__actions parsec-dashboard__x402-actions',
-    children: [
-      btn('Identity', { outlined: true, icon: 'id-number', onClick: () => store.navigate('identity') }),
-      btn('Agents', { outlined: true, icon: 'search', onClick: () => store.navigate('agents') }),
-    ],
-  });
+  // Action rows are now produced by registered DashboardModules. Adding a
+  // chain pack or domain pack contributes a new row without editing this
+  // file — see src/lib/dashboard/*.ts for the built-ins.
+  const ctx: DashboardContext = {
+    account,
+    getChainAddress: (chainId: string) => getAccountAddress(account, chainId),
+    network,
+    navigate: (view: string) => store.navigate(view as Parameters<typeof store.navigate>[0]),
+    refresh: () => loadDashboardData(account.address, network, balanceEl, assetsEl, txList),
+  };
+  const moduleRows: HTMLElement[] = [];
+  for (const mod of listDashboardModules()) {
+    const row = mod.render(ctx);
+    if (row) moduleRows.push(row);
+  }
 
   const assetsEl = el('div', { cls: 'parsec-dashboard__assets' });
   const addAssetBtn = btn('Add Asset', { outlined: true, icon: 'plus', cls: 'parsec-dashboard__add-asset', onClick: () => store.navigate('add-asset') });
@@ -139,11 +192,84 @@ export function dashboardView(): HTMLElement {
 
   const children = [header, publicKey, networkBadge];
   if (faucetLink) children.push(faucetLink);
-  children.push(balanceEl, actions, x402Actions, assetsEl, addAssetBtn, txHeader, txList);
+  children.push(balanceEl, ...moduleRows, assetsEl, addAssetBtn, txHeader, txList);
   container.append(...children);
 
   loadDashboardData(account.address, network, balanceEl, assetsEl, txList);
   return container;
+}
+
+// Focused per-chain wallet panel for any non-Algorand chain: address card,
+// live balance, send + receive, and an explorer link. Algorand keeps the
+// full dashboard; other chains get this until they grow their own surfaces.
+function renderChainPanel(account: WalletAccount, chainId: ChainId): HTMLElement {
+  const desc = getChainDescriptor(chainId);
+  const addr = getAccountAddress(account, chainId) ?? '';
+
+  const badge = el('div', {
+    cls: 'parsec-network-badge parsec-network-badge--mainnet',
+    text: `${desc.label.toUpperCase()} · MAINNET`,
+  });
+
+  // Address card — click to copy, hover to expand (mirrors the Algorand view).
+  const keyText = el('span', { cls: 'parsec-pubkey__text', text: desc.truncate(addr) });
+  const keyValue = el('div', {
+    cls: 'parsec-dashboard__pubkey-value',
+    attrs: { title: 'Click to copy' },
+    children: [keyText],
+    onClick: () => { navigator.clipboard.writeText(addr); toast(`${desc.label} address copied`, 'success'); },
+  });
+  keyValue.addEventListener('mouseenter', () => { keyText.textContent = addr; keyValue.classList.add('parsec-pubkey--expanded'); });
+  keyValue.addEventListener('mouseleave', () => { keyText.textContent = desc.truncate(addr); keyValue.classList.remove('parsec-pubkey--expanded'); });
+  const addressCard = el('div', {
+    cls: 'parsec-dashboard__pubkey',
+    children: [
+      el('div', { cls: 'parsec-dashboard__pubkey-label', text: `${desc.label} Address` }),
+      keyValue,
+    ],
+  });
+
+  // Live balance.
+  const balanceValue = el('div', { cls: 'parsec-dashboard__balance-value', text: '…' });
+  const balanceEl = el('div', {
+    cls: 'parsec-dashboard__balance',
+    children: [
+      el('div', { cls: 'parsec-dashboard__balance-label', text: 'Balance' }),
+      balanceValue,
+    ],
+  });
+  if (desc.balance) {
+    desc.balance(addr)
+      .then((b) => { balanceValue.textContent = b.display; })
+      .catch(() => { balanceValue.textContent = 'Unavailable'; });
+  } else {
+    balanceValue.textContent = `— ${desc.unit}`;
+  }
+
+  const actions = el('div', {
+    cls: 'parsec-chain-panel__actions',
+    children: [
+      btn('Send', {
+        intent: 'primary', icon: 'arrow-right', disabled: !desc.sendView,
+        onClick: () => { if (desc.sendView) store.navigate(desc.sendView as Parameters<typeof store.navigate>[0]); },
+      }),
+      btn('Receive', {
+        outlined: true, icon: 'download',
+        onClick: () => { navigator.clipboard.writeText(addr); toast(`${desc.label} address copied`, 'success'); },
+      }),
+    ],
+  });
+
+  const explorer = el('a', {
+    cls: 'parsec-faucet-link',
+    text: 'View on explorer',
+    attrs: { href: desc.explorerUrl(addr), target: '_blank', rel: 'noopener' },
+  });
+
+  return el('div', {
+    cls: 'parsec-chain-panel',
+    children: [badge, addressCard, balanceEl, actions, explorer],
+  });
 }
 
 async function loadDashboardData(address: string, network: NetworkId, balanceEl: HTMLElement, assetsEl: HTMLElement, txList: HTMLElement): Promise<void> {
@@ -177,15 +303,13 @@ function renderBalance(container: HTMLElement, info: AccountInfo): void {
     val?.after(usdEl);
   }
   // Update USD from latest prices
-  import('../lib/prices').then(mod => {
-    mod.fetchPrices().then(pp => {
-      const algo = pp.find(p => p.id === 'algorand');
-      if (algo) {
-        usdEl.textContent = `≈ $${((info.amount / 1_000_000) * algo.usd).toFixed(2)}`;
-      } else {
-        usdEl.textContent = '$';
-      }
-    });
+  fetchPrices().then(pp => {
+    const algo = pp.find(p => p.id === 'algorand');
+    if (algo) {
+      usdEl.textContent = `≈ $${((info.amount / 1_000_000) * algo.usd).toFixed(2)}`;
+    } else {
+      usdEl.textContent = '$';
+    }
   });
 
   const min = container.querySelector('.parsec-dashboard__balance-min');
@@ -203,10 +327,10 @@ function renderAssets(container: HTMLElement, info: AccountInfo, userAddress: st
 
   // Fetch prices for USD display on each asset
   let coinPrices: CoinPrice[] = [];
-  import('../lib/prices').then(mod => mod.fetchPrices().then(p => {
+  fetchPrices().then(p => {
     coinPrices = p;
     updateAssetPrices();
-  }));
+  });
 
   // ALGO first — with price, links
   const algoUsdEl = el('span', { cls: 'parsec-asset-row__usd', text: '$' });
@@ -262,15 +386,34 @@ function renderAssets(container: HTMLElement, info: AccountInfo, userAddress: st
       ? `≈ $${(asset.amount / Math.pow(10, asset.decimals ?? 6)).toFixed(2)}`
       : '';
 
+    // NFT thumbnail when metadata is available
+    const nftThumb = asset.nft?.image
+      ? (() => {
+          const urls = resolveIpfsUrl(asset.nft!.image!);
+          const src = urls[0] || asset.nft!.image!;
+          return el('img', {
+            cls: 'parsec-asset-row__nft-thumb',
+            attrs: { src, alt: asset.nft!.name || '', loading: 'lazy', width: '32', height: '32' },
+          });
+        })()
+      : null;
+
+    const displayName = asset.nft?.name || asset.unitName || asset.name || `ASA #${asset.assetId}`;
+    const variantTag = asset.nft ? ` · ${asset.nft.arcVariant.toUpperCase()}` : '';
+
+    const infoChildren: HTMLElement[] = [];
+    if (nftThumb) infoChildren.push(nftThumb);
+    infoChildren.push(
+      el('span', { cls: 'parsec-asset-row__name', text: displayName }),
+      badges.length > 0 ? el('div', { cls: 'parsec-asset-row__badges', children: badges }) : el('span'),
+      el('div', { cls: 'parsec-asset-row__contract', text: `ASA ${asset.assetId} · Algorand${variantTag}` }),
+      el('div', { cls: 'parsec-asset-row__links', children: links }),
+    );
+
     const rowChildren: HTMLElement[] = [
       el('div', {
         cls: 'parsec-asset-row__info',
-        children: [
-          el('span', { cls: 'parsec-asset-row__name', text: asset.unitName || asset.name || `ASA #${asset.assetId}` }),
-          badges.length > 0 ? el('div', { cls: 'parsec-asset-row__badges', children: badges }) : el('span'),
-          el('div', { cls: 'parsec-asset-row__contract', text: `ASA ${asset.assetId} · Algorand` }),
-          el('div', { cls: 'parsec-asset-row__links', children: links }),
-        ],
+        children: infoChildren,
       }),
       el('div', {
         cls: 'parsec-asset-row__right',

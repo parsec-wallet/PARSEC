@@ -1,0 +1,23 @@
+# pnpm v11 settings.
+# blockExoticSubdeps=false: permaweb-deploy (already in the lockfile) pulls @permaweb/hyperbalance
+# from a pinned git tarball; pnpm 11 blocks git subdeps by default. We re-allow it deliberately —
+# the ref is commit-pinned in pnpm-lock.yaml, so the supply-chain surface is unchanged from before.
+blockExoticSubdeps: false
+allowBuilds:
+  '@ar.io/solana-contracts': set this to true or false
+  "@permaweb/hyperbalance@https://codeload.github.com/xylophonez/hyperbalance/tar.gz/509fa81559fb34adbacfa4da6b7475a96cd876fd": true
+  bigint-buffer: set this to true or false
+  bufferutil: set this to true or false
+  esbuild: set this to true or false
+  keccak: set this to true or false
+  secp256k1: set this to true or false
+  utf-8-validate: set this to true or false
+
+# bankonOS release 0.0.1-alpha: match the JS Tauri packages to the Rust crates
+# locked in src-tauri/Cargo.lock (tauri 2.6.2, tauri-plugin-opener 2.4.0);
+# tauri-cli refuses to bundle across a major/minor mismatch.
+overrides:
+  '@tauri-apps/api': 2.6.0
+  '@tauri-apps/plugin-opener': 2.4.0
+  # the @ar.io/sdk this wallet was developed against (package.json: ^4.2.0)
+  '@ar.io/sdk@^4': 4.2.0

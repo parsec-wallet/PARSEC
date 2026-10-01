@@ -1,8 +1,10 @@
 // Parsec x402 Integration — BANKON Holder Discount
 // Checks BANKON ASA 203977300 balance on Algorand for 50% fee discount.
 // 5-minute per-address cache to avoid excessive indexer queries.
-// (c) 2026 BANKON — GPL-3.0
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: Apache-2.0
 
+import { applyPercentOff } from '../money';
 import { ALGO_INDEXER_URL, BANKON_ASA_ID, DEFAULT_DISCOUNT_PCT } from './constants';
 import type { HolderStatus } from './types';
 
@@ -14,6 +16,8 @@ interface CachedHolder {
 }
 
 const holderCache = new Map<string, CachedHolder>();
+/** Most address+asset pairs remembered; oldest go first. */
+const MAX_HOLDERS = 256;
 
 /**
  * Check if an Algorand address holds BANKON (or any ASA).
@@ -49,18 +53,29 @@ export async function checkBankonHolder(
     /* treat as non-holder */
   }
 
+  holderCache.delete(cacheKey);
   holderCache.set(cacheKey, { status, timestamp: Date.now() });
+  for (const k of holderCache.keys()) {
+    if (holderCache.size <= MAX_HOLDERS) break;
+    holderCache.delete(k);
+  }
   return status;
 }
 
-/** Calculate effective price after holder discount */
-export function applyDiscount(
-  priceUsd: number,
+/**
+ * Effective price after the holder discount, in scaled micro-USD.
+ *
+ * Exact: no float multiply, no `.toFixed()` rounding into storage
+ * (cypherpunk4096 commitment IV). Floors, so a discount can never round up
+ * into charging more than the list price.
+ */
+export function applyDiscountExact(
+  priceUsd: bigint,
   isHolder: boolean,
   discountPct = DEFAULT_DISCOUNT_PCT,
-): number {
+): bigint {
   if (!isHolder || discountPct <= 0) return priceUsd;
-  return +(priceUsd * (1 - discountPct / 100)).toFixed(6);
+  return applyPercentOff(priceUsd, discountPct);
 }
 
 /** Clear holder cache (for testing) */

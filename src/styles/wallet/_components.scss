@@ -229,6 +229,48 @@
   to { transform: rotate(360deg); }
 }
 
+// ── Lazy View Placeholder ──
+// Used by the lazyView() helper in main.ts. The spinner is delayed so a
+// fast chunk load (<180ms) replaces the placeholder before the spinner
+// becomes visible — eliminating perceived flicker on cached navigations.
+
+.parsec-view--loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  width: 100%;
+}
+
+.parsec-view-loading__spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba($color-white, 0.12);
+  border-top-color: $color-success;
+  border-radius: 50%;
+  opacity: 0;
+  animation:
+    parsec-view-loading-fade 240ms ease-out 180ms forwards,
+    parsec-global-spin 0.7s linear infinite;
+}
+
+@keyframes parsec-view-loading-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+// View enter animation — applied for one frame after a lazy view swaps in.
+// Soft 160ms fade + 4px slide so navigation feels alive without dragging.
+
+.parsec-view--enter {
+  animation: parsec-view-enter 160ms ease-out;
+}
+
+@keyframes parsec-view-enter {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 // ── Price Change (XSS-safe) ──
 
 .parsec-dashboard__change {
@@ -330,6 +372,16 @@
 
   &--leaving {
     animation: parsec-toast-out $transition-duration-slow $transition-timing-function forwards;
+  }
+
+  // Click-to-copy / hover-to-pause toasts.
+  &--clickable {
+    cursor: pointer;
+  }
+
+  // A hovered toast is being read — hold it steady, hint it can be copied.
+  &--clickable:hover {
+    filter: brightness(1.08);
   }
 }
 

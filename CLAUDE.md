@@ -1,285 +1,197 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code when working in this repository.
 
-## Project Overview
+> **This file replaced an unedited Tauri/React starter template.** If you are
+> reading advice about React, `src/components/`, `React.memo`, or `npm run
+> docker:*` anywhere else in this repo, it is stale. None of it applies.
 
-This is a **Tauri Desktop Application Template** that provides a modern, cross-platform foundation for building desktop applications using web technologies. It combines the power of Rust (backend) with React + TypeScript (frontend) to create performant native applications.
+## What this is
 
-### Template Features
-- **Cross-platform**: Windows, macOS, and Linux support
-- **Modern Stack**: Tauri 2.0 + React 18.3 + TypeScript 5.6
-- **Production-ready**: Includes CI/CD, testing setup, and documentation
-- **Customizable**: Modular architecture for easy adaptation
+**Parsec** — a sovereign multi-chain desktop wallet. Algorand-first, with
+Solana, Arweave, EVM/Base, and Bitcoin packs. Tauri 2 shell, Rust backend for
+signing and validation, **vanilla TypeScript frontend with no UI framework**.
 
-## Development Commands
+Tagline: *Your keys. Your coins. No compromises.*
+Repo: <https://github.com/parsec-wallet>
+Licence: by component — **GPL-3.0-or-later** for client-facing encryption software: anything that
+generates keys, derives them from a seed/mnemonic, holds key material, or signs (`bankon_vault`,
+`chain_*`, pmVPN, plus the TypeScript key paths in `REUSE.toml`). **Apache-2.0** for the rest,
+**MIT** for the server-side AO processes. No permissive alternative on the key tier — by design.
+`REUSE.toml` is the per-path authority; check it before moving code between those areas.
 
-### Frontend & Full Application
-- `npm run tauri dev` - Start development mode (React + Tauri desktop app)
-- `npm run tauri build` - Build production desktop application
-- `npm run dev` - Start Vite dev server only (for frontend-only development)
-- `npm run build` - Build frontend for production (TypeScript + Vite)
+**Destination:** on completion Parsec joins the
+**[cypherpunk4096 consortium](https://github.com/cypherpunk4096)**. Conformance
+is binary — all five commitments or none. Two are not met today
+(zero-dependencies; float arithmetic in the money path). Read
+`docs/cypherpunk4096.md` before claiming conformance anywhere, and do not add a
+runtime dependency or a float to a value path without knowing you are widening
+a gap. Bitcoin is **standalone**: Parsec is compatible with `BANKONBTCWaaS` (a sibling
+repo in that org) but **must never require it** — it is an optional provider
+behind a seam, and every surface it backs degrades to `unknown` when absent.
+See `docs/integration/bankon-btc-waas.md`.
 
-### Docker Build System (Cross-Platform)
-- `npm run docker:menu` - Open interactive Docker build menu
-- `npm run docker:build-image` - Build Docker image for native architecture
-- `npm run docker:build-tauri` - Build Tauri app in Docker
-- `npm run docker:build-all` - Build on host + all Docker architectures
-- `npm run docker:run` - Start interactive Docker shell
-- `npm run docker:clean` - Clean build artifacts
-- `npm run docker:check` - Check Docker image status
-- `npm run docker:help` - Show Docker script help
+## Non-negotiables
 
-### Code Quality
-- `npm run lint:css` - Lint and fix SCSS files (development mode, shows all warnings)
-- `npm run lint:css:production` - Lint SCSS for CI/CD (clean output, no warnings)
-- `npm run lint:css:ci` - Lint SCSS with compact formatter for CI
+These come from `../CLAUDE_HANDOFF.md` and `../parsec_claude_handoff/docs/`.
+Do not relax them without an explicit instruction from the user.
 
-### Testing
-- `npm test` - Run test suite (configure based on your testing framework)
-- `npm run test:watch` - Run tests in watch mode
-- `npm run test:coverage` - Generate coverage report
+1. **No React, Vue, Tailwind, component kits, wallet SDKs, or chart libraries.**
+   The UI runtime is intentionally tiny. New UI is built from `src/lib/dom.ts`.
+2. **Frontend may classify and suggest. Backend must verify and decide.**
+   The input classifier only proposes candidates; Rust validators are the
+   gatekeepers.
+3. **Secrets never persist in frontend storage.** They live in private fields on
+   the store and in the Rust-side vault. Never `localStorage`.
+   **Signing** runs in Rust for every chain pack — `chain_algo`, `chain_sol`,
+   `chain_ar`, `chain_btc`, `chain_ltc`, `chain_evm`; `*_sign_*` returns a
+   signature, never a key. **Generation** runs in Rust on the participant-facing
+   desktop path: `create-wallet.ts` creates the vault *first*, then mints the
+   account into it, then reveals the phrase for backup. Two paths still generate
+   in the renderer and say so in their source — the browser build (no Rust) and
+   `views/admin-keygen.ts` (sets its passphrase after generating).
+   One caveat remains, tracked in `docs/security/threat-model.md`: *"zeroed on
+   lock"* is not achievable in JS — `store.ts` overwrites with `'\0'.repeat(...)`,
+   which allocates a new string and leaves the original for the collector. Anything
+   that must actually be wiped belongs in Rust `SecretBytes`.
+   One deliberate exception: Arweave's legacy *mnemonic → RSA-4096* derivation
+   stays in `src/lib/arweave/seed.ts`, because its determinism is a property of
+   node-forge's prime search and reimplementing it would risk stranding existing
+   accounts. See `src-tauri/src/chain_ar/mod.rs`.
+4. **Algorand is first-class** and uses its own 25-word account mnemonic. Never
+   collapse it into BIP-39-only assumptions.
+5. **Chain-native formats are mandatory** — EVM `0x` + EIP-55; Algorand 58-char
+   base32; Bitcoin Base58 and Bech32/Bech32m; Solana base58; Cosmos HRP-aware
+   Bech32. Do not infer chain identity from a raw private key alone.
+6. **The web build must stay Tauri-free.** All IPC goes through
+   `src/lib/platform.ts`, which dynamically imports `@tauri-apps/api` only when
+   `isTauri` is true. The same `dist/` is deployed to Arweave.
+7. **CSP is hardened** — no `unsafe-inline`, no `unsafe-eval`.
+8. **No telemetry, analytics, or beacons.**
 
-## Architecture Overview
-
-This template provides a foundation for building desktop applications with a clear separation between frontend and backend concerns.
-
-### Technology Stack
-- **Frontend**: React 18.3 + TypeScript 5.6 + Blueprint.js 6.0 + SCSS
-- **Backend**: Tauri 2.0 + Rust + Tokio (async runtime)
-- **Build**: Vite 6.0 + Git hooks (Husky + lint-staged)
-- **CI/CD**: GitHub Actions for automated builds and releases
-
-### Project Structure
-
-```
-your-app/
-├── src/                    # Frontend React application
-│   ├── components/         # React components
-│   ├── hooks/             # Custom React hooks
-│   ├── styles/            # SCSS design system
-│   ├── assets/            # Static assets
-│   ├── App.tsx            # Main application component
-│   └── main.tsx           # React entry point
-├── src-tauri/             # Backend Rust application
-│   ├── src/               # Rust source code
-│   │   ├── commands/      # Tauri commands
-│   │   ├── modules/       # Feature modules
-│   │   ├── utils/         # Utilities
-│   │   ├── lib.rs         # Library entry
-│   │   └── main.rs        # Application entry
-│   ├── capabilities/      # Permission configs
-│   ├── icons/            # App icons
-│   └── tauri.conf.json   # Tauri configuration
-├── docs/                  # Documentation
-│   ├── TODO-INDEX.md     # Task tracking
-│   ├── DEVELOPMENT_PLAN.md # Project roadmap
-│   └── README.md         # Documentation overview
-├── .github/              # GitHub Actions workflows
-├── scripts/              # Build and utility scripts
-└── docker/               # Docker configurations
-```
-
-### Frontend-Backend Communication
-- Uses Tauri's IPC system via `@tauri-apps/api/core`
-- Define commands in `src-tauri/src/lib.rs`
-- Call from frontend using the `invoke` function
-- Async operations handled with Rust's Tokio runtime
-
-## Development Workflow
-
-### Starting a New Project
-
-1. **Clone and Initialize**
-   ```bash
-   git clone [template-repo] my-app
-   cd my-app
-   npm install
-   ```
-
-2. **Customize Configuration**
-   - Update `package.json` with your app details
-   - Modify `src-tauri/tauri.conf.json` for app metadata
-   - Replace icons in `src-tauri/icons/`
-
-3. **Plan Your Features**
-   - Review `/docs/DEVELOPMENT_PLAN.md`
-   - Update with your specific requirements
-   - Define your module architecture
-
-4. **Track Development**
-   - Use `/docs/TODO-INDEX.md` for task management
-   - Update session progress regularly
-   - Keep documentation current
-
-### Daily Development
-
-1. **Start Session**: Check `/docs/TODO-INDEX.md`
-2. **Run Development**: `npm run tauri dev`
-3. **Make Changes**: Follow the architecture patterns
-4. **Test**: Run tests before committing
-5. **Update Progress**: Mark tasks complete
-
-### Git Workflow
+## Commands
 
 ```bash
-# Feature development
-git checkout -b feature/your-feature
-git add .
-git commit -m "feat: add your feature"
-git push origin feature/your-feature
-
-# Create pull request for review
+npm run dev            # Vite dev server → http://localhost:1420
+npm run tauri:dev      # Tauri desktop app (dev)
+npm run build          # tsc && vite build  → dist/
+npm run tauri:build    # production desktop bundle
+npm test               # vitest run  (~370 tests)
+npm run test:watch
+npm run lint:css       # stylelint src/**/*.scss --fix
+npm run lint:css:ci    # CI-clean output
 ```
 
-## Key Documentation Files
+Permaweb deploy: `npm run deploy:permaweb` (binds ArNS `pythai`) or
+`deploy:permaweb:txid` (no ArNS binding). Resolver SPA: `build:resolver` /
+`deploy:resolver`. AO process spawns: `npm run spawn:bnr`, `npm run spawn:bmr`.
 
-### `/docs/TODO-INDEX.md` - Task Management
-- Central hub for tracking development tasks
-- Session progress tracking
-- Priority-based task organization
-- Quick reference commands
+Always run `npx tsc --noEmit` and `npx vitest run` before declaring work done.
 
-### `/docs/DEVELOPMENT_PLAN.md` - Project Roadmap
-- Development phases and timelines
-- Module architecture design
-- Technology decisions
-- Performance requirements
+## Architecture
 
-### `/docs/README.md` - Documentation Hub
-- Overview of all documentation
-- Quick start guides
-- Documentation guidelines
-- External resources
-
-## Common Tasks
-
-### Adding a New Feature Module
-
-1. **Plan the Module**
-   - Define in `/docs/DEVELOPMENT_PLAN.md`
-   - Create module structure in `src-tauri/src/modules/`
-   - Design frontend components
-
-2. **Implement Backend**
-   ```rust
-   // src-tauri/src/modules/your_module/mod.rs
-   pub mod commands;
-   pub mod state;
-   pub mod utils;
-   ```
-
-3. **Create Tauri Commands**
-   ```rust
-   #[tauri::command]
-   pub async fn your_command() -> Result<String, String> {
-       Ok("Response".to_string())
-   }
-   ```
-
-4. **Build Frontend**
-   - Create components in `src/components/`
-   - Add styles in `src/styles/components/`
-   - Wire up IPC calls
-
-### Styling Components
-
-The template includes a comprehensive SCSS design system:
-
-```scss
-// Use design tokens
-.your-component {
-  background: color(slate, 800);
-  padding: spacing(4);
-  border-radius: radius(md);
-  @include shadow(lg);
-}
+```
+src/
+├── main.ts             entry — registers views, mounts router, deferred IPC init
+├── views/              68 view modules, each exporting a () => HTMLElement factory
+├── lib/
+│   ├── dom.ts          el() / input() / btn() / toast() — the whole "component kit"
+│   ├── router.ts       Map<view, factory> + store subscription
+│   ├── store.ts        singleton pub/sub state; secrets in private fields
+│   ├── platform.ts     isTauri + dynamic invoke/listen shim
+│   ├── keystore.ts     dual backend: bankon_vault (Tauri) | Web Crypto (browser)
+│   ├── pouch/          THE WALLET POUCH — WalletModule interface + chain registry
+│   ├── chains.ts       ChainDescriptor registry (display/UX layer)
+│   ├── dashboard/      self-registering dashboard tiles
+│   ├── namespaces/     NamespaceAdapter registry (ArNS / BANKON / Solana-ArNS)
+│   └── algorand|solana|arweave|bitcoin|litecoin|xchain|dex|x402|permaweb|…
+├── styles/             SCSS 7-1-ish; wallet/_views.scss is the app skin
+└── types/wallet.ts     WalletState, WalletAccount, AppView
+src-tauri/src/
+├── lib.rs              15 modules, 122 commands in one generate_handler!
+├── bankon_vault/       Argon2id + AES-256-GCM key storage; Tomb (LUKS) commands
+├── chain_btc|chain_ltc|chain_evm/   derivation + signing
+├── parsec_connect/     dApp WebSocket bridge (127.0.0.1:9876)
+├── parsec_validate/    address validators — the gatekeepers
+└── parsec_mesh|search|sandbox|throttle|pmvpn|network_monitor/
 ```
 
-### Building for Production
+### The product's four tiers
 
-```bash
-# Build for current platform
-npm run tauri build
+`../PARSEC.png` is the canonical architecture, and the code mirrors it:
 
-# Cross-platform builds via Docker
-npm run docker:menu
-```
+**Chain Modules** (`lib/pouch/` `WalletModule`) → **Wallet Pouch**
+(`lib/pouch/` — the multi-chain collection) → **Vault Identity** (`bankon_vault`
++ `views/identity.ts`) → **AgenticPlace** (`views/agents.ts`, `lib/x402/`,
+`parsec_connect`, Marketspace).
 
-## Performance Guidelines
+Navigation, dashboard grouping, and the Linkage Map view all follow these tiers.
 
-- **Startup Time**: Target < 2 seconds
-- **Memory Usage**: Keep under 100MB baseline
-- **Bundle Size**: Optimize for < 10MB installer
-- **Response Time**: UI interactions < 100ms
+### Frontend ↔ backend
 
-## Security Best Practices
+Views never call `invoke` directly. Each Rust module gets one thin typed wrapper
+in `src/lib/` (`vault.ts`, `connect.ts`, `validate.ts`, `tomb.ts`, …), and those
+wrappers call `platform.ts`. Only ~20 files touch IPC.
 
-- Use Tauri's capability system for permissions
-- Validate all IPC inputs
-- Implement CSP headers
-- Keep dependencies updated
-- Follow Rust safety guidelines
+### bankon_vault — a shared component
 
-## Customization Guide
+**Read `docs/security/vault-family.md` before touching this.** At least five
+codebases carry the name, in three languages, with materially different
+cryptography; Parsec's is `bankon-vault/2` (Argon2id → wrapped DEK → per-entry
+HKDF, scheme-tagged bytes, encrypted index). The format is specified in
+`docs/security/bankon-vault-spec.md`, which is the contract, not the code.
 
-### Branding
-1. Replace icons in `src-tauri/icons/`
-2. Update colors in `src/styles/abstracts/_colors.scss`
-3. Modify app metadata in `tauri.conf.json`
+`bankon_vault` is **one component across several projects**, not a Parsec
+internal. The same vault appears in BANKONBTCWaaS and elsewhere, and **Parsec
+offers it as a service**. Treat its interface as a contract other applications
+depend on: additive changes, no silent breaks. Its public surface is 34 IPC commands:
+the original 16 (9 v1 in `commands.rs` + 7 Tomb in `tomb_commands.rs`) plus 18
+`bankon-vault/2` commands in `commands_v2.rs`, added without removing any.
+**Build status:** the v2 half is in the tree but not yet compiled in — `bankon_vault/mod.rs`
+does not declare `commands_v2`/`vault`/`format`/`overseer`/`throttle`, `lib.rs` does not
+register the 18 commands, and `VaultSession` has no v2 state. `src/lib/vault.ts` gates its v2
+wrappers on `VAULT_V2_IN_BUILD` (false): reads degrade to the v1 vault, writes refuse. Flip it
+in the same change that wires the Rust side.
 
-### Features
-1. Add modules to `src-tauri/src/modules/`
-2. Create corresponding frontend components
-3. Define new IPC commands
-4. Update documentation
+**Scope discipline:** in this repo, focus on Parsec. Do not refactor for other
+consumers, chase their integrations, or vendor their code here — note the
+cross-project implication and keep the work in Parsec's own tree.
 
-### Deployment
-1. Configure GitHub Actions workflows
-2. Set up code signing certificates
-3. Define update server endpoints
-4. Create distribution strategy
+### Registries (the modular-expansion seam)
 
-## Best Practices
+Four registries, all "self-register, iterate, never branch on chain name":
 
-### Code Organization
-- Keep modules focused and single-purpose
-- Use TypeScript strictly (no `any` types)
-- Follow Rust idioms and patterns
-- Maintain clear separation of concerns
+| Registry | File | Purpose |
+|---|---|---|
+| `WalletModule` | `lib/pouch/chains.ts` | key material: create/import/derive/sign |
+| `ChainDescriptor` | `lib/chains.ts` | display: label, CAIP-2, explorer, balance |
+| `DashboardModule` | `lib/dashboard-modules.ts` | dashboard rows |
+| `NamespaceAdapter` | `lib/namespaces/registry.ts` | name registries |
 
-### Documentation
-- Update docs with code changes
-- Use meaningful commit messages
-- Comment complex logic
-- Keep README files current
+**Adding a chain or tool means adding a module *and* a doc** under `docs/`.
 
-### Testing
-- Write tests for critical paths
-- Mock external dependencies
-- Test on all target platforms
-- Maintain good coverage
+## Conventions
 
-### Performance
-- Profile before optimizing
-- Use React.memo wisely
-- Implement virtual scrolling for lists
-- Lazy load heavy components
+- Vanilla TS, strict mode, no `any`. Target es2022.
+- Build UI with `el()` / `btn()` / `input()` from `lib/dom.ts`; they emit
+  Blueprint CSS classes (`bp5-*`). Blueprint is a **devDependency consumed as
+  CSS only** — never import its React components.
+- Views are `() => HTMLElement` factories, lazily loaded via `lazyView()` in
+  `main.ts` unless they are on the first-paint path.
+- Style in `src/styles/`; brand tokens are CSS custom properties (`--px-*`).
+- Retrieve a mnemonic only for the moment of signing, and zero it in a `finally`.
+- Prefer editing an existing view over adding a parallel one — there are already 68.
 
-## Getting Help
+## Docs worth reading
 
-### Resources
-- [Tauri Documentation](https://tauri.app/)
-- [React Documentation](https://react.dev/)
-- [Blueprint.js Components](https://blueprintjs.com/)
-- Template issues on GitHub
-
-### Common Issues
-- **Platform-specific bugs**: Check Tauri GitHub issues
-- **Build failures**: Verify Rust toolchain installation
-- **Performance issues**: Use browser DevTools profiler
-- **Styling conflicts**: Check Blueprint.js specificity
-
----
-
-*This template is designed to accelerate your desktop app development. Customize it to fit your needs and build something amazing!*
+- `docs/DEVELOPMENT_PLAN.md` — roadmap, phase ladder, design principles
+- `docs/TODO-INDEX.md` — session log and pending operator setup
+- `docs/chains/README.md` — how to add a chain pack
+- `docs/parsec-connect.md`, `docs/spintrade.md`, `docs/x402-integration.md`
+- `README.md` — feature list; `QUANTUM.md`, `PERA_DEPARTURE.md` — positioning
+- `docs/performance.md` — first-paint budget and the chunking traps behind it;
+  the view lifecycle (`lib/lifecycle.ts`) and the leaks it fixed. **Read before
+  adding a static import to an eager view or a `window` listener to any view.**
+- **`docs/security/`** — threat model, the `bankon-vault/2` spec, the vault-family
+  map, memory-hygiene rules, and a source-verified comparison against MetaMask,
+  Pera and Bitcoin Core. `SECURITY.md` at the root carries the disclosure process.

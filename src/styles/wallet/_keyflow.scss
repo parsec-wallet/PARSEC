@@ -1,0 +1,265 @@
+// ==========================================================================
+// KEY FLOW — creating a wallet, and the shared card surfaces
+// ==========================================================================
+// Address first, then the backup (private key · recovery phrase), then save.
+// Long values are monospace and wrap on any character so nothing overflows a
+// narrow window. Sizes follow <html data-viewport> (lib/viewport.ts), and full-
+// height screens use --px-app-h, the window's real visible height, not 100vh.
+
+@use '../abstracts' as *;
+
+// ── Screens that fill the window ──────────────────────────────────────────
+
+.parsec-view {
+  width: min(100%, 560px);
+  min-height: var(--px-app-h, 100vh);
+  box-sizing: border-box;
+}
+
+:root[data-viewport='compact'] .parsec-view {
+  padding: $spacing-4;
+}
+
+:root[data-viewport='wide'] .parsec-view.parsec-keyflow {
+  width: min(100%, 640px);
+}
+
+// The recovery phrase reflows to the width it has: 5 across when there is room,
+// down to 2 on a phone, never cramped.
+.parsec-mnemonic-grid {
+  grid-template-columns: repeat(auto-fill, minmax(7.25rem, 1fr));
+}
+
+:root[data-viewport='compact'] .parsec-mnemonic-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+// ── The flow ──────────────────────────────────────────────────────────────
+
+.parsec-keyflow {
+  gap: $spacing-4;
+}
+
+.parsec-keyflow__steps {
+  display: flex;
+  gap: $spacing-2;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.parsec-keyflow__step {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: $spacing-2;
+  padding: $spacing-2 $spacing-3;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: $border-radius-lg;
+  color: var(--px-muted);
+  font-size: $font-size-xs;
+  letter-spacing: 0.04em;
+
+  &--active {
+    border-color: var(--px-gold);
+    color: var(--px-text);
+  }
+
+  &--done { color: var(--px-gold); }
+}
+
+.parsec-keyflow__step-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 6%);
+  font-family: $font-family-mono;
+
+  .parsec-keyflow__step--active & {
+    background: var(--px-gold);
+    color: #000;
+  }
+}
+
+:root[data-viewport='compact'] .parsec-keyflow__step-label { display: none; }
+
+.parsec-keyflow__panel {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  padding: $spacing-4;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: $border-radius-lg;
+  background: rgb(255 255 255 / 2%);
+
+  &--address { border-color: rgb(245 190 60 / 35%); }
+}
+
+.parsec-keyflow__heading {
+  margin: 0;
+  font-size: $font-size-base;
+}
+
+.parsec-keyflow__hint,
+.parsec-keyflow__format {
+  margin: 0;
+  color: var(--px-muted);
+  font-size: $font-size-sm;
+  line-height: 1.45;
+}
+
+.parsec-keyflow__format {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  letter-spacing: 0.02em;
+}
+
+.parsec-keyflow__address {
+  padding: $spacing-3;
+  border-radius: $border-radius-md;
+  background: rgb(0 0 0 / 35%);
+  color: var(--px-gold);
+  font-family: $font-family-mono;
+  font-size: $font-size-base;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+  user-select: all;
+
+  &--pending {
+    min-height: 1.5em;
+    background:
+      linear-gradient(90deg, transparent, rgb(245 190 60 / 12%), transparent) 0 0 / 40% 100% no-repeat,
+      rgb(0 0 0 / 35%);
+    animation: parsec-keyflow-shimmer 1.4s linear infinite;
+  }
+}
+
+@keyframes parsec-keyflow-shimmer {
+  from { background-position: -40% 0, 0 0; }
+  to { background-position: 140% 0, 0 0; }
+}
+
+.parsec-keyflow__secret {
+  max-height: 12rem;
+  padding: $spacing-3;
+  overflow: auto;
+  border-radius: $border-radius-md;
+  background: rgb(0 0 0 / 35%);
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+
+  &--large { max-height: 16rem; font-size: $font-size-xs; }
+
+  &--hidden {
+    color: var(--px-muted);
+    letter-spacing: 0.2em;
+    user-select: none;
+  }
+}
+
+// The phrase is blurred until revealed, so a glance over the shoulder at the
+// wrong moment reads nothing.
+.parsec-keyflow__phrase {
+  margin: 0;
+  transition: filter 0.2s ease;
+
+  &--hidden {
+    filter: blur(7px);
+    user-select: none;
+    pointer-events: none;
+  }
+}
+
+.parsec-keyflow__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+}
+
+.parsec-keyflow__status {
+  min-height: 1.2em;
+  margin: 0;
+  color: var(--px-muted);
+  font-size: $font-size-sm;
+
+  &--error { color: #ef4444; }
+}
+
+.parsec-keyflow__warning p { margin: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .parsec-keyflow__address--pending { animation: none; }
+  .parsec-keyflow__phrase { transition: none; }
+}
+
+// ── Shared surfaces (x402 desk and other card views) ──────────────────────
+
+.parsec-card {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin-bottom: $spacing-4;
+  padding: $spacing-4;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: $border-radius-lg;
+  background: rgb(255 255 255 / 2%);
+
+  > h3 { margin: 0 0 $spacing-1; font-size: $font-size-base; }
+}
+
+.parsec-muted {
+  margin: 0;
+  color: var(--px-muted);
+  font-size: $font-size-sm;
+  line-height: 1.45;
+}
+
+.parsec-error {
+  margin: 0;
+  color: #ef4444;
+  font-size: $font-size-sm;
+}
+
+.parsec-mono {
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  overflow-wrap: anywhere;
+}
+
+.parsec-row {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+
+  > .bp5-input:not(select) { flex: 1; min-width: 0; }
+}
+
+:root[data-viewport='compact'] .parsec-row { flex-wrap: wrap; }
+
+.parsec-input--wide {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.parsec-field {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-1;
+  font-size: $font-size-sm;
+}
+
+textarea.parsec-input--wide {
+  min-height: 4.5rem;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  resize: vertical;
+}

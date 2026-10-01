@@ -1,5 +1,6 @@
 // pmVPN Module — Connection Orchestrator
-// GPL-3.0 (Parsec client module)
+// SPDX-FileCopyrightText: 2026 BANKON
+// SPDX-License-Identifier: GPL-3.0-or-later
 //
 // Orchestrates the full connection flow:
 // 1. Fetch challenge nonce from server
@@ -7,8 +8,7 @@
 // 3. Connect SSH with signed payload
 // 4. Manage terminal I/O
 
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { invoke, listen } from '../platform';
 import { fetchChallenge, signChallenge, buildAuthPayload } from './auth';
 import { pmvpnStore } from './store';
 import type { PmvpnHost } from './types';
