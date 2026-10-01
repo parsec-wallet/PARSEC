@@ -73,8 +73,9 @@ defined in `parsec_sandbox/mod.rs`.
 
 ## Frontend
 
-- Vanilla TypeScript, strict; the whole component kit is `src/lib/dom.ts`. Blueprint is used as CSS
-  only. No UI framework, no wallet-connection SDKs, no chart libraries.
+- Vanilla TypeScript, strict; the whole component kit is `src/lib/dom.ts`. Its controls use
+  Blueprint's class names, styled in-house ([design/controls.md](design/controls.md)); Blueprint
+  itself is not a dependency. No UI framework, no wallet-connection SDKs, no chart libraries.
 - Four registries, "self-register, iterate, never branch on chain name": `WalletModule`
   (`lib/pouch/chains.ts`), `ChainDescriptor` (`lib/chains.ts`), `DashboardModule`, `NamespaceAdapter`
   (`lib/namespaces/registry.ts`). `lib/modules.ts` collapses the four into one `registerModule`
