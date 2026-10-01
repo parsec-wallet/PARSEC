@@ -11,6 +11,8 @@
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: Apache-2.0
 
+import { setX402Transport } from '../host';
+import { invoke, isTauri } from '../../platform';
 import type algosdk from 'algosdk';
 import { algoSignTransaction } from '../../chain-algo';
 import { evmSignTransferAuthorization } from '../../chain-evm';
@@ -157,3 +159,40 @@ export function configureParsecX402Host(): void {
     },
   });
 }
+
+// ── Transport: x402 requests leave through Rust on desktop ────────
+//
+// A seller's CORS policy will not list PARSEC's webview origin, and a packaged
+// build's CSP allows only a fixed host list, so from the webview most x402
+// sellers are unreachable. On desktop every x402 request goes through the
+// `http_request` command (src-tauri/src/parsec_http: https only, GET/POST/HEAD,
+// no cookies, size and time bounded). The browser build keeps `fetch`.
+
+function headerPairs(h: HeadersInit | undefined): [string, string][] {
+  if (!h) return [];
+  if (h instanceof Headers) return [...h.entries()];
+  if (Array.isArray(h)) return h.map(([k, v]) => [k, v]);
+  return Object.entries(h);
+}
+
+const NULL_BODY = new Set([101, 103, 204, 205, 304]);
+
+export async function parsecTransport(url: string, init: RequestInit = {}): Promise<Response> {
+  if (!isTauri || (init.body !== undefined && init.body !== null && typeof init.body !== 'string')) {
+    return globalThis.fetch(url, init);
+  }
+  const r = await invoke<{ status: number; headers: [string, string][]; body_b64: string; url: string }>('http_request', {
+    request: {
+      method: (init.method ?? 'GET').toUpperCase(),
+      url,
+      headers: headerPairs(init.headers),
+      body: typeof init.body === 'string' ? init.body : null,
+    },
+  });
+  const bytes = Uint8Array.from(atob(r.body_b64), (c) => c.charCodeAt(0));
+  const headers = new Headers();
+  for (const [k, v] of r.headers) { try { headers.append(k, v); } catch { /* a header Response may not carry */ } }
+  return new Response(NULL_BODY.has(r.status) ? null : bytes, { status: r.status, headers });
+}
+
+if (isTauri) setX402Transport(parsecTransport);

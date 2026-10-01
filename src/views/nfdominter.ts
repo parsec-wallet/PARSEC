@@ -71,8 +71,7 @@ export function nfdominterView(): HTMLElement {
   const header = el('div', {
     cls: 'parsec-view__header',
     children: [
-      btn('Back', { minimal: true, icon: 'arrow-left', onClick: () => store.navigate('dashboard') }),
-      el('h2', { cls: 'parsec-view__title', text: '.algo Names' }),
+      btn('Back', { minimal: true, icon: 'arrow-left', onClick: () => { if (!store.back()) store.navigate('dashboard'); } }),
       el('span', {
         cls: `parsec-network-badge parsec-network-badge--${network}`,
         text: network.toUpperCase(),
@@ -80,15 +79,16 @@ export function nfdominterView(): HTMLElement {
     ],
   });
 
-  const tagline = el('p', {
-    cls: 'parsec-view__desc',
-    text: 'Claim and manage .algo names. Powered by NFD contracts on Algorand.',
-  });
+  const tagline = el('section', { cls: 'parsec-nfdominter__hero', children: [
+    el('p', { cls: 'parsec-nfdominter__kicker', text: 'Algorand · NFD registry' }),
+    el('h2', { cls: 'parsec-nfdominter__h', text: '.ALGO NAMES' }),
+    el('p', { cls: 'parsec-nfdominter__lede', text: 'A name your wallet answers to. Claim one, manage the ones you hold, and issue subdomains. Registered on the NFD contracts on Algorand; the name is yours, in your wallet.' }),
+  ] });
 
   renderBody();
 
   return el('div', {
-    cls: 'parsec-view parsec-nfdominter',
+    cls: 'parsec-view parsec-nfdominter parsec-nfdominter--wide',
     children: [header, tagline, tabBar, body],
   });
 }

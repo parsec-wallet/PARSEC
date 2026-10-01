@@ -15,7 +15,7 @@
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: Apache-2.0
 
-import { signerAddress, type X402Signers } from './host';
+import { signerAddress, type X402Signers, x402Transport } from './host';
 import { describeNetwork, familyFor, type RailFamily, type WalletNetwork } from './networks';
 import {
   buildPayment,
@@ -254,7 +254,7 @@ export async function submitPayment(
 ): Promise<X402PaymentResult> {
   let response: Response;
   try {
-    response = await fetch(pending.url, {
+    response = await x402Transport(pending.url, {
       ...pending.requestInit,
       headers: {
         ...(pending.requestInit?.headers as Record<string, string> | undefined),
@@ -332,7 +332,7 @@ export async function x402Request(
   const hint = hintAddress(options, settings.preferNetwork);
   if (options.sendPayerHint !== false && hint) headers[HEADER_PAYER_HINT] = hint;
 
-  const first = await fetch(url, {
+  const first = await x402Transport(url, {
     ...init,
     headers,
     signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
@@ -390,7 +390,7 @@ export async function discoverRequirements(
   init?: RequestInit,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<PaymentRequired | null> {
-  const response = await fetch(url, {
+  const response = await x402Transport(url, {
     ...init,
     headers: { Accept: 'application/json', ...(init?.headers as Record<string, string> | undefined) },
     signal: AbortSignal.timeout(timeoutMs),

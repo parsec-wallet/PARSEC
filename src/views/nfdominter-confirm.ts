@@ -14,6 +14,7 @@
 
 import { el, btn, toast } from '../lib/dom';
 import { store } from '../lib/store';
+import { x402Ready } from '../lib/ui/x402-ready';
 import {
   mintNfdWithFee,
   type Nfd,
@@ -48,7 +49,7 @@ export function nfdominterConfirmView(): HTMLElement {
   }
   const p = pending;
   const owner = p.reservedFor ?? p.buyer;
-  const root = el('div', { cls: 'parsec-view parsec-nfdominter__confirm' });
+  const root = el('div', { cls: 'parsec-view parsec-nfdominter__confirm parsec-nfdominter--wide' });
 
   const progress = el('div', { cls: 'parsec-nfdominter__progress', attrs: { 'aria-live': 'polite' }, text: '' });
   // Persistent error panel — a failed payment must NOT vanish in a toast.
@@ -275,30 +276,42 @@ export function nfdominterConfirmView(): HTMLElement {
       el('h2', { cls: 'parsec-view__title', text: `Register ${p.name}` }),
     ]}),
     networkRow,
-    el('div', { cls: 'parsec-nfdominter__confirm-summary', children: [
-      row('Name', p.name),
-      row('Years', String(p.years)),
-      row('Paid by', p.buyer),
-      ...(p.reservedFor ? [row('Owned by', p.reservedFor)] : []),
-    ]}),
-    el('h3', { cls: 'parsec-keyflow__heading', text: 'Necessary to register' }),
-    el('p', { cls: 'parsec-nfdominter__muted', text: 'Paid to the NFD registry and the Algorand network. Any wallet that registers this name pays these.' }),
-    el('div', { cls: 'parsec-nfdominter__quote-box', children: [
-      quoteRow('Name price', p.cost.basePrice),
-      quoteRow('Contract funding', p.cost.carryCost),
-      quoteRow('Network fee', p.cost.extraFee),
-      el('div', { cls: 'parsec-nfdominter__quote-total', children: [
-        el('span', { text: 'NFD total' }),
-        el('span', { text: algo(total) }),
+    el('div', { cls: 'parsec-nfdominter__review', children: [
+      // Left: what is being registered, and by whom.
+      el('section', { cls: 'parsec-nfdominter__review-col', children: [
+        el('p', { cls: 'parsec-nfdominter__review-kicker', text: 'Your name' }),
+        el('div', { cls: 'parsec-nfdominter__review-name', text: p.name }),
+        el('div', { cls: 'parsec-nfdominter__confirm-summary', children: [
+          row('Years', String(p.years)),
+          row('Paid by', p.buyer),
+          ...(p.reservedFor ? [row('Owned by', p.reservedFor)] : []),
+        ]}),
+        balanceBox,
+        // The BANKON fee is paid in USDC over x402: the same readiness, compact.
+        x402Ready({ compact: true }),
+      ]}),
+      // Right: what it costs, to whom, and the one action.
+      el('section', { cls: 'parsec-nfdominter__review-col', children: [
+        el('p', { cls: 'parsec-nfdominter__review-kicker', text: 'What it costs' }),
+        el('h3', { cls: 'parsec-keyflow__heading', text: 'Necessary to register' }),
+        el('p', { cls: 'parsec-nfdominter__muted', text: 'Paid to the NFD registry and the Algorand network. Any wallet that registers this name pays these.' }),
+        el('div', { cls: 'parsec-nfdominter__quote-box', children: [
+          quoteRow('Name price', p.cost.basePrice),
+          quoteRow('Contract funding', p.cost.carryCost),
+          quoteRow('Network fee', p.cost.extraFee),
+          el('div', { cls: 'parsec-nfdominter__quote-total', children: [
+            el('span', { text: 'NFD total' }),
+            el('span', { text: algo(total) }),
+          ]}),
+        ]}),
+        el('h3', { cls: 'parsec-keyflow__heading', text: 'BANKON fee' }),
+        feeBox,
+        el('p', { cls: 'parsec-nfdominter__muted', text: 'The two are in different currencies and go to different parties, so they are shown separately, not added. The BANKON fee is paid first; the NFD mint group is simulated before it is submitted, so a name the registry would reject is caught before any ALGO moves.' }),
+        errorBox,
+        progress,
+        payBtn,
       ]}),
     ]}),
-    balanceBox,
-    el('h3', { cls: 'parsec-keyflow__heading', text: 'BANKON fee' }),
-    feeBox,
-    el('p', { cls: 'parsec-nfdominter__muted', text: 'The two are in different currencies and go to different parties, so they are shown separately, not added. The BANKON fee is paid first; the NFD mint group is simulated before it is submitted, so a name the registry would reject is caught before any ALGO moves.' }),
-    errorBox,
-    progress,
-    payBtn,
   );
 
   return root;

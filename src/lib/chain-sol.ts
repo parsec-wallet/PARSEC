@@ -33,5 +33,5 @@ export async function solSign(
   address: string,
   payloadB64: string,
 ): Promise<{ signature_b64: string; scheme: 'ed25519' }> {
-  return await invoke('chain_sol_sign', { args: { address, payloadB64 } });
+  return await invoke('chain_sol_sign', { args: { address, payload_b64: payloadB64 } });
 }

@@ -12,6 +12,7 @@
 import { el, btn, input, toast } from '../lib/dom';
 import { onCleanup } from '../lib/lifecycle';
 import { store } from '../lib/store';
+import { x402Ready } from '../lib/ui/x402-ready';
 import { describeChoices } from '../lib/module-choices';
 import { X402_CHOICES } from '../lib/x402/choices';
 import { listRails } from '../lib/x402/rails';
@@ -159,6 +160,7 @@ export function x402DeskView(): HTMLElement {
               },
             }),
           ]),
+      btn('Search & add other assets', { minimal: true, icon: 'search', onClick: () => store.navigate('add-asset') }),
     );
   };
   void renderOptIn();
@@ -314,6 +316,7 @@ export function x402DeskView(): HTMLElement {
         ],
       }),
       el('p', { cls: 'parsec-muted', text: describeChoices(X402_CHOICES).join(' · ') }),
+      x402Ready(),
 
       el('div', {
         cls: 'parsec-card',

@@ -22,7 +22,7 @@ import { isTauri } from '../lib/platform';
 import { searchAssets, optInWithKeycore, optInToAsset } from '../lib/algorand/assets';
 import { microAlgosToAlgo } from '../lib/algorand/account';
 import { keystoreRetrieve, keystoreUnlock } from '../lib/keystore';
-import { standardAssets, standardAsset, lookalikeOf, type StandardAsset, type AssetGroup } from '../lib/algorand/asset-whitelist';
+import { standardAssets, standardAsset, lookalikeOf, searchStandard, type StandardAsset, type AssetGroup } from '../lib/algorand/asset-whitelist';
 import { cleanText } from '../lib/agenticplace/directory';
 import type { NetworkId } from '../types/wallet';
 
@@ -182,9 +182,17 @@ export function addAssetView(): HTMLElement {
     const my = ++seq;
     results.replaceChildren();
     if (!q) { status.textContent = ''; return; }
-    status.textContent = 'Searching the Algorand indexer…';
+    // Verified matches first, at once and locally; the indexer's answer follows.
+    const verified = searchStandard(network, q);
+    for (const a of verified) {
+      results.appendChild(card({ assetId: a.assetId, unitName: a.unitName, name: a.name, decimals: a.decimals, freeze: a.freeze, clawback: a.clawback, issuer: a.issuer }, { standard: a }));
+    }
+    const shownIds = new Set(verified.map((a) => a.assetId));
+    status.textContent = verified.length
+      ? `${verified.length} verified · searching the Algorand indexer for more…`
+      : 'Searching the Algorand indexer…';
     try {
-      const found = await searchAssets(q, network);
+      const found = (await searchAssets(q, network)).filter((r) => !shownIds.has(r.assetId));
       if (my !== seq) return;
       // Verified first, then the rest.
       const rows = found
@@ -194,10 +202,15 @@ export function addAssetView(): HTMLElement {
         const look = std ? undefined : lookalikeOf(network, r.assetId, r.unitName, r.name);
         results.appendChild(card({ assetId: r.assetId, unitName: r.unitName, name: r.name, decimals: r.decimals, freeze: std?.freeze ?? r.hasFreezeAddr, clawback: std?.clawback ?? r.hasClawbackAddr, issuer: std?.issuer }, { standard: std, lookalike: look }));
       }
-      status.textContent = rows.length ? `${rows.length} result${rows.length === 1 ? '' : 's'} for “${cleanText(q, 64)}”` : `Nothing found for “${cleanText(q, 64)}”.`;
+      const total = rows.length + verified.length;
+      status.textContent = total
+        ? `${total} result${total === 1 ? '' : 's'} for “${cleanText(q, 64)}” · ${verified.length + rows.filter((r) => r.std).length} verified`
+        : `Nothing found for “${cleanText(q, 64)}”.`;
     } catch (e) {
       if (my !== seq) return;
-      status.textContent = `Search failed: ${e instanceof Error ? e.message : String(e)}`;
+      status.textContent = verified.length
+        ? `${verified.length} verified shown; the indexer search failed: ${e instanceof Error ? e.message : String(e)}`
+        : `Search failed: ${e instanceof Error ? e.message : String(e)}`;
     }
   }
 

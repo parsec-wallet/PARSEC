@@ -25,3 +25,14 @@ describe('standard Algorand assets', () => {
     expect(standardAssets('betanet')).toEqual([]);
   });
 });
+
+describe('searchStandard', () => {
+  it('finds verified assets by ticker, name, issuer or id', async () => {
+    const { searchStandard } = await import('../algorand/asset-whitelist');
+    expect(searchStandard('mainnet', 'usd').map((a) => a.unitName)).toEqual(['USDC', 'USDt']);
+    expect(searchStandard('mainnet', 'circle').map((a) => a.assetId)).toEqual([31566704]);
+    expect(searchStandard('mainnet', '386192725').map((a) => a.unitName)).toEqual(['goBTC']);
+    expect(searchStandard('mainnet', 'eur').map((a) => a.unitName)).toEqual(['EURS']);
+    expect(searchStandard('mainnet', '')).toEqual([]);
+  });
+});
