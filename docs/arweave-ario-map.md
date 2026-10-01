@@ -63,18 +63,19 @@ are both live**, with different signing keys — `arweave-hd` for the AO era,
 | Group | Files | Lines |
 |---|--:|--:|
 | Keys & signing | 11 | 1,090 |
-| Transport & encoding | 8 | 1,908 |
+| Transport & encoding | 9 | 2,053 |
 | ar.io — AO era | 3 | 832 |
-| ar.io — Solana era | 39 | 2,185 |
+| ar.io — Solana era | 40 | 2,298 |
 | Sovereign registries (BNR + BMR) | 37 | 3,692 |
-| Name model & desk | 8 | 1,224 |
-| Views | 31 | 5,975 |
-| Surfaces (tiles, styles, probes) | 5 | 340 |
-| Apps & scripts | 9 | 1,055 |
-| Tests | 19 | 1,339 |
-| **Total (mapped, excluding peripheral)** | **170** | **19,640** |
+| Name model & desk | 9 | 1,289 |
+| Name stores (.algo + ArNS undernames) | 3 | 747 |
+| Views | 31 | 6,063 |
+| Surfaces (tiles, styles, probes) | 5 | 351 |
+| Apps & scripts | 9 | 1,065 |
+| Tests | 22 | 1,491 |
+| **Total (mapped, excluding peripheral)** | **179** | **20,971** |
 
-Generated 2026-09-21. Every file in the tree carrying ≥3 Arweave/ar.io/AO/naming references is claimed by a group above or listed as a peripheral touchpoint — the map is complete.
+Generated 2026-10-01. Every file in the tree carrying ≥3 Arweave/ar.io/AO/naming references is claimed by a group above or listed as a peripheral touchpoint — the map is complete.
 <!-- END INVENTORY -->
 
 ## 1. Keys & signing
@@ -283,9 +284,12 @@ Stated here so the map is not read as a health certificate:
   flags that upstream has removed. Tracked in `integration/ario-deploy.md`.
 - **v1 payment proofs are attestations**, not verified reads, on both the BNR and
   the BMR. The oracle work is v2 — see `integration/toon-naming-x402.md` §3.
-- **ArNS pricing is not yet audited for float arithmetic** —
-  [`cypherpunk4096.md`](./cypherpunk4096.md) commitment IV still lists it.
-- **Paid uploads stop at 402** unless the Arweave address already holds Turbo credits; buying credits is not in the wallet.
+- **ArNS pricing displays are exact** (0.1.3): mARIO is formatted with integer arithmetic and a
+  USD value (`lib/names/cost-display.ts`); the name controller's float division is gone.
+  [`cypherpunk4096.md`](./cypherpunk4096.md) commitment IV can be re-checked for this item.
+- **Paid uploads** go through Turbo's x402 endpoint in USDC on Base from the person's own wallet,
+  with the BANKON facilitation fee paid first (`lib/arweave/turbo-x402.ts`,
+  [`permaweb/README.md`](./permaweb/README.md)). Turbo credits are still not bought in the wallet.
 - **Test coverage is thin at the edges.** `arweave/` has three test files
   (`ans104`, `seed`, `tx`); `ario.ts`, `ant.ts`, `inject.ts` and both AO process
   clients have none.

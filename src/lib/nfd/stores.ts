@@ -30,6 +30,7 @@ import { x402Request, type X402PaymentResult } from '../x402/client';
 import { ALGORAND_MAINNET, ALGORAND_TESTNET, sameNetwork, usdcFor } from '../x402/networks';
 import type { X402Signers } from '../x402/host';
 import { formatDecimal } from '../money';
+import { bankonFee } from '../bankon-fee';
 import type { NetworkId } from '../../types/wallet';
 
 export const STORES_URL = 'https://mindx.pythai.net/names/stores';
@@ -70,11 +71,11 @@ export function tierFor(label: string): Tier {
   return n <= 3 ? 'premium' : n === 4 ? 'valuable' : 'standard';
 }
 
-/** BANKON facilitation fee: 10 % of the price, at least $0.05, paid by the buyer on top. */
-export const FEE_BPS = 1_000;
-export const FEE_MIN_MICRO = 50_000;
+/** BANKON facilitation fee: 10 % of the price, at least $0.05, paid by the buyer on top
+ *  (the one rule, in lib/bankon-fee.ts). */
+export { FEE_BPS, FEE_MIN_MICRO } from '../bankon-fee';
 export function bankonFeeMicro(priceMicro: number): number {
-  return Math.max(Math.floor((priceMicro * FEE_BPS) / 10_000), FEE_MIN_MICRO);
+  return Number(bankonFee(BigInt(Math.max(0, Math.trunc(priceMicro)))));
 }
 
 export interface StoreListing {

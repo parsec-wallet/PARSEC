@@ -102,9 +102,17 @@ describe('building the authorization', () => {
     expect(signCalls[0].address).toBe(PAYER);
   });
 
-  it('defaults the domain to USDC when the server declared none', async () => {
+  it('defaults to the token\'s own domain name when the server declared none', async () => {
+    // Base mainnet USDC's on-chain name() is "USD Coin" (read 2026-10-01); signing under
+    // "USDC" there is an invalid signature.
     await buildAuthorization(context({ name: undefined, version: undefined }));
-    expect(signCalls[0].domain).toMatchObject({ name: 'USDC', version: '2' });
+    expect(signCalls[0].domain).toMatchObject({ name: 'USD Coin', version: '2' });
+  });
+
+  it('falls back to "USDC" for a token it does not know', async () => {
+    const { defaultTokenName } = await import('../rails/evm');
+    expect(defaultTokenName('0x036CbD53842c5426634e7929541eC2318f3dCF7e')).toBe('USDC'); // Base Sepolia
+    expect(defaultTokenName('0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913')).toBe('USD Coin');
   });
 
   it('honours a token that names its own domain', async () => {

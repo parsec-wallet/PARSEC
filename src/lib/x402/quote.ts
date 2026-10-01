@@ -18,7 +18,8 @@ import { describeAsset, describeNetwork } from './networks';
 import type { PaymentRequirements } from './protocol';
 
 /** Assets that are one-for-one with USD, so their USD value needs no oracle. */
-const USD_PEGGED = new Set(['USDC', 'USDT', 'PYUSD', 'EURC']);
+// Symbols as servers write them, including Circle's EIP-712 token name for USDC.
+const USD_PEGGED = new Set(['USDC', 'USD COIN', 'USDT', 'PYUSD']);
 
 export interface X402Quote {
   requirement: PaymentRequirements;

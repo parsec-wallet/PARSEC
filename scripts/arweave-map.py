@@ -34,7 +34,9 @@ GROUPS = [
     ("Transport & encoding", [
         "src/lib/arweave/client.ts", "src/lib/arweave/tx.ts", "src/lib/arweave/ans104.ts",
         "src/lib/arweave/ao.ts", "src/lib/arweave/inject.ts", "src/lib/arweave/index.ts",
-        "src/lib/arweave/turbo.ts", "src/lib/arweave/manifest.ts"]),
+        "src/lib/arweave/turbo.ts", "src/lib/arweave/manifest.ts",
+        # Turbo uploads paid over x402 (USDC on Base) and the BANKON fee — lib/bankon-fee.ts
+        "src/lib/arweave/turbo-x402.ts"]),
     ("ar.io — AO era", [
         "src/lib/arweave/ario.ts", "src/lib/arweave/ant.ts", "src/lib/namespaces/arns.ts"]),
     ("ar.io — Solana era", [
@@ -49,6 +51,8 @@ GROUPS = [
     ("Name model & desk", [
         "src/lib/names/*.ts", "src/lib/namespaces/types.ts", "src/lib/namespaces/registry.ts",
         "src/lib/namespaces/index.ts", "apps/parsec-names/*.js", "apps/parsec-names/*.html"]),
+    ("Name stores (.algo + ArNS undernames)", [
+        "src/lib/nfd/stores.ts", "src/lib/ui/store-editor.ts", "src/views/nfdominter-stores.ts"]),
     ("Views", ["src/views/arweave-*.ts", "src/views/ario-*.ts", "src/views/name-*.ts",
                "src/views/market-*.ts", "src/views/bankon-*.ts", "src/views/permaweb-*.ts",
                "src/views/connect-name-approve.ts"]),
@@ -63,7 +67,9 @@ GROUPS = [
     ("Tests", [
         "src/lib/arweave/__tests__/*.ts", "src/lib/permaweb/__tests__/*.ts",
         "src/lib/namespaces/__tests__/*.ts", "src/lib/names/__tests__/*.ts",
-        "src/lib/marketplace/providers/__tests__/*.ts", "apps/parsec-names/test/*.mjs"]),
+        "src/lib/marketplace/providers/__tests__/*.ts", "apps/parsec-names/test/*.mjs",
+        "src/lib/__tests__/storage-cost.test.ts", "src/lib/__tests__/name-cost.test.ts",
+        "src/lib/__tests__/nfd-stores.test.ts"]),
 ]
 
 # Files that mention the permaweb in passing and belong to another module. Listed, not hidden:
@@ -88,6 +94,10 @@ PERIPHERAL = [
     # x402 is a payment module, not a permaweb one — but its CAIP-2 table names the
     # `arweave` rail family, so the map claims it rather than reporting it unmapped.
     "src/lib/x402/networks.ts",
+    # Mention Arweave or ArNS in passing (a probe list, the router's view table, logout, a
+    # watcher of addresses): another module's files, listed so the blast radius stays honest.
+    "src/lib/diag-profiles.ts", "src/lib/router.ts", "src/lib/session.ts",
+    "src/lib/watch.ts", "src/lib/__tests__/watch.test.ts",
 ]
 
 

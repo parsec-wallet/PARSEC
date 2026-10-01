@@ -10,6 +10,12 @@ import { el, btn, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
 import { isTauri } from '../lib/platform';
 import { formatDecimal } from '../lib/money';
+import { fetchPricesByIds } from '../lib/prices';
+import { signersForAccount } from '../lib/x402/adapters/parsec';
+import { explorerTxUrl, BASE_MAINNET } from '../lib/x402/networks';
+import { quoteStorage, type StorageQuote } from '../lib/permaweb/storage-cost';
+import { UploadBudget, payUploadFee, postDataItemX402 } from '../lib/arweave/turbo-x402';
+import { postDataItem } from '../lib/arweave/turbo';
 import {
   TurboError,
   WINC_DECIMALS,
@@ -38,6 +44,10 @@ interface State {
   plan?: UploadPlan;
   /** undefined = not asked yet, null = the price service could not answer. */
   priceWinc?: bigint | null;
+  /** Every route's price for the paid items; undefined = not asked yet. */
+  quote?: StorageQuote;
+  /** Pay the paid items over x402 (USDC on Base) instead of with Turbo credits. */
+  payX402: boolean;
   armed: boolean;
   busy: boolean;
   log: string[];
@@ -73,7 +83,10 @@ export function permawebUploadView(): HTMLElement {
   }
   const signer = address;
 
-  const st: State = { files: [], asSite: false, armed: false, busy: false, log: [], verifying: false };
+  const st: State = { files: [], asSite: false, armed: false, busy: false, log: [], verifying: false, payX402: false };
+  // x402 pays from the account's Base (EVM) address, signed by the PARSEC Keycore (desktop/phone).
+  const evmAddress = account ? getAccountAddress(account, 'ethereum') : undefined;
+  const canX402 = isTauri && !!evmAddress;
   const infoPromise = getTurboInfo();
   const body = el('div', { cls: `${C}__body` });
   // The progress log is one element, updated in place — a 200-file site would otherwise rebuild
@@ -134,11 +147,18 @@ export function permawebUploadView(): HTMLElement {
       return;
     }
     st.priceWinc = undefined;
+    st.quote = undefined;
     render();
     if (!st.plan.allFree) {
-      const p = st.plan;
-      const paid = p.items.filter((i) => !i.free).reduce((n, i) => n + i.size, 0) + (p.manifest && !p.manifest.free ? p.manifest.size : 0);
-      try { st.priceWinc = await getTurboPriceWinc(paid); } catch { st.priceWinc = null; }
+      const sizes = paidSizes(st.plan);
+      const paid = sizes.reduce((n, b) => n + b, 0);
+      const arUsd = await fetchPricesByIds(['arweave']).then((c) => c.find((x) => x.id === 'arweave')?.usd ?? null).catch(() => null);
+      const [winc, quote] = await Promise.all([
+        getTurboPriceWinc(paid).catch(() => null),
+        quoteStorage(sizes, arUsd),
+      ]);
+      st.priceWinc = winc;
+      st.quote = quote;
       render();
     }
   }
@@ -159,10 +179,29 @@ export function permawebUploadView(): HTMLElement {
     st.log = [`Signing as ${short(signer)} — ${isTauri ? 'PARSEC Keycore; the key stays in the vault' : 'browser build; the vault key is used in this tab and zeroed after'}.`];
     render();
     try {
+      // Paid items over x402: the BANKON fee first, once; then each paid item to Turbo, within
+      // the budget shown on the screen. Free items always go the free way.
+      let post = postDataItem;
+      const x402 = st.payX402 && !plan.allFree && st.quote?.x402.usdMicro != null && st.quote.x402.bankonFeeMicro != null;
+      if (x402) {
+        const q = st.quote!;
+        const signers = signersForAccount(account!);
+        const budget = new UploadBudget(budgetFor(q.x402.usdMicro!));
+        st.log.push(`Paying the BANKON facilitation fee (${usd(q.x402.bankonFeeMicro!)}) over x402…`);
+        renderLog();
+        const fee = await payUploadFee(paidSizes(plan), signers, q.x402.bankonFeeMicro!);
+        st.log.push(`BANKON fee paid: ${usd(fee.feeMicro)} · ${fee.txId}`);
+        renderLog();
+        const free = plan.freeLimit;
+        post = (raw) => (raw.length <= free ? postDataItem(raw) : postDataItemX402(raw, signers, budget, (paid) => {
+          st.log.push(`     paid Turbo ${usd(paid.amountMicro)} in USDC on Base${paid.txHash ? ` · ${explorerTxUrl(BASE_MAINNET, paid.txHash)}` : ''}`);
+          renderLog();
+        }));
+      }
       st.result = await runUpload(plan, sign, (e) => {
         st.log.push(e.kind === 'signing' ? `${e.n}/${e.of}  signing ${e.path}` : `${e.n}/${e.of}  uploaded ${e.path} → ${e.id}`);
         renderLog();
-      });
+      }, post);
       st.log.push(`Done. ${st.result.manifest ? 'Site' : 'File'} id ${st.result.rootId}`);
       toast('Uploaded — checking what the gateways serve', 'success');
     } catch (e) {
@@ -233,11 +272,13 @@ export function permawebUploadView(): HTMLElement {
 
   function planSection(p: UploadPlan): HTMLElement {
     const count = p.items.length + (p.manifest ? 1 : 0);
+    const q = st.quote;
     const headline = p.allFree
       ? `Free — ${count} item${count === 1 ? '' : 's'}, ${fmtBytes(p.totalBytes)}`
-      : st.priceWinc === undefined ? `Pricing ${fmtBytes(p.totalBytes)}…`
-        : st.priceWinc === null ? 'Needs Turbo credits — price unavailable right now'
-          : `≈ ${formatDecimal(st.priceWinc, WINC_DECIMALS, { maxFractionDigits: 6 })} AR in Turbo credits`;
+      : q === undefined ? `Pricing ${fmtBytes(p.totalBytes)}…`
+        : st.payX402 && q.x402.totalMicro != null ? `≈ ${usd(q.x402.totalMicro)} in USDC on Base, BANKON fee included`
+          : st.priceWinc != null ? `≈ ${formatDecimal(st.priceWinc, WINC_DECIMALS, { maxFractionDigits: 6 })} AR in Turbo credits${q.turbo.usdMicro != null ? ` (≈ ${usd(q.turbo.usdMicro)})` : ''}`
+            : 'Needs payment — prices unavailable right now';
 
     const rows = p.items.map((i) => el('div', {
       cls: `${C}__file`,
@@ -269,6 +310,14 @@ export function permawebUploadView(): HTMLElement {
       children: [
         el('div', { cls: `${C}__headline`, attrs: { 'data-tone': p.allFree ? 'done' : 'warn' }, text: headline }),
         el('p', { cls: 'parsec-view__desc', text: `Sizes are exact signed sizes. Turbo stores items up to ${fmtBytes(p.freeLimit)} free${st.info?.live ? ' (live from upload.ardrive.io)' : ' (fallback figure — Turbo did not answer)'}.${p.allFree ? '' : ' Larger items need Turbo credits on this Arweave address; without them Turbo refuses the item and nothing is charged. The AR figure is an estimate from payment.ardrive.io.'}` }),
+        ...(p.allFree || !q ? [] : [costTable(q)]),
+        ...(p.allFree || !q || !canX402 ? [] : [checkbox(
+          q.x402.totalMicro != null
+            ? `Pay with USDC on Base over x402: Turbo ≈ ${usd(q.x402.usdMicro!)} plus the BANKON facilitation fee ${usd(q.x402.bankonFeeMicro!)}. You approve up to ${usd(budgetFor(q.x402.usdMicro!))} for Turbo (exact quotes are checked item by item); nothing beyond it is signed.`
+            : 'Pay with USDC on Base over x402 — unavailable: Turbo\'s prices could not be read.',
+          st.payX402 && q.x402.totalMicro != null,
+          (v) => { st.payX402 = v && q.x402.totalMicro != null; render(); },
+        )]),
         el('div', { cls: `${C}__files`, children: rows }),
         ...siteToggle,
         arm,
@@ -334,8 +383,44 @@ function checkRow(c: GatewayCheck): HTMLElement {
   return el('div', { cls: `${C}__check`, attrs: { 'data-tone': tone }, children: [el('code', { text: host }), el('span', { text: text + note })] });
 }
 
+/** The paid items' signed sizes, manifest included when it is not free. */
+function paidSizes(p: UploadPlan): number[] {
+  return [...p.items.filter((i) => !i.free).map((i) => i.size), ...(p.manifest && !p.manifest.free ? [p.manifest.size] : [])];
+}
+
+/** The most an upload's Turbo payments may add up to: the estimate, a quarter more for prices
+ *  moving, and a cent per item's worth of slack. Shown to the person before they approve. */
+function budgetFor(estimateMicro: bigint): bigint {
+  return estimateMicro + estimateMicro / 4n + 10_000n;
+}
+
+function usd(micro: bigint): string {
+  const whole = micro / 1_000_000n;
+  const frac = (micro % 1_000_000n).toString().padStart(6, '0');
+  const cents = frac.slice(0, 2);
+  const rest = frac.slice(2).replace(/0+$/, '');
+  return `$${whole.toLocaleString()}.${cents}${rest}`;
+}
+
+/** Every route side by side: what it costs, what pays it. Unknown when a source is down. */
+function costTable(q: StorageQuote): HTMLElement {
+  const row = (route: string, price: string, how: string) => el('div', { cls: `${C}__cost`, children: [
+    el('span', { cls: `${C}__cost-route`, text: route }), el('strong', { text: price }), el('span', { cls: `${C}__meta`, text: how }),
+  ] });
+  const ar = q.arweave.winston != null
+    ? `${formatDecimal(q.arweave.winston, WINC_DECIMALS, { maxFractionDigits: 6 })} AR${q.arweave.usdMicro != null ? ` ≈ ${usd(q.arweave.usdMicro)}` : ''}` : 'unknown';
+  const turbo = q.turbo.usdMicro != null ? `≈ ${usd(q.turbo.usdMicro)}` : 'unknown';
+  const x402 = q.x402.totalMicro != null ? `≈ ${usd(q.x402.totalMicro)}` : 'unknown';
+  return el('div', { cls: `${C}__costs`, children: [
+    el('p', { cls: `${C}__meta`, text: `What the ${q.paidItems} paid item${q.paidItems === 1 ? '' : 's'} (${fmtBytes(q.paidBytes)}) cost, by route — estimates; a payment shows its exact figure first.` }),
+    row('Arweave directly', ar, 'paid in AR from an Arweave address; slowest to confirm'),
+    row('Turbo credits', turbo, 'credits on this Arweave address, bought from Turbo (card or token)'),
+    row('Turbo over x402', x402, `USDC on Base, per item (at least $0.01 each) · includes the BANKON facilitation fee${q.x402.bankonFeeMicro != null ? ` ${usd(q.x402.bankonFeeMicro)}` : ''}`),
+  ] });
+}
+
 function badge(free: boolean): HTMLElement {
-  return el('span', { cls: `${C}__badge`, attrs: { 'data-tone': free ? 'done' : 'warn' }, text: free ? 'free' : 'credits' });
+  return el('span', { cls: `${C}__badge`, attrs: { 'data-tone': free ? 'done' : 'warn' }, text: free ? 'free' : 'paid' });
 }
 
 function checkbox(label: string, checked: boolean, onChange: (v: boolean) => void): HTMLElement {

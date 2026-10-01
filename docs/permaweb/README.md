@@ -106,11 +106,35 @@ panel showed *unreachable* while the control plane was fine. It now uses the Per
 setting (`solana-rpc.publicnode.com` by default), which answers the same batch with both ar.io
 programs and the ARIO mint (checked 2026-09-10).
 
+## Paid uploads and what they cost (0.1.3)
+
+Items over Turbo's free limit can be paid three ways, and the upload screen prices all three
+side by side, exactly (integer winston, winc and micro-USD; `lib/permaweb/storage-cost.ts`):
+
+| Route | Priced from | Paid with |
+|---|---|---|
+| Arweave directly | `arweave.net/price/{bytes}` × the AR price | AR from an Arweave address |
+| Turbo credits | `payment.ardrive.io/v1/price/bytes` × Turbo's `/v1/rates` | credits on the Arweave address |
+| **Turbo over x402** | Turbo's rate per item, **at least $0.01 each**; the exact figure is Turbo's 402 quote | **USDC on Base, from this wallet** |
+
+**Over x402** (`lib/arweave/turbo-x402.ts`), non-custodial: the person pays Turbo directly.
+1. The BANKON facilitation fee — 10 % of the x402 cost, at least $0.05 (`lib/bankon-fee.ts`) — is
+   paid first, once, over x402 to `mindx.pythai.net/permaweb/fee`. mindX computes the fee itself
+   from Turbo's public prices; PARSEC refuses one that asks more than it computed.
+2. Each paid item is POSTed to `upload.ardrive.io/v1/x402/data-item/signed`; Turbo answers 402,
+   the PARSEC Keycore signs a USDC `transferWithAuthorization` on Base, Turbo settles and stores.
+   Every payment is checked before signing — USDC, Base, and within the budget shown on screen
+   (the estimate plus a quarter, plus a cent) — even under an auto-approve cap.
+3. Free items still go the free way; Turbo's receipt must name the id that was signed.
+
+Measured 2026-10-01 for 1 MB: Arweave direct ≈ $0.056 (AR $4.26), Turbo credits ≈ $0.081,
+Turbo x402 $0.0828.
+
 ## Not built yet
 
-- **Paid uploads end to end.** Items over the free limit go through if the Arweave address holds
-  Turbo credits; otherwise Turbo answers 402 and the view says so. Buying credits (fiat, tokens,
-  x402 USDC) is not in the wallet.
+- **BANKON-delivered purchases** (one x402 payment to BANKON, which performs the Turbo upload or
+  the ArNS purchase and delivers the result) need BANKON-held keys and funded floats on the
+  server. Not built: the non-custodial route above is the current design.
 - **Wayfinder routing.** Verification asks a fixed gateway list; ranking gateways by the ar.io
   registry or `/ar-io/peers` is next.
 - **Undername uploads.** The upload hand-off fills the root target; the undername form still takes a

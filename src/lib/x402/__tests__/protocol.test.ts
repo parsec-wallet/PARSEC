@@ -198,3 +198,19 @@ describe('reading a settlement', () => {
     expect(readSettlement(response(200, {}))).toBeNull();
   });
 });
+
+describe('v1 servers hear their own network name back', () => {
+  it('echoes "base" in a v1 payment, keeps CAIP-2 inside and in v2', async () => {
+    const { normalizeRequirement, buildPayment } = await import('../protocol');
+    const req = normalizeRequirement({
+      scheme: 'exact', network: 'base', maxAmountRequired: '82783',
+      payTo: '0x6A0A10FFD285c971B841bee8892878c0d583Bf67',
+      asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', extra: { name: 'USD Coin', version: '2' },
+    });
+    expect(req.network).toBe('eip155:8453');
+    expect(req.amount).toBe('82783');
+    const challenge = (v: number) => ({ x402Version: v, resource: { url: 'https://upload.ardrive.io/v1/x402/data-item/signed' }, accepts: [req] });
+    expect(buildPayment(challenge(1) as never, req, {}).network).toBe('base');
+    expect(buildPayment(challenge(2) as never, req, {}).network).toBe('eip155:8453');
+  });
+});
