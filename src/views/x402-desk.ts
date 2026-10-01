@@ -12,6 +12,8 @@
 import { el, btn, input, toast } from '../lib/dom';
 import { onCleanup } from '../lib/lifecycle';
 import { store } from '../lib/store';
+import { x402Ready } from '../lib/ui/x402-ready';
+import { assetPicker } from '../lib/ui/asset-picker';
 import { describeChoices } from '../lib/module-choices';
 import { X402_CHOICES } from '../lib/x402/choices';
 import { listRails } from '../lib/x402/rails';
@@ -24,7 +26,6 @@ import {
   describeNetwork,
   usdcFor,
 } from '../lib/x402/networks';
-import { isOptedIn, optInToAsset } from '../lib/x402/rails/avm';
 import { listReceipts, clearReceipts, receiptExplorerUrl, onReceipts, type X402Receipt } from '../lib/x402/receipts';
 import { discoverRequirements } from '../lib/x402/client';
 import { signersForAccount } from '../lib/x402/adapters/parsec';
@@ -125,40 +126,16 @@ export function x402DeskView(): HTMLElement {
       );
       return;
     }
-    const opted = await isOptedIn(payer, Number(usdc), settings.preferNetwork);
+    // Opting in is its own thing (ADD ASSETS) and part of paying: the same
+    // picker, with the payment asset first.
     optInBox.replaceChildren(
-      el('h3', { text: 'USDC' }),
+      el('h3', { text: 'Assets' }),
       ...(network.testnet
         ? [el('div', { cls: 'parsec-callout bp5-callout bp5-intent-warning', children: [el('p', {
           text: `Testnet: test USDC (ASA ${usdc}) has no value and settles nothing real. Choose Algorand mainnet · USDC ${USDC_ASA_MAINNET} under Settings below for a real payment.`,
         })] })]
         : []),
-      row('Network', network.label),
-      row('ASA', usdc),
-      row('Opted in', opted ? 'yes' : 'no'),
-      ...(opted
-        ? []
-        : [
-            el('p', {
-              cls: 'parsec-muted',
-              text: 'Opting in locks 0.1 ALGO into this account’s minimum balance for as long as the holding exists.',
-            }),
-            btn(`Opt in to ASA ${usdc}`, {
-              intent: 'primary',
-              onClick: async (e) => {
-                const b = e.currentTarget as HTMLButtonElement;
-                b.disabled = true;
-                try {
-                  const { txId } = await optInToAsset(signers.avm!, Number(usdc), settings.preferNetwork);
-                  toast(`Opted in · ${trunc(txId)}`, 'success');
-                  void renderOptIn();
-                } catch (err) {
-                  toast(err instanceof Error ? err.message : String(err), 'danger');
-                  b.disabled = false;
-                }
-              },
-            }),
-          ]),
+      assetPicker({ highlight: Number(usdc), highlightLabel: 'Needed for x402 payments', compact: true }),
     );
   };
   void renderOptIn();
@@ -314,6 +291,7 @@ export function x402DeskView(): HTMLElement {
         ],
       }),
       el('p', { cls: 'parsec-muted', text: describeChoices(X402_CHOICES).join(' · ') }),
+      x402Ready(),
 
       el('div', {
         cls: 'parsec-card',

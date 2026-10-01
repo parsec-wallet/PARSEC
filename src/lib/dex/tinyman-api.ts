@@ -74,6 +74,7 @@ export const tinymanApiModule: DexModule = {
       minOutput,
       poolAddress: String(pool.address || ''),
       dex: 'Tinyman (API)',
+      dexId: 'tinyman-api',
     };
   },
 

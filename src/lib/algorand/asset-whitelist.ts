@@ -62,3 +62,17 @@ export function lookalikeOf(network: NetworkId, assetId: number, unitName: strin
   return standardAssets(network).find((a) => a.assetId !== assetId
     && (a.unitName.toLowerCase() === u || a.name.toLowerCase() === n));
 }
+
+/**
+ * Verified assets matching a query by id, ticker, name or issuer — answered
+ * locally and instantly, so a search always shows the verified asset first,
+ * whatever the indexer returns.
+ */
+export function searchStandard(network: NetworkId, query: string): StandardAsset[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  return standardAssets(network).filter((a) => String(a.assetId) === q
+    || a.unitName.toLowerCase().includes(q)
+    || a.name.toLowerCase().includes(q)
+    || a.issuer.toLowerCase().includes(q));
+}

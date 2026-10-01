@@ -1,0 +1,254 @@
+// ==========================================================================
+// SPINTRADE (views/swap.ts)
+// ==========================================================================
+
+@use '../abstracts' as *;
+
+.parsec-view.parsec-swap2 {
+  width: min(100%, 1180px);
+  max-width: none;
+}
+
+.parsec-swap2__hero { padding: $spacing-3 0 $spacing-4; }
+
+.parsec-swap2__kicker,
+.parsec-swap2__qkicker {
+  margin: 0 0 $spacing-2;
+  color: $px-gold;
+  font-size: $font-size-xs;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.parsec-swap2__h {
+  margin: 0 0 $spacing-3;
+  color: $px-text;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.parsec-swap2__lede {
+  max-width: 48em;
+  margin: 0;
+  color: #c3cdd6;
+  font-size: $font-size-lg;
+  line-height: 1.5;
+}
+
+.parsec-swap2__muted {
+  margin: 0;
+  color: $px-muted;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+}
+
+.parsec-swap2__error {
+  margin: 0;
+  color: $px-danger;
+  font-size: $font-size-sm;
+}
+
+// Effortless ALGO → USDC
+.parsec-swap2__quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-4;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: $spacing-5;
+  padding: $spacing-4 $spacing-5;
+  border: 1px solid rgba($px-gold, 0.45);
+  border-radius: $border-radius-lg;
+  background: linear-gradient(110deg, rgba($px-gold, 0.1), transparent 60%), $px-panel;
+}
+
+.parsec-swap2__quick-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 40em;
+
+  strong { color: $px-gold-hi; font-size: $font-size-lg; }
+  span { color: #c3cdd6; font-size: $font-size-sm; }
+}
+
+.parsec-swap2__quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+}
+
+.parsec-swap2__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 1fr);
+  gap: $spacing-6;
+  align-items: start;
+}
+
+.parsec-swap2__trade,
+.parsec-swap2__quote {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  padding: $spacing-5;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: $px-panel;
+}
+
+.parsec-swap2__quote {
+  position: sticky;
+  top: $spacing-4;
+}
+
+.parsec-swap2__label {
+  margin-top: $spacing-2;
+  color: $px-muted;
+  font-size: $font-size-xs;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.parsec-swap2__from {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(0, 1fr) auto;
+  gap: $spacing-2;
+}
+
+.parsec-swap2__select,
+.parsec-swap2__amount,
+.parsec-swap2__filter {
+  min-height: 48px;
+  padding: 0 $spacing-3;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-md;
+  background: $px-void;
+  color: $px-text;
+  font: inherit;
+  outline: none;
+
+  &:focus { border-color: $px-gold; }
+}
+
+.parsec-swap2__amount {
+  font-family: $font-family-mono;
+  font-size: 1.3rem;
+  text-align: right;
+}
+
+.parsec-swap2__bal {
+  color: $px-muted;
+  font-size: $font-size-xs;
+  text-align: right;
+}
+
+.parsec-swap2__pools {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: $spacing-2;
+  max-height: 340px;
+  overflow: auto;
+}
+
+.parsec-swap2 .parsec-swap2__pool {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: $spacing-2 $spacing-3;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-md;
+  background: $px-void;
+  color: $px-text;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  strong { font-size: $font-size-sm; }
+  span { color: $px-muted; font-size: $font-size-xs; }
+
+  &:hover { border-color: $px-steel-hi; }
+
+  &--on {
+    border-color: $px-gold;
+    background: rgba($px-gold, 0.1);
+  }
+}
+
+.parsec-swap2__slip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.parsec-swap2 .parsec-swap2__chip {
+  padding: 4px 12px;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-full;
+  background: transparent;
+  color: $px-muted;
+  font: inherit;
+  font-size: $font-size-xs;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    border-color: $px-gold;
+    background: rgba($px-gold, 0.12);
+    color: $px-gold-hi;
+  }
+}
+
+.parsec-swap2__receive {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: $spacing-3;
+  border-bottom: 1px solid $px-line;
+
+  span { color: $px-muted; font-size: $font-size-sm; }
+
+  strong {
+    color: $px-gold-hi;
+    font-family: $font-family-mono;
+    font-size: clamp(1.4rem, 2.6vw, 2rem);
+    font-weight: 800;
+  }
+}
+
+.parsec-swap2__qrow {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-3;
+  font-size: $font-size-sm;
+
+  span { color: $px-muted; }
+  strong { font-weight: 600; text-align: right; }
+}
+
+.parsec-swap2__go.bp5-button { margin-top: $spacing-2; }
+
+.parsec-swap2__history {
+  margin-top: $spacing-6;
+
+  h3 { margin: 0 0 $spacing-3; font-size: $font-size-base; }
+}
+
+.parsec-swap2__hrow {
+  display: grid;
+  grid-template-columns: 10rem 1fr 8rem auto;
+  gap: $spacing-3;
+  padding: $spacing-2 0;
+  border-bottom: 1px solid rgba($px-line, 0.6);
+  font-size: $font-size-sm;
+
+  span { color: $px-muted; }
+  code { color: $px-steel-hi; background: none; }
+}
+
+:root[data-viewport='compact'] {
+  .parsec-swap2__grid { grid-template-columns: 1fr; }
+  .parsec-swap2__quote { position: static; }
+  .parsec-swap2__from { grid-template-columns: 1fr; }
+  .parsec-swap2__hrow { grid-template-columns: 1fr 1fr; }
+}

@@ -199,13 +199,14 @@ export const pactModule: DexModule = {
       fee: Math.floor(inputAmount * feeRate),
       minOutput,
       poolAddress: pool.address,
-      dex: 'pact',
+      dex: 'Pact',
+      dexId: 'pact',
     };
   },
 
-  async executeSwap(mnemonic, inputAssetId, outputAssetId, inputAmount, minOutputAmount, poolAddress, network): Promise<{ txId: string }> {
+  async executeSwap(signer, inputAssetId, outputAssetId, inputAmount, minOutputAmount, poolAddress, network): Promise<{ txId: string }> {
     const client = getAlgodClient(network);
-    const account = algosdk.mnemonicToSecretKey(mnemonic.trim());
+    const sender = signer.address;
     const appId = PACT_APP_ID[network];
     const suggestedParams = await client.getTransactionParams().do();
     const txns: algosdk.Transaction[] = [];
@@ -213,18 +214,18 @@ export const pactModule: DexModule = {
     // Fund the pool with input asset
     if (inputAssetId === 0) {
       txns.push(algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        sender: account.addr, receiver: poolAddress, amount: inputAmount, suggestedParams,
+        sender: sender, receiver: poolAddress, amount: inputAmount, suggestedParams,
       }));
     } else {
       txns.push(algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-        sender: account.addr, receiver: poolAddress, amount: inputAmount,
+        sender: sender, receiver: poolAddress, amount: inputAmount,
         assetIndex: inputAssetId, suggestedParams,
       }));
     }
 
     // App call to execute the swap
     txns.push(algosdk.makeApplicationCallTxnFromObject({
-      sender: account.addr, appIndex: appId,
+      sender: sender, appIndex: appId,
       appArgs: [
         new TextEncoder().encode('SWAP'),
         algosdk.encodeUint64(minOutputAmount),
@@ -239,7 +240,8 @@ export const pactModule: DexModule = {
     }));
 
     algosdk.assignGroupID(txns);
-    const signedTxns = txns.map(txn => txn.signTxn(account.sk));
+    // Every transaction in the group is the swapper's; the Keycore signs them.
+    const signedTxns = await signer.sign(txns, txns.map((_, i) => i));
     const { txid } = await client.sendRawTransaction(signedTxns).do();
     await algosdk.waitForConfirmation(client, txid, 6);
     return { txId: txid };

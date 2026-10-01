@@ -60,7 +60,7 @@ export async function algoSignBytes(
   payloadB64: string,
 ): Promise<AlgoSignature> {
   return await invoke<AlgoSignature>('chain_algo_sign_bytes', {
-    args: { address, payloadB64 },
+    args: { address, payload_b64: payloadB64 },
   });
 }
 
@@ -76,6 +76,6 @@ export async function algoSignTransaction(
   payloadB64: string,
 ): Promise<AlgoSignature> {
   return await invoke<AlgoSignature>('chain_algo_sign_transaction', {
-    args: { address, payloadB64 },
+    args: { address, payload_b64: payloadB64 },
   });
 }

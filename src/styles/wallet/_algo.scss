@@ -1,0 +1,252 @@
+// ==========================================================================
+// .ALGO NAMES — hub, claim, review & register (views/nfdominter*.ts)
+// ==========================================================================
+// Loads after wallet/views, so these widen and refine the original rules.
+
+@use '../abstracts' as *;
+
+.parsec-view.parsec-nfdominter--wide {
+  width: min(100%, 1180px);
+  max-width: none;
+}
+
+// Explanations are prose: the sans face, broken at word boundaries.
+.parsec-nfdominter--wide p.parsec-nfdominter__muted {
+  font-family: inherit;
+  font-size: $font-size-sm;
+  line-height: 1.55;
+  color: $px-muted;
+  word-break: normal;
+  overflow-wrap: anywhere;
+}
+
+.parsec-nfdominter__hero { padding: $spacing-3 0 $spacing-5; }
+
+.parsec-nfdominter__kicker,
+.parsec-nfdominter__review-kicker {
+  margin: 0 0 $spacing-2;
+  color: $px-gold;
+  font-size: $font-size-xs;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.parsec-nfdominter__h {
+  margin: 0 0 $spacing-3;
+  color: $px-text;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.parsec-nfdominter__lede {
+  max-width: 48em;
+  margin: 0;
+  color: #c3cdd6;
+  font-size: $font-size-lg;
+  line-height: 1.5;
+}
+
+// Tabs as a segmented control.
+.parsec-nfdominter--wide .parsec-nfdominter__tabs {
+  display: inline-flex;
+  width: fit-content;
+  gap: 4px;
+  margin-bottom: $spacing-5;
+  padding: 4px;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-full;
+  background: $px-panel;
+}
+
+.parsec-nfdominter--wide .parsec-nfdominter__tab.bp5-button {
+  flex: none;
+  padding: 0 $spacing-5;
+  border: 0;
+  border-radius: $border-radius-full;
+  color: $px-muted;
+
+  &:hover { color: $px-text; }
+}
+
+.parsec-nfdominter--wide .parsec-nfdominter__tab--active.bp5-button {
+  border: 0;
+  background: rgba($px-gold, 0.16);
+  color: $px-gold-hi;
+}
+
+// Claim: pick the name on the left, price and act on the right.
+.parsec-nfdominter--wide .parsec-nfdominter__mint {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 1fr);
+  gap: $spacing-6;
+  align-items: start;
+}
+
+.parsec-nfdominter__mint-pick,
+.parsec-nfdominter__mint-price {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-4;
+}
+
+.parsec-nfdominter--wide .parsec-nfdominter__name-input.bp5-input {
+  min-height: 56px;
+  font-size: 1.35rem;
+}
+
+.parsec-nfdominter--wide .parsec-nfdominter__suffix {
+  color: $px-gold;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.parsec-nfdominter__mint-price {
+  position: sticky;
+  top: $spacing-4;
+  padding: $spacing-5;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: linear-gradient(180deg, rgba($px-gold, 0.06), transparent 45%), $px-panel;
+
+  .parsec-nfdominter__quote-box {
+    border: 0;
+    background: transparent;
+    padding: 0;
+  }
+}
+
+// Review & register: the name on the left, the costs and the action on the right.
+.parsec-nfdominter__review {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: $spacing-6;
+  align-items: start;
+  margin-top: $spacing-4;
+}
+
+.parsec-nfdominter__review-col {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  padding: $spacing-5;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: $px-panel;
+
+  .parsec-keyflow__heading { margin-top: $spacing-2; }
+}
+
+.parsec-nfdominter__review-name {
+  overflow-wrap: anywhere;
+  color: $px-gold-hi;
+  font-size: clamp(1.6rem, 3vw, 2.2rem);
+  font-weight: 800;
+}
+
+.parsec-nfdominter--wide .parsec-nfdominter__confirm-summary {
+  font-size: $font-size-sm;
+}
+
+.parsec-nfdominter--wide .parsec-nfdominter__summary-value {
+  overflow-wrap: anywhere;
+  font-family: $font-family-mono;
+}
+
+:root[data-viewport='compact'] {
+  .parsec-nfdominter--wide .parsec-nfdominter__mint,
+  .parsec-nfdominter__review { grid-template-columns: 1fr; }
+
+  .parsec-nfdominter__mint-price { position: static; }
+}
+
+// ── Ready for x402 (lib/ui/x402-ready.ts) ────────────────────────────────────
+.parsec-ready {
+  padding: $spacing-5;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: linear-gradient(120deg, rgba($px-gold, 0.06), transparent 50%), $px-panel;
+}
+
+.parsec-ready__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-3;
+  margin-bottom: $spacing-3;
+
+  h3 {
+    margin: 0;
+    font-size: $font-size-base;
+  }
+}
+
+.parsec-ready__badge {
+  padding: 2px $spacing-3;
+  border: 1px solid $px-gold-deep;
+  border-radius: $border-radius-full;
+  color: $px-gold;
+  font-size: $font-size-xs;
+
+  &--ok {
+    border-color: rgba($px-success, 0.6);
+    color: $px-success;
+  }
+}
+
+.parsec-ready__steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $spacing-4;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.parsec-ready--compact .parsec-ready__steps { grid-template-columns: 1fr; }
+
+.parsec-ready__step {
+  display: flex;
+  gap: $spacing-3;
+}
+
+.parsec-ready__mark {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid $px-line;
+  border-radius: 50%;
+  color: $px-muted;
+}
+
+.parsec-ready__step--done .parsec-ready__mark {
+  border-color: rgba($px-success, 0.6);
+  color: $px-success;
+}
+
+.parsec-ready__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: $font-size-sm;
+
+  span { color: $px-muted; line-height: 1.45; }
+}
+
+.parsec-ready__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+  margin-top: $spacing-2;
+}
+
+.parsec-ready__muted {
+  margin: 0;
+  color: $px-muted;
+  font-size: $font-size-sm;
+}
+
+:root[data-viewport='compact'] .parsec-ready__steps { grid-template-columns: 1fr; }

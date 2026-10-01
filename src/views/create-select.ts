@@ -14,6 +14,7 @@
 // from a stored "done" flag (TIMELESS rule 1).
 
 import { el, btn, toast } from '../lib/dom';
+import { x402Ready } from '../lib/ui/x402-ready';
 import { store, getAccountAddress, setAccountAddress } from '../lib/store';
 import { keystoreStore } from '../lib/keystore';
 import { isTauri } from '../lib/platform';
@@ -205,6 +206,8 @@ export function createSelectView(): HTMLElement {
   view.appendChild(list);
 
   if (hasAlgorand) {
+    // Straight from creation to being able to pay: what x402 needs, step by step.
+    view.appendChild(x402Ready());
     const done = btn('Go to wallet', { intent: 'primary', large: true, onClick: () => store.navigate('dashboard') });
     done.classList.add('parsec-chainpick__done');
     view.appendChild(done);

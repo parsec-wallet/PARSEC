@@ -3,7 +3,7 @@
 // Participant sees all quotes and chooses their path.
 
 import type { NetworkId } from '../../types/wallet';
-import type { DexModule, DexQuote, DexAsset } from './types';
+import type { DexModule, DexQuote, DexAsset, SwapSigner } from './types';
 import { tinymanOnchainModule } from './tinyman-onchain';
 import { tinymanApiModule } from './tinyman-api';
 import { pactModule } from './pact';
@@ -170,13 +170,13 @@ export async function fetchBestQuote(
  */
 export async function executeMultiHopSwap(
   quote: MultiHopQuote,
-  mnemonic: string,
+  signer: SwapSigner,
   network: NetworkId,
 ): Promise<{ txId: string; hops: number }> {
   if (!quote.isMultiHop || quote.hops.length === 1) {
     // Direct swap
     const hop = quote.hops[0];
-    const result = await executeSwapViaDex(hop.dex, mnemonic, hop.inputAssetId, hop.outputAssetId, hop.inputAmount, hop.minOutput, hop.poolAddress, network);
+    const result = await executeSwapViaDex(hop.dexId ?? hop.dex, signer, hop.inputAssetId, hop.outputAssetId, hop.inputAmount, hop.minOutput, hop.poolAddress, network);
     return { txId: result.txId, hops: 1 };
   }
 
@@ -184,11 +184,11 @@ export async function executeMultiHopSwap(
   const hop1 = quote.hops[0];
   const hop2 = quote.hops[1];
 
-  const result1 = await executeSwapViaDex(hop1.dex, mnemonic, hop1.inputAssetId, hop1.outputAssetId, hop1.inputAmount, hop1.minOutput, hop1.poolAddress, network);
+  const result1 = await executeSwapViaDex(hop1.dexId ?? hop1.dex, signer, hop1.inputAssetId, hop1.outputAssetId, hop1.inputAmount, hop1.minOutput, hop1.poolAddress, network);
 
   // Hop 2 uses the actual received ALGO from hop 1
   // In production this should read the actual balance, but for now use the quoted amount
-  const result2 = await executeSwapViaDex(hop2.dex, mnemonic, hop2.inputAssetId, hop2.outputAssetId, hop2.inputAmount, hop2.minOutput, hop2.poolAddress, network);
+  const result2 = await executeSwapViaDex(hop2.dexId ?? hop2.dex, signer, hop2.inputAssetId, hop2.outputAssetId, hop2.inputAmount, hop2.minOutput, hop2.poolAddress, network);
 
   return { txId: `${result1.txId}→${result2.txId}`, hops: 2 };
 }
@@ -196,7 +196,7 @@ export async function executeMultiHopSwap(
 /** Execute swap through a specific DEX module */
 export async function executeSwapViaDex(
   dexId: string,
-  mnemonic: string,
+  signer: SwapSigner,
   inputAssetId: number,
   outputAssetId: number,
   inputAmount: number,
@@ -206,5 +206,5 @@ export async function executeSwapViaDex(
 ): Promise<{ txId: string }> {
   const dex = DEX_MODULES.find(m => m.id === dexId);
   if (!dex) throw new Error(`DEX module not found: ${dexId}`);
-  return dex.executeSwap(mnemonic, inputAssetId, outputAssetId, inputAmount, minOutputAmount, poolAddress, network);
+  return dex.executeSwap(signer, inputAssetId, outputAssetId, inputAmount, minOutputAmount, poolAddress, network);
 }

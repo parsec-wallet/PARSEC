@@ -206,9 +206,14 @@ export function buildMintTab(buyer: string, network: NetworkId): HTMLElement {
     ],
   });
 
+  // Two columns on a wide screen: choose the name on the left, see its price
+  // and act on the right.
   return el('div', {
     cls: 'parsec-nfdominter__mint',
-    children: [nameRow, yearsRow, feedback, quoteBox, mintButton],
+    children: [
+      el('div', { cls: 'parsec-nfdominter__mint-pick', children: [nameRow, yearsRow, feedback] }),
+      el('div', { cls: 'parsec-nfdominter__mint-price', children: [quoteBox, mintButton] }),
+    ],
   });
 }
 
@@ -216,7 +221,7 @@ export function buildMintTab(buyer: string, network: NetworkId): HTMLElement {
 function renderBuyOption(listing: MarketListing): HTMLElement {
   const provider = getMarketplaceProvider(listing.providerId);
   const price = listing.priceMinor !== undefined
-    ? `${(Number(listing.priceMinor) / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 6 })} ${listing.priceCurrency ?? 'ALGO'}`
+    ? `${formatDecimal(BigInt(listing.priceMinor), 6, { trim: true })} ${listing.priceCurrency ?? 'ALGO'}`
     : 'price at checkout';
   return el('div', {
     cls: 'parsec-nfdominter__buy-option',

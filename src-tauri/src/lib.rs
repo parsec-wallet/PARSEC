@@ -14,6 +14,7 @@ mod chain_ltc;
 mod chain_sol;
 mod network_monitor;
 mod app_shell;
+mod parsec_http;
 
 use bankon_vault::VaultState;
 use bankon_vault::commands::*;
@@ -198,6 +199,8 @@ pub fn run() {
             app_shell_autostart_get,
             app_shell_autostart_set,
             app_shell_started_hidden,
+            // x402 transport: HTTPS from Rust (no CORS, no CSP host list), narrow by design
+            parsec_http::http_request,
         ])
         .run(tauri::generate_context!())
         .expect("error while running PARSEC Wallet");
