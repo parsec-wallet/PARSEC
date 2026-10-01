@@ -1,0 +1,77 @@
+// ==========================================================================
+// TITLE BAR — the undecorated window's frame (lib/ui/titlebar.ts)
+// ==========================================================================
+// Only present in the desktop app: <html data-titlebar="on">. The app root then
+// starts below the bar and becomes the containing block for its fixed-position
+// descendants, so full-screen views (the Matrix landing) fill the space under the
+// bar instead of sliding beneath it.
+
+@use '../abstracts' as *;
+
+.parsec-titlebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  height: var(--px-titlebar-h, 34px);
+  padding-left: $spacing-3;
+  border-bottom: 1px solid rgb(255 255 255 / 6%);
+  background: #07090d;
+  color: var(--px-muted);
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  letter-spacing: 0.08em;
+  user-select: none;
+}
+
+.parsec-titlebar__mark { flex: none; }
+
+.parsec-titlebar__title {
+  color: var(--px-text);
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  white-space: nowrap;
+}
+
+.parsec-titlebar__spacer {
+  flex: 1;
+  align-self: stretch;
+}
+
+.parsec-titlebar__btn {
+  flex: none;
+  width: 46px;
+  height: 100%;
+  border: 0;
+  background: none;
+  color: var(--px-muted);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover {
+    background: rgb(255 255 255 / 8%);
+    color: var(--px-text);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--px-gold);
+    outline-offset: -2px;
+  }
+
+  &--close:hover {
+    background: #c42b1c;
+    color: #fff;
+  }
+}
+
+:root[data-titlebar='on'] #root {
+  position: fixed;
+  inset: var(--px-titlebar-h, 34px) 0 0;
+  overflow: auto;
+  transform: translateZ(0); // contain position: fixed descendants
+}
