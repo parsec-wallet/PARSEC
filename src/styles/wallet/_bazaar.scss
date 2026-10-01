@@ -1,0 +1,256 @@
+// ==========================================================================
+// BAZAAR — x402 paid resources (views/x402-bazaar.ts)
+// ==========================================================================
+
+@use '../abstracts' as *;
+
+.parsec-view.parsec-bazaar {
+  width: min(100%, 1180px);
+  max-width: none;
+}
+
+.parsec-bazaar__hero { padding: $spacing-5 0 $spacing-4; }
+
+.parsec-bazaar__kicker {
+  margin: 0 0 $spacing-2;
+  color: $px-gold;
+  font-size: $font-size-xs;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.parsec-bazaar__h {
+  margin: 0 0 $spacing-3;
+  color: $px-text;
+  font-size: clamp(2rem, 4vw, 2.8rem);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.parsec-bazaar__lede {
+  max-width: 46em;
+  margin: 0;
+  color: #c3cdd6;
+  font-size: $font-size-lg;
+  line-height: 1.5;
+}
+
+.parsec-bazaar__bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: $spacing-4;
+}
+
+.parsec-bazaar__glass {
+  position: absolute;
+  left: $spacing-4;
+  color: $px-muted;
+  font-size: 1.3rem;
+  pointer-events: none;
+}
+
+.parsec-bazaar .parsec-bazaar__input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 $spacing-4 0 calc(#{$spacing-4} * 2 + 1rem);
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: $px-panel;
+  color: $px-text;
+  font-size: $font-size-lg;
+  outline: none;
+
+  &::placeholder { color: $px-muted; }
+
+  &:focus {
+    border-color: $px-gold;
+    box-shadow: 0 0 0 4px rgba($px-gold, 0.15);
+  }
+}
+
+.parsec-bazaar__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-3 $spacing-5;
+  align-items: center;
+  margin: $spacing-3 0;
+}
+
+.parsec-bazaar__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.parsec-bazaar .parsec-bazaar__chip {
+  padding: 4px 12px;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-full;
+  background: transparent;
+  color: $px-muted;
+  font: inherit;
+  font-size: $font-size-xs;
+  cursor: pointer;
+
+  &:hover { color: $px-text; border-color: $px-steel-hi; }
+
+  &[aria-pressed='true'] {
+    border-color: $px-gold;
+    background: rgba($px-gold, 0.12);
+    color: $px-gold-hi;
+  }
+}
+
+.parsec-bazaar__testnets {
+  display: flex;
+  gap: $spacing-2;
+  align-items: center;
+  color: $px-muted;
+  font-size: $font-size-xs;
+  cursor: pointer;
+
+  input { accent-color: $px-gold; }
+}
+
+.parsec-bazaar__status {
+  min-height: 1.4em;
+  margin: $spacing-2 0 $spacing-3;
+  color: $px-muted;
+  font-size: $font-size-sm;
+
+  &[data-tone='error'] { color: $px-danger; }
+}
+
+.parsec-bazaar__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: $spacing-4;
+}
+
+.parsec-bazaar__card {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  padding: $spacing-5;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: linear-gradient(180deg, rgba($px-steel, 0.08), transparent 45%), $px-panel;
+  outline: none;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: rgba($px-gold, 0.5);
+    box-shadow: 0 14px 34px rgb(0 0 0 / 35%);
+    transform: translateY(-2px);
+  }
+}
+
+.parsec-bazaar__head {
+  display: flex;
+  gap: $spacing-3;
+  align-items: flex-start;
+}
+
+.parsec-bazaar__tile {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: hsl(var(--hue, 40) 40% 20%);
+  color: hsl(var(--hue, 40) 85% 74%);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.parsec-bazaar__titles { min-width: 0; }
+
+.parsec-bazaar__title {
+  display: -webkit-box;
+  margin: 0 0 4px;
+  overflow: hidden;
+  color: $px-text;
+  font-size: $font-size-base;
+  line-height: 1.35;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.parsec-bazaar__endpoint {
+  display: block;
+  overflow: hidden;
+  color: $px-steel-hi;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parsec-bazaar__price {
+  color: $px-muted;
+  font-size: $font-size-sm;
+
+  strong {
+    color: $px-gold-hi;
+    font-size: $font-size-xl;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.parsec-bazaar__badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.parsec-bazaar__badge {
+  padding: 1px 8px;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-full;
+  color: $px-muted;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+
+  &--ok {
+    border-color: rgba($px-success, 0.5);
+    color: $px-success;
+  }
+}
+
+.parsec-bazaar__takes {
+  margin: 0;
+  color: #c3cdd6;
+  font-size: $font-size-sm;
+}
+
+.parsec-bazaar__foot {
+  display: flex;
+  gap: $spacing-3;
+  align-items: center;
+  margin-top: auto;
+  padding-top: $spacing-3;
+  border-top: 1px solid rgba($px-line, 0.6);
+}
+
+.parsec-bazaar__hint {
+  color: $px-muted;
+  font-size: $font-size-xs;
+}
+
+.parsec-bazaar__more.bp5-button {
+  display: flex;
+  margin: $spacing-5 auto 0;
+}
+
+.parsec-bazaar__note {
+  max-width: 62em;
+  margin: $spacing-5 0 0;
+  color: $px-muted;
+  font-size: $font-size-xs;
+  line-height: 1.55;
+}
