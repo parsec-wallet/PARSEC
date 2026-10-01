@@ -32,7 +32,7 @@ import { quote } from '../lib/x402/quote';
 import { preparePayment } from '../lib/x402/client';
 import { approveThroughView } from './x402-confirm';
 import { formatDecimal } from '../lib/money';
-import { explorerTxUrl, sameNetwork } from '../lib/x402/networks';
+import { explorerTxUrl, sameNetwork, USDC_ASA_MAINNET, USDC_ASA_TESTNET } from '../lib/x402/networks';
 
 /** A request handed over from elsewhere (the Bazaar's "Open in desk"), applied once. */
 let deskPrefill: { url: string; method: 'GET' | 'POST' } | null = null;
@@ -128,6 +128,11 @@ export function x402DeskView(): HTMLElement {
     const opted = await isOptedIn(payer, Number(usdc), settings.preferNetwork);
     optInBox.replaceChildren(
       el('h3', { text: 'USDC' }),
+      ...(network.testnet
+        ? [el('div', { cls: 'parsec-callout bp5-callout bp5-intent-warning', children: [el('p', {
+          text: `Testnet: test USDC (ASA ${usdc}) has no value and settles nothing real. Choose Algorand mainnet · USDC ${USDC_ASA_MAINNET} under Settings below for a real payment.`,
+        })] })]
+        : []),
       row('Network', network.label),
       row('ASA', usdc),
       row('Opted in', opted ? 'yes' : 'no'),
@@ -285,10 +290,12 @@ export function x402DeskView(): HTMLElement {
   // ── Settings ───────────────────────────────────────────────────
 
   const networkSelect = el('select', { cls: 'bp5-input' }) as HTMLSelectElement;
-  for (const n of [ALGORAND_TESTNET, ALGORAND_MAINNET]) {
+  for (const n of [ALGORAND_MAINNET, ALGORAND_TESTNET]) {
     const opt = document.createElement('option');
     opt.value = n;
-    opt.textContent = describeNetwork(n).label;
+    opt.textContent = n === ALGORAND_MAINNET
+      ? `${describeNetwork(n).label} · USDC ${USDC_ASA_MAINNET} (recommended)`
+      : `${describeNetwork(n).label} · test USDC ${USDC_ASA_TESTNET}`;
     if (settings.preferNetwork === n) opt.selected = true;
     networkSelect.appendChild(opt);
   }
