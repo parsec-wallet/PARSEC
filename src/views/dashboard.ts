@@ -1,4 +1,4 @@
-// Parsec Wallet — Dashboard View
+// PARSEC Wallet — Dashboard View
 
 import { el, btn, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';

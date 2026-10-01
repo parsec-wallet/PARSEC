@@ -1,4 +1,4 @@
-// Parsec Wallet — bankon_vault IPC client
+// PARSEC Wallet — bankon_vault IPC client
 // All vault operations go through Tauri invoke → Rust.
 // Secrets never persist in JS. They pass through briefly for signing only.
 
@@ -8,6 +8,8 @@ export interface VaultStatus {
   exists: boolean;
   unlocked: boolean;
   accounts: { address: string; chain: string; label: string }[];
+  /** The active profile (see lib/profiles.ts). */
+  profile?: string;
 }
 
 /** Check if vault exists and its lock state */

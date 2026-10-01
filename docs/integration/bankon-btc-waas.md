@@ -1,7 +1,7 @@
-# Bitcoin in Parsec — standalone, with BANKON BTC WaaS as an optional provider
+# Bitcoin in PARSEC — standalone, with BANKON BTC WaaS as an optional provider
 
-> **Rule, from the outset:** **Parsec is compatible with BANKONBTCWaaS but does
-> not require it.** Bitcoin must work with nothing but Parsec. The WaaS is an
+> **Rule, from the outset:** **PARSEC is compatible with BANKONBTCWaaS but does
+> not require it.** Bitcoin must work with nothing but PARSEC. The WaaS is an
 > *optional backend* that adds node truth and diagnostics when present.
 >
 > **Source:** <https://github.com/cypherpunk4096/BANKONBTCWaaS> ·
@@ -20,13 +20,13 @@ BANKONBTCWaaS is two things, deliberately separate:
 The client cryptography is node-free by design. Only descriptor import, balance
 reads and broadcast touch RPC.
 
-**Parsec already owns the client-crypto half** — `chain_btc_*` in `src-tauri/`
-does BIP-32/39/44/84 derivation, keys live in the vault. So Parsec does not
+**PARSEC already owns the client-crypto half** — `chain_btc_*` in `src-tauri/`
+does BIP-32/39/44/84 derivation, keys live in the vault. So PARSEC does not
 adopt the WaaS keygen; it needs the *node-facing* half, and only optionally.
 
 ## Architecture: a provider seam
 
-Parsec already does this twice — `src/lib/namespaces/registry.ts`
+PARSEC already does this twice — `src/lib/namespaces/registry.ts`
 (ArNS / BANKON / Solana-ArNS) and `src/lib/marketplace/providers/` whose header
 states the principle plainly:
 
@@ -59,14 +59,14 @@ Two implementations, registered the same way:
 
 | Provider | Requires | Gives |
 |---|---|---|
-| `local` (**default, always present**) | nothing beyond Parsec | derivation + PSBT signing in Rust; balance/broadcast via a public Esplora-style endpoint, or watch-only if none is configured |
+| `local` (**default, always present**) | nothing beyond PARSEC | derivation + PSBT signing in Rust; balance/broadcast via a public Esplora-style endpoint, or watch-only if none is configured |
 | `bankon-waas` (**optional**) | a reachable WaaS (`:8088`) | descriptor registration, receive, PSBT, broadcast — plus `nodeDiagnostics()` when its bitcoind is up |
 
-**Parsec never sends a key to either.** Signing is always local, in the Rust
+**PARSEC never sends a key to either.** Signing is always local, in the Rust
 vault. The backend supplies the unsigned PSBT and takes the signed transaction.
 
 ```
-Parsec (keys, vault, signing)              BitcoinBackend
+PARSEC (keys, vault, signing)              BitcoinBackend
   ├── derive descriptor ────────────────►  registerDescriptor()   (watch-only)
   │◄─────────── receive address ─────────  receiveAddress()
   ├── request send ─────────────────────►  buildPsbt()  → unsigned PSBT
@@ -107,7 +107,7 @@ BANKON dashboard tile that renders `null` without an Arweave address. Feeds:
   optional provider is absent — that is `unknown`.
 
 Everything the console reports comes from the node's own RPC or `debug.log` —
-*"no external APIs at runtime"* — which is the sovereign posture Parsec wants.
+*"no external APIs at runtime"* — which is the sovereign posture PARSEC wants.
 
 `₿TC.oracle` carries **exact Decimal arithmetic at 18 dp**. That is cp4096
 commitment IV done correctly, and the model for fixing our own float money path
@@ -124,20 +124,20 @@ commitment IV done correctly, and the model for fixing our own float money path
    regtest and multisig signing tests passing, mainnet gated on audit.
    → Diagnostics first. Wallet module on regtest, `enabled: false`, until the
    audit lands and we have run it ourselves.
-3. **Do not adopt the browser keygen path.** Parsec *is* the client; keys are
-   minted in Parsec and held in the Rust vault. Two keygen paths would be two
+3. **Do not adopt the browser keygen path.** PARSEC *is* the client; keys are
+   minted in PARSEC and held in the Rust vault. Two keygen paths would be two
    attack surfaces.
 4. **~~Name collision to resolve~~ — answered.** They are *related but not the
    same code*. The WaaS `bankon-vault` is Python (PBKDF2-SHA512 600k + two-stage
    HKDF-SHA512 + AES-GCM, plus Shamir, ML-KEM-768 and a policy engine), descended
-   from mindX's Python vault. Parsec's `bankon_vault` is an independent Rust
+   from mindX's Python vault. PARSEC's `bankon_vault` is an independent Rust
    implementation, now `bankon-vault/2` (Argon2id + wrapped DEK + per-entry keys).
    At least five codebases carry the name; the full map is in
    [`../security/vault-family.md`](../security/vault-family.md). Say which one you
    mean whenever you write "bankon vault".
 5. **Licence split.** Client cryptography GPLv3, infrastructure MIT — the same
-   policy Parsec follows. Code lifted from WaaS client cryptography may land only
-   in Parsec's GPL-3.0-only core (`bankon_vault`, `chain_*`); MIT infrastructure
+   policy PARSEC follows. Code lifted from WaaS client cryptography may land only
+   in PARSEC's GPL-3.0-only core (`bankon_vault`, `chain_*`); MIT infrastructure
    code can land anywhere with its notice kept. Record provenance per file if code
    is lifted rather than called.
 6. **CSP.** A WaaS origin (`127.0.0.1:8088`, `:8090`) is not in the
@@ -148,10 +148,10 @@ commitment IV done correctly, and the model for fixing our own float money path
 
 ## Sequence
 
-1. **Implement `chain_btc_sign_psbt` for real.** Parsec's own work, no external
+1. **Implement `chain_btc_sign_psbt` for real.** PARSEC's own work, no external
    dependency, and everything else is plumbing until it exists.
 2. **The provider seam** (`src/lib/bitcoin/providers/`) with the `local`
-   implementation — Bitcoin working in Parsec alone.
+   implementation — Bitcoin working in PARSEC alone.
 3. **`bitcoin` module** on `local`, exercised on **regtest**: descriptor →
    receive → PSBT → sign → broadcast.
 4. **`bankon-waas` provider** + the `btc-node` diagnostics module, registered
@@ -160,7 +160,7 @@ commitment IV done correctly, and the model for fixing our own float money path
 
 ## Open questions for upstream
 
-- Is there a stable contract for a **non-browser** client (Parsec) to register
+- Is there a stable contract for a **non-browser** client (PARSEC) to register
   descriptors and fetch PSBTs, or is the web UI the intended path?
-- Is WaaS `bankon-vault` the same component as Parsec's `bankon_vault`?
+- Is WaaS `bankon-vault` the same component as PARSEC's `bankon_vault`?
 - Audit timeline, and what "mainnet-ready" is gated on.

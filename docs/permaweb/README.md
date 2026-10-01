@@ -115,4 +115,4 @@ programs and the ARIO mint (checked 2026-09-10).
   registry or `/ar-io/peers` is next.
 - **Undername uploads.** The upload hand-off fills the root target; the undername form still takes a
   pasted id.
-- **Permanence tags (THOT).** Items carry `Content-Type` and `App-Name: Parsec` only.
+- **Permanence tags (THOT).** Items carry `Content-Type` and `App-Name: PARSEC` only.

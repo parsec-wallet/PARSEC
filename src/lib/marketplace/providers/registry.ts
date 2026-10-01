@@ -1,5 +1,5 @@
 // Marketplace provider registry — the single source of truth for which
-// marketplaces Parsec can trade through. Providers self-register at module
+// marketplaces PARSEC can trade through. Providers self-register at module
 // load (see the side-effect imports in ./index.ts). Consumers read them
 // generically; nothing here knows about NFD, BANKON or AgenticPlace.
 

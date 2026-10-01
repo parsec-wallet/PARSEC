@@ -1,4 +1,4 @@
-// Parsec Wallet — Data Provenance
+// PARSEC Wallet — Data Provenance
 //
 // TIMELESS.md rule 4: "Estimates are labelled estimates, in place, every
 // time." With five chains behind flaky public RPC, a number on screen is

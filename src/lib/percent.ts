@@ -1,4 +1,4 @@
-// Parsec Wallet — percentage change formatting.
+// PARSEC Wallet — percentage change formatting.
 //
 // One formatter, because the app previously had several and they disagreed:
 // 1dp in the top-10 column, the pyramid and the cloud; 2dp in the coin panel and

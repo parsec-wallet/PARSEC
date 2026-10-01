@@ -1,5 +1,5 @@
 // Management operations on an NFD the caller owns. Pass-through to the
-// SDK's manager surface plus Parsec signer wiring.
+// SDK's manager surface plus PARSEC signer wiring.
 
 import type { NetworkId } from '../../types/wallet';
 import { getNfdClient } from './client';

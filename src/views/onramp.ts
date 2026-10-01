@@ -1,6 +1,6 @@
-// Parsec Wallet — Onramp View
+// PARSEC Wallet — Onramp View
 // Non-custodial provider picker. Active address is passed as a URL parameter;
-// providers handle KYC and payment on their own infrastructure. Parsec never
+// providers handle KYC and payment on their own infrastructure. PARSEC never
 // sees card numbers or fiat rails.
 
 import { el, btn, toast } from '../lib/dom';
@@ -75,7 +75,7 @@ export function onrampView(): HTMLElement {
       }),
       el('p', {
         cls: 'parsec-view__desc',
-        text: 'Pick any provider. Parsec passes your receive address only — KYC, payment, and fees happen on the provider\u2019s site.',
+        text: 'Pick any provider. PARSEC passes your receive address only — KYC, payment, and fees happen on the provider\u2019s site.',
       }),
 
       el('div', {
@@ -94,7 +94,7 @@ export function onrampView(): HTMLElement {
 
       el('p', {
         cls: 'parsec-view__desc parsec-onramp__note',
-        text: 'Providers are external. Their availability and supported regions change. Parsec does not receive card numbers, bank info, or fiat.',
+        text: 'Providers are external. Their availability and supported regions change. PARSEC does not receive card numbers, bank info, or fiat.',
       }),
     ],
   });

@@ -1,4 +1,4 @@
-// Parsec Wallet — Entry Point
+// PARSEC Wallet — Entry Point
 // Vanilla TypeScript. No frameworks. Blueprint CSS for styling.
 
 // Buffer polyfill for browser/Tauri webview — bip39 and xhd-wallet-api
@@ -219,6 +219,12 @@ function preloadFor(view: AppView): void {
 // gated through the platform shim so the permaweb-served web build never
 // pulls @tauri-apps/api into its chunk graph.
 function deferredInit(): void {
+  // The desktop records the open profile on disk; if this window's record
+  // disagrees (storage cleared, changed elsewhere), the disk wins.
+  void import('./lib/profiles').then(async ({ reconcileProfile }) => {
+    const name = await reconcileProfile();
+    if (name) await store.useProfile(name, { backend: false });
+  }).catch(() => { /* a build without profiles */ });
   import('./lib/platform').then(async ({ isTauri, listen }) => {
     if (!isTauri) return;
     // Listen for dApp sign requests from the connect WebSocket server.

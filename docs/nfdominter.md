@@ -5,7 +5,7 @@
 
 ## Overview
 
-NFDominter is Parsec's front end for the **NFD** Algorand Name Service. It
+NFDominter is PARSEC's front end for the **NFD** Algorand Name Service. It
 wraps the NFD client in one import surface (`src/lib/nfd/`) and surfaces a
 four-tab view (`src/views/nfdominter.ts`):
 
@@ -32,5 +32,5 @@ if it is unconfigured.
 ## Notes
 
 NFD names live on Algorand and require the active Algorand account. For
-Parsec's *sovereign* permaweb namespace see [BANKON Names](./bankon-names.md);
+PARSEC's *sovereign* permaweb namespace see [BANKON Names](./bankon-names.md);
 both are reachable from the unified name hub.

@@ -1,6 +1,6 @@
 // Turbo — put bytes on Arweave through ar.io's bundler service, from inside the wallet.
 //
-// Parsec-owned and dependency-free, the way ao.ts replaces @permaweb/aoconnect: the SDK brings a
+// PARSEC-owned and dependency-free, the way ao.ts replaces @permaweb/aoconnect: the SDK brings a
 // transport stack and its own signers, and all this needs is two GETs and one POST.
 //
 // Verified 2026-09-10 against @ardrive/turbo-sdk (packages/turbo-sdk/src/common/upload.ts: HTTP
@@ -35,6 +35,7 @@ export const FREE_LIMIT_FALLBACK_BYTES = 107_520;
 /** winc and winston are the same unit: 10^12 per AR. */
 export const WINC_DECIMALS = 12;
 
+// The on-chain tag keeps its original spelling: queries match on the exact value.
 export const APP_TAGS: readonly DataItemTag[] = [{ name: 'App-Name', value: 'Parsec' }];
 
 // ── Service reads ─────────────────────────────────────────────────────────────

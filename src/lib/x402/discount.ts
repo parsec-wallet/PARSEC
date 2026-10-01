@@ -1,4 +1,4 @@
-// Parsec x402 Integration — BANKON Holder Discount
+// PARSEC x402 Integration — BANKON Holder Discount
 // Checks BANKON ASA 203977300 balance on Algorand for 50% fee discount.
 // 5-minute per-address cache to avoid excessive indexer queries.
 // SPDX-FileCopyrightText: 2026 BANKON

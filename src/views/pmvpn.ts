@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Vanilla TypeScript using Parsec's dom.ts helpers.
+// Vanilla TypeScript using PARSEC's dom.ts helpers.
 // Layout: host sidebar | terminal | status bar
 
 import { el, btn, input, toast } from '../lib/dom';

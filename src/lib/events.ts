@@ -1,4 +1,4 @@
-// Parsec Wallet — event recorder.
+// PARSEC Wallet — event recorder.
 //
 // What actually happened, when, and how long it took. Feeds the Advanced
 // diagnostics panel, where the questions are "is this number fresh?" and "why

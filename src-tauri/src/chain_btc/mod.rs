@@ -1,6 +1,6 @@
 //! chain_btc — Bitcoin chain pack
 //!
-//! Scaffolded key derivation for Parsec's first non-Algorand chain. Mnemonics
+//! Scaffolded key derivation for PARSEC's first non-Algorand chain. Mnemonics
 //! follow BIP-39, HD keys follow BIP-32, derivation paths follow
 //! BIP-44 (legacy), BIP-49 (segwit-compat), and BIP-84 (native segwit).
 //!
@@ -8,7 +8,9 @@
 //! data (addresses, xpubs, path strings). Private key material is derived
 //! into a stack-allocated secret and dropped before the command returns.
 //!
-//! Signing is not implemented yet — this is a derivation+address scaffold.
+//! PSBT signing lives in `sign.rs` (`chain_btc_sign_psbt`): it signs every input
+//! the derived key can, and refuses to return a partially signed PSBT. It has
+//! not yet been exercised end to end on regtest (docs/TODO-INDEX.md).
 //! `bitgo-utxo-lib` at `reference/atomicwallet/bitgo-utxo-lib/` is the JS
 //! reference we read while writing this; the runtime uses the `bitcoin`
 //! crate.

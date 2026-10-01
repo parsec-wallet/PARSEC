@@ -1,4 +1,4 @@
-// Parsec Wallet — Lightspeed feeds
+// PARSEC Wallet — Lightspeed feeds
 //
 // The RpcObservables of light.js, reimplemented on the poll primitive: each
 // `x$()` is a stream that polls the participant's chosen provider only while
@@ -54,7 +54,7 @@ export function readBlockNumber(): Promise<Reading<bigint>> {
 }
 
 // ── makeContract — the read half (tutorial 5) ────────────────
-// light.js turned an ABI into `method$()` functions. Parsec carries no ABI
+// light.js turned an ABI into `method$()` functions. PARSEC carries no ABI
 // library, so a contract here is a set of read methods you encode yourself:
 // pass the calldata encoder and the return decoder, get a stream.
 

@@ -1,8 +1,8 @@
 # Chains
 
-Parsec is modular: each blockchain is a self-contained **chain pack** under
+PARSEC is modular: each blockchain is a self-contained **chain pack** under
 `src/lib/<chain>/` that implements the common `WalletModule` interface (see
-`src/lib/pouch/`). One Parsec account is one human identity holding an address
+`src/lib/pouch/`). One PARSEC account is one human identity holding an address
 on every chain it has been set up for.
 
 ## Chain packs

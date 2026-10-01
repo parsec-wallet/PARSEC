@@ -41,10 +41,10 @@ mod tests {
 
     const ABANDON: &str = "abandon abandon abandon abandon abandon abandon abandon \
                            abandon abandon abandon abandon about";
-    /// Derived independently of Parsec (Node crypto + tweetnacl + @solana/web3.js)
+    /// Derived independently of PARSEC (Node crypto + tweetnacl + @solana/web3.js)
     /// and already pinned by `src/lib/solana/__tests__/seed.test.ts`. The Rust
     /// path must produce the same address, or funds sent by an external wallet
-    /// would land somewhere Parsec cannot spend.
+    /// would land somewhere PARSEC cannot spend.
     const EXPECTED: &str = "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk";
 
     #[test]

@@ -1,4 +1,4 @@
-// Parsec Wallet — parsec_mesh IPC client
+// PARSEC Wallet — parsec_mesh IPC client
 // P2P mesh where every client is a server.
 // IPFS content-addressed handoffs. Resource-aware throttling.
 

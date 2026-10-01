@@ -1,4 +1,4 @@
-// ARIO migration failsafe — a Parsec-native flow that constructs and signs
+// ARIO migration failsafe — a PARSEC-native flow that constructs and signs
 // the ARIO migration message itself, independent of sol.ar.io's frontend.
 //
 // Built on the same primitives as the injected API (signDataItem + aoMessage),
@@ -81,7 +81,7 @@ export function arweaveArioMigrateView(): HTMLElement {
 
       el('p', {
         cls: 'parsec-view__desc',
-        text: 'Construct and submit the ARIO migration message directly from Parsec — independent of any web frontend. The Arweave key never leaves the BANKON vault.',
+        text: 'Construct and submit the ARIO migration message directly from PARSEC — independent of any web frontend. The Arweave key never leaves the BANKON vault.',
       }),
 
       el('div', {

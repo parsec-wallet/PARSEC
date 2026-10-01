@@ -1,4 +1,4 @@
-// Parsec Wallet — Algorand Client Configuration
+// PARSEC Wallet — Algorand Client Configuration
 import algosdk from 'algosdk';
 import type { NetworkId } from '../../types/wallet';
 

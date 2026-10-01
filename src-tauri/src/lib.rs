@@ -17,6 +17,7 @@ mod app_shell;
 
 use bankon_vault::VaultState;
 use bankon_vault::commands::*;
+use bankon_vault::profiles::*;
 use bankon_vault::tomb_commands::*;
 use pmvpn::PmvpnState;
 use pmvpn::commands::*;
@@ -82,6 +83,9 @@ pub fn run() {
             vault_remove_account,
             vault_list_accounts,
             vault_destroy,
+            // bankon_vault — profiles: one vault per profile, `default` = the original
+            vault_profiles,
+            vault_profile_select,
             // bankon_vault — tomb integration (Linux cold storage)
             tomb_check,
             tomb_detect_usb,
@@ -196,5 +200,5 @@ pub fn run() {
             app_shell_started_hidden,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Parsec Wallet");
+        .expect("error while running PARSEC Wallet");
 }

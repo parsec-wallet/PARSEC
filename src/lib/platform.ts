@@ -1,4 +1,4 @@
-// Parsec platform shim — Tauri desktop vs. permaweb-served browser.
+// PARSEC platform shim — Tauri desktop vs. permaweb-served browser.
 //
 // Static `import { invoke } from '@tauri-apps/api/core'` crashes at module
 // load time in a regular browser. Bundlers tree-shake out the dynamic

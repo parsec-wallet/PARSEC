@@ -4,7 +4,7 @@
 // claim handshake. The current owner calls the NFD instance contract's
 // `offerForSale(sellAmount, reservedFor)` ABI method, reserving the name for
 // one specific recipient (at any price, or 0 to gift it). The recipient then
-// claims/buys it from their own wallet — Parsec's marketplace buy flow
+// claims/buys it from their own wallet — PARSEC's marketplace buy flow
 // handles that side.
 //
 // The NFD SDK exposes the recipient side (`buy` / `claim`) but not the

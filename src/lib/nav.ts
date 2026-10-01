@@ -1,4 +1,4 @@
-// Parsec Wallet — Route Registry & Navigation Model
+// PARSEC Wallet — Route Registry & Navigation Model
 //
 // Groups every view into the four tiers of the product architecture
 // (see ../../PARSEC.png, and the table in CLAUDE.md):
@@ -12,7 +12,7 @@
 // (that stays with lib/router.ts) and it never gates behaviour: a route absent
 // from the registry still renders, it simply doesn't appear in the rail.
 
-/** The four tiers of the Parsec stack, in dependency order. */
+/** The four tiers of the PARSEC stack, in dependency order. */
 export type NavTier = 'modules' | 'pouch' | 'identity' | 'agenticplace';
 
 /** Progressive disclosure level. `simple` is the newcomer's wallet; `pro`

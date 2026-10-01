@@ -1,5 +1,5 @@
-// Parsec Wallet — State Store
-// Parsec never holds private keys. Sensitive data (passphrase, mnemonic)
+// PARSEC Wallet — State Store
+// PARSEC never holds private keys. Sensitive data (passphrase, mnemonic)
 // is held in private class fields — never serialized, never in localStorage.
 
 import type { WalletState, AppView, PendingSend, WalletAccount } from '../types/wallet';
@@ -8,10 +8,12 @@ import { isTauri } from './vault';
 import { keystoreLock } from './keystore';
 import { defaultAvatarFor } from './avatars';
 import { isModalRoute } from './nav';
+import { stateKey, webKeysKey, activeProfile, selectProfileBackend, setActiveProfileLocal } from './profiles';
 
 type Listener = (state: WalletState) => void;
 
-const STORAGE_KEY = 'parsec-wallet-state';
+// The account mirror is per profile: `parsec-wallet-state` for the default
+// profile (the key it always had), `parsec-wallet-state@<name>` for others.
 
 // Older persisted accounts predate the multi-chain `chains` map.
 // Backfill so every account has at least { algorand: <primary address> }.
@@ -32,7 +34,7 @@ function migrateAccount(raw: unknown): WalletAccount {
 
 function loadPersistedState(): Partial<WalletState> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(stateKey());
     if (!raw) return {};
     const saved = JSON.parse(raw);
     const accounts = Array.isArray(saved.accounts) ? saved.accounts.map(migrateAccount) : [];
@@ -73,7 +75,7 @@ function persistState(state: WalletState): void {
     activeAccountIndex: state.activeAccountIndex,
     settings: state.settings,
   };
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(safe));
+  localStorage.setItem(stateKey(), JSON.stringify(safe));
 }
 
 function defaultState(): WalletState {
@@ -232,6 +234,38 @@ class Store {
     this.navigate('matrix');
   }
 
+  /** The profile whose vault and wallets this window is using. */
+  get profile(): string {
+    return activeProfile();
+  }
+
+  /**
+   * Switch to another profile: its vault, its wallets. The open session ends
+   * first (Rust locks the vault when the profile changes), then the account
+   * list is reloaded from the new profile's mirror. A profile seen for the
+   * first time inherits the current settings rather than the factory ones.
+   * `backend: false` when Rust already recorded the profile (start-up sync).
+   */
+  async useProfile(name: string, opts: { backend?: boolean } = {}): Promise<void> {
+    const settings = this.state.settings;
+    if (opts.backend === false) setActiveProfileLocal(name);
+    else await selectProfileBackend(name);
+
+    if (this._sessionPassphrase) this._sessionPassphrase = '\0'.repeat(this._sessionPassphrase.length);
+    if (this._tempMnemonic) this._tempMnemonic = '\0'.repeat(this._tempMnemonic.length);
+    this._sessionPassphrase = null;
+    this._tempMnemonic = null;
+    this._pendingSend = null;
+    this.clearLockTimer();
+    this.history = [];
+
+    const fresh = localStorage.getItem(stateKey()) === null;
+    const next = defaultState();
+    this.state = { ...next, view: this.state.view, settings: fresh ? settings : next.settings };
+    if (fresh) persistState(this.state);
+    this.notify();
+  }
+
   reset(): void {
     if (this._sessionPassphrase) this._sessionPassphrase = '\0'.repeat(this._sessionPassphrase.length);
     if (this._tempMnemonic) this._tempMnemonic = '\0'.repeat(this._tempMnemonic.length);
@@ -239,8 +273,8 @@ class Store {
     this._tempMnemonic = null;
     this._pendingSend = null;
     this.clearLockTimer();
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem('parsec-encrypted-keys');
+    localStorage.removeItem(stateKey());
+    localStorage.removeItem(webKeysKey());
     this.state = defaultState();
     this.notify();
   }

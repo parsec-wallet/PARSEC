@@ -236,7 +236,7 @@ impl VaultDoc {
         if self.format != FORMAT_TAG {
             return Err(format!(
                 "unsupported vault format {:?} (this build reads {FORMAT_TAG}). \
-                 Refusing to touch it — a newer Parsec may be required.",
+                 Refusing to touch it — a newer PARSEC may be required.",
                 self.format
             ));
         }

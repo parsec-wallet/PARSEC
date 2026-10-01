@@ -19,7 +19,7 @@ const PERMISSION_DESCRIPTIONS: Record<ArweavePermission, string> = {
   ENCRYPT: 'Encrypt data with your key',
   DECRYPT: 'Decrypt data addressed to your key',
   SIGNATURE: 'Sign DataItems and arbitrary messages',
-  ACCESS_ARWEAVE_CONFIG: 'See the gateway Parsec is using',
+  ACCESS_ARWEAVE_CONFIG: 'See the gateway PARSEC is using',
   DISPATCH: 'Dispatch (sign + post) transactions to the network',
 };
 
@@ -100,7 +100,7 @@ export function arweaveApproveView(): HTMLElement {
         cls: 'parsec-callout bp5-callout bp5-intent-warning',
         children: [
           el('p', {
-            text: 'Parsec will keep your Arweave key in the BANKON vault. The dApp never sees the key — every signature passes through this approval flow.',
+            text: 'PARSEC will keep your Arweave key in the BANKON vault. The dApp never sees the key — every signature passes through this approval flow.',
           }),
         ],
       }),

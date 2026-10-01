@@ -1,7 +1,7 @@
 // bankon_vault::throttle — unlock rate limiting.
 //
 // None of MetaMask, Pera, Bitcoin Core, or the mindX production vault limits
-// unlock attempts at all. That is defensible for them and not for us: Parsec is a
+// unlock attempts at all. That is defensible for them and not for us: PARSEC is a
 // desktop wallet whose vault sits at a predictable path, so an attacker who gets
 // a shell — or simply sits down at an unattended machine — can otherwise drive
 // the unlock command in a loop for as long as they like.

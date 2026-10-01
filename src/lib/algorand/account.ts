@@ -1,4 +1,4 @@
-// Parsec Wallet — Account Management
+// PARSEC Wallet — Account Management
 import algosdk from 'algosdk';
 import type { AccountInfo, AssetHolding, NetworkId } from '../../types/wallet';
 import { getAlgodClient } from './client';

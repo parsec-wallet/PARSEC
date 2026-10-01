@@ -1,4 +1,4 @@
-// Parsec Wallet — chain_evm IPC client (EVM).
+// PARSEC Wallet — chain_evm IPC client (EVM).
 //
 // One typed wrapper per Rust module (docs/modules.md). Two doors, deliberately narrow:
 // an EIP-1559 transaction, and an EIP-3009 transfer authorization. There is no

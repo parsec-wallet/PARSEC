@@ -1,4 +1,4 @@
-// Parsec Wallet — chain_algo IPC client (Algorand).
+// PARSEC Wallet — chain_algo IPC client (Algorand).
 //
 // Replaces direct `algosdk` key handling in the renderer. Creating an account
 // returns an address, never a seed: the secret is generated, stored and dropped

@@ -1,4 +1,4 @@
-# TOON, x402, and the Parsec naming service — assessment
+# TOON, x402, and the PARSEC naming service — assessment
 
 > **Question:** can TOON pay for names, and where does x402 actually fit?
 > **Written:** 2026-09-02 · Companion to
@@ -10,12 +10,12 @@
 
 ## What the naming service actually charges for
 
-Parsec's naming surface is four things with four different money paths — the
+PARSEC's naming surface is four things with four different money paths — the
 three `NamespaceAdapter`s (`src/lib/namespaces/`), the name desk
 ([`name-desk-integration.md`](../name-desk-integration.md)), the Marketspace
 ([`../marketspace.md`](../marketspace.md)), and the public resolver.
 
-| Money surface | Priced by | Unit | Payable from Parsec today | Can x402 reach it | Can TOON reach it |
+| Money surface | Priced by | Unit | Payable from PARSEC today | Can x402 reach it | Can TOON reach it |
 |---|---|---|---|---|---|
 | ArNS lease / permabuy / undername limit | ar.io registry (Solana era) | mARIO | Yes — ARIO only (`src/lib/namespaces/arns.ts:44`) | **No** | **No** |
 | BANKON `Buy-Name` / `Extend-Lease` | `BNR.Policy.Costs` per method | microALGO, winston, 0 | Yes, but caller must supply the proof | **Yes** — see Finding 3 | No — Finding 1 |
@@ -84,7 +84,7 @@ obliviousness is a feature rather than a trust hole.
 ## Finding 3 — x402 already fits the BNR, and one local gap blocks it
 
 The BNR's `algorand` verifier wants *"an Algorand tx id paying
-`BNR.Treasury.algorand` the declared microALGO"*. Parsec's x402 rail signs
+`BNR.Treasury.algorand` the declared microALGO"*. PARSEC's x402 rail signs
 precisely that: `executeX402Payment()` builds
 `makePaymentTxnWithSuggestedParamsFromObject({ receiver: pending.requirement.payTo, … })`
 and hands it over in the `X-PAYMENT` header. Point a quote's `payTo` at the BNR
@@ -136,7 +136,7 @@ an endpoint, so today only a client that speaks AO can learn what a name costs.
 
 A thin endpoint that turns `Token-Cost` into an x402 document — price, `payTo`
 (the treasury), network, intent — makes BANKON names purchasable by **any** x402
-client rather than only by Parsec. That is the AgenticPlace thesis applied to
+client rather than only by PARSEC. That is the AgenticPlace thesis applied to
 naming, and it is the one place in this assessment where a TOON node would also
 be a reasonable fit later: quotes free at `GET /ilp`-style zero cost, expensive
 sweeps priced per request.
@@ -158,7 +158,7 @@ it — counterparty risk, custody, and a price the user cannot verify at the mom
 they commit. Upstream solved it with a human. **Do not build that broker into the
 wallet.**
 
-What Parsec can honestly do for an ArNS purchase: quote the mARIO cost exactly
+What PARSEC can honestly do for an ArNS purchase: quote the mARIO cost exactly
 (`bigint`, via `src/lib/money.ts`), show the user's holdings against it, and pay
 the *Arweave data leg* — the upload whose txid the record will point at — over
 x402 or, later, a TOON-fronted store.

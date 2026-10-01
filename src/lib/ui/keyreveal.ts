@@ -1,4 +1,4 @@
-// Parsec Wallet — the shared layout for creating a wallet.
+// PARSEC Wallet — the shared layout for creating a wallet.
 //
 // Every chain's creation screen reads the same way, in the same order:
 //
@@ -218,6 +218,6 @@ export function phrasePanel(words: string[], hint: string): HTMLElement {
 export function backupWarning(): HTMLElement {
   return el('div', {
     cls: 'parsec-callout bp5-callout bp5-intent-warning parsec-keyflow__warning',
-    children: [el('p', { text: 'The private key and the recovery phrase each control this wallet completely. Store them offline. Parsec will never ask you for them again except to restore.' })],
+    children: [el('p', { text: 'The private key and the recovery phrase each control this wallet completely. Store them offline. PARSEC will never ask you for them again except to restore.' })],
   });
 }

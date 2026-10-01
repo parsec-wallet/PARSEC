@@ -1,9 +1,10 @@
-// Parsec Wallet — Settings View
+// PARSEC Wallet — Settings View
 
 import { isTauri } from '../lib/platform';
 import { getAutostart, getCloseToTray, setAutostart, setCloseToTray } from '../lib/app-shell';
 import { el, btn, toast } from '../lib/dom';
 import { store } from '../lib/store';
+import { profileChooser } from '../lib/ui/profile-chooser';
 import { ACCOUNT_AVATARS, defaultAvatarFor } from '../lib/avatars';
 import type { NetworkId, WalletAccount } from '../types/wallet';
 
@@ -145,6 +146,15 @@ export function settingsView(): HTMLElement {
       }),
       ...(isTauri ? [buildWindowSection()] : []),
       el('div', { cls: 'parsec-settings__section', children: [
+        el('h3', { cls: 'parsec-section-title', text: 'Profiles' }),
+        el('p', { cls: 'parsec-view__desc', text: 'Each profile is its own vault with its own passphrase and wallets. '
+          + 'Choosing another profile locks this one; nothing is deleted. Default is the vault this device had first.' }),
+        profileChooser({
+          // A switch ends the session; the door is where the next vault is opened.
+          onChanged: () => { void import('../lib/session').then((m) => m.logout()).catch(() => store.lock()); },
+        }),
+      ]}),
+      el('div', { cls: 'parsec-settings__section', children: [
         el('h3', { cls: 'parsec-section-title', text: 'Security & Vault' }),
         btn('Mausoleum', { outlined: true, icon: 'shield', onClick: () => store.navigate('mausoleum') }),
         btn('Admin Key Ceremony', { outlined: true, icon: 'key', onClick: () => store.navigate('admin-keygen') }),
@@ -167,7 +177,7 @@ export function settingsView(): HTMLElement {
   });
 }
 
-/** Desktop only: what closing the window does, and whether Parsec starts at login. */
+/** Desktop only: what closing the window does, and whether PARSEC starts at login. */
 function buildWindowSection(): HTMLElement {
   const status = el('p', { cls: 'parsec-view__desc', attrs: { 'aria-live': 'polite' } });
 
@@ -176,8 +186,8 @@ function buildWindowSection(): HTMLElement {
   trayBox.addEventListener('change', () => {
     void setCloseToTray(trayBox.checked).then(() => {
       status.textContent = trayBox.checked
-        ? 'Closing the window keeps Parsec running in the tray. Quit from the tray menu.'
-        : 'Closing the window quits Parsec.';
+        ? 'Closing the window keeps PARSEC running in the tray. Quit from the tray menu.'
+        : 'Closing the window quits PARSEC.';
     });
   });
 
@@ -191,7 +201,7 @@ function buildWindowSection(): HTMLElement {
     void setAutostart(bootBox.checked)
       .then((on) => {
         bootBox.checked = on;
-        status.textContent = on ? 'Parsec starts at login, in the tray.' : 'Parsec no longer starts at login.';
+        status.textContent = on ? 'PARSEC starts at login, in the tray.' : 'PARSEC no longer starts at login.';
       })
       .catch((e) => {
         bootBox.checked = !bootBox.checked;
@@ -208,7 +218,7 @@ function buildWindowSection(): HTMLElement {
 
   return el('div', { cls: 'parsec-settings__section', children: [
     el('h3', { cls: 'parsec-section-title', text: 'Window' }),
-    row(trayBox, 'Close to tray', 'closing the window keeps Parsec running; the tray icon brings it back'),
+    row(trayBox, 'Close to tray', 'closing the window keeps PARSEC running; the tray icon brings it back'),
     row(bootBox, 'Start at login', 'opens in the tray when you sign in to this computer'),
     status,
   ]});

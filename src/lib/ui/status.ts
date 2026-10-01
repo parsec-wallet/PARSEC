@@ -1,4 +1,4 @@
-// Parsec Wallet — Tri-state Status
+// PARSEC Wallet — Tri-state Status
 //
 // Adapted from bankon-node-v6's TIMELESS.md rule 1: "a stamp is green only if
 // the node is functional." The third state is the point — `unknown` is what an

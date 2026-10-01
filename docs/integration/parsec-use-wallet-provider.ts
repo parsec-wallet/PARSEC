@@ -1,8 +1,8 @@
-// Parsec dApp-side provider for @txnlab/use-wallet
+// PARSEC dApp-side provider for @txnlab/use-wallet
 //
 // Drop this file into a dApp that already uses @txnlab/use-wallet and register
-// Parsec as a WalletId.CUSTOM wallet. No protocol rebuild — use-wallet handles
-// the UI and state; this file speaks JSON-RPC 2.0 over the Parsec Connect
+// PARSEC as a WalletId.CUSTOM wallet. No protocol rebuild — use-wallet handles
+// the UI and state; this file speaks JSON-RPC 2.0 over the PARSEC Connect
 // WebSocket (ws://127.0.0.1:9876/parsec/v1/connect/ws by default).
 //
 // Usage:
@@ -13,7 +13,7 @@
 //     wallets: [{
 //       id: WalletId.CUSTOM,
 //       options: { provider: parsecProvider() },
-//       metadata: { name: 'Parsec', icon: '/icons/parsec.svg' },
+//       metadata: { name: 'PARSEC', icon: '/icons/parsec.svg' },
 //     }],
 //     defaultNetwork: NetworkId.MAINNET,
 //   })
@@ -22,13 +22,13 @@ import type algosdk from 'algosdk'
 import type { CustomProvider } from '@txnlab/use-wallet'
 
 export interface ParsecProviderOptions {
-  /** Parsec Connect WebSocket URL. Defaults to ws://127.0.0.1:9876/parsec/v1/connect/ws. */
+  /** PARSEC Connect WebSocket URL. Defaults to ws://127.0.0.1:9876/parsec/v1/connect/ws. */
   url?: string
   /** Origin passed with sign requests so the user sees which dApp is asking. Defaults to window.location.origin. */
   origin?: string
-  /** Optional human-readable message shown in the Parsec approval dialog. */
+  /** Optional human-readable message shown in the PARSEC approval dialog. */
   defaultMessage?: string
-  /** Timeout for a single JSON-RPC request, in ms. Parsec's own signing timeout is 120s. */
+  /** Timeout for a single JSON-RPC request, in ms. PARSEC's own signing timeout is 120s. */
   requestTimeoutMs?: number
 }
 
@@ -67,7 +67,7 @@ export function parsecProvider(options: ParsecProviderOptions = {}): CustomProvi
     if (socket && socket.readyState === WebSocket.CONNECTING) {
       await new Promise<void>((ok, err) => {
         socket!.addEventListener('open', () => ok(), { once: true })
-        socket!.addEventListener('error', () => err(new Error('Parsec: WebSocket failed')), { once: true })
+        socket!.addEventListener('error', () => err(new Error('PARSEC: WebSocket failed')), { once: true })
       })
       return socket!
     }
@@ -78,17 +78,17 @@ export function parsecProvider(options: ParsecProviderOptions = {}): CustomProvi
       const waiter = pending.get(msg.id)
       if (!waiter) return
       pending.delete(msg.id)
-      if (msg.error) waiter.reject(new Error(`Parsec [${msg.error.code}]: ${msg.error.message}`))
+      if (msg.error) waiter.reject(new Error(`PARSEC [${msg.error.code}]: ${msg.error.message}`))
       else waiter.resolve(msg.result)
     })
     socket.addEventListener('close', () => {
-      pending.forEach((p) => p.reject(new Error('Parsec: WebSocket closed')))
+      pending.forEach((p) => p.reject(new Error('PARSEC: WebSocket closed')))
       pending.clear()
       socket = null
     })
     await new Promise<void>((ok, err) => {
       socket!.addEventListener('open', () => ok(), { once: true })
-      socket!.addEventListener('error', () => err(new Error('Parsec: could not reach wallet')), { once: true })
+      socket!.addEventListener('error', () => err(new Error('PARSEC: could not reach wallet')), { once: true })
     })
     return socket
   }
@@ -99,7 +99,7 @@ export function parsecProvider(options: ParsecProviderOptions = {}): CustomProvi
     const req: JsonRpcRequest = { jsonrpc: '2.0', id, method, params }
     return await new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => {
-        if (pending.delete(id)) reject(new Error(`Parsec: request timed out (${method})`))
+        if (pending.delete(id)) reject(new Error(`PARSEC: request timed out (${method})`))
       }, requestTimeoutMs)
       pending.set(id, {
         resolve: (v) => { clearTimeout(timer); resolve(v as T) },
@@ -111,8 +111,8 @@ export function parsecProvider(options: ParsecProviderOptions = {}): CustomProvi
 
   async function fetchAccounts() {
     const result = await call<{ accounts: ParsecAccount[] }>('parsec_accounts')
-    if (!result?.accounts?.length) throw new Error('Parsec: no active account')
-    return result.accounts.map((a) => ({ name: a.label ?? 'Parsec', address: a.address }))
+    if (!result?.accounts?.length) throw new Error('PARSEC: no active account')
+    return result.accounts.map((a) => ({ name: a.label ?? 'PARSEC', address: a.address }))
   }
 
   function toBase64(bytes: Uint8Array): string {
@@ -140,7 +140,7 @@ export function parsecProvider(options: ParsecProviderOptions = {}): CustomProvi
   function encodeTxn(t: algosdk.Transaction | Uint8Array): Uint8Array {
     if (t instanceof Uint8Array) return t
     if (typeof (t as algosdk.Transaction).toByte === 'function') return (t as algosdk.Transaction).toByte()
-    throw new Error('Parsec: unsupported transaction type in group')
+    throw new Error('PARSEC: unsupported transaction type in group')
   }
 
   return {
@@ -149,7 +149,7 @@ export function parsecProvider(options: ParsecProviderOptions = {}): CustomProvi
     disconnect: async () => {
       if (socket && socket.readyState === WebSocket.OPEN) socket.close()
       socket = null
-      pending.forEach((p) => p.reject(new Error('Parsec: disconnected')))
+      pending.forEach((p) => p.reject(new Error('PARSEC: disconnected')))
       pending.clear()
     },
 

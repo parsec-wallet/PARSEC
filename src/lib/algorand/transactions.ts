@@ -1,4 +1,4 @@
-// Parsec Wallet — Transaction Operations
+// PARSEC Wallet — Transaction Operations
 
 import algosdk from 'algosdk';
 import type { NetworkId, TransactionRecord } from '../../types/wallet';

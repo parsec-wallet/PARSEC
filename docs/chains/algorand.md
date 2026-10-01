@@ -1,11 +1,11 @@
-# Algorand — Parsec chain pack
+# Algorand — PARSEC chain pack
 
 > The primary chain. Classic 25-word algosdk accounts — generate/recover,
 > fetch balance, send payments and assets.
 
 ## Overview
 
-Algorand is Parsec's home chain. The classic module uses `algosdk` directly:
+Algorand is PARSEC's home chain. The classic module uses `algosdk` directly:
 account generation, recovery, ALGO + ASA transfers, and NFT metadata
 (ARC-3 / ARC-19 / ARC-69, ARC-26 URIs).
 

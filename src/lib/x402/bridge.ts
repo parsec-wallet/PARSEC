@@ -1,4 +1,4 @@
-// Parsec x402 Integration — Vault-Secured Signing Bridge
+// PARSEC x402 Integration — Vault-Secured Signing Bridge
 // Retrieves keys from vault EPHEMERALLY, builds x402 signer, signs, discards.
 // Secrets pass through JS only for a single signing operation.
 // SPDX-FileCopyrightText: 2026 BANKON

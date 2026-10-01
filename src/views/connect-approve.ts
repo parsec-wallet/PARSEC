@@ -1,4 +1,4 @@
-// Parsec Wallet — dApp Connect Approval View
+// PARSEC Wallet — dApp Connect Approval View
 // Shows transaction signing requests from web dApps connected via WebSocket.
 // Follows the x402-confirm pattern: module-level pending state + setter.
 

@@ -14,7 +14,7 @@ sole custodian. The vault stores only the EVM-address mapping.
 
 - **No mnemonic.** The Algorand address is a deterministic LogicSig template
   derived from the controlling **EVM address** (network-independent).
-- Control is delegated to the injected EVM provider; Parsec generates no keys.
+- Control is delegated to the injected EVM provider; PARSEC generates no keys.
 
 ## Address format
 

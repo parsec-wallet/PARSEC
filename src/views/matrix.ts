@@ -1,4 +1,4 @@
-// Parsec Wallet — Matrix Entry Gate
+// PARSEC Wallet — Matrix Entry Gate
 // WebGL shader rain with 3D depth, crypto icon glyphs, live price on hover.
 // Blue pill (left) = diagnostics. Red pill (right) = live wallet.
 // Matrix wall = safe to walk away. Password never remembered.
@@ -18,6 +18,7 @@ import {
   type Zone as CloudZone,
 } from '../lib/cryptocloud';
 import { keystoreUnlock, keystoreStatus } from '../lib/keystore';
+import { profileChooser } from '../lib/ui/profile-chooser';
 import { recoverKeys, mergeRecovered } from '../lib/recovery';
 // Loaded at call time. `nfd/login` reaches `nfd/resolve` -> `nfd/client` ->
 // `@txnlab/nfd-sdk` -> algosdk + algokit-utils. As a static import from this
@@ -93,6 +94,9 @@ export function matrixView(): HTMLElement {
   // Declared with the rest of the view state so no render path can read it
   // before initialization.
   let vaultHasAccounts = false;
+  // The Red Pill's profile panel: closed (just the profile line), open (the
+  // chooser), or forgot (the chooser opened on "new vault", with the reason).
+  let profilePanel: 'closed' | 'open' | 'forgot' = 'closed';
   // A fresh Matrix with no wallet session open is viewing mode.
   if (!hasLiveSession()) disarm();
 
@@ -249,10 +253,10 @@ export function matrixView(): HTMLElement {
     return describeChange(coin.symbol, pct, pricePeriod, observedMinutes);
   }
 
-  // Extending Parsec to chainmarketcap is opt-in.
+  // Extending PARSEC to chainmarketcap is opt-in.
   //
   // Off by default because the wallet is complete without it: switching it on
-  // is a decision to reach a service Parsec does not need, and it is also the
+  // is a decision to reach a service PARSEC does not need, and it is also the
   // gate on the modular contract deployer, which is OVERLORD-controlled in
   // /DeltaVerse and signed by bankon.eth. A capability that can deploy contracts
   // should never arrive switched on.
@@ -377,9 +381,9 @@ export function matrixView(): HTMLElement {
     // deliberately not part of a profile: applying one never rewrites it.
   }
 
-  // First run of profiles on this device: the Parsec profile is seeded from the
+  // First run of profiles on this device: the PARSEC profile is seeded from the
   // participant's own selections as they stand — the landing toggles, the
-  // extension switches, the depth and the period — plus the Parsec emphasis
+  // extension switches, the depth and the period — plus the PARSEC emphasis
   // assets. Nothing the participant already chose is overwritten.
   if (!profiles.isParsecSeeded()) {
     activeProfile = profiles.seedParsecProfile(captureChoices());
@@ -2824,7 +2828,7 @@ export function matrixView(): HTMLElement {
     netFeed.appendChild(netLog);
     panel.appendChild(netFeed);
 
-    logNet(netLog, 'INIT', `Parsec v0.1.0 — ${state.settings.network}`);
+    logNet(netLog, 'INIT', `PARSEC v0.1.0 — ${state.settings.network}`);
     logNet(netLog, 'NODE', `${state.settings.network}-api.algonode.cloud`);
 
     // ── Tabs ──
@@ -3165,7 +3169,7 @@ export function matrixView(): HTMLElement {
     {
       const { wrap, body } = settingsGroup(
         'Profile',
-        'A profile saves every choice on this page under a name. Parsec is the default, seeded from your own selections; it can be saved over but not deleted.',
+        'A profile saves every choice on this page under a name. PARSEC is the default, seeded from your own selections; it can be saved over but not deleted.',
       );
       const all = profiles.listProfiles();
       const select = document.createElement('select');
@@ -3216,7 +3220,7 @@ export function matrixView(): HTMLElement {
           onClick: () => {
             const gone = activeProfile.name;
             profiles.deleteProfile(activeProfile.id);
-            toast(`Deleted ${gone}. Parsec is active.`, 'primary');
+            toast(`Deleted ${gone}. PARSEC is active.`, 'primary');
             applyProfile(profiles.getActiveProfile());
           },
         }));
@@ -3347,7 +3351,7 @@ export function matrixView(): HTMLElement {
         }
         chainSel.disabled = cands.length === 0;
         status.textContent = addr.value.trim() === '' ? ''
-          : cands.length === 0 ? 'Not an address format Parsec can watch.'
+          : cands.length === 0 ? 'Not an address format PARSEC can watch.'
           : cands.length > 1 ? 'This fits more than one chain. Pick which.' : '';
       };
       addr.addEventListener('input', suggest);
@@ -5068,6 +5072,47 @@ export function matrixView(): HTMLElement {
     }, 450);
   }
 
+  /** After the chooser switched or made a profile: forget what the old
+   *  vault said and ask the new one. */
+  function afterProfileChange(): void {
+    vaultHasAccounts = false;
+    profilePanel = 'closed';
+    renderPanel();
+  }
+
+  /**
+   * Which vault this door opens, and the way to another one. With a session
+   * open the line is read-only: switching would end the session, which is
+   * what "Log Out Completely" is for.
+   */
+  function renderProfileLine(live: boolean): void {
+    const toggle = el('a', {
+      text: profilePanel === 'closed' ? 'change · new vault' : 'close',
+      attrs: { href: '#' },
+      onClick: (e) => { e.preventDefault(); profilePanel = profilePanel === 'closed' ? 'open' : 'closed'; renderPanel(); },
+    });
+    panel.appendChild(el('p', { cls: 'parsec-matrix__profile', children: [
+      'Profile', el('strong', { text: store.profile }), ...(live ? [] : ['·', toggle]),
+    ]}));
+  }
+
+  function renderProfilePanel(): void {
+    if (profilePanel === 'forgot') {
+      panel.appendChild(el('p', {
+        cls: 'parsec-matrix__nowallet',
+        text: 'A vault passphrase cannot be recovered or reset: it is what decrypts the vault, and PARSEC keeps no copy. '
+            + 'Your wallets are not lost if you have their recovery phrases. Create a new vault here, then restore each '
+            + `wallet into it. Profile “${store.profile}” stays on this device untouched; if the passphrase comes back, choose it again.`,
+      }));
+    }
+    panel.appendChild(profileChooser({
+      compact: true,
+      startCreating: profilePanel === 'forgot',
+      onChanged: () => afterProfileChange(),
+    }));
+    backButton();
+  }
+
   function renderRedPill() {
     // Red pill = wallet login + create new wallet
     const state = store.get();
@@ -5088,9 +5133,13 @@ export function matrixView(): HTMLElement {
       el('p', { cls: 'parsec-matrix__lead', text: 'Sovereign access. Signing authority.' }),
     ]}));
 
+    const live = hasLiveSession();
+    renderProfileLine(live);
+    if (!live && profilePanel !== 'closed') { renderProfilePanel(); return; }
+
     // A session is already open: the Red Pill is the logged-in perspective on
     // every wallet this vault holds. Offer the way in, and the way fully out.
-    if (hasLiveSession()) {
+    if (live) {
       panel.appendChild(el('p', { cls: 'parsec-matrix__recover', text: 'Session open. Your wallets are unlocked.' }));
       const list = el('div', { cls: 'parsec-redsession' });
       state.accounts.forEach((acct, i) => {
@@ -5146,6 +5195,13 @@ export function matrixView(): HTMLElement {
       panel.appendChild(passInput);
       panel.appendChild(btn(recovering ? 'Open Wallet' : 'Unlock Wallet', { intent: 'primary', large: true, cls: 'parsec-matrix__action parsec-matrix__action--red', onClick: doUnlock }));
       setTimeout(() => passInput.focus(), 100);
+      panel.appendChild(el('p', { cls: 'parsec-matrix__profile', children: [
+        el('a', {
+          text: 'Forgot the passphrase? Create a new vault',
+          attrs: { href: '#' },
+          onClick: (e) => { e.preventDefault(); passphrase = ''; profilePanel = 'forgot'; renderPanel(); },
+        }),
+      ]}));
 
       // Divider + create/import options
       panel.appendChild(el('div', { cls: 'parsec-matrix__divider', text: 'or' }));
@@ -5157,7 +5213,8 @@ export function matrixView(): HTMLElement {
     if (!hasAccounts) {
       panel.appendChild(el('p', {
         cls: 'parsec-matrix__nowallet',
-        text: 'No wallet on this device. A passphrase alone cannot restore one — '
+        text: (store.profile === 'default' ? 'No wallet on this device. ' : `No wallet in profile “${store.profile}” yet. `)
+            + 'A passphrase alone cannot restore one — '
             + 'it decrypts keys, it does not recreate them. Bring your wallet here '
             + 'with its 25-word recovery phrase.',
       }));

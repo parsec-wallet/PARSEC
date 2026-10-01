@@ -694,7 +694,7 @@ export function mausoleumView(): HTMLElement {
           },
         }),
         note(
-          'A signature over the binding message is a bearer credential for this vault. Never sign it in response to a website or a dApp prompt — Parsec never asks a dApp for it.',
+          'A signature over the binding message is a bearer credential for this vault. Never sign it in response to a website or a dApp prompt — PARSEC never asks a dApp for it.',
           'danger',
         ),
       ]));

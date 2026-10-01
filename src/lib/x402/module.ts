@@ -14,7 +14,7 @@ import './rails/evm';
 import './rails/svm';
 import { configureParsecX402Host } from './adapters/parsec';
 
-// Hand the module Parsec's algod and price feed before any view can ask it to pay.
+// Hand the module PARSEC's algod and price feed before any view can ask it to pay.
 configureParsecX402Host();
 
 registerModule({

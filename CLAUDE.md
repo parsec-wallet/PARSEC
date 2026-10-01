@@ -8,7 +8,7 @@ Guidance for Claude Code when working in this repository.
 
 ## What this is
 
-**Parsec** — a sovereign multi-chain desktop wallet. Algorand-first, with
+**PARSEC** — a sovereign multi-chain desktop wallet. Algorand-first, with
 Solana, Arweave, EVM/Base, and Bitcoin packs. Tauri 2 shell, Rust backend for
 signing and validation, **vanilla TypeScript frontend with no UI framework**.
 
@@ -20,13 +20,13 @@ generates keys, derives them from a seed/mnemonic, holds key material, or signs 
 **MIT** for the server-side AO processes. No permissive alternative on the key tier — by design.
 `REUSE.toml` is the per-path authority; check it before moving code between those areas.
 
-**Destination:** on completion Parsec joins the
+**Destination:** on completion PARSEC joins the
 **[cypherpunk4096 consortium](https://github.com/cypherpunk4096)**. Conformance
 is binary — all five commitments or none. Two are not met today
 (zero-dependencies; float arithmetic in the money path). Read
 `docs/cypherpunk4096.md` before claiming conformance anywhere, and do not add a
 runtime dependency or a float to a value path without knowing you are widening
-a gap. Bitcoin is **standalone**: Parsec is compatible with `BANKONBTCWaaS` (a sibling
+a gap. Bitcoin is **standalone**: PARSEC is compatible with `BANKONBTCWaaS` (a sibling
 repo in that org) but **must never require it** — it is an optional provider
 behind a seam, and every surface it backs degrades to `unknown` when absent.
 See `docs/integration/bankon-btc-waas.md`.
@@ -76,7 +76,7 @@ npm run dev            # Vite dev server → http://localhost:1420
 npm run tauri:dev      # Tauri desktop app (dev)
 npm run build          # tsc && vite build  → dist/
 npm run tauri:build    # production desktop bundle
-npm test               # vitest run  (~370 tests)
+npm test               # vitest run  (~695 tests)
 npm run test:watch
 npm run lint:css       # stylelint src/**/*.scss --fix
 npm run lint:css:ci    # CI-clean output
@@ -93,7 +93,7 @@ Always run `npx tsc --noEmit` and `npx vitest run` before declaring work done.
 ```
 src/
 ├── main.ts             entry — registers views, mounts router, deferred IPC init
-├── views/              68 view modules, each exporting a () => HTMLElement factory
+├── views/              71 view modules, each exporting a () => HTMLElement factory
 ├── lib/
 │   ├── dom.ts          el() / input() / btn() / toast() — the whole "component kit"
 │   ├── router.ts       Map<view, factory> + store subscription
@@ -108,7 +108,7 @@ src/
 ├── styles/             SCSS 7-1-ish; wallet/_views.scss is the app skin
 └── types/wallet.ts     WalletState, WalletAccount, AppView
 src-tauri/src/
-├── lib.rs              15 modules, 122 commands in one generate_handler!
+├── lib.rs              16 modules, 112 commands in one generate_handler!
 ├── bankon_vault/       Argon2id + AES-256-GCM key storage; Tomb (LUKS) commands
 ├── chain_btc|chain_ltc|chain_evm/   derivation + signing
 ├── parsec_connect/     dApp WebSocket bridge (127.0.0.1:9876)
@@ -137,12 +137,12 @@ wrappers call `platform.ts`. Only ~20 files touch IPC.
 
 **Read `docs/security/vault-family.md` before touching this.** At least five
 codebases carry the name, in three languages, with materially different
-cryptography; Parsec's is `bankon-vault/2` (Argon2id → wrapped DEK → per-entry
+cryptography; PARSEC's is `bankon-vault/2` (Argon2id → wrapped DEK → per-entry
 HKDF, scheme-tagged bytes, encrypted index). The format is specified in
 `docs/security/bankon-vault-spec.md`, which is the contract, not the code.
 
-`bankon_vault` is **one component across several projects**, not a Parsec
-internal. The same vault appears in BANKONBTCWaaS and elsewhere, and **Parsec
+`bankon_vault` is **one component across several projects**, not a PARSEC
+internal. The same vault appears in BANKONBTCWaaS and elsewhere, and **PARSEC
 offers it as a service**. Treat its interface as a contract other applications
 depend on: additive changes, no silent breaks. Its public surface is 34 IPC commands:
 the original 16 (9 v1 in `commands.rs` + 7 Tomb in `tomb_commands.rs`) plus 18
@@ -153,9 +153,9 @@ register the 18 commands, and `VaultSession` has no v2 state. `src/lib/vault.ts`
 wrappers on `VAULT_V2_IN_BUILD` (false): reads degrade to the v1 vault, writes refuse. Flip it
 in the same change that wires the Rust side.
 
-**Scope discipline:** in this repo, focus on Parsec. Do not refactor for other
+**Scope discipline:** in this repo, focus on PARSEC. Do not refactor for other
 consumers, chase their integrations, or vendor their code here — note the
-cross-project implication and keep the work in Parsec's own tree.
+cross-project implication and keep the work in PARSEC's own tree.
 
 ### Registries (the modular-expansion seam)
 

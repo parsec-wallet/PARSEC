@@ -1,4 +1,4 @@
-// Parsec Wallet — Algorand display formatting.
+// PARSEC Wallet — Algorand display formatting.
 //
 // Deliberately dependency-free. These two helpers are used in ~45 places, and
 // while they lived in `account.ts` — which statically imports `algosdk` — every

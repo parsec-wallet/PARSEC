@@ -1,13 +1,13 @@
-// Parsec Wallet — Choose Chains
+// PARSEC Wallet — Choose Chains
 //
 // The first step of creating a wallet. Algorand is not optional: it is the
-// account Parsec is built on, and the reason is quantum compliance rather
+// account PARSEC is built on, and the reason is quantum compliance rather
 // than preference — Algorand's Falcon-1024 native accounts (Q3 2026) are
 // derivable from the same 25-word seed and preserve the 58-char address
 // format, so today's Algorand account is the one that migrates to Tier-Q
 // without a re-key. See QUANTUM.md.
 //
-// The other chains are utility: hold, send, and sign on networks Parsec
+// The other chains are utility: hold, send, and sign on networks PARSEC
 // speaks, added to the same account.
 //
 // Status is derived from which addresses the account actually holds — never
@@ -27,7 +27,7 @@ interface ChainOffer {
   /** Why this chain is on the list. */
   readonly reason: string;
   readonly detail: string;
-  /** Algorand — the account Parsec requires. */
+  /** Algorand — the account PARSEC requires. */
   readonly required?: boolean;
   /** Route to a dedicated creation view, when one exists. */
   readonly view?: string;
@@ -112,7 +112,7 @@ export function createSelectView(): HTMLElement {
     cls: 'parsec-chainpick__lede',
     text: hasAlgorand
       ? 'Your Algorand account is set up. Add any utility chains you want on the same account — you can come back to this at any time.'
-      : 'Parsec starts with an Algorand account, then adds whatever else you need onto it. One identity, many chains.',
+      : 'PARSEC starts with an Algorand account, then adds whatever else you need onto it. One identity, many chains.',
   }));
 
   const list = el('div', { cls: 'parsec-chainpick__list' });

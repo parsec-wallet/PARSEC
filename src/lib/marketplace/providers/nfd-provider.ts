@@ -2,7 +2,7 @@
 //
 // NFD instance contracts expose `offerForSale` / `purchase` ABI methods, so
 // a listed name can be bought and settled entirely on-chain from inside
-// Parsec. The SDK's `getPurchaseQuote` / `buy` wrap that; this provider
+// PARSEC. The SDK's `getPurchaseQuote` / `buy` wrap that; this provider
 // adapts them to the generic MarketplaceProvider contract.
 
 import type { NetworkId } from '../../../types/wallet';
@@ -36,7 +36,7 @@ interface NfdSaleRecord {
 export const nfdMarketplaceProvider: MarketplaceProvider = {
   id: 'nfd',
   displayName: 'NFD Marketplace',
-  description: 'Native buy-it-now for .algo NFD names, settled on-chain inside Parsec.',
+  description: 'Native buy-it-now for .algo NFD names, settled on-chain inside PARSEC.',
   kinds: ['nfd-name'],
   settlement: 'in-wallet',
   supports: (network) => network === 'mainnet' || network === 'testnet',

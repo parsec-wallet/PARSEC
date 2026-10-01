@@ -1,4 +1,4 @@
-// Parsec Wallet — cryptocloud geometry and weather.
+// PARSEC Wallet — cryptocloud geometry and weather.
 //
 // The cloud is the drifting cluster of currency glyphs. Three decisions govern
 // it, and all three are pure functions of state, so they live here rather than

@@ -1,4 +1,4 @@
-// Parsec Wallet — x402 Payment Confirmation.
+// PARSEC Wallet — x402 Payment Confirmation.
 //
 // The last thing a participant sees before a payment group is signed. It shows what is
 // actually being signed: the atomic amount and its asset, the network, who receives it,

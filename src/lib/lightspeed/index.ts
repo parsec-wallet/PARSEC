@@ -1,6 +1,6 @@
 // Lightspeed barrel — the light.js idea (reactive chain reads over a
 // participant-chosen provider) reimplemented in-house with zero dependencies,
-// and Parsec's template for a module that states its choices. Doc:
+// and PARSEC's template for a module that states its choices. Doc:
 // docs/lightspeed.md. Registration is a side effect of ./module, imported
 // from main.ts; this barrel is the API.
 

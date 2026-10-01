@@ -1,4 +1,4 @@
-// Parsec Wallet — viewing and armed modes
+// PARSEC Wallet — viewing and armed modes
 //
 // The two pills are two modes of the same app, kept apart at runtime.
 //
@@ -71,7 +71,7 @@ export const VIEWING_COMMANDS: ReadonlySet<string> = new Set([
   // read-only
   'validate_address_algorand', 'validate_address_any', 'validate_address_bitcoin',
   'validate_address_cosmos', 'validate_address_evm', 'validate_address_solana',
-  'vault_status',
+  'vault_status', 'vault_profiles',
   'network_info', 'network_monitor_set_enabled',
   'throttle_check', 'throttle_stats',
   'tomb_status', 'tomb_detect_usb', 'tomb_check',
@@ -81,6 +81,8 @@ export const VIEWING_COMMANDS: ReadonlySet<string> = new Set([
   'mesh_ipfs_status', 'mesh_resources', 'mesh_resource_cost',
   // setup, no secret
   'throttle_init', 'sandbox_init', 'mesh_init',
+  // choosing which vault the door opens: holds no secret, and locks any open session
+  'vault_profile_select',
   // the desktop window itself — the title bar, tray and start-at-login hold no
   // secret, and a window that could not be minimized or closed on the landing
   // (which is viewing mode) would be a broken window, not a safer one

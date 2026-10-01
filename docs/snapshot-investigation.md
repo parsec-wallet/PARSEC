@@ -36,7 +36,7 @@ The published mechanics:
 
 **Status: ⚠️ partial disclosure.** The "Protocol Balance" destination is named but its governance and the reclaim-window length are not published. Practical reading: if you miss registration AND the reclaim window, your ARIO is reabsorbed by the protocol treasury.
 
-**Recommended action:** complete registration well before June 1, 2026. The Parsec migration view's countdown is calibrated to this.
+**Recommended action:** complete registration well before June 1, 2026. The PARSEC migration view's countdown is calibrated to this.
 
 ### 4. BASE ARIO contract status
 
@@ -64,14 +64,14 @@ The published mechanics:
 | AR.IO retains "Protocol Balance" claim on unclaimed | Low (avoidable by registering) | Register on sol.ar.io before snapshot |
 | `Protocol Balance` governance opaque | Low | Inherent to the AR.IO model; sovereign alternative is the BANKON namespace |
 
-### 7. Decision points captured for Parsec
+### 7. Decision points captured for PARSEC
 
 1. **Solana migration handler stays shipped.** The June 1 deadline is firm; the handler is the path of record.
 2. **BANKON namespace decoupled from AR.IO trust posture.** BNR runs in parallel with no dependency on AR.IO infrastructure. Names in the BANKON namespace survive any AR.IO snapshot or treasury reabsorption.
 3. **Recommended user action sequence pre-June 1**:
-   1. Create Arweave HD account in Parsec.
-   2. Create Solana destination address in Parsec (BANKON-vault-held).
-   3. Open `https://sol.ar.io` from the Parsec migration view; complete BASE → Solana registration.
+   1. Create Arweave HD account in PARSEC.
+   2. Create Solana destination address in PARSEC (BANKON-vault-held).
+   3. Open `https://sol.ar.io` from the PARSEC migration view; complete BASE → Solana registration.
    4. (Independently) Spawn the BANKON Names Registry once and claim sovereign names in parallel.
 
 ---

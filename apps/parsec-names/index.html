@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Name desk — PYTHAI permaweb</title>
-<meta name="description" content="Run the ar.io names for the PYTHAI suite. Reads are public; Parsec holds the key and approves every change.">
+<meta name="description" content="Run the ar.io names for the PYTHAI suite. Reads are public; PARSEC holds the key and approves every change.">
 <style>
   :root{
     --bg:#0B1C14; --panel:#10261B; --sunk:#081711; --ink:#E7EDE8; --faint:#93A79B; --rule:#2A4034;
@@ -80,20 +80,20 @@
 <div class="wrap">
   <header>
     <h1>Name desk</h1>
-    <p class="lede">The ar.io names for the PYTHAI suite. Anyone can see what each name serves — that part is public. Changing one needs Parsec, which states the change in plain words and signs it with your vault key.</p>
+    <p class="lede">The ar.io names for the PYTHAI suite. Anyone can see what each name serves — that part is public. Changing one needs PARSEC, which states the change in plain words and signs it with your vault key.</p>
   </header>
 
   <div class="bar" id="bar" data-state="checking">
-    <div><span class="dot"></span><span id="barText">Looking for Parsec…</span></div>
+    <div><span class="dot"></span><span id="barText">Looking for PARSEC…</span></div>
     <div><button id="retry" class="ghost">Check again</button></div>
   </div>
 
   <main class="names" id="names"></main>
 
   <footer>
-    Reads come from ar.io gateways over HTTPS and need no wallet. Writes go to Parsec on
+    Reads come from ar.io gateways over HTTPS and need no wallet. Writes go to PARSEC on
     <span class="mono">127.0.0.1:9876</span>; this page never holds a key and never builds a transaction —
-    it asks for a named operation and Parsec decides what that means.
+    it asks for a named operation and PARSEC decides what that means.
   </footer>
 </div>
 
@@ -115,7 +115,7 @@ const namesEl = document.getElementById('names');
 
 async function checkWallet() {
   bar.dataset.state = 'checking';
-  barText.textContent = 'Looking for Parsec…';
+  barText.textContent = 'Looking for PARSEC…';
   const ok = await pn.detect();
   if (ok) {
     bar.dataset.state = 'on';
@@ -125,10 +125,10 @@ async function checkWallet() {
       const a = accts?.accounts?.[0] ?? accts?.[0];
       if (typeof a === 'string') who = ` · ${a.slice(0, 6)}…${a.slice(-4)}`;
     } catch { /* accounts are optional context */ }
-    barText.textContent = `Parsec is running${who} — changes will open there for approval`;
+    barText.textContent = `PARSEC is running${who} — changes will open there for approval`;
   } else {
     bar.dataset.state = 'off';
-    barText.textContent = 'Parsec is not running. You can read every name below; changing one needs the wallet open.';
+    barText.textContent = 'PARSEC is not running. You can read every name below; changing one needs the wallet open.';
   }
   document.querySelectorAll('[data-needs-wallet]').forEach((b) => { b.disabled = !ok; });
   return ok;
@@ -254,7 +254,7 @@ function card({ name, blurb, undernames }) {
       <div class="hint"></div>
       <div><button class="primary" data-needs-wallet disabled>Point ${name} here</button></div>`;
     wireTx(f, async (tx, ttl) => {
-      say(`Waiting for approval in Parsec — it will show "Point ${name} at new content".`, 'busy');
+      say(`Waiting for approval in PARSEC — it will show "Point ${name} at new content".`, 'busy');
       await pn.setRoot(name, tx, ttl);
       say(`Done. ${name} now serves ${tx}. Gateways catch up within the TTL.`, 'ok');
       f.remove();
@@ -280,7 +280,7 @@ function card({ name, blurb, undernames }) {
       <div class="hint"></div>
       <div><button class="primary" data-needs-wallet disabled>Serve ${u}_${name}</button></div>`;
     wireTx(f, async (tx, ttl) => {
-      say(`Waiting for approval in Parsec — it will show "Serve ${u}_${name} from new content".`, 'busy');
+      say(`Waiting for approval in PARSEC — it will show "Serve ${u}_${name} from new content".`, 'busy');
       await pn.setUndername(name, u, tx, ttl);
       say(`Done. ${u}_${name} now serves ${tx}.`, 'ok');
       f.remove();
@@ -311,12 +311,12 @@ function card({ name, blurb, undernames }) {
         await run(tx.value.trim(), Number(ttl.value));
       } catch (e) {
         if (e instanceof ParsecNotAvailable) {
-          say('Parsec closed or is no longer reachable. Open the wallet and try again.', 'bad');
+          say('PARSEC closed or is no longer reachable. Open the wallet and try again.', 'bad');
           checkWallet();
         } else if (e.code === 4001) {
-          say('Rejected in Parsec. Nothing changed.', 'bad');
+          say('Rejected in PARSEC. Nothing changed.', 'bad');
         } else if (e.code === 4100) {
-          say('Parsec is locked. Unlock it and try again.', 'bad');
+          say('PARSEC is locked. Unlock it and try again.', 'bad');
         } else if (e.code === 4002) {
           say('The request timed out waiting for approval. Nothing changed.', 'bad');
         } else {

@@ -1,4 +1,4 @@
-// Create a Solana address for the active Parsec account.
+// Create a Solana address for the active PARSEC account.
 //
 // Address first, then the backup: the private key (base58, the 64-byte keypair
 // Phantom and Solflare import) and the 24-word BIP-39 phrase (path
@@ -92,7 +92,7 @@ export function solanaCreateView(): HTMLElement {
       address.el,
       backupWarning(),
       privateKey.el,
-      phrasePanel(mnemonic.split(' '), 'Write the 24 words down in order. Standard BIP-39, path m/44\'/501\'/0\'/0\' — it restores this address in Phantom, Solflare and Parsec.'),
+      phrasePanel(mnemonic.split(' '), 'Write the 24 words down in order. Standard BIP-39, path m/44\'/501\'/0\'/0\' — it restores this address in Phantom, Solflare and PARSEC.'),
       saveBtn,
       status,
     ],

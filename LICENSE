@@ -1,7 +1,7 @@
 BANKON — Licensing (by component)
 =================================
 
-Parsec Wallet — Copyright (c) 2026 BANKON.
+PARSEC Wallet — Copyright (c) 2026 BANKON.
 
 BANKON licenses by component. Where a source file carries an SPDX header, that header is
 authoritative; otherwise REUSE.toml maps every path in this repository
@@ -35,7 +35,7 @@ authoritative; otherwise REUSE.toml maps every path in this repository
 
    Like GnuPG — the GPL implementation of OpenPGP/PGP — cryptographic software that holds a
    user's keys is kept copyleft so that every derivative stays free and auditable. Anyone who
-   ships a modified Parsec must ship their source too.
+   ships a modified PARSEC must ship their source too.
 
    There is deliberately NO permissive alternative on this tier. A dual licence here would let
    any fork elect the permissive option and close the very code that touches your keys, which
@@ -66,7 +66,7 @@ USER SOVEREIGNTY
 Neither license, nor BANKON itself, asserts any control over your machine. BANKON preserves
 your right to OWN YOUR FILESYSTEM and to do to your filesystem anything you, as its owner,
 deem appropriate — install, modify, copy, delete, inspect, relocate, or destroy any part of
-this software or its data. Your keys, your device, your data, your rules. Parsec runs entirely
+this software or its data. Your keys, your device, your data, your rules. PARSEC runs entirely
 on infrastructure you control, takes no custody of your keys, and never phones home.
 
 The GPLv3's copyleft constrains the *redistribution of modified encryption code* — you must

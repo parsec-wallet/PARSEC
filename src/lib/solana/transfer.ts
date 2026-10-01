@@ -1,5 +1,5 @@
 // Solana SOL transfer — builds, signs, and submits a legacy transaction by
-// hand. Parsec carries no @solana/web3.js dependency: a System Program
+// hand. PARSEC carries no @solana/web3.js dependency: a System Program
 // transfer is small enough to assemble from the base58 + ed25519 primitives
 // already in the bundle (src/lib/solana/address.ts, @noble/curves).
 

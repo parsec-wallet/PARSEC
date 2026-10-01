@@ -1,4 +1,4 @@
-# Parsec Modules — the expansion contract
+# PARSEC Modules — the expansion contract
 
 > **The rule:** adding a chain, a name registry, or a dApp surface should be
 > **one module registration and one doc**. If it takes four file edits in four
@@ -6,7 +6,7 @@
 
 ## Why this exists
 
-Parsec grew to 64 views. Every one of them had to be threaded through four
+PARSEC grew to 64 views. Every one of them had to be threaded through four
 separate places by hand:
 
 | What | Where |
@@ -114,7 +114,7 @@ place by its view via `describeChoices()`:
 | `privilege` | `observe` < `sign` < `vault` < `system` | the most the module asks of the wallet |
 | `reach` | `internal` · `external` | whether a reading leaves the device |
 | `persistence` | `none` · `device` · `vault` | what it keeps between sessions |
-| `provider` | `none` · `local` · `optional-external` | dependence on anything outside Parsec |
+| `provider` | `none` · `local` · `optional-external` | dependence on anything outside PARSEC |
 
 `assertModulePrivilege(id, needed)` throws a `PrivilegeError` when a module
 reaches past its rung — a loud failure in place of a silent escalation. It is
@@ -137,7 +137,7 @@ the worked example and the template to copy.
 5. **Document it** — add a page under `docs/chains/` and link it from that
    folder's README.
 
-**Algorand is not optional and never becomes so.** It is the account Parsec is
+**Algorand is not optional and never becomes so.** It is the account PARSEC is
 built on, for a stated reason: Falcon-1024 native accounts derive from the same
 25-word seed and preserve the 58-char address, so today's Algorand account
 migrates to Tier-Q without a re-key. See `QUANTUM.md`. Everything else is
@@ -161,16 +161,16 @@ utility.
 6. **Never require an optional backend.** A module may be *compatible* with an
    external service without depending on it. Put it behind a provider seam
    (`src/lib/namespaces/registry.ts` and `src/lib/marketplace/providers/` are
-   the precedents), ship a `local` default that works with nothing but Parsec,
+   the precedents), ship a `local` default that works with nothing but PARSEC,
    and let the participant choose in Settings — never escalate silently. An
    unreachable optional provider is `unknown`, never `deficient`: absence is
    not a fault. Bitcoin is the worked example —
    [`integration/bankon-btc-waas.md`](./integration/bankon-btc-waas.md).
 
-7. **Focus on Parsec.** `bankon_vault` is a shared component that Parsec
+7. **Focus on PARSEC.** `bankon_vault` is a shared component that PARSEC
    offers as a service, and several projects consume it — so its interface is a
    contract: additive only. But this repo is the wallet. Note a cross-project
-   implication in a doc; do not refactor Parsec for another consumer's benefit
+   implication in a doc; do not refactor PARSEC for another consumer's benefit
    or vendor their code here.
 
 ## Shared UI primitives

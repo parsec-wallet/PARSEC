@@ -4,7 +4,7 @@
 
 ## Overview
 
-pmVPN gives Parsec a wallet-authenticated SSH terminal for remote-machine
+pmVPN gives PARSEC a wallet-authenticated SSH terminal for remote-machine
 access. Instead of an SSH password or static key, the **wallet signature** is
 the credential — a challenge-response handshake proves control of the account
 before a session opens.
@@ -27,4 +27,4 @@ The connector (`src/lib/pmvpn/`) orchestrates:
 ## Notes
 
 Desktop (Tauri) feature — the SSH transport lives in the Rust backend. Licensed
-GPL-3.0-or-later as part of Parsec's encryption & privacy core (see `REUSE.toml`).
+GPL-3.0-or-later as part of PARSEC's encryption & privacy core (see `REUSE.toml`).

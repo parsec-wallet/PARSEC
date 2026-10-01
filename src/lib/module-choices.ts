@@ -1,9 +1,9 @@
-// Parsec Wallet — Module Choices
+// PARSEC Wallet — Module Choices
 //
 // What a module elects, stated once and in one place. A module declares the
 // most it will ever ask of the wallet (privilege), whether its readings leave
 // the device (reach), what it keeps between sessions (persistence), and
-// whether it depends on anything outside Parsec (provider).
+// whether it depends on anything outside PARSEC (provider).
 //
 // This is an honesty contract in the same spirit as lib/ui/provenance.ts: a
 // module says up front what it does, the UI can state it in place, and a
@@ -35,7 +35,7 @@ export type Privilege = 'observe' | 'sign' | 'vault' | 'system';
 export type Persistence = 'none' | 'device' | 'vault';
 
 /**
- * Whether the module leans on anything outside Parsec.
+ * Whether the module leans on anything outside PARSEC.
  *
  *   none              — works with nothing but this wallet.
  *   local             — ships a local default and needs nothing else to function.
@@ -73,7 +73,7 @@ export const PERSISTENCE_WORD: Readonly<Record<Persistence, string>> = {
 };
 
 export const PROVIDER_WORD: Readonly<Record<ProviderChoice, string>> = {
-  none: 'needs nothing outside Parsec',
+  none: 'needs nothing outside PARSEC',
   local: 'ships a local default; needs nothing else to work',
   'optional-external': 'may use an external service you choose; unknown when it is absent',
 };

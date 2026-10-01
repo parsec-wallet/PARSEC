@@ -1,4 +1,4 @@
-// Parsec Wallet Pouch — Collection Manager
+// PARSEC Wallet Pouch — Collection Manager
 // One pouch, many chain wallets. Selective identity.
 
 import type {

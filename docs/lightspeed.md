@@ -2,7 +2,7 @@
 
 > **What it is.** A stream of chain readings over a provider the participant
 > chooses, with zero dependencies. **What it is for.** Two things: watching an
-> EVM head block, sync state and balances live inside Parsec, and being the
+> EVM head block, sync state and balances live inside PARSEC, and being the
 > file set you copy when you add a module — because it exercises every seam
 > in [`modules.md`](./modules.md) and declares its *choices* honestly.
 
@@ -16,7 +16,7 @@ DeltaVerse at the speed of light"*, pointing at `@parity/light.js`, Parity's
 reactive library for light clients. That library is unmaintained and needs
 rxjs. Per the ingestion guide, the good idea was reimplemented, not imported.
 
-The idea, from the eight light.js pages, and what Parsec did with each:
+The idea, from the eight light.js pages, and what PARSEC did with each:
 
 | light.js | What it taught | Lightspeed |
 |---|---|---|
@@ -90,7 +90,7 @@ A failure never looks like an absence.
   the host there if it should be reachable.
 - The endpoint learns which addresses you ask about. The view says so next
   to the URL, and every provenance line says `external service`.
-- `ws://` is refused: Parsec's providers are plain `fetch`.
+- `ws://` is refused: PARSEC's providers are plain `fetch`.
 
 ## Using Lightspeed as the template
 

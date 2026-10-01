@@ -1,4 +1,4 @@
-// Parsec Wallet — Agent Discovery View
+// PARSEC Wallet — Agent Discovery View
 // Browse 70,000+ agents from AgenticPlace discovery API across 15+ EVM chains.
 
 import { el, btn, input, toast } from '../lib/dom';

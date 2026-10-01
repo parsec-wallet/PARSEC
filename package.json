@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Parsec Wallet \u2014 Algorand desktop wallet built on cypherpunk2048 principles",
+  "description": "PARSEC Wallet \u2014 Algorand desktop wallet built on cypherpunk2048 principles",
   "author": "cypherpunk2048",
   "license": "(Apache-2.0 AND GPL-3.0-or-later AND MIT)",
   "scripts": {

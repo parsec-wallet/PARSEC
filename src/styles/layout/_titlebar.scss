@@ -72,6 +72,10 @@
 :root[data-titlebar='on'] #root {
   position: fixed;
   inset: var(--px-titlebar-h, 34px) 0 0;
+
+  // The base reset gives #root `height: 100%`; an explicit height overrides
+  // `bottom`, which pushed the last 34px of every screen below the window.
+  height: auto;
   overflow: auto;
   transform: translateZ(0); // contain position: fixed descendants
 }

@@ -1,7 +1,7 @@
 // Which provider Lightspeed reads from. The choice is a per-device preference
 // (persistence: 'device') — never account state, never a secret — so
 // localStorage is appropriate, exactly as lib/nav.ts persists disclosure.
-// Default is the local provider: Parsec never escalates to an external
+// Default is the local provider: PARSEC never escalates to an external
 // service silently (docs/modules.md rule 6).
 
 import { localProvider } from './providers/local';

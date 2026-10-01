@@ -1,5 +1,5 @@
 // AR.IO Network Process helpers — narrow surface focused on the actions
-// Parsec needs in May 2026 (pre-Solana migration): read balance / record /
+// PARSEC needs in May 2026 (pre-Solana migration): read balance / record /
 // price, build Buy-Name DataItems, and tag-up registry messages.
 //
 // All reads route through aoDryRun against ARIO_MAINNET_PROCESS; the CU

@@ -1,7 +1,7 @@
 [package]
 name = "parsec-wallet"
 version = "0.1.0"
-description = "Parsec Wallet — Algorand desktop wallet built on cypherpunk2048 principles"
+description = "PARSEC Wallet — Algorand desktop wallet built on cypherpunk2048 principles"
 authors = ["cypherpunk2048"]
 edition = "2021"
 license = "GPL-3.0-or-later AND Apache-2.0"

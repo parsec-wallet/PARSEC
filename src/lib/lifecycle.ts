@@ -1,4 +1,4 @@
-// Parsec Wallet — view lifecycle.
+// PARSEC Wallet — view lifecycle.
 //
 // The router destroys a view by setting `container.innerHTML = ''` and building
 // the next one. That reclaims the DOM, but nothing else: a listener the old view

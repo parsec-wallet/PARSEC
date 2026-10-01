@@ -1,4 +1,4 @@
-// Parsec — Chain Module Registry
+// PARSEC — Chain Module Registry
 // Each chain is a modular adapter. Algorand is live. Others ready to plug in.
 // x402 signing bridge wired via signMessage() for vault-secured operations.
 

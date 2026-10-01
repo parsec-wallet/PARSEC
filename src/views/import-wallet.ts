@@ -1,16 +1,17 @@
-// Parsec Wallet — Import Wallet View
+// PARSEC Wallet — Import Wallet View
 // Accepts: 25-word mnemonic, base64 private key, or watch-only address.
 // Live input classification with validation feedback.
 
-import { el, btn, input, toast } from '../lib/dom';
+import { el, btn, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { classifyInput } from '../lib/algorand/validate';
 import type { ClassifiedInput } from '../lib/algorand/validate';
-import { keystoreCreate, keystoreStore } from '../lib/keystore';
+import { keystoreStore } from '../lib/keystore';
+import { vaultPass } from '../lib/ui/vault-pass';
 import algosdk from 'algosdk';
 
 export function importWalletView(): HTMLElement {
-  let secret = '', passphrase = '', passphraseConfirm = '';
+  let secret = '';
   let lastClassification: ClassifiedInput = { kind: 'unknown', confidence: 0, reason: '', valid: false };
 
   const secretArea = document.createElement('textarea');
@@ -28,18 +29,14 @@ export function importWalletView(): HTMLElement {
     secret = secretArea.value;
     lastClassification = classifyInput(secret);
     renderClassification(lastClassification, detectionHint, addressPreview);
+    // A watch-only address stores no key, so no vault passphrase is asked.
+    passphraseSection.style.display = lastClassification.kind === 'algorand_address' ? 'none' : '';
   });
 
-  // Passphrase section — hidden for watch-only
-  const passphraseSection = el('div', {
-    cls: 'parsec-import__passphrase-section',
-    children: [
-      el('h3', { cls: 'parsec-view__subtitle', text: 'Encrypt With Passphrase' }),
-      el('p', { cls: 'parsec-view__desc', text: 'Protects your keys on this device. If you lose it, re-import with your recovery phrase.' }),
-      input({ type: 'password', placeholder: 'Set a passphrase (8+ characters)', cls: 'bp5-input bp5-large parsec-passphrase-input', onInput: (v) => { passphrase = v; } }),
-      input({ type: 'password', placeholder: 'Confirm passphrase', cls: 'bp5-input bp5-large parsec-passphrase-input', onInput: (v) => { passphraseConfirm = v; } }),
-    ],
-  });
+  // Which vault the key goes into, and its passphrase — lib/ui/vault-pass.ts.
+  // Not needed for a watch-only address, which stores no key.
+  const vault = vaultPass();
+  const passphraseSection = el('div', { cls: 'parsec-import__passphrase-section', children: [vault.element] });
 
   return el('div', {
     cls: 'parsec-view parsec-import',
@@ -94,10 +91,6 @@ export function importWalletView(): HTMLElement {
       return;
     }
 
-    // Key-based import: need passphrase
-    if (passphrase.length < 8) { toast('Passphrase must be at least 8 characters.', 'danger'); return; }
-    if (passphrase !== passphraseConfirm) { toast('Passphrases don\'t match.', 'danger'); return; }
-
     // Recover mnemonic
     let mnemonic = '';
     if (lastClassification.kind === 'algorand_mnemonic') {
@@ -109,10 +102,12 @@ export function importWalletView(): HTMLElement {
 
     store.set({ isLoading: true });
     try {
-      if (state.accounts.length === 0) await keystoreCreate(passphrase);
-      await keystoreStore(address, mnemonic, passphrase, `Account ${state.accounts.length + 1}`);
+      const passphrase = await vault.ready();
+      // Read the list again: "Create a new vault" may have switched profile.
+      const accounts = store.get().accounts;
+      await keystoreStore(address, mnemonic, passphrase, `Account ${accounts.length + 1}`);
       store.set({
-        accounts: [...state.accounts, { address, name: `Account ${state.accounts.length + 1}`, createdAt: Date.now() }],
+        accounts: [...accounts, { address, name: `Account ${accounts.length + 1}`, createdAt: Date.now() }],
         isLoading: false,
       });
       store.setPassphrase(passphrase);
@@ -121,7 +116,7 @@ export function importWalletView(): HTMLElement {
       store.navigate('dashboard');
     } catch (err) {
       store.set({ isLoading: false });
-      toast(err instanceof Error ? err.message : 'Failed to encrypt keys', 'danger');
+      toast(err instanceof Error ? err.message : 'Failed to encrypt keys', 'danger', 8000);
     }
   }
 }

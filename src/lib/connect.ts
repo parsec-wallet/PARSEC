@@ -1,4 +1,4 @@
-// Parsec Connect — IPC client for dApp WebSocket bridge
+// PARSEC Connect — IPC client for dApp WebSocket bridge
 // Controls the connect server and handles sign request approval/rejection.
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: Apache-2.0
@@ -29,7 +29,7 @@ export interface SignRequest {
 /**
  * Origins allowed to reach the Connect server by default — the PYTHAI suite.
  *
- * This gates the HTTP endpoints (`/health`, `/info`) that a page uses to detect Parsec.
+ * This gates the HTTP endpoints (`/health`, `/info`) that a page uses to detect PARSEC.
  * Localhost is always added by the Rust side for development. Keep in step with the
  * default in src-tauri/src/parsec_connect/commands.rs.
  */
@@ -92,7 +92,7 @@ export async function connectDisconnectSession(sessionId: string): Promise<void>
 }
 
 // ── Name requests (parsec_nameRequest) ────────────────────────────────────────
-// A web page states an intent against a name it controls; Parsec renders it, the user
+// A web page states an intent against a name it controls; PARSEC renders it, the user
 // approves, and the wallet builds and signs. See src/lib/names/intent.ts for the ops.
 
 export interface NameRequest {

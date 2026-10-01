@@ -110,7 +110,7 @@ export async function onTerminalData(
 }
 
 /**
- * Disconnect all sessions (called on Parsec lock).
+ * Disconnect all sessions (called on PARSEC lock).
  */
 export async function disconnectAll(): Promise<void> {
   const state = pmvpnStore.get();

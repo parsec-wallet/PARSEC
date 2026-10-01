@@ -10,8 +10,8 @@ This spec keeps the on-chain state minimal: the name's record points at an Arwea
 
 ## Binding shape
 
-1. Parsec mints the ASA on Algorand (`signAndSendMint` for ARC-3/19/69 or `signAndSendTypeMint` for aORC types).
-2. Parsec uploads a JSON proof to Arweave with the tags:
+1. PARSEC mints the ASA on Algorand (`signAndSendMint` for ARC-3/19/69 or `signAndSendTypeMint` for aORC types).
+2. PARSEC uploads a JSON proof to Arweave with the tags:
 
 ```
 Content-Type: application/json
@@ -41,7 +41,7 @@ JSON body:
 }
 ```
 
-3. Parsec writes a record on the name's owning process pointing at that Arweave tx-id:
+3. PARSEC writes a record on the name's owning process pointing at that Arweave tx-id:
    - **ArNS**: `Set-Record` on the ANT process with the chosen `Sub-Domain` (default `@asa`).
    - **BANKON**: `Set-Record` on the BNR with the same shape.
 

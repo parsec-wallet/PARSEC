@@ -1,4 +1,4 @@
-// Parsec Wallet — Confirm Send View
+// PARSEC Wallet — Confirm Send View
 // Shows transaction details before signing. User reviews and confirms.
 
 import { el, btn, toast } from '../lib/dom';

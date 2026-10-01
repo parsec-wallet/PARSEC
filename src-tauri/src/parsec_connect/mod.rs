@@ -1,6 +1,6 @@
 //! parsec_connect — WebSocket bridge for dApp wallet communication
 //!
-//! Allows web dApps (e.g. AgenticPlace) to connect to Parsec Wallet
+//! Allows web dApps (e.g. AgenticPlace) to connect to PARSEC Wallet
 //! via a local WebSocket on localhost:9876. The dApp can request:
 //!   - Account addresses
 //!   - Transaction signing (with user approval)

@@ -1,4 +1,4 @@
-// Parsec Wallet — Application Shell
+// PARSEC Wallet — Application Shell
 //
 // A persistent frame around the router's content host: brand, tier rail,
 // disclosure control, and a back affordance. Because the router now renders

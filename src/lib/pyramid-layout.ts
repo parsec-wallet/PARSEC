@@ -1,4 +1,4 @@
-// Parsec Wallet — the market pyramid's hierarchy, as pure functions.
+// PARSEC Wallet — the market pyramid's hierarchy, as pure functions.
 //
 // One ranking decides both the pyramid and the cryptocloud, so they never tell
 // different stories: a coin on the pyramid's gainer side floats in the cloud, a

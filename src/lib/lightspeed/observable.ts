@@ -1,8 +1,8 @@
-// Parsec Wallet — Lightspeed observable
+// PARSEC Wallet — Lightspeed observable
 //
 // The one idea worth keeping from @parity/light.js: a chain value is not a
 // promise you await once, it is a stream you subscribe to, and the stream
-// polls only while somebody is listening. light.js built that on rxjs. Parsec
+// polls only while somebody is listening. light.js built that on rxjs. PARSEC
 // carries no rxjs, so this is the whole primitive — subscribe, replay the last
 // reading to a late subscriber, refcount the timer, emit on change only.
 //

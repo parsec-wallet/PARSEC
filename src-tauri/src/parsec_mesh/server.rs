@@ -1,4 +1,4 @@
-//! Embedded HTTP server: makes every Parsec client also a server
+//! Embedded HTTP server: makes every PARSEC client also a server
 //!
 //! Serves a lightweight API that other peers can query for:
 //! - Resource availability

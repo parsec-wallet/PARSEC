@@ -1,4 +1,4 @@
-// Parsec Wallet — Add Asset (ASA Opt-In) View
+// PARSEC Wallet — Add Asset (ASA Opt-In) View
 
 import { el, btn, input, toast } from '../lib/dom';
 import { store } from '../lib/store';

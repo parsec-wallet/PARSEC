@@ -1,6 +1,6 @@
-# Parsec Connect — Wallet-Side Architecture
+# PARSEC Connect — Wallet-Side Architecture
 
-Internal documentation for the Parsec Connect module that enables web dApps to communicate with Parsec Wallet for transaction signing.
+Internal documentation for the PARSEC Connect module that enables web dApps to communicate with PARSEC Wallet for transaction signing.
 
 ## Module Structure
 

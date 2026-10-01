@@ -135,7 +135,7 @@ interface ResourceRefs {
 
 /**
  * Renew a leased NFD the caller owns: payment (price × years) to the app
- * address + `renew(pay)` in one atomic group, signed by the Parsec keystore.
+ * address + `renew(pay)` in one atomic group, signed by the PARSEC keystore.
  */
 export async function renewNfd(args: RenewArgs): Promise<RenewResult> {
   const pricePerYear = args.pricePerYear ?? (await getRenewPrice(args.network, args.appId, args.owner));

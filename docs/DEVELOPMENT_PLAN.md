@@ -1,4 +1,4 @@
-# Parsec Wallet — Development Plan
+# PARSEC Wallet — Development Plan
 
 > **Updated:** 2026-05-16 (Phase Q)
 > **Status:** Alpha — Matrix entry gate, x402 payments, multi-chain builder (8 families + Solana), Mausoleum vault, aORC contracts (testnet-verified + TS clients in `src/lib/aorc/`), PROOF.md attestation, deployer pipeline, **Arweave/AO foundation**, **permaweb deploy infra**, **ARIO Solana migration handler**, **BANKON Names** sovereign namespace (in-wallet spawn UI), **AR.IO module parity** (hub / name / transfer / resolve / claim), **named-NFT bindings** (ARC-3/19/69 + aORC TypeMinter), **BANKON Marketspace** (order book + auctions; web mirror at agenticplace.pythai.net/marketspace)
@@ -6,9 +6,9 @@
 
 ## Mission
 
-Build Parsec as a sovereign universal wallet: Tauri desktop shell, zero-dependency vanilla TypeScript frontend, Rust backend, bankon_vault encrypted storage with optional Tomb cold storage, extensible chain packs. Algorand native first-class support, SpinTrade DEX inside the wallet. Every Parsec node is both client and server — P2P mesh with IPFS content handoffs, resource-aware throttling, and participant-controlled dApp sandboxing.
+Build PARSEC as a sovereign universal wallet: Tauri desktop shell, zero-dependency vanilla TypeScript frontend, Rust backend, bankon_vault encrypted storage with optional Tomb cold storage, extensible chain packs. Algorand native first-class support, SpinTrade DEX inside the wallet. Every PARSEC node is both client and server — P2P mesh with IPFS content handoffs, resource-aware throttling, and participant-controlled dApp sandboxing.
 
-**Policy:** Parsec never holds the user's private key or mnemonic. bankon_vault is recommended but optional. User controls their keys. All security is open source per cypherpunk2048 standard.
+**Policy:** PARSEC never holds the user's private key or mnemonic. bankon_vault is recommended but optional. User controls their keys. All security is open source per cypherpunk2048 standard.
 
 ## Architecture
 
@@ -34,7 +34,7 @@ Frontend (vanilla TypeScript + Blueprint CSS)
 └── src/types/          # TypeScript types
 
 BANKON Names Registry contract
-└── bankon-names-process/  # Lua AO process source (sovereign Parsec namespace)
+└── bankon-names-process/  # Lua AO process source (sovereign PARSEC namespace)
     ├── state.lua           # Records, Reserved, Policy, Treasury, Controllers, PrimaryNames
     ├── main.lua            # Boot-tag wiring, handler manifest, Info diagnostic
     └── handlers/
@@ -198,7 +198,7 @@ Backend (Rust via Tauri IPC)
 
 ## Permaweb & Sovereign Naming (Phase P / 2026-05)
 
-A three-track expansion landed in May 2026 that puts Parsec on the permaweb itself, handles the ARIO Solana migration, and ships a sovereign alternative to AR.IO's ArNS.
+A three-track expansion landed in May 2026 that puts PARSEC on the permaweb itself, handles the ARIO Solana migration, and ships a sovereign alternative to AR.IO's ArNS.
 
 ### Arweave / AO foundation
 
@@ -214,7 +214,7 @@ A three-track expansion landed in May 2026 that puts Parsec on the permaweb itse
 
 - [x] Platform shim (`src/lib/platform.ts`): `isTauri` + dynamic `invoke`/`listen`; 13 callers migrated
 - [x] `permaweb-deploy@^3.4.0` devDep + scripts `deploy:permaweb` (binds to `pythai`), `deploy:permaweb:txid` (initial deploy without ArNS), `build:resolver`, `deploy:resolver`
-- [x] Production web build excludes static `@tauri-apps/api` imports — Parsec runs in any browser as a permaweb SPA
+- [x] Production web build excludes static `@tauri-apps/api` imports — PARSEC runs in any browser as a permaweb SPA
 
 ### ARIO Solana migration handler
 
@@ -230,12 +230,12 @@ A three-track expansion landed in May 2026 that puts Parsec on the permaweb itse
 
 ### BANKON Names — sovereign permaweb namespace
 
-The Parsec-controlled alternative to ArNS. Single AO process, token-agnostic claims, no AR.IO dependency.
+The PARSEC-controlled alternative to ArNS. Single AO process, token-agnostic claims, no AR.IO dependency.
 
 - [x] BNR Lua contract (`bankon-names-process/`): state schema + 7 handler modules (claim / transfer / records / lease / primary / cost / governance / admin)
 - [x] Token-agnostic payment: `Payment-Method` + `Payment-Proof` tags (`free` / `algorand` / `arweave-stake` / `bankon`)
 - [x] One-time spawn script (`scripts/spawn-bnr.mjs`): bundles Lua, signs Spawn DataItem from `DEPLOY_KEY`, polls confirmation, writes `BNR_PROCESS_ID` to `src/lib/bankon-names/process-id.ts`
-- [x] Parsec client (`src/lib/bankon-names/`): `process-id.ts` guard, `payment.ts` discriminated union, `client.ts` (read+write helpers mirroring `ario.ts`)
+- [x] PARSEC client (`src/lib/bankon-names/`): `process-id.ts` guard, `payment.ts` discriminated union, `client.ts` (read+write helpers mirroring `ario.ts`)
 - [x] UI: `bankon-hub`, `bankon-claim`, `bankon-name` (root @ + undernames + extend + primary + transfer), `bankon-resolve`
 - [x] Public permaweb resolver SPA (`apps/bankon-resolver/`): 3.70 kB, dependency-free, redirects to `<txid>.arweave.net`
 - [x] Dashboard wiring: `BANKON Names` + `Resolve` row conditional on an Arweave address
@@ -255,7 +255,7 @@ The Parsec-controlled alternative to ArNS. Single AO process, token-agnostic cla
 
 - [ ] One-time `node scripts/spawn-bnr.mjs` to instantiate the BNR
 - [ ] Bridge a small test amount BASE → AO (relayer sanity check) before bulk
-- [ ] Deploy Parsec to a tx-id, then later to `pythai.arweave.net`
+- [ ] Deploy PARSEC to a tx-id, then later to `pythai.arweave.net`
 - [ ] Complete sol.ar.io registration for the 99,600 ARIO BASE holding (deadline: **June 1, 2026**)
 - [ ] Deploy `apps/bankon-resolver/` via `npm run deploy:resolver`
 
@@ -324,7 +324,7 @@ Informed by: parsec-wallet/parsec-pod, ailgo/mint-arc19, ailgo/ExtendableDAO, Al
 ### Phase H — Multi-Chain Sovereign Holdings
 Informed by: parsec-wallet org, Atomic Wallet key pair model, MetaMask/Phantom patterns
 
-Parsec absorbs from existing wallets — participant has complete handling of
+PARSEC absorbs from existing wallets — participant has complete handling of
 public/private key pairs across all chains. True sovereign holding.
 
 - [x] Chain-pack adapter architecture — 8 chain families with isolation layer
@@ -384,7 +384,7 @@ Informed by: parsec-wallet/hypercore, parsec-wallet/earthstar, parsec-wallet/agr
 - [ ] TimescaleDB hypertable for metrics (auto-enabled if available)
 
 **Module: parsec_mesh** — Client = Server + IPFS Handoffs
-- [x] Embedded axum HTTP server (every Parsec node serves /parsec/v1/* endpoints)
+- [x] Embedded axum HTTP server (every PARSEC node serves /parsec/v1/* endpoints)
 - [x] IPFS integration via local Kubo HTTP API (add, get, pin, unpin, list, repo stats)
 - [x] Content-addressed handoffs with CID + origin signature
 - [x] Peer discovery via PostgreSQL registry
@@ -436,7 +436,7 @@ Informed by: parsec-wallet/hypercore, parsec-wallet/earthstar, parsec-wallet/agr
 ### Phase J — x402 Payments & Agent Economy
 Informed by: x402-demo/modules/bankon-payments, x402-demo/erc8004, x402-demo/facilitator
 
-Parsec is the wallet interface for the AgenticPlace agent economy.
+PARSEC is the wallet interface for the AgenticPlace agent economy.
 
 - [x] x402 types: ERC-8004 agent identity, payment requirements, access tiers (no viem dep)
 - [x] x402 constants: BANKON ASA 203977300 (10M supply), ERC-8004 on 17+ chains, CAIP-2 networks
@@ -448,7 +448,7 @@ Parsec is the wallet interface for the AgenticPlace agent economy.
 - [x] x402-confirm view: payment approval with ALGO conversion + BANKON discount badge
 - [x] Agents view: search/browse 70K+ agents from AgenticPlace discovery API
 - [x] Identity view: BANKON status, ERC-8004 IDNFT, access tiers (Visitor→Imperator)
-- [ ] End-to-end x402 test: Parsec → MindX paywall → Facilitator settlement
+- [ ] End-to-end x402 test: PARSEC → MindX paywall → Facilitator settlement
 - [ ] Reputation feedback after payment (ReputationRegistryClient → ERC-8004)
 - [ ] Venalicarii/Mercatores marketplace integration
 - [ ] SPINTRADE DEX pair browser in wallet
@@ -546,7 +546,7 @@ Future: credential-gated proposals, staked proposals, cross-proposal credit.
 - [ ] Proposal requires holding funds/assets to complete (credential from holding)
 - [ ] Passed proposals receive payment (incentivized goals)
 - [ ] Credit token issuance from collection of proposals
-- [ ] Wire DAIO governance into Parsec (proposal submission from wallet)
+- [ ] Wire DAIO governance into PARSEC (proposal submission from wallet)
 - [ ] Constitutional tithe (15%) enforcement
 - [ ] 2/3 consensus within groups, 2/3 of groups overall
 
@@ -556,7 +556,7 @@ Future: credential-gated proposals, staked proposals, cross-proposal credit.
 2. **Security first** — keys never leave device, Rust for signing, frontend for display
 3. **No external runtime dependencies** — vanilla TS, Blueprint CSS only
 4. **Chain-pack architecture** — each chain is a modular adapter
-5. **User sovereignty** — Parsec never holds keys, bankon_vault recommended not required
+5. **User sovereignty** — PARSEC never holds keys, bankon_vault recommended not required
 6. **Extract ideas, not code** — learn from parsec-wallet org + ailgo repos, reimplement clean
 7. **Client is server** — every node serves the mesh; no centralized infrastructure
 8. **Resource honesty** — CPU, bandwidth, storage, electricity mapped to real cost; throttled accordingly
@@ -623,4 +623,4 @@ Algorand reference library: js-algorand-sdk, AlgoKit, Pera, use-wallet, vibekit,
 
 ---
 
-*Parsec is the evolution of the cryptocurrency wallet. Extract ideas and architecture, not accidental complexity. The right outcome is a cleaner, safer, more sovereign Parsec.*
+*PARSEC is the evolution of the cryptocurrency wallet. Extract ideas and architecture, not accidental complexity. The right outcome is a cleaner, safer, more sovereign PARSEC.*

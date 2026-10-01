@@ -1,13 +1,13 @@
 # Permaweb deployment — `ario-deploy` vs `permaweb-deploy`
 
-> **Reviewed:** 2026-08-30 · **Scope:** Parsec's own publishing path only.
+> **Reviewed:** 2026-08-30 · **Scope:** PARSEC's own publishing path only.
 > `ar-io-deploy` — <https://github.com/ar-io/ar-io-deploy> — MIT,
 <!-- REUSE-IgnoreStart -->> © Permanent Data Solutions.<!-- REUSE-IgnoreEnd -->
 
 ## The finding
 
 **The two tools have diverged into different name systems.** This is not a
-version-bump decision; it is a choice of which naming network Parsec publishes
+version-bump decision; it is a choice of which naming network PARSEC publishes
 under.
 
 | | `permaweb-deploy` (permaweb org) | `ario-deploy` (ar-io org) |
@@ -22,10 +22,10 @@ under.
 Its own line: *"Deploy any folder to Arweave and point an ArNS name at it.
 Permanent hosting, one command."*
 
-## Where Parsec actually stands
+## Where PARSEC actually stands
 
 Installed: **`permaweb-deploy@3.4.6`**, pinned `^3.4.0`. Latest is **5.0.0**
-(published 2026-06-17, after the June 1 ARIO Solana snapshot). Parsec is **two
+(published 2026-06-17, after the June 1 ARIO Solana snapshot). PARSEC is **two
 majors behind**, and the v3 flags it depends on are gone upstream:
 
 ```jsonc
@@ -39,11 +39,11 @@ v5 replaced `--arns-name` / `--ario-process` with `--use-names --name <NAME>`
 and requires `--sig-type arweave`. **The scripts work today only because the
 `^3.4.0` range keeps us on v3.** A careless `npm update` breaks publishing.
 
-## Why `ario-deploy` is the better fit for Parsec
+## Why `ario-deploy` is the better fit for PARSEC
 
-Not novelty — alignment with what Parsec already is:
+Not novelty — alignment with what PARSEC already is:
 
-1. **Parsec's ArNS work is already Solana-era.** `src/lib/arweave/solana-arns-client.ts`
+1. **PARSEC's ArNS work is already Solana-era.** `src/lib/arweave/solana-arns-client.ts`
    and the `solana-arns` NamespaceAdapter target the `ario-arns` program and
    Metaplex-Core ANTs. `ario-deploy`'s Solana-key authority is the same model;
    `permaweb-deploy` v5's Arweave-signed "Permaweb Names" is a different one.
@@ -61,7 +61,7 @@ Not novelty — alignment with what Parsec already is:
 
 ## What this does *not* change
 
-Parsec's runtime is untouched. This is a **devDependency and a CI concern**:
+PARSEC's runtime is untouched. This is a **devDependency and a CI concern**:
 the wallet still builds to a Tauri-free `dist/` and is served from Arweave. No
 frontend dependency, no bundle change, nothing on the first-paint path.
 

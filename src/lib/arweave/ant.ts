@@ -1,7 +1,7 @@
 // Arweave Name Token (ANT) helpers — spawn the per-name AO process and
-// edit its records. Used by Parsec to:
+// edit its records. Used by PARSEC to:
 //   * Spawn the ANT immediately before Buy-Name on the AR.IO Registry.
-//   * Bind the Parsec permaweb deployment tx-id to the @ (root) record.
+//   * Bind the PARSEC permaweb deployment tx-id to the @ (root) record.
 //
 // We resolve the latest ANT module id at runtime via the ANT Registry —
 // hardcoding the module id ages out fast (the SDK deprecated AOS_MODULE_ID

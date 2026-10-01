@@ -6,7 +6,7 @@
 // `external`: discovery happens through its public read API, and a purchase
 // hands off to the AgenticPlace web app. It is registered the same way the
 // in-wallet providers are — proof that the marketplace layer is open to
-// third-party services without touching Parsec's core.
+// third-party services without touching PARSEC's core.
 
 import type { NetworkId } from '../../../types/wallet';
 import { registerMarketplaceProvider } from './registry';

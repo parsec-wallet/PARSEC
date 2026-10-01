@@ -1,4 +1,4 @@
-// Parsec Wallet — ASA Management
+// PARSEC Wallet — ASA Management
 // Opt-in, opt-out, lookup, enrichment, known registry.
 // 6 decimal precision default for all assets.
 

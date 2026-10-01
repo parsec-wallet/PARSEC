@@ -387,7 +387,7 @@ function accessSection(ctx: Ctx, isOwner: boolean): HTMLElement {
       const hint = el('span', { cls: `${C}__hint` });
       addr.addEventListener('input', () => { const v = validateAddressFor(chain, addr.value); hint.textContent = addr.value ? (v.ok ? 'Valid address' : v.reason ?? '') : ''; hint.dataset.tone = v.ok ? 'done' : 'warn'; });
       children.push(el('div', { cls: `${C}__form`, children: [
-        el('label', { text: 'Add a controller — e.g. a deploy key for CI, a Parsec service key' }),
+        el('label', { text: 'Add a controller — e.g. a deploy key for CI, a PARSEC service key' }),
         addr, hint,
         btn('Add controller', { outlined: true, icon: 'new-person', onClick: async () => {
           const v = validateAddressFor(chain, addr.value);
