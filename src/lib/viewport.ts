@@ -53,10 +53,13 @@ function apply(): void {
 
 let started = false;
 
-/** Start tracking. Idempotent; called once from main. */
-export function initViewport(): void {
+/** Start tracking. Idempotent; called once from main. `mobile` marks a phone or tablet
+ *  as `<html data-platform="mobile">`, which the stylesheet uses for touch sizing,
+ *  safe areas and hiding desktop-only controls. */
+export function initViewport(mobile = false): void {
   if (started || typeof window === 'undefined') return;
   started = true;
+  document.documentElement.dataset.platform = mobile ? 'mobile' : 'desktop';
   apply();
   let frame = 0;
   // One update per frame at most while a window is being dragged.

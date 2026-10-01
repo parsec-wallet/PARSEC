@@ -10,7 +10,7 @@
 // the Algorand one. Amounts are exact: parsed with money.ts into base units,
 // never through a float.
 
-import { el, btn, toast } from '../lib/dom';
+import { el, btn, copyText } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
 import { encodeArc26 } from '../lib/algorand/arc26';
 import { resolveAddress } from '../lib/nfd';
@@ -129,11 +129,11 @@ export function receiveView(): HTMLElement {
 
   const copyAddress = btn('Copy address', {
     intent: 'primary', large: true, cls: 'parsec-receive2__copy',
-    onClick: () => { void navigator.clipboard.writeText(address); toast(`${desc.label} address copied`, 'success'); },
+    onClick: () => { void copyText(address, `${desc.label} address copied`); },
   });
   const copyRequest = btn('Copy request link', {
     outlined: true, cls: 'parsec-receive2__copy-request',
-    onClick: () => { void navigator.clipboard.writeText(uriLine.textContent ?? ''); toast('Payment request copied', 'success'); },
+    onClick: () => { void copyText(uriLine.textContent ?? '', 'Payment request copied'); },
   });
 
   // ── Who is receiving ──────────────────────────────────────────────────────

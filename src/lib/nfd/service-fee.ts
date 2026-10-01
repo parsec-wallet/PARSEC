@@ -81,7 +81,9 @@ export async function payServiceFee(args: {
   const result = await x402Request(NAMES_SERVICE_URL, orderInit(args.name, args.owner), {
     signers: args.signers,
     preferNetwork: reviewed.network,
-    approve: async (pending) => {
+    // Checked in `verify`, which runs even under an auto-approve cap.
+    approve: async () => true,
+    verify: (pending) => {
       if (pending.preflight && !pending.preflight.ok) {
         throw new Error(`Service fee blocked: ${pending.preflight.blockers.map((b) => b.message).join(' ')}`);
       }
@@ -93,7 +95,6 @@ export async function payServiceFee(args: {
       if (!same) {
         throw new Error('The service fee changed after you reviewed it. Go back and review the new price.');
       }
-      return true;
     },
   });
   if (!result.success || !result.txId) {

@@ -1,6 +1,7 @@
 // PARSEC Wallet — Send View
 // Supports ALGO + any opted-in ASA. Navigates to confirm-send before signing.
 
+import { normalizeAmountInput, parseDecimal } from '../lib/money';
 import { el, btn, input, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { isValidAddress } from '../lib/algorand/transactions';
@@ -94,7 +95,7 @@ export function sendView(): HTMLElement {
           }),
           el('label', { cls: 'parsec-label', text: 'Amount' }),
           input({
-            type: 'number',
+            type: 'decimal',
             placeholder: `Amount (${selectedUnitName})`,
             cls: 'bp5-input bp5-large bp5-fill parsec-send__input',
             onInput: (v) => { amount = v; },
@@ -118,8 +119,8 @@ export function sendView(): HTMLElement {
         onClick: async () => {
           if (!isValidAddress(receiver)) { toast('Invalid recipient address', 'danger'); return; }
           if (receiver === account.address) { toast('Cannot send to yourself', 'warning'); return; }
-          const parsed = parseFloat(amount);
-          if (isNaN(parsed) || parsed <= 0) { toast('Enter a valid amount', 'danger'); return; }
+          const typed = normalizeAmountInput(amount);
+          if (typed === null) { toast('Enter the amount as a plain number, e.g. 1.5', 'danger'); return; }
           const noteByteLen = new TextEncoder().encode(note).length;
           if (noteByteLen > 1000) { toast('Note exceeds 1000 bytes', 'danger'); return; }
 
@@ -131,13 +132,15 @@ export function sendView(): HTMLElement {
             const params = await client.getTransactionParams().do();
             const fee = Math.max(Number(params.fee) || 1000, 1000);
 
-            // Convert amount to base units
-            let baseAmount: number;
-            if (selectedAssetId === null) {
-              baseAmount = Math.round(parsed * 1_000_000);
-            } else {
-              baseAmount = Math.round(parsed * Math.pow(10, selectedDecimals));
+            // Convert amount to base units, exactly: no float ever touches the value.
+            let base: bigint;
+            try {
+              base = parseDecimal(typed, selectedAssetId === null ? 6 : selectedDecimals);
+            } catch {
+              toast(`At most ${selectedAssetId === null ? 6 : selectedDecimals} decimal places for this asset`, 'danger'); return;
             }
+            if (base <= 0n || base > BigInt(Number.MAX_SAFE_INTEGER)) { toast('Enter a valid amount', 'danger'); return; }
+            const baseAmount = Number(base);
 
             // M4: Balance check — prevent sending more than available
             if (state.accountInfo) {

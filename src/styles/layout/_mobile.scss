@@ -1,0 +1,113 @@
+// PARSEC Wallet — phones (Android, iOS) and phone-width screens.
+// <html data-platform="mobile"> is set by lib/viewport.ts on a phone or tablet;
+// <html data-viewport="compact"> on any screen under 600px. Rules here are the touch,
+// safe-area and drawer adaptations; layouts per view stay with their own partials.
+
+@use '../abstracts' as *;
+
+// ── Safe areas: the app draws edge to edge (MainActivity enableEdgeToEdge) ─────────
+:root[data-platform='mobile'] {
+  .parsec-shell__header {
+    padding-top: calc(#{$spacing-3} + env(safe-area-inset-top, 0));
+    padding-left: calc(#{$spacing-3} + env(safe-area-inset-left, 0));
+    padding-right: calc(#{$spacing-3} + env(safe-area-inset-right, 0));
+  }
+
+  .parsec-shell__content {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  // Chromeless screens (the Matrix gate, onboarding) have no header to carry the inset.
+  .parsec-shell--bare .parsec-shell__content,
+  .parsec-matrix {
+    padding-top: env(safe-area-inset-top, 0);
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .parsec-toast-container {
+    top: calc(#{$spacing-4} + env(safe-area-inset-top, 0));
+    right: calc(#{$spacing-4} + env(safe-area-inset-right, 0));
+  }
+
+  // ── Touch: fingers, not pointers ────────────────────────────────────────────────
+  .bp5-button,
+  .parsec-shell__link,
+  .parsec-shell__accordion,
+  .parsec-shell__level {
+    min-height: 44px;
+  }
+
+  // 16px keeps a mobile browser from zooming into a focused field, and is readable.
+  input,
+  textarea,
+  select,
+  .bp5-input {
+    font-size: 16px;
+  }
+
+  // Selecting text in the chrome by a long press is never what a tap meant.
+  .parsec-shell__header,
+  .parsec-shell__sidebar {
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+// ── The rail becomes a drawer on a phone-width screen ─────────────────────────────
+.parsec-shell__menu {
+  display: none;
+}
+
+:root[data-viewport='compact'] {
+  .parsec-shell__menu {
+    display: inline-flex;
+  }
+
+  .parsec-shell__crumb {
+    display: none;
+  }
+
+  .parsec-shell__header {
+    gap: $spacing-2;
+    padding-left: $spacing-3;
+    padding-right: $spacing-3;
+  }
+
+  // Closed: no rail at all, the screen is the content.
+  .parsec-shell__sidebar {
+    display: none;
+  }
+
+  // Open: the full rail, vertical as on desktop, over the content.
+  .parsec-shell--nav-open .parsec-shell__sidebar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-height: calc(var(--px-app-h, 100vh) - 64px);
+    overflow: hidden auto;
+    border-right: 0;
+    border-bottom: 1px solid $px-line;
+  }
+
+  .parsec-shell--nav-open .parsec-shell__section {
+    display: block;
+    margin-bottom: $spacing-2;
+  }
+
+  .parsec-shell--nav-open .parsec-shell__link {
+    width: 100%;
+    white-space: normal;
+    border-bottom: 0;
+    border-left: 3px solid transparent;
+
+    &--active {
+      border-left-color: $px-gold;
+      border-bottom-color: transparent;
+    }
+  }
+
+  .parsec-shell--nav-open .parsec-shell__content {
+    display: none;
+  }
+}

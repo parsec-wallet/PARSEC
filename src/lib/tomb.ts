@@ -41,14 +41,15 @@ export async function tombCreate(
 ): Promise<void> {
   await invoke('tomb_create', {
     passphrase,
-    key_path: keyPath,
-    size_mb: sizeMb,
+    // Tauri 2 maps a command's snake_case parameters to camelCase keys.
+    keyPath,
+    sizeMb,
   });
 }
 
 /** Open a tomb — mount encrypted volume */
 export async function tombOpen(passphrase: string, keyPath: string): Promise<void> {
-  await invoke('tomb_open', { passphrase, key_path: keyPath });
+  await invoke('tomb_open', { passphrase, keyPath });
 }
 
 /** Close the tomb — unmount, data encrypted at rest */

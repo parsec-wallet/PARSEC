@@ -111,7 +111,7 @@ pub async fn http_request(request: HttpRequest) -> Result<HttpResponse, String> 
         builder = builder.body(body);
     }
 
-    let resp = builder.send().await.map_err(|e| format!("request failed: {e}"))?;
+    let mut resp = builder.send().await.map_err(|e| format!("request failed: {e}"))?;
     let status = resp.status().as_u16();
     let final_url = resp.url().to_string();
     let headers: Vec<(String, String)> = resp
@@ -122,9 +122,14 @@ pub async fn http_request(request: HttpRequest) -> Result<HttpResponse, String> 
     if resp.content_length().map_or(false, |n| n as usize > MAX_RESP_BODY) {
         return Err("response is too large".to_string());
     }
-    let bytes = resp.bytes().await.map_err(|e| format!("reading body: {e}"))?;
-    if bytes.len() > MAX_RESP_BODY {
-        return Err("response is too large".to_string());
+    // Read in chunks and stop at the cap: without a Content-Length (chunked, or a server
+    // that never ends) buffering the whole body first would let it exhaust memory.
+    let mut bytes: Vec<u8> = Vec::new();
+    while let Some(chunk) = resp.chunk().await.map_err(|e| format!("reading body: {e}"))? {
+        if bytes.len() + chunk.len() > MAX_RESP_BODY {
+            return Err("response is too large".to_string());
+        }
+        bytes.extend_from_slice(&chunk);
     }
     Ok(HttpResponse {
         status,

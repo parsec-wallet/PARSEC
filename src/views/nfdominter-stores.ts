@@ -71,7 +71,7 @@ export function buildStoresTab(buyer: string, network: StoreRegistry): HTMLEleme
             row('You pay', `${usd(q.total_micro_usd)} USDC`, true),
           ] }),
           ...(q.available ? [
-            btn(`BUY ${q.name} · ${usd(q.total_micro_usd)} USDC`, { intent: 'primary', onClick: () => void order(s, label) }),
+            btn(`BUY ${q.name} · ${usd(q.total_micro_usd)} USDC`, { intent: 'primary', onClick: () => void order(s, label, q.price_micro_usd) }),
             el('p', { cls: 'parsec-stores__muted', text: `Two x402 payments in USDC on Algorand: the BANKON facilitation fee, then the price straight to the owner of ${s.parent}, in full. The owner’s wallet then ${arns ? 'sets the undername and hands it to your Solana address' : 'mints the name for'} ${short(buyer)}.` }),
           ] : []),
         );
@@ -81,10 +81,10 @@ export function buildStoresTab(buyer: string, network: StoreRegistry): HTMLEleme
       }
     }
 
-    async function order(s: Store, label: string): Promise<void> {
+    async function order(s: Store, label: string, price: number): Promise<void> {
       quote.replaceChildren(el('p', { cls: 'parsec-stores__muted', text: 'Placing the order…' }));
       try {
-        const o = await createOrder(s.parent, label, buyer, network);
+        const o = await createOrder(s.parent, label, buyer, network, { price_micro_usd: price, payout: s.payout });
         quote.replaceChildren(checkout(o));
         void paintOrders();
       } catch (e) {
@@ -130,7 +130,9 @@ export function buildStoresTab(buyer: string, network: StoreRegistry): HTMLEleme
       const title = step === 'fee' ? `BANKON facilitation fee · ${usd(o.bankon_fee_micro_usd)} USDC`
         : step === 'pay' ? `Price · ${usd(o.price_micro_usd)} USDC to ${short(o.payout)}`
         : arns ? `Set and handed over by the owner of ${o.parent}` : `Minted by the owner of ${o.parent}`;
-      const link = tx ? el('a', { cls: 'parsec-stores__tx', text: short(tx), attrs: { href: explorerTxUrl(stepTerms(o, 'fee').network, tx), target: '_blank', rel: 'noopener noreferrer' } }) : null;
+      // Fee and price settle on Algorand; an ArNS undername is handed over on Solana.
+      const href = !tx ? '' : step === 'mint' && arns ? `https://solscan.io/tx/${encodeURIComponent(tx)}` : explorerTxUrl(stepTerms(o, 'fee').network, tx);
+      const link = tx ? el('a', { cls: 'parsec-stores__tx', text: short(tx), attrs: { href, target: '_blank', rel: 'noopener noreferrer' } }) : null;
       return el('div', { cls: `parsec-stores__step${done ? ' parsec-stores__step--done' : ''}`, children: [
         el('span', { cls: 'parsec-stores__dot', text: done ? '✓' : '○', attrs: { 'aria-hidden': 'true' } }),
         el('span', { text: title }),
@@ -143,6 +145,12 @@ export function buildStoresTab(buyer: string, network: StoreRegistry): HTMLEleme
       const state = store.get();
       const account = state.accounts[state.activeAccountIndex];
       if (!account || !store.getPassphrase()) { status.textContent = 'Unlock the wallet to pay.'; status.dataset.tone = 'error'; return; }
+      // The order belongs to the account it was placed for; never pay it from another.
+      if (getAccountAddress(account, arns ? 'solana' : 'algorand') !== o.buyer) {
+        status.textContent = `This order is for ${short(o.buyer)}. Switch back to that account to pay it.`;
+        status.dataset.tone = 'error';
+        return;
+      }
       busy = true;
       paint();
       const signers = signersForAccount(account);
@@ -156,8 +164,11 @@ export function buildStoresTab(buyer: string, network: StoreRegistry): HTMLEleme
           status.textContent = `Paying ${usd(o.price_micro_usd)} USDC to the owner of ${o.parent}…`;
           o = (await payOrderStep(o, 'pay', signers)).order;
         }
-        toast(`${o.name} is paid for — the owner mints it to your address.`, 'success');
-        status.textContent = '';
+        // Announced only when the registry says so (payOrderStep re-reads the order).
+        if (o.state === 'paid' || o.state === 'minted') {
+          toast(`${o.name} is paid for — the owner ${arns ? 'hands it' : 'mints it'} to your address.`, 'success');
+          status.textContent = '';
+        }
       } catch (e) {
         status.textContent = (e instanceof Error ? e.message : String(e))
           + (o.state === 'fee_paid' ? ` Your fee is paid and the name is held until ${heldUntil(o)}; paying again charges only the price.` : '');

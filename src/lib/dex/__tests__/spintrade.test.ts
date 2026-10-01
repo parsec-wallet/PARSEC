@@ -216,11 +216,11 @@ describe('SpinTrade DEX Aggregator', () => {
     it('multi-hop compound slippage calculation is correct', async () => {
       const hop1 = makeQuote({
         inputAssetId: 10, outputAssetId: 0, outputAmount: 1000,
-        dex: 'tinyman-onchain', fee: 100, priceImpact: 0.01, poolAddress: 'P1',
+        dex: 'tinyman-onchain', fee: 100, priceImpact: 1, poolAddress: 'P1',
       });
       const hop2 = makeQuote({
         inputAssetId: 0, outputAssetId: 20, outputAmount: 800,
-        dex: 'pact', fee: 80, priceImpact: 0.02, poolAddress: 'P2',
+        dex: 'pact', fee: 80, priceImpact: 2, poolAddress: 'P2',
       });
 
       (mockTinymanOnchain.getQuote as ReturnType<typeof vi.fn>).mockImplementation(
@@ -243,8 +243,9 @@ describe('SpinTrade DEX Aggregator', () => {
       expect(result).not.toBeNull();
       expect(result!.isMultiHop).toBe(true);
 
-      // Compound price impact: 1 - (1 - 0.01) * (1 - 0.02) = 1 - 0.99 * 0.98 = 1 - 0.9702 = 0.0298
-      expect(result!.priceImpact).toBeCloseTo(0.0298, 4);
+      // Impacts are percent (every DEX module reports percent): 1 % then 2 % compound to
+      // 100 × (1 − 0.99 × 0.98) = 2.98 %.
+      expect(result!.priceImpact).toBeCloseTo(2.98, 4);
 
       // Total fee: 100 + 80 = 180
       expect(result!.fee).toBe(180);
@@ -252,5 +253,20 @@ describe('SpinTrade DEX Aggregator', () => {
       // Min output with slippage: floor(800 * (1 - 50/10000)) = floor(800 * 0.995) = floor(796) = 796
       expect(result!.minOutput).toBe(796);
     });
+  });
+});
+
+describe('two-hop arithmetic', () => {
+  it('compounds percent impacts as fractions', async () => {
+    const { compoundImpactPct } = await import('../spintrade');
+    expect(compoundImpactPct(3, 3)).toBeCloseTo(5.91, 2);
+    expect(compoundImpactPct(0, 0)).toBe(0);
+    expect(compoundImpactPct(3, 3)).toBeGreaterThan(5); // the >5 % warning now fires
+  });
+
+  it('scales hop 2 down to what hop 1 guaranteed, in integers', async () => {
+    const { scaleFloor } = await import('../spintrade');
+    expect(scaleFloor(990_000, 950_000, 1_000_000)).toBe(940_500);
+    expect(scaleFloor(9_007_199_254_740_000, 3, 7)).toBe(3_860_228_252_031_428); // the product passes 2^53: exact in BigInt
   });
 });

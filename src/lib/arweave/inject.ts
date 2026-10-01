@@ -198,7 +198,7 @@ function getConnection(origin: string): ActiveConnection {
 export function createArweaveWalletAPI(): ArweaveWalletAPI {
   return {
     walletName: 'PARSEC',
-    walletVersion: '0.1.0',
+    walletVersion: __APP_VERSION__,
 
     async connect(permissions, appInfo) {
       const origin = originOf();

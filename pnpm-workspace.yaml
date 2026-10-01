@@ -13,11 +13,11 @@ allowBuilds:
   secp256k1: set this to true or false
   utf-8-validate: set this to true or false
 
-# bankonOS release 0.0.1-alpha: match the JS Tauri packages to the Rust crates
-# locked in src-tauri/Cargo.lock (tauri 2.6.2, tauri-plugin-opener 2.4.0);
-# tauri-cli refuses to bundle across a major/minor mismatch.
+# Match the JS Tauri packages to the Rust crates locked in src-tauri/Cargo.lock
+# (tauri 2.10.x, tauri-plugin-opener 2.5.x); tauri-cli refuses to bundle across a
+# major/minor mismatch. Same versions as package-lock.json.
 overrides:
-  '@tauri-apps/api': 2.6.0
-  '@tauri-apps/plugin-opener': 2.4.0
+  '@tauri-apps/api': 2.10.1
+  '@tauri-apps/plugin-opener': 2.5.3
   # the @ar.io/sdk this wallet was developed against (package.json: ^4.2.0)
   '@ar.io/sdk@^4': 4.2.0

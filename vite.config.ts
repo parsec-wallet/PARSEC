@@ -30,8 +30,13 @@ const wrapperDir = packageDir(path.join(xhdDir, "package.json"), "libsodium-wrap
 const sumoDir = packageDir(path.join(wrapperDir, "package.json"), "libsodium-sumo");
 const libsodiumSumoMjs = path.join(sumoDir, "dist/modules-sumo-esm/libsodium-sumo.mjs");
 
+// The app's version, from package.json, as a compile-time constant (__APP_VERSION__):
+// one source of truth for every place the wallet names its own version.
+const appVersion: string = JSON.parse(fs.readFileSync(new URL("./package.json", import.meta.url), "utf8")).version;
+
 export default defineConfig(async () => ({
   clearScreen: false,
+  define: { __APP_VERSION__: JSON.stringify(appVersion) },
   resolve: {
     alias: [
       {

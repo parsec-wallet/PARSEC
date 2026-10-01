@@ -18,6 +18,14 @@ export const isTauri: boolean =
   typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
 /**
+ * A phone or tablet: the Android/iOS app, or a mobile browser. `isTauri` is true on
+ * Android too, so "Tauri" never means "desktop" — check this for the window chrome,
+ * the tray and every desktop-only feature.
+ */
+export const isMobile: boolean =
+  typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+/**
  * Invoke a Tauri command. Throws in web mode — callers that have a web
  * fallback (e.g. `keystoreUnlock`) should check `isTauri` first and route
  * to the alternative.

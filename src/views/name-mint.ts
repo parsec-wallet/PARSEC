@@ -349,7 +349,7 @@ export function nameMintView(): HTMLElement {
         tags: [
           { name: 'Content-Type', value: 'application/json' },
           { name: 'App-Name', value: 'parsec-wallet' },
-          { name: 'App-Version', value: '0.1.0' },
+          { name: 'App-Version', value: __APP_VERSION__ },
           { name: 'Type', value: 'named-nft-binding' },
           { name: 'Namespace', value: state.namespace },
           { name: 'Name', value: state.name },

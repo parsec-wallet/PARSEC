@@ -12,6 +12,7 @@
 // wrap on any character, so nothing overflows a narrow window. Status is shown in
 // place, not in a toast that disappears before it is read.
 
+import { isMobile } from '../platform';
 import { el, btn, toast } from '../dom';
 
 /** A numbered strip showing where the participant is. */
@@ -136,7 +137,9 @@ export function secretPanel(opts: {
     onClick: () => { if (value) void copy(value, opts.title, true); },
   });
   const actions: HTMLElement[] = [revealBtn, copyBtn];
-  if (opts.download) {
+  // A phone's WebView ignores a download of an in-memory file — it would claim "saved"
+  // and save nothing. On a phone the key is copied instead (see the hint below).
+  if (opts.download && !isMobile) {
     const d = opts.download;
     actions.push(btn('Download', {
       minimal: true, icon: 'download',
@@ -158,6 +161,7 @@ export function secretPanel(opts: {
     children: [
       el('h3', { cls: 'parsec-keyflow__heading', text: opts.title }),
       el('p', { cls: 'parsec-keyflow__hint', text: opts.hint }),
+      ...(opts.download && isMobile ? [el('p', { cls: 'parsec-keyflow__hint', text: `On a phone this key is copied rather than saved as ${opts.download.filename}. Paste it straight into your password manager, then copy something else so it does not stay on the clipboard: other apps can read the clipboard.` })] : []),
       el('p', { cls: 'parsec-keyflow__format', text: opts.format }),
       box,
       el('div', { cls: 'parsec-keyflow__actions', children: actions }),

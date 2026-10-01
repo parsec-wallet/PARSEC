@@ -56,3 +56,6 @@
 @use 'wallet/linkage';
 @use 'wallet/permaweb';
 @use 'wallet/matrix-recovered';
+
+// Last, so phone adaptations win over the per-view defaults.
+@use 'layout/mobile';

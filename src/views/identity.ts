@@ -14,7 +14,7 @@
 // Each card loads on its own and says plainly when there is nothing, or when a
 // service could not be reached. Outside text is cleaned before it is shown.
 
-import { el, btn, toast } from '../lib/dom';
+import { el, btn, copyText } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
 import { getChainDescriptor } from '../lib/chains';
 import { resolveAddress } from '../lib/nfd';
@@ -33,7 +33,7 @@ const CHAIN_LABELS: Record<string, string> = { ethereum: 'EVM / Base', bitcoin: 
 function copyable(value: string, what: string): HTMLElement {
   return btn('Copy', {
     minimal: true, icon: 'duplicate', cls: 'parsec-id__copy bp5-small',
-    onClick: () => { void navigator.clipboard.writeText(value); toast(`${what} copied`, 'success'); },
+    onClick: () => { void copyText(value, `${what} copied`); },
   });
 }
 

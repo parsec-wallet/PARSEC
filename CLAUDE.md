@@ -76,7 +76,7 @@ npm run dev            # Vite dev server → http://localhost:1420
 npm run tauri:dev      # Tauri desktop app (dev)
 npm run build          # tsc && vite build  → dist/
 npm run tauri:build    # production desktop bundle
-npm test               # vitest run  (~695 tests)
+npm test               # vitest run  (~765 tests)
 npm run test:watch
 npm run lint:css       # stylelint src/**/*.scss --fix
 npm run lint:css:ci    # CI-clean output
@@ -93,7 +93,7 @@ Always run `npx tsc --noEmit` and `npx vitest run` before declaring work done.
 ```
 src/
 ├── main.ts             entry — registers views, mounts router, deferred IPC init
-├── views/              71 view modules, each exporting a () => HTMLElement factory
+├── views/              72 view modules, each exporting a () => HTMLElement factory
 ├── lib/
 │   ├── dom.ts          el() / input() / btn() / toast() — the whole "component kit"
 │   ├── router.ts       Map<view, factory> + store subscription
@@ -108,7 +108,7 @@ src/
 ├── styles/             SCSS 7-1-ish; wallet/_views.scss is the app skin
 └── types/wallet.ts     WalletState, WalletAccount, AppView
 src-tauri/src/
-├── lib.rs              16 modules, 112 commands in one generate_handler!
+├── lib.rs              17 modules, 113 commands in one generate_handler!
 ├── bankon_vault/       Argon2id + AES-256-GCM key storage; Tomb (LUKS) commands
 ├── chain_btc|chain_ltc|chain_evm/   derivation + signing
 ├── parsec_connect/     dApp WebSocket bridge (127.0.0.1:9876)
@@ -182,7 +182,7 @@ Four registries, all "self-register, iterate, never branch on chain name":
   `main.ts` unless they are on the first-paint path.
 - Style in `src/styles/`; brand tokens are CSS custom properties (`--px-*`).
 - Retrieve a mnemonic only for the moment of signing, and zero it in a `finally`.
-- Prefer editing an existing view over adding a parallel one — there are already 68.
+- Prefer editing an existing view over adding a parallel one — there are already 72.
 
 ## Docs worth reading
 

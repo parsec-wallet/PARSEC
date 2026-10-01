@@ -41,6 +41,24 @@ function pow10(n: number): bigint {
  * truncated: quietly dropping a digit of someone's money is precisely the
  * failure this module exists to prevent.
  */
+/**
+ * An amount as a person typed it, as a plain decimal string — or null when it is not one.
+ *
+ * Accepts "1.5" and "1,5" (a decimal comma, as many keyboards type it). Refuses anything
+ * ambiguous rather than guessing: "1,000.5" or "1.000,5" could be a thousands separator
+ * or a decimal one, and reading it wrong sends a thousand times too much or too little.
+ */
+export function normalizeAmountInput(text: string): string | null {
+  const s = text.trim().replace(/[\s_]/g, '');
+  if (!s) return null;
+  const commas = (s.match(/,/g) ?? []).length;
+  const dots = (s.match(/\./g) ?? []).length;
+  if (commas && dots) return null;
+  if (commas > 1 || dots > 1) return null;
+  const out = s.replace(',', '.');
+  return /^\d*\.?\d+$|^\d+\.$/.test(out) ? out.replace(/\.$/, '') : null;
+}
+
 export function parseDecimal(input: string, decimals: number): bigint {
   const s = input.trim();
   const m = /^([+-]?)(\d+)(?:\.(\d*))?$/.exec(s);

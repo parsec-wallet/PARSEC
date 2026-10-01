@@ -19,7 +19,7 @@ import { mountPalette } from './lib/ui/palette';
 import { store } from './lib/store';
 import { initViewport } from './lib/viewport';
 import { mountTitlebar } from './lib/ui/titlebar';
-import { isTauri } from './lib/platform';
+import { isTauri, isMobile } from './lib/platform';
 import { initAppShell } from './lib/app-shell';
 
 // Modules that register through the manifest (lib/modules.ts): one import,
@@ -161,12 +161,14 @@ if (root) {
   // Desktop: the window is undecorated, so the title bar is ours (and the tray,
   // close-to-tray and start-at-login are wired to Rust). Mounted before the
   // viewport is measured so the app height accounts for it.
-  if (isTauri) {
+  // A phone has no window chrome, tray or start at login: the system owns all three.
+  if (isTauri && !isMobile) {
     mountTitlebar();
     void initAppShell();
   }
   // Before first paint: every screen sizes itself to the window it is in.
-  initViewport();
+  initViewport(isMobile);
+  if (isMobile) void import('./lib/mobile').then((m) => m.initMobile());
   const shell = createShell();
   root.appendChild(shell.element);
   mountRouter(shell.content);
@@ -184,7 +186,7 @@ store.subscribe((state) => {
 });
 
 // Auto-lock: reset timer on any user activity
-for (const event of ['click', 'keydown', 'input', 'mousemove'] as const) {
+for (const event of ['click', 'keydown', 'input', 'mousemove', 'touchstart', 'scroll'] as const) {
   document.addEventListener(event, () => store.onActivity(), { passive: true });
 }
 

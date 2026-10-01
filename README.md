@@ -15,7 +15,7 @@
   <img alt="SCSS" src="https://img.shields.io/badge/SCSS-14%25-c6538c?style=flat-square&logo=sass&logoColor=white&labelColor=0b0f16">
   <img alt="Lua (AO)" src="https://img.shields.io/badge/Lua%20(AO)-2%25-2c2d72?style=flat-square&logo=lua&logoColor=white&labelColor=0b0f16">
   <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-24c8db?style=flat-square&logo=tauri&logoColor=white&labelColor=0b0f16">
-  <img alt="Tests: 687 passing" src="https://img.shields.io/badge/tests-687%20passing-3ff0b0?style=flat-square&labelColor=0b0f16">
+  <img alt="Tests: 765 passing" src="https://img.shields.io/badge/tests-765%20passing-3ff0b0?style=flat-square&labelColor=0b0f16">
   <img alt="Licence by component" src="https://img.shields.io/badge/licence-GPL--3.0%20%C2%B7%20Apache--2.0%20%C2%B7%20MIT-555?style=flat-square&labelColor=0b0f16">
 </p>
 
@@ -93,13 +93,28 @@ npm run dev            # the web build at http://localhost:1420
 The web build creates wallets, sends, swaps and pays; chain packs that live in Rust (Bitcoin,
 Litecoin) and the vault are desktop-only.
 
+### Android
+
+PARSEC builds for arm64 phones (Android 7.0+) from the same tree; the PARSEC Keycore runs on the
+phone. Signed test builds are published as GitHub pre-releases. To build one yourself you need the
+Android SDK and NDK 27, JDK 17 and `rustup target add aarch64-linux-android`, then:
+
+```bash
+npm run tauri -- android build --target aarch64 --apk
+```
+
+Release builds are signed when `$PARSEC_ANDROID_KEYSTORE` (or
+`~/.android-keys/parsec/keystore.properties`) points at a keystore kept outside the repo; otherwise
+they are unsigned. On a phone, desktop-only features (the tray, Mausoleum's LUKS tomb, pmVPN) are not
+offered.
+
 ## Commands
 
 | | |
 |---|---|
 | `npm run dev` · `npm run tauri:dev` | Web dev server · desktop app in dev mode |
 | `npm run build` · `npm run tauri:build` | Typecheck and build the frontend · package the desktop app |
-| `npm test` · `npm run test:watch` | The test suite (75 files, 687 tests) |
+| `npm test` · `npm run test:watch` | The test suite (86 files, 765 tests) |
 | `npx tsc --noEmit` | Typecheck; with `npm test`, required before a change is done |
 | `npm run lint:css` · `lint:css:ci` · `lint:css:production` | Stylelint (fix) · CI output · production rules |
 | `npm run deploy:permaweb` · `deploy:permaweb:txid` | Publish `dist/` to Arweave (binding the ArNS name · by transaction id) |
@@ -110,7 +125,7 @@ Litecoin) and the vault are desktop-only.
 ## Architecture
 
 ```
-src/                     TypeScript interface — 71 views; lib/ holds one typed wrapper per Rust module
+src/                     TypeScript interface — 72 views; lib/ holds one typed wrapper per Rust module
 ├── main.ts              entry: views, router, title bar, viewport
 ├── lib/
 │   ├── dom.ts           el() / btn() / input() — the whole component kit
@@ -128,7 +143,7 @@ src/                     TypeScript interface — 71 views; lib/ holds one typed
 │   └── keystore.ts      vault on desktop, Web Crypto in the browser
 └── views/               matrix (landing), create-select, create-wallet, x402-desk, nfdominter-*, …
 
-src-tauri/src/           Rust — 16 modules, 9 managed states, 112 commands
+src-tauri/src/           Rust — 17 modules, 9 managed states, 113 commands
 ├── bankon_vault/        encrypted key storage + Tomb cold volumes
 ├── chain_algo/ chain_sol/ chain_ar/ chain_evm/ chain_btc/ chain_ltc/   signing per chain
 ├── parsec_validate/     address validators

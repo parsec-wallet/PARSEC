@@ -2,6 +2,7 @@
 // The JWK is retrieved from the BANKON vault only at sign time; transferAr
 // signs with WebCrypto RSA-PSS and zeroes the JWK's private fields after.
 
+import { normalizeAmountInput } from '../lib/money';
 import { el, btn, input, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
 import { getArBalance, arToWinston } from '../lib/arweave/client';
@@ -36,7 +37,8 @@ export function arweaveSendView(): HTMLElement {
   async function run(): Promise<void> {
     if (busy) return;
     const to = recipient.trim();
-    const amt = Number(amount);
+    const typed = normalizeAmountInput(amount);
+    const amt = typed === null ? NaN : Number(typed);
     if (!AR_ADDRESS.test(to)) { toast('Invalid Arweave recipient address', 'danger'); return; }
     if (!(amt > 0)) { toast('Enter an amount greater than zero', 'danger'); return; }
     if (!confirm(`Send ${amt} AR to ${to}?`)) return;
@@ -47,7 +49,7 @@ export function arweaveSendView(): HTMLElement {
     busy = true;
     submit.disabled = true;
     try {
-      const receipt = await transferAr(from!, passphrase, to, arToWinston(String(amt)));
+      const receipt = await transferAr(from!, passphrase, to, arToWinston(typed!));
       toast(`Sent — tx ${receipt.id.slice(0, 12)}…`, 'success');
       store.navigate('dashboard');
     } catch (err) {
@@ -69,7 +71,7 @@ export function arweaveSendView(): HTMLElement {
         el('label', { cls: 'parsec-label', text: 'To' }),
         input({ placeholder: 'Arweave recipient address', cls: 'bp5-input bp5-large bp5-fill parsec-send__input', onInput: (v) => { recipient = v; } }),
         el('label', { cls: 'parsec-label', text: 'Amount (AR)' }),
-        input({ type: 'number', placeholder: '0.0', cls: 'bp5-input bp5-large bp5-fill parsec-send__input', onInput: (v) => { amount = v; } }),
+        input({ type: 'decimal', placeholder: '0.0', cls: 'bp5-input bp5-large bp5-fill parsec-send__input', onInput: (v) => { amount = v; } }),
       ]}),
       submit,
     ],

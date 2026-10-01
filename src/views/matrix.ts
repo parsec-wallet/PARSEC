@@ -3,6 +3,7 @@
 // Blue pill (left) = diagnostics. Red pill (right) = live wallet.
 // Matrix wall = safe to walk away. Password never remembered.
 
+import { isMobile } from '../lib/platform';
 import { el, btn, input, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { bindGlobal, bindInterval, onCleanup } from '../lib/lifecycle';
@@ -263,7 +264,10 @@ export function matrixView(): HTMLElement {
   // should never arrive switched on.
   const chainmarketcapPref = overlayPref('parsec:matrix-chainmarketcap', false);
 
-  const matrixPref = overlayPref('parsec:matrix-rain', true);
+  // The rain defaults off for someone who asked the system for less motion; a stored
+  // choice (either way) still wins.
+  const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const matrixPref = overlayPref('parsec:matrix-rain', !reduceMotion);
   const cryptocloudPref = overlayPref('parsec:matrix-cryptocloud', false);
   const pyramidPref = overlayPref('parsec:matrix-pyramid', false);
   // How many brick rows the pyramid shows between the apex and the base (+/−
@@ -842,7 +846,14 @@ export function matrixView(): HTMLElement {
     if (cloudRebuildTimer) clearTimeout(cloudRebuildTimer);
     cloudRebuildTimer = setTimeout(() => { cloudRebuildTimer = undefined; createGlyphs(); }, 250);
   }
-  bindGlobal(window, 'resize', scheduleCloudRebuild);
+  // A phone keyboard opening is a height-only resize: the glyphs' sizes do not change,
+  // so the cloud is not rebuilt for it (that cost a frame storm on every focus).
+  let cloudWidth = window.innerWidth;
+  bindGlobal(window, 'resize', () => {
+    if (isMobile && window.innerWidth === cloudWidth) return;
+    cloudWidth = window.innerWidth;
+    scheduleCloudRebuild();
+  });
 
   // Mouse + drag for bullet-time full rotation
   let mouseX = 0.5, mouseY = 0.5;
@@ -985,16 +996,23 @@ export function matrixView(): HTMLElement {
 
   function resize() {
     if (!gl) return;
-    const dpr = Math.min(window.devicePixelRatio, 2);
+    // A phone draws the shader at 1× — a quarter of the pixels on a 2× screen — which is
+    // where its battery goes; the rain reads the same at that density.
+    const dpr = isMobile ? 1 : Math.min(window.devicePixelRatio, 2);
     canvas.width = window.innerWidth * dpr; canvas.height = window.innerHeight * dpr;
     canvas.style.width = window.innerWidth + 'px'; canvas.style.height = window.innerHeight + 'px';
     gl.viewport(0, 0, canvas.width, canvas.height);
     setUniform('u_resolution', canvas.width, canvas.height);
   }
 
+  let lastDrawn = 0;
   function frame() {
     if (!gl || !program) return;
-    const t = (performance.now() - startTime) * 0.001;
+    // About 30 frames a second on a phone: half the GPU time, the same rain.
+    const now = performance.now();
+    if (isMobile && now - lastDrawn < 32) { raf = requestAnimationFrame(frame); return; }
+    lastDrawn = now;
+    const t = (now - startTime) * 0.001;
 
     // Momentum decay when not dragging — bullet-time spin continues then slows
     if (!isDragging) {
@@ -2425,12 +2443,18 @@ export function matrixView(): HTMLElement {
   }
 
   function showTooltip(coin: CoinPrice, x: number, y: number) {
-    tooltip.innerHTML = `
-      <div class="parsec-matrix__tooltip-symbol">${coin.symbol}</div>
-      <div class="parsec-matrix__tooltip-price">${formatPrice(coin.usd)}</div>
-      <div class="parsec-matrix__tooltip-change" style="color:${changeTone(shownChange(coin).pct)}">${formatPercent(shownChange(coin).pct, 2)} <span class="parsec-matrix__tooltip-period">${pricePeriod}</span></div>
-      <div class="parsec-matrix__tooltip-cap">${formatMarketCap(coin.marketCap)}</div>
-    `;
+    // Built as nodes: the symbol comes from a price feed and is text, never markup.
+    const change = el('div', { cls: 'parsec-matrix__tooltip-change', children: [
+      `${formatPercent(shownChange(coin).pct, 2)} `,
+      el('span', { cls: 'parsec-matrix__tooltip-period', text: pricePeriod }),
+    ] });
+    change.style.color = changeTone(shownChange(coin).pct);
+    tooltip.replaceChildren(
+      el('div', { cls: 'parsec-matrix__tooltip-symbol', text: coin.symbol }),
+      el('div', { cls: 'parsec-matrix__tooltip-price', text: formatPrice(coin.usd) }),
+      change,
+      el('div', { cls: 'parsec-matrix__tooltip-cap', text: formatMarketCap(coin.marketCap) }),
+    );
     tooltip.style.left = `${x + 16}px`;
     tooltip.style.top = `${y - 20}px`;
     tooltip.style.opacity = '1';
@@ -2873,7 +2897,7 @@ export function matrixView(): HTMLElement {
     netFeed.appendChild(netLog);
     panel.appendChild(netFeed);
 
-    logNet(netLog, 'INIT', `PARSEC v0.1.0 — ${state.settings.network}`);
+    logNet(netLog, 'INIT', `PARSEC v${__APP_VERSION__} — ${state.settings.network}`);
     logNet(netLog, 'NODE', `${state.settings.network}-api.algonode.cloud`);
 
     // ── Tabs ──
@@ -5030,9 +5054,15 @@ export function matrixView(): HTMLElement {
       WARN: '#f59e0b', ERR: '#ef4444', PRICE: '#8b5cf6', MOVER: '#8b5cf6', WAIT: '#6b7280',
     };
     const color = tagColors[tag] || '#6b7280';
+    // Nodes, not markup: `msg` can carry an error text from a remote feed.
+    const tsEl = el('span', { text: ts });
+    tsEl.style.color = '#555';
+    const tagEl = el('span', { text: tag });
+    tagEl.style.color = color;
+    tagEl.style.fontWeight = '600';
     const line = el('div', {
       cls: 'parsec-matrix__netlog-line',
-      html: `<span style="color:#555">${ts}</span> <span style="color:${color};font-weight:600">${tag}</span> <span>${msg}</span>`,
+      children: [tsEl, ' ', tagEl, ' ', el('span', { text: msg })],
     });
     log.appendChild(line);
     // Keep last 12 lines

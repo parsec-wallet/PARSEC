@@ -2,6 +2,7 @@
 // The mnemonic is retrieved from the BANKON vault only at sign time and
 // discarded immediately after (sendSol zeroes the derived secret seed).
 
+import { normalizeAmountInput } from '../lib/money';
 import { el, btn, input, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
 import { keystoreRetrieve } from '../lib/keystore';
@@ -36,7 +37,8 @@ export function solanaSendView(): HTMLElement {
   async function run(): Promise<void> {
     if (busy) return;
     const to = recipient.trim();
-    const amt = Number(amount);
+    const typed = normalizeAmountInput(amount);
+    const amt = typed === null ? NaN : Number(typed);
     if (!isSolanaAddress(to)) { toast('Invalid Solana recipient address', 'danger'); return; }
     if (!(amt > 0)) { toast('Enter an amount greater than zero', 'danger'); return; }
     if (!confirm(`Send ${amt} SOL to ${to}?`)) return;
@@ -71,7 +73,7 @@ export function solanaSendView(): HTMLElement {
         el('label', { cls: 'parsec-label', text: 'To' }),
         input({ placeholder: 'Solana recipient address', cls: 'bp5-input bp5-large bp5-fill parsec-send__input', onInput: (v) => { recipient = v; } }),
         el('label', { cls: 'parsec-label', text: 'Amount (SOL)' }),
-        input({ type: 'number', placeholder: '0.0', cls: 'bp5-input bp5-large bp5-fill parsec-send__input', onInput: (v) => { amount = v; } }),
+        input({ type: 'decimal', placeholder: '0.0', cls: 'bp5-input bp5-large bp5-fill parsec-send__input', onInput: (v) => { amount = v; } }),
       ]}),
       submit,
     ],

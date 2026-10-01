@@ -12,7 +12,12 @@ const libsodiumSumoMjs = path.resolve(
   'node_modules/.pnpm/libsodium-sumo@0.7.16/node_modules/libsodium-sumo/dist/modules-sumo-esm/libsodium-sumo.mjs',
 );
 
+import fs from 'node:fs';
+
+const appVersion: string = JSON.parse(fs.readFileSync(new URL('./package.json', import.meta.url), 'utf8')).version;
+
 export default defineConfig({
+  define: { __APP_VERSION__: JSON.stringify(appVersion) },
   resolve: {
     alias: [
       {

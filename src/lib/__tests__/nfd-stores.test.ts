@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 vi.mock('../platform', () => ({ isTauri: false, invoke: vi.fn() }));
-const { tierFor, bankonFeeMicro, canonicalListing, cleanLabels, usd, stepTerms, fullName, labelValid } = await import('../nfd/stores');
+const { tierFor, bankonFeeMicro, canonicalListing, cleanLabels, usd, stepTerms, fullName, labelValid, orderProblem } = await import('../nfd/stores');
 
 describe('.algo stores — the same rules as the registry', () => {
   it('tiers by length', () => {
@@ -59,5 +59,28 @@ describe('.algo stores — the same rules as the registry', () => {
     expect(fee.network).toMatch(/^algorand:wGHE2/);
     expect(stepTerms({ ...order, network: 'testnet' }, 'pay').asset).toBe('10458941');
     expect(stepTerms({ ...order, network: 'arns' }, 'pay')).toMatchObject({ asset: '31566704', payTo: 'P'.repeat(58) });
+  });
+
+  it('refuses an order whose figures the wallet did not compute', () => {
+    const good = {
+      ref: 'abcdefghijklmnopqrstuvwx', network: 'mainnet' as const, name: 'alice.mindx.algo', parent: 'mindx.algo',
+      label: 'alice', buyer: 'B'.repeat(58), payout: 'P'.repeat(58), price_micro_usd: 3_000_000,
+      bankon_fee_micro_usd: 300_000, total_micro_usd: 3_300_000, state: 'quoted' as const,
+      fee_settlement: null, settlement: null, mint_tx: null, held_until: null, created_at: '', updated_at: '',
+    };
+    const shown = { parent: 'mindx.algo', label: 'alice', buyer: 'B'.repeat(58), network: 'mainnet' as const, price_micro_usd: 3_000_000, payout: 'P'.repeat(58) };
+    expect(orderProblem(good, shown)).toBeNull();
+    expect(orderProblem({ ...good, total_micro_usd: 3_000_000 }, shown)).toMatch(/total/);
+    expect(orderProblem({ ...good, bankon_fee_micro_usd: 150_000, total_micro_usd: 3_150_000 }, shown)).toMatch(/fee/);
+    expect(orderProblem({ ...good, price_micro_usd: 30_000_000, bankon_fee_micro_usd: 3_000_000, total_micro_usd: 33_000_000 }, shown)).toMatch(/price changed/);
+    expect(orderProblem({ ...good, payout: 'X'.repeat(58) }, shown)).toMatch(/payout/);
+    expect(orderProblem({ ...good, buyer: 'C'.repeat(58) }, shown)).toMatch(/buyer/);
+  });
+
+  it('shows prices exactly, never a non-zero amount as $0.00', () => {
+    expect(usd(3_000_000)).toBe('$3');
+    expect(usd(150_000)).toBe('$0.15');
+    expect(usd(4_000)).toBe('$0.004');
+    expect(usd(1_234_567_800_000)).toBe('$1,234,567.80');
   });
 });
