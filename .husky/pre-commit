@@ -1,3 +1,5 @@
 #!/usr/bin/env sh
 
+# Before each commit: lint-staged runs Stylelint (--fix) on staged SCSS
+# (package.json "lint-staged"). Typecheck and tests run in CI.
 npx lint-staged 

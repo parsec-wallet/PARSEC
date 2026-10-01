@@ -1,3 +1,6 @@
+// Parsec Wallet — Stylelint. Development and pre-commit config. `npm run lint:css` (--fix) and the
+// lint-staged hook (.husky/pre-commit) use it on src/**/*.scss. Most rules are
+// warnings so a commit is never blocked on style alone.
 module.exports = {
   extends: [
     'stylelint-config-standard-scss'

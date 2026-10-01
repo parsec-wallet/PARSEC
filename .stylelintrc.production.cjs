@@ -1,3 +1,6 @@
+// Parsec Wallet — Stylelint. Production config: `npm run lint:css:production`. The same base
+// (stylelint-config-standard-scss) with the rules that only matter for shipped
+// CSS; CI runs the development config via `npm run lint:css:ci`.
 module.exports = {
   extends: [
     'stylelint-config-standard-scss'

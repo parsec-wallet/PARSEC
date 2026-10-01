@@ -25,4 +25,8 @@ build/
 
 # OS-specific files
 .DS_Store
-Thumbs.db 
+Thumbs.db
+
+# Rust build output and local-only reference snapshots (never committed)
+src-tauri/target/
+docs/reference/ 
