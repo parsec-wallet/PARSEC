@@ -118,3 +118,20 @@
   font-size: $font-size-xs;
   text-align: center;
 }
+
+// A ready row is one big target: the click opens that chain's creation screen.
+.parsec-chainpick__row--clickable {
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--px-gold);
+    background: rgb(255 255 255 / 3%);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--px-gold);
+    outline-offset: 2px;
+  }
+}

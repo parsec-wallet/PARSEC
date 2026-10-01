@@ -1,10 +1,12 @@
-// .algo Names — the registration service fee, paid over x402.
+// .algo Names — the BANKON fee, paid over x402.
 //
-// Registering a .algo name is two payments to two parties:
+// Registering a .algo name through Parsec is two payments to two parties:
 //
-//   1. the NFD registry's own price, in ALGO, paid by the mint group itself;
-//   2. the registration service fee, in USDC, paid over x402 to the name service
-//      (`NAMES_SERVICE_URL`), which records the order against the settlement.
+//   1. NECESSARY — the NFD registry's own price and the network fee, in ALGO, paid
+//      by the mint group itself. Any wallet registering the name pays these.
+//   2. BANKON FEE — what BANKON collects for Parsec, in USDC, paid over x402 to the
+//      .algo seller (`NAMES_SERVICE_URL`), which records the order against the
+//      settlement. The only fee in the flow that is ours.
 //
 // They are different currencies to different recipients, so they are quoted side
 // by side and never summed. The fee is quoted BEFORE the participant commits, and

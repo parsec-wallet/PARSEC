@@ -145,19 +145,30 @@ export function createSelectView(): HTMLElement {
     } else if (locked) {
       row.appendChild(el('p', { cls: 'parsec-chainpick__note', text: 'Create your Algorand account first.' }));
     } else {
+      const open = () => {
+        if (offer.view) {
+          store.navigate(offer.view as Parameters<typeof store.navigate>[0]);
+        } else if (offer.inline && !action.disabled) {
+          void createInline(offer, action);
+        }
+      };
       const action = btn(offer.required ? 'Create Algorand account' : `Add ${offer.label}`, {
         intent: offer.required ? 'primary' : undefined,
         outlined: !offer.required,
-        onClick: () => {
-          if (offer.view) {
-            store.navigate(offer.view as Parameters<typeof store.navigate>[0]);
-          } else if (offer.inline) {
-            void createInline(offer, action);
-          }
-        },
+        onClick: (e) => { e.stopPropagation(); open(); },
       });
       action.classList.add('parsec-chainpick__action');
       row.appendChild(action);
+      // The whole row is the choice: clicking the wallet you want opens its
+      // creation screen, not just the button inside it.
+      row.classList.add('parsec-chainpick__row--clickable');
+      row.setAttribute('role', 'button');
+      row.setAttribute('tabindex', '0');
+      row.setAttribute('aria-label', offer.required ? 'Create Algorand account' : `Add ${offer.label}`);
+      row.addEventListener('click', open);
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      });
     }
 
     list.appendChild(row);

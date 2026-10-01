@@ -84,14 +84,14 @@ export function nfdominterConfirmView(): HTMLElement {
       feeQuote = q;
       feeBox.innerHTML = '';
       if (!q) {
-        feeBox.appendChild(el('div', { cls: 'parsec-nfdominter__hint', text: 'No service fee is charged for this name.' }));
+        feeBox.appendChild(el('div', { cls: 'parsec-nfdominter__hint', text: 'No BANKON fee is charged for this name.' }));
       } else {
         feeBox.append(
           el('div', { cls: 'parsec-nfdominter__quote-row', children: [
-            el('span', { text: 'Registration service fee' }),
+            el('span', { text: 'BANKON fee' }),
             el('span', { text: `${q.quote.amountDisplay} ${q.quote.assetSymbol}${q.quote.usdDisplay ? ` (${q.quote.usdDisplay})` : ''}` }),
           ]}),
-          el('div', { cls: 'parsec-nfdominter__hint', text: `Paid over x402 on ${q.quote.networkLabel}. Fees for this transfer are sponsored by the facilitator.` }),
+          el('div', { cls: 'parsec-nfdominter__hint', text: `Collected by BANKON for Parsec — the only fee here that is ours. Paid over x402 on ${q.quote.networkLabel}; the facilitator pays this transfer's network fee.` }),
         );
       }
       feeReady = true;
@@ -101,7 +101,7 @@ export function nfdominterConfirmView(): HTMLElement {
       feeBox.innerHTML = '';
       feeBox.appendChild(el('div', {
         cls: 'parsec-callout bp5-callout bp5-intent-danger',
-        text: `Could not fetch the service fee: ${e instanceof Error ? e.message : String(e)}`,
+        text: `Could not fetch the BANKON fee: ${e instanceof Error ? e.message : String(e)}`,
       }));
     });
 
@@ -164,13 +164,13 @@ export function nfdominterConfirmView(): HTMLElement {
     let feeTxId = '';
     try {
       if (feeQuote) {
-        progress.textContent = 'Paying the registration service fee…';
+        progress.textContent = 'Paying the BANKON fee…';
         const paid = await payServiceFee({ name: p.name, owner, signers: signersForAccount(account), reviewed: feeQuote });
         feeTxId = paid.txId;
       }
     } catch (e) {
       progress.textContent = '';
-      showError(e, 'Service fee not paid — nothing was charged');
+      showError(e, 'BANKON fee not paid — nothing was charged');
       payBtn.disabled = false;
       backBtn.disabled = false;
       return;
@@ -192,7 +192,7 @@ export function nfdominterConfirmView(): HTMLElement {
     } catch (e) {
       progress.textContent = '';
       // The fee settled but the mint did not: say so plainly, with the proof.
-      showError(e, feeTxId ? 'Service fee paid, but the name was not minted' : 'Mint failed', feeTxId);
+      showError(e, feeTxId ? 'BANKON fee paid, but the name was not minted' : 'Mint failed', feeTxId);
       payBtn.disabled = false;
       backBtn.disabled = false;
       if (feeTxId) {
@@ -211,7 +211,7 @@ export function nfdominterConfirmView(): HTMLElement {
     errorBox.append(
       el('div', { cls: 'parsec-callout bp5-callout bp5-intent-danger', children: [
         el('div', { cls: 'parsec-nfdominter__error-title', text: title }),
-        ...(feeTxId ? [txLine('Service fee settlement', feeTxId, feeQuote?.network ?? '')] : []),
+        ...(feeTxId ? [txLine('BANKON fee settlement', feeTxId, feeQuote?.network ?? '')] : []),
         el('pre', { cls: 'parsec-nfdominter__error-message', text: message }),
         btn('Copy error', {
           minimal: true,
@@ -255,7 +255,7 @@ export function nfdominterConfirmView(): HTMLElement {
           row('Network', p.network),
           row('Owner', owner),
           ...(nfd.appID ? [row('NFD application', String(nfd.appID))] : []),
-          ...(feeTxId ? [txLine('Service fee settlement', feeTxId, feeQuote?.network ?? (mainnet ? 'algorand-mainnet' : 'algorand-testnet'))] : []),
+          ...(feeTxId ? [txLine('BANKON fee settlement', feeTxId, feeQuote?.network ?? (mainnet ? 'algorand-mainnet' : 'algorand-testnet'))] : []),
         ]}),
         el('div', { cls: 'parsec-nfdominter__success-links', children: [
           ...(appHref ? [el('a', { cls: 'parsec-asset-link', text: 'NFD application on allo.info', attrs: { href: appHref, target: '_blank', rel: 'noopener' } })] : []),
@@ -281,9 +281,8 @@ export function nfdominterConfirmView(): HTMLElement {
       row('Paid by', p.buyer),
       ...(p.reservedFor ? [row('Owned by', p.reservedFor)] : []),
     ]}),
-    el('h3', { cls: 'parsec-keyflow__heading', text: '1 · Service fee' }),
-    feeBox,
-    el('h3', { cls: 'parsec-keyflow__heading', text: '2 · NFD registry price' }),
+    el('h3', { cls: 'parsec-keyflow__heading', text: 'Necessary to register' }),
+    el('p', { cls: 'parsec-nfdominter__muted', text: 'Paid to the NFD registry and the Algorand network. Any wallet that registers this name pays these.' }),
     el('div', { cls: 'parsec-nfdominter__quote-box', children: [
       quoteRow('Name price', p.cost.basePrice),
       quoteRow('Contract funding', p.cost.carryCost),
@@ -294,7 +293,9 @@ export function nfdominterConfirmView(): HTMLElement {
       ]}),
     ]}),
     balanceBox,
-    el('p', { cls: 'parsec-nfdominter__muted', text: 'The two prices are in different currencies and go to different parties, so they are shown separately, not added. The service fee is paid first; the NFD mint group is simulated before it is submitted, so a name the registry would reject is caught before any ALGO moves.' }),
+    el('h3', { cls: 'parsec-keyflow__heading', text: 'BANKON fee' }),
+    feeBox,
+    el('p', { cls: 'parsec-nfdominter__muted', text: 'The two are in different currencies and go to different parties, so they are shown separately, not added. The BANKON fee is paid first; the NFD mint group is simulated before it is submitted, so a name the registry would reject is caught before any ALGO moves.' }),
     errorBox,
     progress,
     payBtn,
@@ -333,7 +334,7 @@ function describeStage(p: MintProgress): string {
     case 'checking-availability': return 'Checking availability…';
     case 'quoting': return 'Fetching the NFD price…';
     case 'paying-bankon-fee': return 'Paying fee…';
-    case 'paying-service-fee': return 'Paying the registration service fee…';
+    case 'paying-service-fee': return 'Paying the BANKON fee…';
     case 'awaiting-signature': return 'Signing the NFD mint…';
     case 'submitting': return 'Submitting the mint…';
     case 'confirmed': return p.appId ? `Confirmed — NFD application ${p.appId}.` : 'Confirmed.';
