@@ -20,8 +20,11 @@
   padding: $spacing-4;
 }
 
-:root[data-viewport='wide'] .parsec-view.parsec-keyflow {
-  width: min(100%, 640px);
+.parsec-view.parsec-keyflow {
+  // Wide enough for a 58-char Algorand address on one line at the address
+  // panel's size, with the panel's padding around it.
+  width: min(100%, 820px);
+  max-width: none; // the generic .parsec-view caps at 480px
 }
 
 // The recovery phrase reflows to the width it has: 5 across when there is room,
@@ -51,6 +54,9 @@
 .parsec-keyflow__step {
   display: flex;
   flex: 1;
+  box-sizing: border-box;
+  height: 2.75rem;
+  white-space: nowrap;
   align-items: center;
   gap: $spacing-2;
   padding: $spacing-2 $spacing-3;
@@ -86,6 +92,12 @@
 }
 
 :root[data-viewport='compact'] .parsec-keyflow__step-label { display: none; }
+
+// On a phone there is no room for one line; wrap the address rather than scroll.
+:root[data-viewport='compact'] .parsec-keyflow__address {
+  white-space: normal;
+  word-break: break-all;
+}
 
 .parsec-keyflow__panel {
   display: flex;
@@ -126,8 +138,11 @@
   font-family: $font-family-mono;
   font-size: $font-size-base;
   line-height: 1.5;
-  overflow-wrap: anywhere;
-  word-break: break-all;
+
+  // One line: an address is one value, read left to right. A window narrower
+  // than the address scrolls it sideways rather than wrapping it.
+  white-space: nowrap;
+  overflow-x: auto;
   user-select: all;
 
   &--pending {
