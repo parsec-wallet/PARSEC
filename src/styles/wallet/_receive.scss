@@ -1,0 +1,235 @@
+// ==========================================================================
+// RECEIVE — QR on the left, who / address / request on the right
+// ==========================================================================
+
+@use '../abstracts' as *;
+
+.parsec-view.parsec-receive2 {
+  width: min(100%, 1040px);
+  max-width: none;
+}
+
+.parsec-receive2__grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 380px) minmax(0, 1fr);
+  gap: $spacing-6;
+  align-items: start;
+  margin-top: $spacing-4;
+}
+
+.parsec-receive2__card {
+  margin: 0;
+  padding: $spacing-6;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: $px-panel;
+}
+
+// The QR sits on white with its quiet zone, as scanners expect.
+.parsec-receive2__qr-card {
+  position: sticky;
+  top: $spacing-4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $spacing-3;
+}
+
+.parsec-receive2__qr {
+  width: 100%;
+  max-width: 320px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: $border-radius-md;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba($px-gold, 0.25), 0 18px 40px rgb(0 0 0 / 45%);
+
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.parsec-receive2__qr-caption {
+  margin: 0;
+  color: $px-muted;
+  font-size: $font-size-sm;
+  text-align: center;
+}
+
+.parsec-receive2__details {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.parsec-receive2__name-row {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-3;
+}
+
+.parsec-receive2__name {
+  color: $px-text;
+  font-size: $font-size-xl;
+  font-weight: 700;
+}
+
+.parsec-receive2__rename {
+  color: $px-steel-hi;
+  font-size: $font-size-sm;
+}
+
+.parsec-receive2__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+  margin-top: $spacing-2;
+}
+
+.parsec-receive2__chain,
+.parsec-receive2__nfd,
+.parsec-receive2__net {
+  padding: 2px $spacing-3;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-full;
+  color: $px-muted;
+  font-size: $font-size-xs;
+  letter-spacing: 0.03em;
+}
+
+.parsec-receive2__nfd {
+  border-color: $px-gold-deep;
+  color: $px-gold;
+}
+
+.parsec-receive2__net {
+  border-color: rgba($px-danger, 0.5);
+  color: $px-danger;
+}
+
+.parsec-receive2__label {
+  margin-top: $spacing-3;
+  color: $px-muted;
+  font-size: $font-size-xs;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+// Groups of four: readable aloud, checkable at a glance.
+.parsec-receive2__address {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: $spacing-4;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-md;
+  background: $px-void;
+  color: $px-gold-hi;
+  font-family: $font-family-mono;
+  font-size: $font-size-base;
+  letter-spacing: 0.04em;
+  user-select: all;
+}
+
+.parsec-receive2__copy.bp5-button {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 $spacing-5;
+  border: 1px solid $px-gold;
+  border-radius: $border-radius-md;
+  background: linear-gradient(180deg, $px-gold-hi, $px-gold);
+  color: #1a1205;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.parsec-receive2__request {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin-top: $spacing-4;
+  padding-top: $spacing-4;
+  border-top: 1px solid $px-line;
+
+  h3 {
+    margin: 0 0 $spacing-1;
+    font-size: $font-size-base;
+  }
+}
+
+.parsec-receive2__row {
+  display: flex;
+  gap: $spacing-2;
+}
+
+.parsec-receive2__select,
+.parsec-receive2__input {
+  flex: 1;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 $spacing-3;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-md;
+  background: $px-void;
+  color: $px-text;
+  font: inherit;
+  outline: none;
+
+  &:focus { border-color: $px-gold; }
+}
+
+.parsec-receive2__amount { align-items: center; }
+
+.parsec-receive2__unit {
+  min-width: 4.5rem;
+  color: $px-muted;
+  font-family: $font-family-mono;
+  font-size: $font-size-sm;
+}
+
+.parsec-receive2__uri {
+  display: block;
+  padding: $spacing-2 $spacing-3;
+  overflow-wrap: anywhere;
+  border-radius: $border-radius-sm;
+  background: $px-void;
+  color: $px-steel-hi;
+  font-size: $font-size-xs;
+}
+
+.parsec-receive2__copy-request.bp5-button {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0 $spacing-4;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-md;
+  background: transparent;
+  color: $px-text;
+  cursor: pointer;
+
+  &:hover { border-color: $px-steel-hi; }
+}
+
+.parsec-receive2__hint {
+  margin: 0;
+  color: $px-muted;
+  font-size: $font-size-sm;
+
+  &[data-tone='error'] { color: $px-danger; }
+}
+
+.parsec-receive2__warn {
+  margin: $spacing-3 0 0;
+  padding: $spacing-3;
+  border-left: 3px solid $px-gold;
+  background: rgba($px-gold, 0.05);
+  color: #c3cdd6;
+  font-size: $font-size-sm;
+}
+
+:root[data-viewport='compact'] {
+  .parsec-receive2__grid { grid-template-columns: 1fr; }
+  .parsec-receive2__qr-card { position: static; }
+}

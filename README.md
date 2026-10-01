@@ -146,7 +146,7 @@ document: [docs/modules.md](docs/modules.md).
 
 - **Keys stay yours.** Keys rest encrypted on your device under your passphrase. On desktop the vault
   is Rust's `bankon_vault` (Argon2id key derivation, AES-256-GCM); in the browser, Web Crypto
-  (PBKDF2, 600,000 iterations, AES-256-GCM). Signing runs in Rust for every chain pack and returns a
+  (PBKDF2, 600,000 iterations, AES-256-GCM). Signing runs in the **PARSEC Keycore** (the Rust core: `bankon_vault` plus a signer per chain) and returns a
   signature, never a key.
 - **Profiles.** A device can hold several vaults, each with its own passphrase and wallets; one is open
   at a time. A forgotten passphrase is answered with a new vault beside the old one — nothing is

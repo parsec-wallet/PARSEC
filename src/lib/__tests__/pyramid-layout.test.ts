@@ -54,3 +54,19 @@ describe('classify', () => {
     expect(k.get(items[5])!.side).toBe('flat');
   });
 });
+
+describe('layoutPyramid row count (+/− on the PYRAMID switch)', () => {
+  it('more rows put more coins on the wall and fewer in the base', () => {
+    const items = Array.from({ length: 80 }, (_, i) => ({ id: i, pct: i % 2 ? i : -i }));
+    const placed = (rows: number) => {
+      const l = layoutPyramid(items, (t) => t.pct, rows);
+      return { wall: l.rows.reduce((n, r) => n + r.left.length + r.right.length, 1), base: l.base.length, rows: l.rows.length };
+    };
+    const seven = placed(7), ten = placed(10), three = placed(3);
+    expect(ten.rows).toBe(10);
+    expect(ten.wall).toBeGreaterThan(seven.wall);
+    expect(three.wall).toBeLessThan(seven.wall);
+    expect(seven.wall + seven.base).toBe(80);
+    expect(ten.wall + ten.base).toBe(80);
+  });
+});

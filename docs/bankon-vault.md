@@ -14,6 +14,17 @@ addresses in it. One passphrase opens it. PARSEC derives a key from that passphr
 it to encrypt each wallet key with AES-256-GCM, and keeps it in Rust memory only while the vault is
 unlocked. A device can hold several vaults, one per **profile**; one profile is open at a time.
 
+## The PARSEC Keycore
+
+**PARSEC Keycore** is the public name for the Rust core that keeps and uses your keys. It has two halves:
+
+- **bankon_vault** keeps keys: the encrypted vault on disk described in this guide.
+- **The signers** use them: one module per chain (`chain_algo`, `chain_sol`, `chain_ar`, `chain_evm`,
+  `chain_btc`, `chain_ltc`). A signer reads the key from the vault inside Rust memory, signs, wipes
+  it, and returns only the signature.
+
+The interface, a dApp, or an agent can ask the Keycore for a signature. None of them ever receives a key.
+
 ## Words used here
 
 | Word | Meaning |
@@ -205,7 +216,7 @@ list UI used by the Red Pill and Settings.
 | `vault_unlock(passphrase)` | no | Check the passphrase, derive the vault key, start a session |
 | `vault_lock` | yes (teardown) | Erase the vault key from memory |
 | `vault_store_key(address, chain, label, secret)` | no | Encrypt and save a key; add it to the manifest |
-| `vault_retrieve_key(address)` | no | Decrypt a key for signing (legacy path; Rust signers read it directly) |
+| `vault_retrieve_key(address)` | no | Decrypt a key for signing (legacy path; the Keycore's signers read it directly) |
 | `vault_remove_account(address)` | no | Delete one key file and its manifest entry |
 | `vault_list_accounts` | no | Manifest entries with `created_at` |
 | `vault_destroy(passphrase)` | no | Delete the open profile's vault, after checking its passphrase |

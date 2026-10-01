@@ -43,6 +43,8 @@
 @use 'wallet/chainpick';
 @use 'wallet/keyflow';
 @use 'wallet/profiles';
+@use 'wallet/receive';
+@use 'wallet/agents';
 @use 'wallet/linkage';
 @use 'wallet/permaweb';
 @use 'wallet/matrix-recovered';

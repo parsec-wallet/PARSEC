@@ -3,7 +3,7 @@
 import { el, btn, input, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { keystoreStore } from '../lib/keystore';
-import { vaultPass } from '../lib/ui/vault-pass';
+import { vaultPass, vaultAction } from '../lib/ui/vault-pass';
 import { stepStrip } from '../lib/ui/keyreveal';
 
 export function verifyMnemonicView(): HTMLElement {
@@ -19,44 +19,39 @@ export function verifyMnemonicView(): HTMLElement {
   const account = state.accounts[accountIndex];
 
   // Create, unlock or reuse the open profile's vault — see lib/ui/vault-pass.ts.
-  const vault = vaultPass({ carry: () => account.address });
-  const passBox = vault.element;
-  const status = el('p', { cls: 'parsec-keyflow__status', attrs: { 'aria-live': 'polite' } });
+  const vault = vaultPass({ carry: () => account.address, onEnter: () => action.submit() });
 
-  function fail(message: string): void {
-    status.textContent = message;
-    status.classList.add('parsec-keyflow__status--error');
+  /** Why the words block saving, or '' when all three match. */
+  function wordsBlocker(): string {
+    const filled = verifyInputs.every((inp) => inp.value.trim());
+    if (!filled) return 'Enter the three words from your recovery phrase.';
+    const ok = indices.every((idx, i) => verifyInputs[i].value.trim().toLowerCase() === words[idx].toLowerCase());
+    return ok ? '' : 'Those words don’t match your recovery phrase. Check the numbers.';
   }
 
-  async function complete(): Promise<void> {
-    status.textContent = '';
-    status.classList.remove('parsec-keyflow__status--error');
-    const verified = indices.every((idx, i) => verifyInputs[i].value.trim().toLowerCase() === words[idx].toLowerCase());
-    if (!verified) { fail('Those words don\'t match. Check your recovery phrase.'); return; }
-
+  const action = vaultAction(vault, async () => {
     store.set({ isLoading: true });
-    status.textContent = 'Saving to the vault…';
     try {
       const pass = await vault.ready();
       await keystoreStore(account.address, mnemonic!, pass, account.name);
       store.setTempMnemonic(null);
       store.setPassphrase(pass);
+      vault.wipe();
       // The account just created is the one the participant is working with now.
-      // The account may have moved to a new vault's profile; find it where it is now.
+      // It may have moved to a new vault's profile; find it where it is now.
       const at = store.get().accounts.findIndex((a) => a.address === account.address);
-      store.set({ isLoading: false, activeAccountIndex: at >= 0 ? at : accountIndex });
-      toast('Wallet created', 'success');
+      store.set({ activeAccountIndex: at >= 0 ? at : accountIndex });
+      toast('Wallet saved to the vault', 'success');
       // Back to the chain picker: Algorand is done, and adding Solana or
       // Arweave is the next thing a new wallet usually wants.
       store.navigate('create-select');
-    } catch (e) {
+    } finally {
       store.set({ isLoading: false });
-      fail(e instanceof Error ? e.message : String(e));
     }
-  }
+  }, { extra: wordsBlocker });
 
   return el('div', {
-    cls: 'parsec-view parsec-verify parsec-keyflow',
+    cls: 'parsec-view parsec-verify parsec-keyflow parsec-vaultflow',
     children: [
       el('div', {
         cls: 'parsec-view__header',
@@ -70,7 +65,9 @@ export function verifyMnemonicView(): HTMLElement {
       el('div', {
         cls: 'parsec-verify__words',
         children: indices.map((idx) => {
-          const inp = input({ placeholder: `Word #${idx + 1}`, cls: 'bp5-input parsec-verify__input' });
+          const inp = input({ placeholder: `Word #${idx + 1}`, cls: 'bp5-input parsec-verify__input', onInput: () => action.refresh() });
+          inp.autocomplete = 'off';
+          inp.spellcheck = false;
           verifyInputs.push(inp);
           return el('div', {
             cls: 'parsec-verify__word-row',
@@ -81,12 +78,8 @@ export function verifyMnemonicView(): HTMLElement {
           });
         }),
       }),
-      passBox,
-      btn('Complete Setup', {
-        intent: 'success', large: true, cls: 'parsec-verify__submit',
-        onClick: () => { void complete(); },
-      }),
-      status,
+      vault.element,
+      action.el,
     ],
   });
 }

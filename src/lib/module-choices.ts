@@ -23,7 +23,7 @@ import { REACH_WORD } from './ui/provenance';
  * at or below the rung it declared.
  *
  *   observe — reads public state. Never sees a key, never asks for a signature.
- *   sign    — may ask the Rust signer for a signature over the active account.
+ *   sign    — may ask the PARSEC Keycore for a signature over the active account.
  *             Still never sees a key: `*_sign_*` returns a signature.
  *   vault   — may create or import entries through bankon_vault.
  *   system  — may call OS-privileged commands. Diagnostics' MAC spoof is the
@@ -61,7 +61,7 @@ export const PRIVILEGE_RANK: Readonly<Record<Privilege, number>> = {
 
 export const PRIVILEGE_WORD: Readonly<Record<Privilege, string>> = {
   observe: 'observe — reads public state; never sees a key, never asks for a signature',
-  sign: 'sign — may request a signature from the Rust signer; never sees a key',
+  sign: 'sign — may request a signature from the PARSEC Keycore; never sees a key',
   vault: 'vault — may create or import entries through bankon_vault',
   system: 'system — may call OS-privileged commands',
 };

@@ -19,7 +19,8 @@ export interface Arc26Payload {
 
 export interface Arc26Args {
   address: string;
-  amount?: number;
+  /** Base units: microalgos, or the asset's base units when assetId is set. */
+  amount?: number | bigint;
   assetId?: number;
   note?: string;
   xnote?: string;
@@ -34,8 +35,14 @@ export function encodeArc26(args: Arc26Args): string {
 
   const params = new URLSearchParams();
   if (args.amount !== undefined) {
-    if (!Number.isFinite(args.amount) || args.amount < 0) throw new Error('amount must be non-negative');
-    params.set('amount', String(Math.floor(args.amount)));
+    if (typeof args.amount === 'bigint') {
+      // Exact base units (from money.ts); no float on the way.
+      if (args.amount < 0n) throw new Error('amount must be non-negative');
+      params.set('amount', args.amount.toString());
+    } else {
+      if (!Number.isFinite(args.amount) || args.amount < 0) throw new Error('amount must be non-negative');
+      params.set('amount', String(Math.floor(args.amount)));
+    }
   }
   if (args.assetId !== undefined) {
     if (!Number.isInteger(args.assetId) || args.assetId < 0) throw new Error('assetId must be a non-negative integer');

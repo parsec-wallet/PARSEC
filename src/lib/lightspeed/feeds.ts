@@ -129,7 +129,7 @@ export function erc20(address: string) {
  * light.js's `post$` signs and broadcasts. Lightspeed declared `observe`, so
  * this throws a PrivilegeError before touching anything — the template for
  * what a module must do before it signs: raise its declaration to `sign`,
- * then route the signature through the Rust signer, never a key in JS.
+ * then route the signature through the PARSEC Keycore, never a key in JS.
  */
 export function post$(): never {
   assertPrivilege(LIGHTSPEED_ID, LIGHTSPEED_CHOICES, 'sign');

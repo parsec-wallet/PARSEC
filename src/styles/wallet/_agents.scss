@@ -1,0 +1,215 @@
+// ==========================================================================
+// AGENTS — the AgenticPlace directory (views/agents.ts)
+// ==========================================================================
+
+@use '../abstracts' as *;
+
+.parsec-view.parsec-agents2 {
+  width: min(100%, 1180px);
+  max-width: none;
+}
+
+.parsec-agents2__lede {
+  max-width: 62em;
+  margin: 0 0 $spacing-4;
+  color: $px-muted;
+  font-size: $font-size-sm;
+  line-height: 1.55;
+}
+
+// The search bar: one wide field, a glass on the left, gold when focused.
+.parsec-agents2__bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.parsec-agents2__glass {
+  position: absolute;
+  left: $spacing-4;
+  color: $px-muted;
+  font-size: 1.3rem;
+  pointer-events: none;
+}
+
+.parsec-agents2 .parsec-agents2__input {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 $spacing-4 0 calc(#{$spacing-4} * 2 + 1rem);
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: $px-panel;
+  color: $px-text;
+  font-size: $font-size-lg;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &::placeholder { color: $px-muted; }
+
+  &:focus {
+    border-color: $px-gold;
+    box-shadow: 0 0 0 4px rgba($px-gold, 0.15);
+  }
+}
+
+.parsec-agents2__status {
+  min-height: 1.4em;
+  margin: $spacing-3 0;
+  color: $px-muted;
+  font-size: $font-size-sm;
+
+  &[data-tone='error'] { color: $px-danger; }
+}
+
+.parsec-agents2__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: $spacing-4;
+}
+
+.parsec-agents2__card {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  padding: $spacing-4 $spacing-5;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: $px-panel;
+  outline: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: rgba($px-gold, 0.55);
+    transform: translateY(-1px);
+  }
+}
+
+.parsec-agents2__head {
+  display: flex;
+  align-items: center;
+  gap: $spacing-3;
+}
+
+.parsec-agents2__avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: hsl(var(--hue, 40) 45% 22%);
+  color: hsl(var(--hue, 40) 85% 75%);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.parsec-agents2__title { min-width: 0; }
+
+.parsec-agents2__name {
+  margin: 0;
+  overflow: hidden;
+  color: $px-text;
+  font-size: $font-size-base;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parsec-agents2__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.parsec-agents2__chip {
+  padding: 1px 8px;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-full;
+  color: $px-muted;
+  font-size: $font-size-xs;
+
+  &--ok {
+    border-color: rgba($px-success, 0.5);
+    color: $px-success;
+  }
+
+  &--x402 {
+    border-color: $px-gold-deep;
+    color: $px-gold;
+  }
+}
+
+.parsec-agents2__desc {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: #c3cdd6;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+.parsec-agents2__protocols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+
+  span {
+    padding: 1px 6px;
+    border-radius: $border-radius-sm;
+    background: rgba($px-steel, 0.25);
+    color: $px-steel-hi;
+    font-family: $font-family-mono;
+    font-size: $font-size-xs;
+  }
+}
+
+.parsec-agents2__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $spacing-3;
+  margin-top: auto;
+  padding-top: $spacing-2;
+  border-top: 1px solid rgba($px-line, 0.6);
+}
+
+.parsec-agents2 .parsec-agents2__owner {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: $px-steel-hi;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  cursor: pointer;
+
+  &:hover { color: $px-gold-hi; }
+}
+
+.parsec-agents2__meta {
+  color: $px-muted;
+  font-size: $font-size-xs;
+}
+
+.parsec-agents2__more.bp5-button {
+  align-self: center;
+  min-height: 40px;
+  margin: $spacing-5 auto 0;
+  padding: 0 $spacing-6;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-md;
+  background: transparent;
+  color: $px-text;
+  cursor: pointer;
+
+  &:hover { border-color: $px-gold; }
+}
+
+.parsec-agents2__source {
+  margin: $spacing-5 0 0;
+  color: $px-muted;
+  font-size: $font-size-xs;
+  text-align: center;
+}

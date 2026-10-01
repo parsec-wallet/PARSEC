@@ -197,3 +197,187 @@
 
   a { color: $px-steel-hi; }
 }
+
+// ==========================================================================
+// VAULT FLOW — verify & save, import, unlock (lib/ui/vault-pass.ts)
+// ==========================================================================
+// PARSEC's own field and button sizing for the screens that set or enter a
+// vault passphrase. (The bp5-* classes these elements carry have no Blueprint
+// rules behind them: the installed Blueprint is v6 and emits bp6-*.)
+
+.parsec-vaultflow {
+  .bp5-input,
+  .parsec-import__textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 0 $spacing-4;
+    border: 1px solid $px-line;
+    border-radius: $border-radius-md;
+    background: $px-panel;
+    color: $px-text;
+    font-size: $font-size-base;
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+    &::placeholder { color: $px-muted; }
+
+    &:focus {
+      border-color: $px-gold;
+      box-shadow: 0 0 0 3px rgba($px-gold, 0.18);
+    }
+  }
+
+  .parsec-import__textarea { padding: $spacing-3 $spacing-4; }
+
+  .parsec-verify__words {
+    display: grid;
+    gap: $spacing-2;
+    margin: $spacing-3 0 $spacing-5;
+  }
+
+  .parsec-verify__word-row {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr);
+    align-items: center;
+    gap: $spacing-3;
+  }
+
+  .parsec-verify__word-num {
+    color: $px-gold;
+    font-family: $font-family-mono;
+    text-align: right;
+  }
+
+  .parsec-import__name { margin: $spacing-3 0; }
+
+  .parsec-callout {
+    padding: $spacing-3 $spacing-4;
+    border: 1px solid $px-line;
+    border-radius: $border-radius-md;
+    background: rgba($px-gold, 0.06);
+  }
+
+  .parsec-callout p { margin: 0; }
+}
+
+.parsec-vault {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  margin-top: $spacing-4;
+
+  .parsec-view__subtitle { margin: 0; }
+  .parsec-view__desc { margin: 0; }
+  .parsec-sovereign { margin: 0; }
+}
+
+// The passphrase field's reveal (eye) button, sized for the 44px inputs above.
+.parsec-vaultflow .parsec-passphrase__reveal,
+.parsec-onboarding .parsec-passphrase__reveal {
+  right: 6px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: $border-radius-sm;
+  background: transparent;
+
+  &:hover { background: rgba($px-steel, 0.25); }
+}
+
+.parsec-vaultflow .parsec-passphrase__generate,
+.parsec-onboarding .parsec-passphrase__generate {
+  padding: 2px $spacing-2;
+  border: 0;
+  background: transparent;
+  color: $px-gold-hi;
+  cursor: pointer;
+
+  &:hover { text-decoration: underline; }
+}
+
+.parsec-vault__name { margin-bottom: 0; }
+
+.parsec-vault__ack {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-3;
+  padding: $spacing-3;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-md;
+  color: $px-text;
+  font-size: $font-size-sm;
+  line-height: 1.45;
+  cursor: pointer;
+
+  input {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    accent-color: $px-gold;
+  }
+}
+
+.parsec-passphrase[data-match='yes'] .parsec-passphrase__note { color: $px-success; }
+.parsec-passphrase[data-match='no'] .parsec-passphrase__note { color: $px-danger; }
+
+// The one action, directly under the fields, with its reason beside it.
+.parsec-vault__action {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  margin-top: $spacing-5;
+}
+
+.parsec-vault__submit.bp5-button {
+  min-height: 48px;
+  padding: 0 $spacing-5;
+  border: 1px solid $px-gold;
+  border-radius: $border-radius-md;
+  background: linear-gradient(180deg, $px-gold-hi, $px-gold);
+  color: #1a1205;
+  font-size: $font-size-base;
+  font-weight: 700;
+  cursor: pointer;
+
+  &:hover:not(:disabled) { filter: brightness(1.06); }
+
+  &:disabled {
+    border-color: $px-line;
+    background: $px-panel;
+    color: $px-muted;
+    cursor: not-allowed;
+  }
+}
+
+.parsec-vault__why {
+  min-height: 1.4em;
+  margin: 0;
+  color: $px-muted;
+  font-size: $font-size-sm;
+
+  &[data-tone='error'] { color: $px-danger; }
+}
+
+// The Red Pill's passphrase field with its eye: same width and centring as the
+// identity field above it.
+.parsec-matrix__pass {
+  width: 100%;
+  max-width: 320px;
+  margin: 0 auto $spacing-4;
+
+  .parsec-matrix__input {
+    max-width: none;
+    margin-bottom: 0;
+  }
+
+  .parsec-passphrase__reveal {
+    right: 8px;
+    border: 0;
+    background: transparent;
+    color: rgb(255 255 255 / 60%);
+
+    &:hover,
+    &[aria-pressed='true'] { color: #fff; }
+  }
+}
