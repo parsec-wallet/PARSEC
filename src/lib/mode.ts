@@ -59,10 +59,11 @@ export function onModeChange(fn: (m: Mode) => void): () => void {
  * An allowlist, not a denylist: a command added to Rust later is refused in
  * viewing mode until someone decides it is safe to see without arming.
  *
- * Four kinds are allowed:
+ * Five kinds are allowed:
  *   - read-only checks: address validation, status, diagnostics readings
  *   - the arming door itself: the vault must be probed before it is unlocked
  *   - app setup that holds no secret: throttle, sandbox and mesh init
+ *   - the desktop window: title bar controls, tray, close-to-tray, start at login
  *   - teardown: locking, disconnecting and refusing are always allowed —
  *     a mode that could not shut a session would trap it open
  */
@@ -80,6 +81,12 @@ export const VIEWING_COMMANDS: ReadonlySet<string> = new Set([
   'mesh_ipfs_status', 'mesh_resources', 'mesh_resource_cost',
   // setup, no secret
   'throttle_init', 'sandbox_init', 'mesh_init',
+  // the desktop window itself — the title bar, tray and start-at-login hold no
+  // secret, and a window that could not be minimized or closed on the landing
+  // (which is viewing mode) would be a broken window, not a safer one
+  'app_shell_minimize', 'app_shell_toggle_maximize', 'app_shell_close', 'app_shell_quit',
+  'app_shell_set_close_to_tray', 'app_shell_autostart_get', 'app_shell_autostart_set',
+  'app_shell_started_hidden',
   // teardown — always allowed
   'vault_lock', 'tomb_slam', 'tomb_close',
   'connect_stop', 'connect_sessions', 'connect_pending_requests', 'connect_pending_name_requests',

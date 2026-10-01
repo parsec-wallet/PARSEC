@@ -50,7 +50,7 @@ export function mountTitlebar(): HTMLElement {
     attrs: { 'data-tauri-drag-region': '', role: 'banner' },
     children: [
       mark,
-      el('span', { cls: 'parsec-titlebar__title', text: 'Parsec Wallet', attrs: { 'data-tauri-drag-region': '' } }),
+      el('span', { cls: 'parsec-titlebar__title', text: 'PARSEC', attrs: { 'data-tauri-drag-region': '', 'aria-label': 'Parsec Wallet' } }),
       el('div', { cls: 'parsec-titlebar__spacer', attrs: { 'data-tauri-drag-region': '' } }),
       control('Minimize', '—', 'min', () => { void windowControls.minimize(); }),
       maxBtn,
