@@ -1,5 +1,7 @@
 import { defineConfig } from "vite";
 import path from "node:path";
+import fs from "node:fs";
+import { createRequire } from "node:module";
 
 // @ts-expect-error process is a nodejs global
 const host = process.env.TAURI_DEV_HOST;
@@ -7,12 +9,26 @@ const host = process.env.TAURI_DEV_HOST;
 // libsodium-wrappers-sumo 0.7.16 publishes an ESM file that does
 // `import "./libsodium-sumo.mjs"` — but that file ships in the sibling
 // `libsodium-sumo` package, not next to the wrapper. Alias the relative
-// import to the actual file so Rollup/Vite can resolve it.
-const libsodiumSumoMjs = path.resolve(
-  // @ts-expect-error process is a nodejs global
-  process.cwd(),
-  "node_modules/.pnpm/libsodium-sumo@0.7.16/node_modules/libsodium-sumo/dist/modules-sumo-esm/libsodium-sumo.mjs",
-);
+// import to the actual file so Rollup/Vite can resolve it. Found by walking
+// the dependency chain with Node's resolver, so it works under pnpm's
+// .pnpm/ layout and npm's hoisted one alike.
+function packageDir(fromPackageJson: string, name: string): string {
+  const req = createRequire(fromPackageJson);
+  let dir = path.dirname(fs.realpathSync(req.resolve(name)));
+  for (;;) {
+    const pj = path.join(dir, "package.json");
+    if (fs.existsSync(pj) && JSON.parse(fs.readFileSync(pj, "utf8")).name === name) return dir;
+    const up = path.dirname(dir);
+    if (up === dir) throw new Error(`cannot locate package ${name}`);
+    dir = up;
+  }
+}
+// @ts-expect-error process is a nodejs global
+const rootPackageJson = path.join(process.cwd(), "package.json");
+const xhdDir = packageDir(rootPackageJson, "@algorandfoundation/xhd-wallet-api");
+const wrapperDir = packageDir(path.join(xhdDir, "package.json"), "libsodium-wrappers-sumo");
+const sumoDir = packageDir(path.join(wrapperDir, "package.json"), "libsodium-sumo");
+const libsodiumSumoMjs = path.join(sumoDir, "dist/modules-sumo-esm/libsodium-sumo.mjs");
 
 export default defineConfig(async () => ({
   clearScreen: false,
