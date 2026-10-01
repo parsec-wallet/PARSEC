@@ -150,7 +150,14 @@ export function createSelectView(): HTMLElement {
         onClick: (e) => { e.stopPropagation(); another(); },
       });
       action.classList.add('parsec-chainpick__action');
-      row.appendChild(action);
+      // A new Algorand account receives nothing until it opts in to assets:
+      // offer USDC and the standard list right here.
+      const assets = btn('Add USDC & assets', {
+        intent: 'primary',
+        onClick: (e) => { e.stopPropagation(); store.navigate('add-asset'); },
+      });
+      assets.classList.add('parsec-chainpick__action');
+      row.appendChild(el('div', { cls: 'parsec-chainpick__actions', children: [assets, action] }));
       row.classList.add('parsec-chainpick__row--clickable');
       row.setAttribute('role', 'button');
       row.setAttribute('tabindex', '0');
