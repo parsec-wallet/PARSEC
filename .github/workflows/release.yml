@@ -65,7 +65,4 @@ jobs:
           tauriScript: 'pnpm tauri'
           releaseDraft: true
           prerelease: false
-          # The Rust crates (tauri 2.6) and the npm packages (api 2.10) are the
-          # pair `tauri dev` has run on throughout; ship that tested pair. Aligning
-          # them is tracked separately.
-          args: ${{ matrix.args }} --ignore-version-mismatches
+          args: ${{ matrix.args }}
