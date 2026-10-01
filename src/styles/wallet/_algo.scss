@@ -250,3 +250,251 @@
 }
 
 :root[data-viewport='compact'] .parsec-ready__steps { grid-template-columns: 1fr; }
+
+// ── Subdomain stores ─────────────────────────────────────────────────────────
+.parsec-store-editor {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+}
+
+.parsec-store-editor__muted,
+.parsec-stores__muted {
+  margin: 0;
+  color: $px-muted;
+  font-size: $font-size-sm;
+  line-height: 1.5;
+}
+
+.parsec-store-editor__tiers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $spacing-3;
+}
+
+.parsec-store-editor__tier {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+  padding: $spacing-3;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-md;
+  color: $px-muted;
+  font-size: $font-size-xs;
+}
+
+.parsec-store-editor__usd {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  color: $px-text;
+  font-size: $font-size-base;
+
+  span:last-child { color: $px-muted; font-size: $font-size-xs; }
+}
+
+.parsec-store-editor__price.bp5-input {
+  width: 100%;
+  font-family: $font-family-mono;
+  text-align: right;
+}
+
+.parsec-store-editor__example {
+  margin: 0;
+  color: $px-gold-hi;
+  font-size: $font-size-sm;
+}
+
+.parsec-store-editor__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: $px-muted;
+  font-size: $font-size-xs;
+
+  .bp5-input { width: 100%; }
+}
+
+.parsec-store-editor__payout.bp5-input { font-family: $font-family-mono; font-size: $font-size-xs; }
+
+.parsec-store-editor__actions {
+  display: flex;
+  gap: $spacing-2;
+}
+
+.parsec-store-editor__status {
+  min-height: 1.2em;
+  margin: 0;
+  color: $px-muted;
+  font-size: $font-size-sm;
+
+  &[data-tone='ok'] { color: $px-success; }
+  &[data-tone='error'] { color: $px-danger; }
+}
+
+.parsec-stores {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: $spacing-5;
+  align-items: start;
+}
+
+.parsec-stores__side h3 {
+  margin: 0 0 $spacing-3;
+  color: $px-muted;
+  font-size: $font-size-xs;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.parsec-stores__list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.parsec-stores .parsec-stores__store {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: $spacing-3;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-md;
+  background: $px-panel;
+  color: $px-text;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  span { color: $px-muted; font-size: $font-size-xs; }
+
+  &:hover { border-color: $px-steel-hi; }
+
+  &--on {
+    border-color: $px-gold;
+    background: rgba($px-gold, 0.08);
+  }
+}
+
+.parsec-stores__shop {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  padding: $spacing-5;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: $px-panel;
+}
+
+.parsec-stores__kicker {
+  margin: 0;
+  color: $px-gold;
+  font-size: $font-size-xs;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.parsec-stores__title {
+  margin: 0;
+  color: $px-text;
+  font-size: clamp(1.5rem, 3vw, 2rem);
+}
+
+.parsec-stores__tiers {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $spacing-2;
+
+  div {
+    display: flex;
+    flex-direction: column;
+    padding: $spacing-2 $spacing-3;
+    border: 1px solid $px-line;
+    border-radius: $border-radius-md;
+  }
+
+  span { color: $px-muted; font-size: $font-size-xs; }
+  strong { color: $px-gold-hi; font-size: $font-size-lg; }
+}
+
+.parsec-stores__featured {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+
+  > span { color: $px-muted; font-size: $font-size-xs; }
+}
+
+.parsec-stores .parsec-stores__chip {
+  padding: 2px 10px;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-full;
+  background: transparent;
+  color: $px-text;
+  font: inherit;
+  font-size: $font-size-xs;
+  cursor: pointer;
+
+  &:hover { border-color: $px-gold; }
+}
+
+.parsec-stores .parsec-stores__input {
+  min-height: 52px;
+  padding: 0 $spacing-4;
+  border: 1px solid $px-line;
+  border-radius: $border-radius-lg;
+  background: $px-void;
+  color: $px-text;
+  font-size: $font-size-lg;
+  outline: none;
+
+  &:focus { border-color: $px-gold; }
+}
+
+.parsec-stores__name {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-3;
+  align-items: baseline;
+
+  strong { color: $px-gold-hi; font-size: $font-size-xl; }
+  span { color: $px-success; font-size: $font-size-sm; }
+
+  &--taken span { color: $px-danger; }
+}
+
+.parsec-stores__rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.parsec-stores__row {
+  display: flex;
+  justify-content: space-between;
+  gap: $spacing-3;
+  font-size: $font-size-sm;
+
+  span { color: $px-muted; }
+
+  &--total {
+    margin-top: 4px;
+    padding-top: $spacing-2;
+    border-top: 1px solid $px-line;
+    font-size: $font-size-base;
+  }
+}
+
+.parsec-stores__error {
+  margin: 0;
+  color: $px-danger;
+  font-size: $font-size-sm;
+}
+
+:root[data-viewport='compact'] {
+  .parsec-stores,
+  .parsec-store-editor__tiers,
+  .parsec-stores__tiers { grid-template-columns: 1fr; }
+}

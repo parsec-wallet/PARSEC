@@ -9,8 +9,9 @@ import { store } from '../lib/store';
 import { buildMintTab } from './nfdominter-mint';
 import { buildNamesTab } from './nfdominter-manage';
 import { buildSubdomainsTab } from './nfdominter-subdomains';
+import { buildStoresTab } from './nfdominter-stores';
 
-export type NfdominterTab = 'mint' | 'names' | 'subdomains';
+export type NfdominterTab = 'mint' | 'names' | 'subdomains' | 'stores';
 
 let activeTab: NfdominterTab = 'mint';
 
@@ -30,6 +31,7 @@ export function nfdominterView(): HTMLElement {
     { id: 'mint', label: 'Claim', icon: 'search' },
     { id: 'names', label: 'My Names', icon: 'tag' },
     { id: 'subdomains', label: 'Subdomains', icon: 'diagram-tree' },
+    { id: 'stores', label: 'Stores', icon: 'shop' },
   ];
 
   const tabButtons: Record<NfdominterTab, HTMLButtonElement> = {} as Record<NfdominterTab, HTMLButtonElement>;
@@ -47,6 +49,9 @@ export function nfdominterView(): HTMLElement {
         break;
       case 'subdomains':
         body.appendChild(buildSubdomainsTab(account.address, network, switchTab));
+        break;
+      case 'stores':
+        body.appendChild(buildStoresTab(network));
         break;
     }
     for (const t of tabs) {

@@ -6,6 +6,7 @@
 // (with unlink), set-primary, edit display, and transfer. Every on-chain
 // action reloads the list so the row reflects the new state.
 
+import { storeEditor } from '../lib/ui/store-editor';
 import algosdk from 'algosdk';
 
 import { el, btn, toast, input } from '../lib/dom';
@@ -148,6 +149,8 @@ function renderRow(
       linkedAddressesGroup(nfd, owner, network, reload),
       primaryGroup(nfd, owner, network, isPrimary, totalNames, reload),
       transferGroup(nfd, owner, network, reload),
+      // Root names only: a subdomain store sells label.yourname.algo.
+      ...(/^[a-z0-9]+\.algo$/.test(nfd.name) ? [controlGroup('Subdomain store', [storeEditor(nfd.name, owner, network)])] : []),
     ];
   }
 
