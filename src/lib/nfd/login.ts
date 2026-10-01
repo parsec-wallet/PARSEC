@@ -114,7 +114,7 @@ export function matchAccount(
 ): number {
   for (const address of addresses) {
     const i = accounts.findIndex(
-      (a) => a.address === address || a.chains?.algorand === address,
+      (a) => a.address === address || Object.values(a.chains ?? {}).includes(address),
     );
     if (i !== -1) return i;
   }

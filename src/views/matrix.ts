@@ -5028,6 +5028,24 @@ export function matrixView(): HTMLElement {
   }
 
   let identityTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The identity status line of the current Red Pill render. */
+  let identityStatusEl: HTMLElement | null = null;
+
+  /** Switch to the profile whose vault holds the typed identity's key, and say so. */
+  async function openProfile(name: string, label: string): Promise<void> {
+    try {
+      await store.useProfile(name);
+    } catch (e) {
+      toast(`Could not open profile “${name}”: ${e instanceof Error ? e.message : String(e)}`, 'danger', 8000);
+      return;
+    }
+    vaultHasAccounts = false;
+    profilePanel = 'closed';
+    renderPanel();
+    toast(`${label}: its key is in vault “${name}” — that profile is now open`, 'primary', 6000);
+    if (identityStatusEl) scheduleIdentityLookup(identityStatusEl);
+  }
+
 
   /**
    * Resolve the typed identity to one of this device's accounts.
@@ -5057,15 +5075,30 @@ export function matrixView(): HTMLElement {
           return;
         }
 
-        const idx = matchAccount(store.get().accounts, resolved.addresses);
-
+        // Which vault holds this key? Open that profile, not whichever is open.
+        const { listProfiles, profileFor } = await import('../lib/profiles');
+        const pick = profileFor(await listProfiles(), resolved.addresses);
+        if (identityInput.trim() !== typed) return;
         const label = resolved.name ?? resolved.addresses[0];
-        if (idx === -1) {
+
+        if (pick.ambiguous.length > 0) {
+          statusEl.dataset.tone = 'pending';
+          statusEl.replaceChildren(`${label} · key in ${pick.ambiguous.length} vaults — open `);
+          pick.ambiguous.forEach((name, i) => {
+            if (i > 0) statusEl.append(' or ');
+            statusEl.append(el('a', { text: `“${name}”`, attrs: { href: '#' }, onClick: (e) => { e.preventDefault(); void openProfile(name, label); } }));
+          });
+          return;
+        }
+        if (pick.name && pick.name !== store.profile) { void openProfile(pick.name, label); return; }
+
+        const idx = matchAccount(store.get().accounts, resolved.addresses);
+        if (idx === -1 && !pick.name) {
           const addr = resolved.addresses[0];
           statusEl.textContent = `${label} → ${addr.slice(0, 6)}…${addr.slice(-4)} · no key on this device`;
           statusEl.dataset.tone = 'alert';
         } else {
-          statusEl.textContent = `${label} · key found — enter your passphrase`;
+          statusEl.textContent = `${label} · key in vault “${store.profile}” — enter its passphrase`;
           statusEl.dataset.tone = 'done';
         }
       })();
@@ -5180,8 +5213,10 @@ export function matrixView(): HTMLElement {
       // Identity field — name or address. Optional: leaving it blank opens the
       // active account exactly as before.
       const idStatus = el('p', { cls: 'parsec-matrix__identity-status' });
+      identityStatusEl = idStatus;
       const idInput = input({
         type: 'text',
+        value: identityInput,
         placeholder: 'mindx.algo  ·  or address (optional)',
         cls: 'parsec-matrix__input parsec-matrix__input--identity',
         onInput: (v) => { identityInput = v; scheduleIdentityLookup(idStatus); },
@@ -5244,6 +5279,29 @@ export function matrixView(): HTMLElement {
   async function doUnlock() {
     if (!passphrase) { toast('Enter your passphrase', 'danger'); return; }
     store.set({ isLoading: true });
+
+    let switchedTo: string | null = null;
+    // A typed identity decides which vault the passphrase is for. Checked here
+    // too, in case Enter came before the lookup above finished.
+    if (identityInput.trim()) {
+      const network = store.get().settings.network;
+      const [{ resolveIdentity }, { listProfiles, profileFor }] = await Promise.all([import('../lib/nfd/login'), import('../lib/profiles')]);
+      const resolved = await resolveIdentity(network, identityInput.trim()).catch(() => null);
+      if (resolved) {
+        const pick = profileFor(await listProfiles(), resolved.addresses);
+        if (pick.ambiguous.length > 0) {
+          store.set({ isLoading: false });
+          toast(`That key is in several vaults (${pick.ambiguous.join(', ')}). Choose one above, then unlock.`, 'warning', 8000);
+          return;
+        }
+        if (pick.name && pick.name !== store.profile) {
+          await store.useProfile(pick.name);
+          vaultHasAccounts = false;
+          switchedTo = pick.name;
+        }
+      }
+    }
+
     const ok = await keystoreUnlock(passphrase);
     store.set({ isLoading: false });
     if (ok) {
@@ -5272,9 +5330,10 @@ export function matrixView(): HTMLElement {
       passphrase = '';
       await partAndEnter();
     } else {
-      toast('Wrong passphrase', 'danger');
+      toast(switchedTo ? `Wrong passphrase for vault “${switchedTo}”, which holds that key` : 'Wrong passphrase', 'danger');
       passphrase = '\0'.repeat(passphrase.length);
       passphrase = '';
+      if (switchedTo) renderPanel();  // show the profile that was actually tried
     }
   }
 

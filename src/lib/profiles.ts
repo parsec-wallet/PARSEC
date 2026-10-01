@@ -170,3 +170,49 @@ export async function reconcileProfile(): Promise<string | null> {
 export function shortAddress(a: string): string {
   return a.length > 16 ? `${a.slice(0, 8)}…${a.slice(-6)}` : a;
 }
+
+export interface ProfileMatch {
+  name: string;
+  /** The profile's vault holds a key for the address (not just a listed or watch-only account). */
+  inVault: boolean;
+}
+
+/**
+ * Which profiles hold any of `addresses` — so a typed address or name opens
+ * the vault that has its key, not whichever profile happens to be open.
+ * Vaults that hold the key come first; profiles that only list the address
+ * (a watch-only account, or a key not saved) follow. Each profile once.
+ */
+export function profilesHolding(list: ProfileList, addresses: readonly string[]): ProfileMatch[] {
+  const want = new Set(addresses.filter(Boolean));
+  const keyed: ProfileMatch[] = [];
+  const listed: ProfileMatch[] = [];
+  for (const p of list.profiles) {
+    if (p.accounts.some((a) => want.has(a.address))) {
+      keyed.push({ name: p.name, inVault: true });
+    } else if (p.mirror.some((a) => want.has(a.address) || Object.values(a.chains).some((c) => want.has(c)))) {
+      listed.push({ name: p.name, inVault: false });
+    }
+  }
+  return [...keyed, ...listed];
+}
+
+/**
+ * The profile to open for `addresses`: the open one if its vault holds the
+ * key, otherwise the only other vault that does. `ambiguous` lists the
+ * candidates when several vaults hold it (a wallet restored into a new vault
+ * after a lost passphrase is in both) — the person chooses; PARSEC does not guess.
+ */
+export function profileFor(
+  list: ProfileList,
+  addresses: readonly string[],
+): { name: string | null; ambiguous: string[]; inVault: boolean } {
+  const hits = profilesHolding(list, addresses);
+  const keyed = hits.filter((h) => h.inVault);
+  const pool = keyed.length ? keyed : hits;
+  if (pool.length === 0) return { name: null, ambiguous: [], inVault: false };
+  const open = pool.find((h) => h.name === list.active);
+  if (open) return { name: open.name, ambiguous: [], inVault: open.inVault };
+  if (pool.length === 1) return { name: pool[0].name, ambiguous: [], inVault: pool[0].inVault };
+  return { name: null, ambiguous: pool.map((h) => h.name), inVault: keyed.length > 0 };
+}

@@ -101,3 +101,38 @@ describe('walletsOf', () => {
     ]);
   });
 });
+
+describe('profileFor — an address opens the vault that holds its key', () => {
+  const SOL = 'So1anaAddr';
+  const mk = (name: string, keys: string[], mirror: string[] = [], chains: Record<string, string> = {}) => ({
+    name, exists: keys.length > 0,
+    accounts: keys.map((address) => ({ address, chain: 'algorand', label: 'A' })),
+    mirror: mirror.map((address) => ({ name: 'A', address, chains: { algorand: address, ...chains } })),
+  });
+
+  it('stays on the open profile when its vault has the key', () => {
+    const list = { active: 'main', profiles: [mk('default', [ALGO]), mk('main', [ALGO])] };
+    expect(P.profileFor(list, [ALGO])).toEqual({ name: 'main', ambiguous: [], inVault: true });
+  });
+
+  it('moves to the one other vault that has the key', () => {
+    const list = { active: 'default', profiles: [mk('default', ['OTHER']), mk('agents', [ALGO])] };
+    expect(P.profileFor(list, [ALGO]).name).toBe('agents');
+  });
+
+  it('asks when several other vaults hold it', () => {
+    const list = { active: 'fresh', profiles: [mk('default', [ALGO]), mk('main', [ALGO]), mk('fresh', [])] };
+    expect(P.profileFor(list, [ALGO])).toEqual({ name: null, ambiguous: ['default', 'main'], inVault: true });
+  });
+
+  it('prefers a vault with the key over a profile that only lists the address', () => {
+    const list = { active: 'watch', profiles: [mk('watch', [], [ALGO]), mk('keys', [ALGO])] };
+    expect(P.profileFor(list, [ALGO]).name).toBe('keys');
+  });
+
+  it('finds a listed chain address, and reports nothing for an unknown one', () => {
+    const list = { active: 'default', profiles: [mk('default', []), mk('sol', [], [ALGO], { solana: SOL })] };
+    expect(P.profileFor(list, [SOL])).toEqual({ name: 'sol', ambiguous: [], inVault: false });
+    expect(P.profileFor(list, ['NOPE']).name).toBeNull();
+  });
+});
