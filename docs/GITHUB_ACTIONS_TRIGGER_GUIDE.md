@@ -16,16 +16,6 @@ Our CI/CD system uses a **streamlined approach** with smart triggering based on 
 | **Direct Push to Main** | 15-20 min | ✅ (full) | ✅ | Releases, hotfixes |
 | **Manual Trigger** | 15-20 min | ✅ (full) | ✅ | Scheduled releases |
 
-## Docker Build Alternative
-
-For local development and testing, use the **Docker build system**:
-
-| Docker Command | Build Time | Architectures | Use Case |
-|---------------|------------|---------------|----------|
-| `npm run docker:build-tauri` | 5-15 min | x86_64, ARM64 | Local testing |
-| `npm run docker:build-all` | 10-20 min | Host + Docker | Complete validation |
-| `npm run docker` | Interactive | Any | Development shell |
-
 ## Language Patterns for Different Workflows
 
 ### 🚀 Quick Development (Direct Push to Dev)

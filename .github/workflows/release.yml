@@ -54,8 +54,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: 'v__VERSION__'
-          releaseName: 'Tauri Workflow Template v__VERSION__'
-          releaseBody: 'See the assets to download and install.'
+          releaseName: 'Parsec Wallet v__VERSION__'
+          releaseBody: 'Parsec Wallet — sovereign multi-chain desktop wallet. Download the installer for your platform below.'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}
