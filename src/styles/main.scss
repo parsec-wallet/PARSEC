@@ -50,6 +50,7 @@
 @use 'wallet/store';
 @use 'wallet/bazaar';
 @use 'wallet/assets';
+@use 'wallet/identity';
 @use 'wallet/linkage';
 @use 'wallet/permaweb';
 @use 'wallet/matrix-recovered';
