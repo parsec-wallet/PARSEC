@@ -34,6 +34,10 @@ import { approveThroughView } from './x402-confirm';
 import { formatDecimal } from '../lib/money';
 import { explorerTxUrl, sameNetwork } from '../lib/x402/networks';
 
+/** A request handed over from elsewhere (the Bazaar's "Open in desk"), applied once. */
+let deskPrefill: { url: string; method: 'GET' | 'POST' } | null = null;
+export function prefillDesk(p: { url: string; method: 'GET' | 'POST' }): void { deskPrefill = p; }
+
 export function x402DeskView(): HTMLElement {
   const settings = getX402Settings();
   const account = store.get().accounts[store.get().activeAccountIndex];
@@ -63,6 +67,11 @@ export function x402DeskView(): HTMLElement {
     attrs: { rows: '3', placeholder: '{"name": "…"}  — JSON body, sent with POST', 'aria-label': 'Request body (JSON)' },
   }) as HTMLTextAreaElement;
   const syncBody = () => { bodyField.style.display = methodSelect.value === 'POST' ? '' : 'none'; };
+  if (deskPrefill) {
+    urlField.value = deskPrefill.url;
+    methodSelect.value = deskPrefill.method;
+    deskPrefill = null;
+  }
   methodSelect.addEventListener('change', syncBody);
   syncBody();
 
