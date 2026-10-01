@@ -1,6 +1,6 @@
 // PARSEC Wallet — Dashboard View
 
-import { el, btn, toast } from '../lib/dom';
+import { el, btn, toast, copyText } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
 import { listDashboardModules } from '../lib/dashboard';
 import { createWalletSwitcher } from '../lib/dashboard/wallet-switcher';
@@ -99,7 +99,7 @@ export function dashboardView(): HTMLElement {
     cls: 'parsec-dashboard__pubkey-value',
     attrs: { title: 'Click to copy' },
     children: [keyText],
-    onClick: () => { navigator.clipboard.writeText(addr); toast('Public receive key copied', 'success'); },
+    onClick: () => { void copyText(addr, 'Public receive key copied'); },
   });
   keyValue.addEventListener('mouseenter', () => { keyText.textContent = addr; keyValue.classList.add('parsec-pubkey--expanded'); });
   keyValue.addEventListener('mouseleave', () => { keyText.textContent = `${addr.slice(0, 6)} ···· ${addr.slice(-6)}`; keyValue.classList.remove('parsec-pubkey--expanded'); });
@@ -217,7 +217,7 @@ function renderChainPanel(account: WalletAccount, chainId: ChainId): HTMLElement
     cls: 'parsec-dashboard__pubkey-value',
     attrs: { title: 'Click to copy' },
     children: [keyText],
-    onClick: () => { navigator.clipboard.writeText(addr); toast(`${desc.label} address copied`, 'success'); },
+    onClick: () => { void copyText(addr, `${desc.label} address copied`); },
   });
   keyValue.addEventListener('mouseenter', () => { keyText.textContent = addr; keyValue.classList.add('parsec-pubkey--expanded'); });
   keyValue.addEventListener('mouseleave', () => { keyText.textContent = desc.truncate(addr); keyValue.classList.remove('parsec-pubkey--expanded'); });
@@ -255,7 +255,7 @@ function renderChainPanel(account: WalletAccount, chainId: ChainId): HTMLElement
       }),
       btn('Receive', {
         outlined: true, icon: 'download',
-        onClick: () => { navigator.clipboard.writeText(addr); toast(`${desc.label} address copied`, 'success'); },
+        onClick: () => { void copyText(addr, `${desc.label} address copied`); },
       }),
     ],
   });

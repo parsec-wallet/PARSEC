@@ -44,6 +44,8 @@ export function el(
 
 /** Create a text input */
 export function input(opts: {
+  /** 'decimal' is a text field with the number keypad: an amount, typed exactly. Unlike
+   *  type=number it keeps every digit and the decimal separator as typed, on every keyboard. */
   type?: string;
   placeholder?: string;
   cls?: string;
@@ -52,7 +54,13 @@ export function input(opts: {
   onEnter?: (value: string) => void;
 }): HTMLInputElement {
   const inp = document.createElement('input');
-  inp.type = opts.type || 'text';
+  if (opts.type === 'decimal') {
+    inp.type = 'text';
+    inp.inputMode = 'decimal';
+    inp.autocomplete = 'off';
+  } else {
+    inp.type = opts.type || 'text';
+  }
   if (opts.placeholder) inp.placeholder = opts.placeholder;
   if (opts.cls) inp.className = opts.cls;
   if (opts.value) inp.value = opts.value;
@@ -168,6 +176,33 @@ export function toast(
   schedule(life);
 }
 
+
+/**
+ * Copy text, and say "copied" only when it was. The clipboard API can refuse (no focus,
+ * no permission, an older phone WebView); the old copy command is tried before giving up,
+ * and a failure is said plainly rather than toasted as success.
+ */
+export async function copyText(text: string, done = 'Copied'): Promise<boolean> {
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    ok = true;
+  } catch {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      ok = document.execCommand('copy');
+      ta.remove();
+    } catch { ok = false; }
+  }
+  toast(ok ? done : 'Could not copy. Long-press the text to select it instead.', ok ? 'success' : 'warning');
+  return ok;
+}
 
 /**
  * The PARSEC mark, as a clickable element.

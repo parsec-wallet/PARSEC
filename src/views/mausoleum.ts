@@ -8,7 +8,7 @@
 import { el, btn, input, toast } from '../lib/dom';
 import { onCleanup } from '../lib/lifecycle';
 import { store } from '../lib/store';
-import { invoke } from '../lib/platform';
+import { tombCheck, tombClose, tombCreate, tombDetectUsb, tombOpen, tombSlam, tombStatus as tombStatusCall } from '../lib/tomb';
 import {
   isTauri,
   vaultV2Status, vaultMigrationPlan, vaultMigrate, vaultChangePassphrase,
@@ -476,9 +476,9 @@ export function mausoleumView(): HTMLElement {
   async function loadTombState() {
     if (!isTauri()) return;
     try {
-      tombAvail = await invoke<TombAvailability>('tomb_check');
-      tombStatus = await invoke<TombStatus>('tomb_status');
-      usbDrives = await invoke<UsbDrive[]>('tomb_detect_usb');
+      tombAvail = await tombCheck();
+      tombStatus = (await tombStatusCall()) as TombStatus;
+      usbDrives = await tombDetectUsb();
     } catch { /* not available */ }
   }
 
@@ -864,7 +864,7 @@ export function mausoleumView(): HTMLElement {
       intent: 'success', icon: 'unlock',
       onClick: async () => {
         try {
-          await invoke('tomb_open', { passphrase: passInput.value, keyPath: keyInput.value });
+          await tombOpen(passInput.value, keyInput.value);
           passInput.value = '\0'.repeat(passInput.value.length); passInput.value = '';
           toast('Tomb opened', 'success');
           await loadTombState();
@@ -890,7 +890,7 @@ export function mausoleumView(): HTMLElement {
       onClick: async () => {
         try {
           const sizeMb = parseInt(sizeInput.value) || 128;
-          await invoke('tomb_create', { passphrase: passInput.value, keyPath: keyInput.value, sizeMb });
+          await tombCreate(passInput.value, keyInput.value, sizeMb);
           passInput.value = '\0'.repeat(passInput.value.length); passInput.value = '';
           toast('Tomb created and locked', 'success');
           await loadTombState();
@@ -905,7 +905,7 @@ export function mausoleumView(): HTMLElement {
 
   async function closeTomb() {
     try {
-      await invoke('tomb_close');
+      await tombClose();
       toast('Tomb closed', 'success');
       await loadTombState();
       render();
@@ -914,7 +914,7 @@ export function mausoleumView(): HTMLElement {
 
   async function slamTomb() {
     try {
-      await invoke('tomb_slam');
+      await tombSlam();
       toast('Tomb slammed (force-closed)', 'warning');
       await loadTombState();
       render();

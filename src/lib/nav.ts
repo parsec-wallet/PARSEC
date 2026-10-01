@@ -13,6 +13,8 @@
 // from the registry still renders, it simply doesn't appear in the rail.
 
 /** The four tiers of the PARSEC stack, in dependency order. */
+import { isMobile } from './platform';
+
 export type NavTier = 'modules' | 'pouch' | 'identity' | 'agenticplace';
 
 /** Progressive disclosure level. `simple` is the newcomer's wallet; `pro`
@@ -36,7 +38,13 @@ export interface NavRoute {
   readonly keywords?: readonly string[];
   /** Rail section, when it is not the tier's own (see GROUP_ORDER). */
   readonly group?: NavGroup;
+  /** Needs a desktop operating system (a LUKS tool, sshpass, a network interface):
+   *  never offered on a phone, where it could only fail. */
+  readonly desktopOnly?: boolean;
 }
+
+/** On a phone, routes marked desktopOnly are not offered at all. */
+const onThisDevice = (r: NavRoute): boolean => !(r.desktopOnly && isMobile);
 
 export const TIER_LABEL: Record<NavTier, string> = {
   modules: 'Chain Modules',
@@ -106,14 +114,14 @@ export function isModalRoute(id: string): boolean {
 /** Routes for one tier's rail section, filtered to the current disclosure. */
 export function railRoutes(tier: NavTier, level: Disclosure): NavRoute[] {
   return allRoutes().filter(
-    (r) => r.tier === tier && r.inRail && DISCLOSURE_RANK[r.disclosure] <= DISCLOSURE_RANK[level],
+    (r) => r.tier === tier && r.inRail && onThisDevice(r) && DISCLOSURE_RANK[r.disclosure] <= DISCLOSURE_RANK[level],
   );
 }
 
 /** Every route offered at this disclosure level — the palette's corpus. */
 export function visibleRoutes(level: Disclosure): NavRoute[] {
   return allRoutes().filter(
-    (r) => !r.modal && DISCLOSURE_RANK[r.disclosure] <= DISCLOSURE_RANK[level],
+    (r) => !r.modal && onThisDevice(r) && DISCLOSURE_RANK[r.disclosure] <= DISCLOSURE_RANK[level],
   );
 }
 
@@ -168,7 +176,7 @@ registerRoutes([
 
   // ── Vault Identity ──────────────────────────────────────────
   { id: 'identity',        title: 'Identity',        tier: 'identity', disclosure: 'more',   inRail: true, keywords: ['erc-8004', 'idnft', 'bankon', 'tier'] },
-  { id: 'mausoleum',       title: 'Mausoleum',       tier: 'identity', disclosure: 'pro',    inRail: true, keywords: ['vault', 'tomb', 'luks', 'cold storage'] },
+  { id: 'mausoleum',       title: 'Mausoleum',       tier: 'identity', disclosure: 'pro',    inRail: true, desktopOnly: true, keywords: ['vault', 'tomb', 'luks', 'cold storage'] },
   { id: 'admin-keygen',    title: 'Key Ceremony',    tier: 'identity', disclosure: 'pro',    inRail: true, keywords: ['airgap', 'admin', 'ceremony'] },
   { id: 'diagnostics',     title: 'Diagnostics',     tier: 'identity', disclosure: 'more',   inRail: true, keywords: ['network', 'health', 'shield'] },
   { id: 'settings',        title: 'Settings',        tier: 'identity', disclosure: 'simple', inRail: true, keywords: ['network', 'account', 'lock', 'preferences'] },
@@ -181,7 +189,7 @@ registerRoutes([
   // Both spend: an approval surface never joins the back stack (see confirm-send).
   { id: 'nfdominter-confirm', title: 'Register .algo', tier: 'agenticplace', disclosure: 'simple', modal: true },
   { id: 'nfdominter-buy',  title: 'Buy .algo',       tier: 'agenticplace', disclosure: 'simple', modal: true },
-  { id: 'pmvpn',           title: 'pmVPN',           tier: 'agenticplace', disclosure: 'pro',    inRail: true, keywords: ['ssh', 'terminal', 'remote'] },
+  { id: 'pmvpn',           title: 'pmVPN',           tier: 'agenticplace', disclosure: 'pro',    inRail: true, desktopOnly: true, keywords: ['ssh', 'terminal', 'remote'] },
   { id: 'docs',            title: 'Docs',            tier: 'agenticplace', disclosure: 'simple', inRail: true, keywords: ['help', 'faq', 'quickstart', 'security'] },
 
   // Approval surfaces — reachable, never listed, never on the back stack.

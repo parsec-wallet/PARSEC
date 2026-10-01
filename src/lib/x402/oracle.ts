@@ -16,7 +16,18 @@ export class PriceOracle {
     this.cacheTtl = cacheTtl;
   }
 
-  /** Get current ALGO/USD price (cached) */
+  /**
+   * The ALGO/USD price only when it was actually measured (fresh fetch or a cache that
+   * came from one) — never the hard-coded fallback. Anything that prices a payment, or
+   * compares one against an auto-approve cap, must use this: null means "unknown", and
+   * a quote is then shown in its own asset, which is never wrong.
+   */
+  async getAlgoUsdLive(): Promise<number | null> {
+    const usd = await this.getAlgoUsd();
+    return this.cacheTimestamp > 0 ? usd : null;
+  }
+
+  /** Get current ALGO/USD price (cached). Falls back to a fixed estimate: labels only. */
   async getAlgoUsd(): Promise<number> {
     if (Date.now() - this.cacheTimestamp < this.cacheTtl && this.cachedAlgoUsd > 0) {
       return this.cachedAlgoUsd;

@@ -2,6 +2,7 @@
 // base58 keypair export, or `solana-keygen` JSON. The participant keeps the key; parsec becomes its
 // signer. Same one-identity-many-chains mapping as solana-create.
 
+import { exactTextField, normalizePhrase } from '../lib/phrase-input';
 import { el, btn, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { previewSolanaSecret, importSolanaKeyToVault } from '../lib/permaweb/wallet/keys';
@@ -17,9 +18,9 @@ export function solanaImportView(): HTMLElement {
   ta.className = 'bp5-input parsec-permaweb__wide';
   ta.rows = 4;
   ta.placeholder = '24-word mnemonic · base58 keypair · [12,34,…] JSON keypair';
-  ta.spellcheck = false;
+  exactTextField(ta);
   ta.addEventListener('input', () => {
-    draft = ta.value;
+    draft = normalizePhrase(ta.value);
     previewSolanaSecret(draft).then((p) => { preview = p; addressEl.textContent = p.address; kindEl.textContent = p.kind === 'mnemonic' ? 'BIP-39 mnemonic → m/44\'/501\'/0\'/0\' (Phantom-compatible)' : 'Raw ed25519 keypair (stored as-is)'; })
       .catch((e) => { preview = null; addressEl.textContent = '—'; kindEl.textContent = draft.trim() ? (e instanceof Error ? e.message : String(e)) : ''; });
   });

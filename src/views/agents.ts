@@ -7,7 +7,7 @@
 // images, no link that opens itself). A listing is information, not an
 // instruction: nothing here can sign, pay or navigate on an agent's behalf.
 
-import { el, btn, toast } from '../lib/dom';
+import { el, btn, copyText } from '../lib/dom';
 import { store } from '../lib/store';
 import { onCleanup } from '../lib/lifecycle';
 import { searchDirectory, chainName, DIRECTORY_URL, type DirectoryAgent } from '../lib/agenticplace/directory';
@@ -35,7 +35,7 @@ function agentCard(a: DirectoryAgent): HTMLElement {
       cls: 'parsec-agents2__owner',
       text: `${a.owner.slice(0, 6)}…${a.owner.slice(-4)}`,
       attrs: { type: 'button', title: `Owner ${a.owner} — click to copy` },
-      onClick: () => { void navigator.clipboard.writeText(a.owner); toast('Owner address copied', 'success'); },
+      onClick: () => { void copyText(a.owner, 'Owner address copied'); },
     })
     : el('span', { cls: 'parsec-agents2__owner', text: 'owner unknown' });
 

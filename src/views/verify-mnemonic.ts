@@ -1,5 +1,6 @@
 // PARSEC Wallet — Verify Mnemonic & Set Passphrase
 
+import { exactTextField } from '../lib/phrase-input';
 import { el, btn, input, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { keystoreStore } from '../lib/keystore';
@@ -66,8 +67,7 @@ export function verifyMnemonicView(): HTMLElement {
         cls: 'parsec-verify__words',
         children: indices.map((idx) => {
           const inp = input({ placeholder: `Word #${idx + 1}`, cls: 'bp5-input parsec-verify__input', onInput: () => action.refresh() });
-          inp.autocomplete = 'off';
-          inp.spellcheck = false;
+          exactTextField(inp);
           verifyInputs.push(inp);
           return el('div', {
             cls: 'parsec-verify__word-row',

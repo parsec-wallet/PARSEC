@@ -29,6 +29,7 @@ import { parsecTransport } from '../x402/adapters/parsec';
 import { x402Request, type X402PaymentResult } from '../x402/client';
 import { ALGORAND_MAINNET, ALGORAND_TESTNET, sameNetwork, usdcFor } from '../x402/networks';
 import type { X402Signers } from '../x402/host';
+import { formatDecimal } from '../money';
 import type { NetworkId } from '../../types/wallet';
 
 export const STORES_URL = 'https://mindx.pythai.net/names/stores';
@@ -130,6 +131,8 @@ export interface Store {
   payout: string;
   tiers_micro_usd: Record<Tier, number>;
   featured: string[];
+  /** Names the owner never sells. Absent from an older registry: see store-editor. */
+  reserved?: string[];
   status: string;
   updated_at: string;
 }
@@ -205,9 +208,38 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
   return data as T;
 }
 
-/** Order `label.parent` for `buyer`. Free; freezes the price, the fee and the payout. */
-export function createOrder(parent: string, label: string, buyer: string, network: StoreRegistry): Promise<StoreOrder> {
-  return postJson<StoreOrder>(`${STORES_URL}/${encodeURIComponent(parent)}/order`, { label, buyer, network });
+/**
+ * Why an order the registry returned must not be paid, or null when it is sound.
+ *
+ * The registry is not trusted with the figures: the fee must be this wallet's own
+ * computation of the BANKON fee on the price, the total their sum, and the price,
+ * payout, buyer and name the ones the person was shown.
+ */
+export function orderProblem(
+  o: StoreOrder,
+  expect: { parent: string; label: string; buyer: string; network: StoreRegistry; price_micro_usd?: number; payout?: string },
+): string | null {
+  if (o.parent !== expect.parent || o.label !== expect.label) return 'the order is for a different name';
+  if (o.network !== expect.network) return 'the order is on a different registry';
+  if (o.buyer !== expect.buyer) return 'the order is for a different buyer';
+  if (!Number.isSafeInteger(o.price_micro_usd) || o.price_micro_usd < 0) return 'the order has no valid price';
+  if (expect.price_micro_usd !== undefined && o.price_micro_usd !== expect.price_micro_usd) return 'the price changed from the quote you saw';
+  if (expect.payout !== undefined && o.payout !== expect.payout) return 'the payout is not the store\'s';
+  if (o.bankon_fee_micro_usd !== bankonFeeMicro(o.price_micro_usd)) return 'the BANKON fee is not 10 % of the price (at least $0.05)';
+  if (o.total_micro_usd !== o.price_micro_usd + o.bankon_fee_micro_usd) return 'the total is not the price plus the fee';
+  return null;
+}
+
+/** Order `label.parent` for `buyer`. Free; freezes the price, the fee and the payout.
+ *  `expect` is what the person was shown; an order that disagrees is refused. */
+export async function createOrder(
+  parent: string, label: string, buyer: string, network: StoreRegistry,
+  expect: { price_micro_usd?: number; payout?: string } = {},
+): Promise<StoreOrder> {
+  const o = await postJson<StoreOrder>(`${STORES_URL}/${encodeURIComponent(parent)}/order`, { label, buyer, network });
+  const problem = orderProblem(o, { parent, label, buyer, network, ...expect });
+  if (problem) throw new Error(`The registry's order was refused: ${problem}. Nothing was paid.`);
+  return o;
 }
 
 export function getOrder(ref: string): Promise<StoreOrder> {
@@ -247,7 +279,10 @@ export async function payOrderStep(order: StoreOrder, step: OrderStep, signers: 
   const result = await x402Request(`${STORES_URL}/orders/${encodeURIComponent(order.ref)}/${step}`, { method: 'POST' }, {
     signers,
     preferNetwork: want.network,
-    approve: async (pending) => {
+    // The order's terms are checked in `verify`, which runs even under an auto-approve
+    // cap; approval itself was given on the order screen.
+    approve: async () => true,
+    verify: (pending) => {
       if (pending.preflight && !pending.preflight.ok) {
         throw new Error(pending.preflight.blockers.map((b) => b.message).join(' '));
       }
@@ -257,22 +292,27 @@ export async function payOrderStep(order: StoreOrder, step: OrderStep, signers: 
         && String(pending.quote.amountAtomic) === want.amount
         && (want.payTo === null || r.payTo === want.payTo);
       if (!same) throw new Error(`The ${step === 'fee' ? 'BANKON fee' : 'price'} asked for is not the one on your order. Nothing was paid.`);
-      return true;
     },
   });
   if (!result.success) throw new Error(result.error || `The ${step === 'fee' ? 'BANKON fee' : 'price'} did not settle.`);
-  let next = order;
-  try {
-    const body = result.response ? await result.response.clone().json() : null;
-    if (body && typeof body === 'object' && 'ref' in body) next = body as StoreOrder;
-  } catch { /* the settlement id is the proof; the order can be re-read */ }
+  // Read the order back rather than trusting the response body, and require that this
+  // step actually moved it on: a step that settled but did not advance the order is
+  // reported, never announced as paid.
+  const next = await getOrder(order.ref);
+  const advanced = step === 'fee' ? ['fee_paid', 'paid', 'minted'] : ['paid', 'minted'];
+  if (!advanced.includes(next.state)) {
+    const tx = result.txId ? ` (settlement ${result.txId})` : '';
+    throw new Error(`The ${step === 'fee' ? 'BANKON fee' : 'price'} settled${tx}, but the order is still "${next.state}". Keep this order and contact the store.`);
+  }
   return { order: next, txId: result.txId ?? null, result };
 }
 
-/** micro-USD → "$3" / "$0.15". */
+/** micro-USD → "$3" · "$0.15" · "$0.004": exact (integer arithmetic), cents at least,
+ *  never rounding a non-zero amount down to "$0.00". */
 export function usd(micro: number): string {
-  const whole = Math.floor(micro / MICRO);
-  const frac = micro % MICRO;
-  if (frac === 0) return `$${whole.toLocaleString()}`;
-  return `$${(micro / MICRO).toFixed(2)}`;
+  const m = BigInt(Math.max(0, Math.trunc(micro)));
+  if (m % BigInt(MICRO) === 0n) return `$${(m / BigInt(MICRO)).toLocaleString()}`;
+  const s = formatDecimal(m, 6, { trim: true });
+  const [w, f = ''] = s.split('.');
+  return `$${BigInt(w).toLocaleString()}.${f.padEnd(2, '0')}`;
 }

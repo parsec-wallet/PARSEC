@@ -1,6 +1,6 @@
 // PARSEC Wallet — Settings View
 
-import { isTauri } from '../lib/platform';
+import { isTauri, isMobile } from '../lib/platform';
 import { getAutostart, getCloseToTray, setAutostart, setCloseToTray } from '../lib/app-shell';
 import { el, btn, toast } from '../lib/dom';
 import { store } from '../lib/store';
@@ -144,7 +144,8 @@ export function settingsView(): HTMLElement {
           store.navigate('dashboard');
         },
       }),
-      ...(isTauri ? [buildWindowSection()] : []),
+      // Close-to-tray and start at login are desktop window behaviours; a phone has neither.
+      ...(isTauri && !isMobile ? [buildWindowSection()] : []),
       el('div', { cls: 'parsec-settings__section', children: [
         el('h3', { cls: 'parsec-section-title', text: 'Profiles' }),
         el('p', { cls: 'parsec-view__desc', text: 'Each profile is its own vault with its own passphrase and wallets. '

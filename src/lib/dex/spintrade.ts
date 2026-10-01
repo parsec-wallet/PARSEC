@@ -129,7 +129,8 @@ export async function fetchBestQuote(
         const hop2 = hop2Quotes[0];
         const totalOutput = hop2.outputAmount;
         const totalFee = hop1.fee + hop2.fee;
-        const totalImpact = 1 - (1 - hop1.priceImpact) * (1 - hop2.priceImpact);
+        // Every DEX module reports price impact in PERCENT; compound it as fractions.
+        const totalImpact = compoundImpactPct(hop1.priceImpact, hop2.priceImpact);
         // min output with compound slippage
         const minOutput = Math.floor(totalOutput * (1 - slippageBps / 10000));
 
@@ -186,9 +187,19 @@ export async function executeMultiHopSwap(
 
   const result1 = await executeSwapViaDex(hop1.dexId ?? hop1.dex, signer, hop1.inputAssetId, hop1.outputAssetId, hop1.inputAmount, hop1.minOutput, hop1.poolAddress, network);
 
-  // Hop 2 uses the actual received ALGO from hop 1
-  // In production this should read the actual balance, but for now use the quoted amount
-  const result2 = await executeSwapViaDex(hop2.dexId ?? hop2.dex, signer, hop2.inputAssetId, hop2.outputAssetId, hop2.inputAmount, hop2.minOutput, hop2.poolAddress, network);
+  // Hop 2 spends what hop 1 GUARANTEED (its slippage-protected minimum), never the quoted
+  // amount: hop 1 may fill below its quote, and spending more would spend the person's own
+  // ALGO. Any surplus from a better fill stays in the account. Hop 2's minimum scales down
+  // with its input, in integers.
+  const spend = Math.min(hop1.minOutput, hop2.inputAmount);
+  const hop2Min = scaleFloor(hop2.minOutput, spend, hop2.inputAmount);
+  let result2: { txId: string };
+  try {
+    result2 = await executeSwapViaDex(hop2.dexId ?? hop2.dex, signer, hop2.inputAssetId, hop2.outputAssetId, spend, hop2Min, hop2.poolAddress, network);
+  } catch (e) {
+    // The hops are separate transactions: say plainly that the first one happened.
+    throw new Error(`The first swap completed (${result1.txId}) and you now hold its ALGO; the second swap failed: ${e instanceof Error ? e.message : String(e)}`);
+  }
 
   return { txId: `${result1.txId}→${result2.txId}`, hops: 2 };
 }
@@ -207,4 +218,15 @@ export async function executeSwapViaDex(
   const dex = DEX_MODULES.find(m => m.id === dexId);
   if (!dex) throw new Error(`DEX module not found: ${dexId}`);
   return dex.executeSwap(signer, inputAssetId, outputAssetId, inputAmount, minOutputAmount, poolAddress, network);
+}
+
+/** Two price impacts in percent, compounded: 3 % then 3 % is 5.91 %, not −3. */
+export function compoundImpactPct(p1: number, p2: number): number {
+  return 100 * (1 - (1 - p1 / 100) * (1 - p2 / 100));
+}
+
+/** floor(value × num / den) in exact integer arithmetic (amounts are base units). */
+export function scaleFloor(value: number, num: number, den: number): number {
+  if (den <= 0) return 0;
+  return Number((BigInt(Math.trunc(value)) * BigInt(Math.trunc(num))) / BigInt(Math.trunc(den)));
 }

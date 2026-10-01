@@ -83,13 +83,20 @@ export function createShell(): Shell {
   paletteBtn.classList.add('parsec-shell__search');
   paletteBtn.title = 'Search views (Ctrl/Cmd-K)';
 
+  // On a phone-width screen the rail is a drawer behind this button (CSS shows it only
+  // when the layout is compact); choosing a screen closes it.
+  const menuBtn = btn('Menu', { minimal: true, onClick: () => setNavOpen(!root.classList.contains('parsec-shell--nav-open')) });
+  menuBtn.classList.add('parsec-shell__menu');
+  menuBtn.setAttribute('aria-controls', 'parsec-shell-sidebar');
+  menuBtn.setAttribute('aria-expanded', 'false');
+
   const brand = brandLogo({ small: true });
   brand.classList.add('parsec-shell__brand');
   brand.addEventListener('click', () => store.navigate('dashboard'));
 
   const header = el('header', {
     cls: 'parsec-shell__header',
-    children: [brand, backBtn, crumb, el('div', { cls: 'parsec-shell__spacer' }), modeBadge, paletteBtn],
+    children: [menuBtn, brand, backBtn, crumb, el('div', { cls: 'parsec-shell__spacer' }), modeBadge, paletteBtn],
   });
 
   const disclosure = el('div', { cls: 'parsec-shell__disclosure' });
@@ -99,10 +106,15 @@ export function createShell(): Shell {
   const root = el('div', {
     cls: 'parsec-shell',
     children: [header, el('div', { cls: 'parsec-shell__body', children: [
-      el('div', { cls: 'parsec-shell__sidebar', children: [rail, disclosure] }),
+      el('div', { cls: 'parsec-shell__sidebar', attrs: { id: 'parsec-shell-sidebar' }, children: [rail, disclosure] }),
       content,
     ]})],
   });
+
+  function setNavOpen(open: boolean): void {
+    root.classList.toggle('parsec-shell--nav-open', open);
+    menuBtn.setAttribute('aria-expanded', String(open));
+  }
 
   function renderDisclosure(): void {
     const level = getDisclosure();
@@ -197,7 +209,9 @@ export function createShell(): Shell {
     backBtn.hidden = !store.canGoBack();
   }
 
+  let lastView = store.get().view;
   store.subscribe((state) => {
+    if (state.view !== lastView) { lastView = state.view; setNavOpen(false); }
     syncChrome(state.view);
     renderRail();
   });

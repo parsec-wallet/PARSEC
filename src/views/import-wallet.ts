@@ -2,6 +2,7 @@
 // Accepts: 25-word mnemonic, base64 private key, or watch-only address.
 // Live input classification with validation feedback.
 
+import { exactTextField, normalizePhrase } from '../lib/phrase-input';
 import { el, btn, input, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { classifyInput } from '../lib/algorand/validate';
@@ -18,15 +19,14 @@ export function importWalletView(): HTMLElement {
   secretArea.className = 'bp5-input parsec-import__textarea';
   secretArea.placeholder = 'Paste your 25-word recovery phrase, private key, or Algorand address';
   secretArea.rows = 4;
-  secretArea.spellcheck = false;
-  secretArea.autocomplete = 'off';
+  exactTextField(secretArea);
   secretArea.setAttribute('data-lpignore', 'true');
 
   const detectionHint = el('div', { cls: 'parsec-import__hint' });
   const addressPreview = el('div', { cls: 'parsec-import__address-preview' });
 
   secretArea.addEventListener('input', () => {
-    secret = secretArea.value;
+    secret = normalizePhrase(secretArea.value);
     lastClassification = classifyInput(secret);
     renderClassification(lastClassification, detectionHint, addressPreview);
     // A watch-only address stores no key, so no vault passphrase is asked.

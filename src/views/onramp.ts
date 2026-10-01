@@ -6,7 +6,7 @@
 // public address the ALGO is delivered to — and never sees a card, a bank
 // account or fiat.
 
-import { el, btn, toast } from '../lib/dom';
+import { el, btn, toast, copyText } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
 import { openExternal } from '../lib/external';
 
@@ -137,7 +137,7 @@ export function onrampView(): HTMLElement {
         el('code', { cls: 'parsec-store__address', text: addr, attrs: { title: addr } }),
         btn('Copy', {
           outlined: true, icon: 'duplicate', cls: 'parsec-store__copy',
-          onClick: () => { void navigator.clipboard.writeText(addr); toast('Address copied', 'success'); },
+          onClick: () => { void copyText(addr, 'Address copied'); },
         }),
       ] }),
 

@@ -99,6 +99,15 @@ export function storeEditor(parent: string, owner: string, network: StoreRegistr
     for (const t of TIERS) prices[t].value = formatDecimal(BigInt(s.tiers_micro_usd[t] ?? 0), 6, { trim: true });
     payout.value = s.payout;
     featured.value = (s.featured ?? []).join(', ');
+    if (!Array.isArray(s.reserved)) {
+      // Re-signing without the stored reserved list would put those names on sale.
+      open.disabled = true;
+      close.hidden = true;
+      status.textContent = 'The store registry did not send this store\'s reserved names, so it cannot be updated safely from here yet. Nothing was changed.';
+      status.dataset.tone = 'error';
+      return;
+    }
+    reserved.value = s.reserved.join(', ');
     open.querySelector('.bp5-button-text')!.textContent = 'Sign & update store';
     close.hidden = false;
     status.textContent = `Store is open since ${s.updated_at.slice(0, 10)}.`;

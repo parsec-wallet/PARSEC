@@ -108,6 +108,8 @@ class Store {
 
   // Auto-lock
   private _lockTimer: ReturnType<typeof setTimeout> | null = null;
+  /** When the countdown last restarted (ms): lets a resumed app check the idle time itself. */
+  private _lockFrom = 0;
 
   constructor() {
     this.state = defaultState();
@@ -284,6 +286,7 @@ class Store {
   resetLockTimer(): void {
     this.clearLockTimer();
     const minutes = this.state.settings.autoLockMinutes;
+    this._lockFrom = Date.now();
     if (minutes > 0 && this._sessionPassphrase) {
       // Auto-lock is a complete logout, not a partial one: an armed wallet
       // left idle must end up exactly where the Logout button leaves it.
@@ -305,6 +308,20 @@ class Store {
     if (this._sessionPassphrase) {
       this.resetLockTimer();
     }
+  }
+
+  /**
+   * On returning to the foreground: a phone may hold back timers while the app is in the
+   * background, so the idle time is measured, not trusted to the timer. True when it locked.
+   */
+  lockIfIdleTooLong(): boolean {
+    const minutes = this.state.settings.autoLockMinutes;
+    if (minutes > 0 && this._sessionPassphrase && this._lockFrom && Date.now() - this._lockFrom >= minutes * 60_000) {
+      this.clearLockTimer();
+      void import('./session').then((m) => m.logout()).catch(() => this.lock());
+      return true;
+    }
+    return false;
   }
 }
 

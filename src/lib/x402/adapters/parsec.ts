@@ -154,8 +154,10 @@ export function configureParsecX402Host(): void {
     // which is never wrong, only less convenient.
     usdRate: async (symbol) => {
       if (symbol.toUpperCase() !== 'ALGO') return null;
-      const usd = await oracle.getAlgoUsd();
-      return usd > 0 ? usd : null;
+      // Measured or nothing: a fixed fallback here would price payments against the
+      // auto-approve cap with a guess.
+      const usd = await oracle.getAlgoUsdLive();
+      return usd !== null && usd > 0 ? usd : null;
     },
   });
 }
