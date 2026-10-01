@@ -179,7 +179,7 @@ export function permawebUploadView(): HTMLElement {
     st.log = [`Signing as ${short(signer)} — ${isTauri ? 'PARSEC Keycore; the key stays in the vault' : 'browser build; the vault key is used in this tab and zeroed after'}.`];
     render();
     try {
-      // Paid items over x402: the BANKON fee first, once; then each paid item to Turbo, within
+      // Paid items over x402: the BANKONx402 fee first, once; then each paid item to Turbo, within
       // the budget shown on the screen. Free items always go the free way.
       let post = postDataItem;
       const x402 = st.payX402 && !plan.allFree && st.quote?.x402.usdMicro != null && st.quote.x402.bankonFeeMicro != null;
@@ -187,10 +187,10 @@ export function permawebUploadView(): HTMLElement {
         const q = st.quote!;
         const signers = signersForAccount(account!);
         const budget = new UploadBudget(budgetFor(q.x402.usdMicro!));
-        st.log.push(`Paying the BANKON facilitation fee (${usd(q.x402.bankonFeeMicro!)}) over x402…`);
+        st.log.push(`Paying the BANKONx402 facilitation fee (${usd(q.x402.bankonFeeMicro!)}) over x402…`);
         renderLog();
         const fee = await payUploadFee(paidSizes(plan), signers, q.x402.bankonFeeMicro!);
-        st.log.push(`BANKON fee paid: ${usd(fee.feeMicro)} · ${fee.txId}`);
+        st.log.push(`BANKONx402 fee paid: ${usd(fee.feeMicro)} · ${fee.txId}`);
         renderLog();
         const free = plan.freeLimit;
         post = (raw) => (raw.length <= free ? postDataItem(raw) : postDataItemX402(raw, signers, budget, (paid) => {
@@ -276,7 +276,7 @@ export function permawebUploadView(): HTMLElement {
     const headline = p.allFree
       ? `Free — ${count} item${count === 1 ? '' : 's'}, ${fmtBytes(p.totalBytes)}`
       : q === undefined ? `Pricing ${fmtBytes(p.totalBytes)}…`
-        : st.payX402 && q.x402.totalMicro != null ? `≈ ${usd(q.x402.totalMicro)} in USDC on Base, BANKON fee included`
+        : st.payX402 && q.x402.totalMicro != null ? `≈ ${usd(q.x402.totalMicro)} in USDC on Base, BANKONx402 fee included`
           : st.priceWinc != null ? `≈ ${formatDecimal(st.priceWinc, WINC_DECIMALS, { maxFractionDigits: 6 })} AR in Turbo credits${q.turbo.usdMicro != null ? ` (≈ ${usd(q.turbo.usdMicro)})` : ''}`
             : 'Needs payment — prices unavailable right now';
 
@@ -313,7 +313,7 @@ export function permawebUploadView(): HTMLElement {
         ...(p.allFree || !q ? [] : [costTable(q)]),
         ...(p.allFree || !q || !canX402 ? [] : [checkbox(
           q.x402.totalMicro != null
-            ? `Pay with USDC on Base over x402: Turbo ≈ ${usd(q.x402.usdMicro!)} plus the BANKON facilitation fee ${usd(q.x402.bankonFeeMicro!)}. You approve up to ${usd(budgetFor(q.x402.usdMicro!))} for Turbo (exact quotes are checked item by item); nothing beyond it is signed.`
+            ? `Pay with USDC on Base over x402: Turbo ≈ ${usd(q.x402.usdMicro!)} plus the BANKONx402 facilitation fee ${usd(q.x402.bankonFeeMicro!)}. You approve up to ${usd(budgetFor(q.x402.usdMicro!))} for Turbo (exact quotes are checked item by item); nothing beyond it is signed.`
             : 'Pay with USDC on Base over x402 — unavailable: Turbo\'s prices could not be read.',
           st.payX402 && q.x402.totalMicro != null,
           (v) => { st.payX402 = v && q.x402.totalMicro != null; render(); },
@@ -415,7 +415,7 @@ function costTable(q: StorageQuote): HTMLElement {
     el('p', { cls: `${C}__meta`, text: `What the ${q.paidItems} paid item${q.paidItems === 1 ? '' : 's'} (${fmtBytes(q.paidBytes)}) cost, by route — estimates; a payment shows its exact figure first.` }),
     row('Arweave directly', ar, 'paid in AR from an Arweave address; slowest to confirm'),
     row('Turbo credits', turbo, 'credits on this Arweave address, bought from Turbo (card or token)'),
-    row('Turbo over x402', x402, `USDC on Base, per item (at least $0.01 each) · includes the BANKON facilitation fee${q.x402.bankonFeeMicro != null ? ` ${usd(q.x402.bankonFeeMicro)}` : ''}`),
+    row('Turbo over x402', x402, `USDC on Base, per item (at least $0.01 each) · includes the BANKONx402 facilitation fee${q.x402.bankonFeeMicro != null ? ` ${usd(q.x402.bankonFeeMicro)}` : ''}`),
   ] });
 }
 

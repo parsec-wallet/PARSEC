@@ -118,7 +118,7 @@ side by side, exactly (integer winston, winc and micro-USD; `lib/permaweb/storag
 | **Turbo over x402** | Turbo's rate per item, **at least $0.01 each**; the exact figure is Turbo's 402 quote | **USDC on Base, from this wallet** |
 
 **Over x402** (`lib/arweave/turbo-x402.ts`), non-custodial: the person pays Turbo directly.
-1. The BANKON facilitation fee — 10 % of the x402 cost, at least $0.05 (`lib/bankon-fee.ts`) — is
+1. The BANKONx402 facilitation fee — 10 % of the x402 cost, at least $0.05 (`lib/bankon-fee.ts`) — is
    paid first, once, over x402 to `mindx.pythai.net/permaweb/fee`. mindX computes the fee itself
    from Turbo's public prices; PARSEC refuses one that asks more than it computed.
 2. Each paid item is POSTed to `upload.ardrive.io/v1/x402/data-item/signed`; Turbo answers 402,

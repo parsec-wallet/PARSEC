@@ -20,7 +20,7 @@ describe('storage prices, exactly', () => {
     expect(x402ItemEstimate(82_783n)).toBe(82_783n);
   });
 
-  it('BANKON fee: 10 %, at least $0.05', () => {
+  it('BANKONx402 fee: 10 %, at least $0.05', () => {
     expect(bankonFee(82_783n)).toBe(50_000n);
     expect(bankonFee(5_000_000n)).toBe(500_000n);
   });

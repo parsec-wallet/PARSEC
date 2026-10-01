@@ -4,7 +4,7 @@
 scheme now covers **ArNS undername stores** (BANKON's own: `bankon`). All stores are browsed in the
 **BANKON Marketspace**. Fulfilment (phase 3) and root names in USDC (phase 4) are next.
 
-## The BANKON facilitation fee (all stores)
+## The BANKONx402 facilitation fee (all stores)
 
 **10 % of the price, at least $0.05**, paid by the buyer **on top** as its own x402 payment to BANKON.
 The owner receives their price in full. Integer micro-USD throughout (USDC atomic units); the same
@@ -81,7 +81,7 @@ A small service on mindX holding **listings and orders, never keys**:
 | Table | Holds |
 |---|---|
 | `stores` | parent name, parent NFD app id, owner, payout address, tier prices, signed listing, status |
-| `orders` | store, requested label, buyer address, price, x402 settlement id, BANKON fee settlement id, state (`paid` → `minted` / `refunded`) |
+| `orders` | store, requested label, buyer address, price, x402 settlement id, BANKONx402 fee settlement id, state (`paid` → `minted` / `refunded`) |
 
 Endpoints:
 
@@ -101,7 +101,7 @@ each go straight to their own recipient and neither passes through mindX:
 | Route | What it does |
 |---|---|
 | `POST /names/stores/{parent}/order` `{label, buyer, network}` | free; checks the store, reserves and the NFD registry; freezes price, fee and payout |
-| `POST /names/stores/orders/{ref}/fee` | **x402** — the BANKON fee to BANKON's address; holds the name for the buyer for 15 minutes |
+| `POST /names/stores/orders/{ref}/fee` | **x402** — the BANKONx402 fee to BANKON's address; holds the name for the buyer for 15 minutes |
 | `POST /names/stores/orders/{ref}/pay` | **x402** — the price to the store's payout address; the order becomes `paid` |
 | `GET /names/stores/orders/{ref}`, `GET /names/stores/orders?buyer=` | an order; a buyer's orders |
 
@@ -130,16 +130,16 @@ records them.
 For a buyer with USDC and no ALGO: mindX quotes **NFD price × live ALGO/USD + 10%**, valid for a few
 minutes, takes it over x402, buys the name with ALGO from a BANKON names treasury and mints it
 **reserved for the buyer**. This is the one part that needs a server-held key (the treasury's),
-funded with only what mints need. Today's path — the buyer's own ALGO plus the BANKON fee — stays.
+funded with only what mints need. Today's path — the buyer's own ALGO plus the BANKONx402 fee — stays.
 
-### 5. BANKON facilitation fee
+### 5. BANKONx402 facilitation fee
 
-Charged over x402 in USDC to the BANKON fee address, shown on its own line and never added to the
+Charged over x402 in USDC to the BANKONx402 fee address, shown on its own line and never added to the
 price paid to another party (as today on root names):
 
 | Transaction | Fee (proposal) |
 |---|---|
-| Root name registered through PARSEC | the existing BANKON fee ($0.50) |
+| Root name registered through PARSEC | the existing BANKONx402 fee ($0.50) |
 | Subdomain bought through a store | **5% of the price**, minimum $0.10, paid by the buyer |
 | Opening a store | free (stores bring buyers) |
 | Root name paid in USDC (4.) | the 10% in its price |
@@ -148,7 +148,7 @@ price paid to another party (as today on root names):
 
 1. **Store listing and quote** — open a store in PARSEC (signed listing), registry tables and the
    free `stores` / `quote` endpoints on mindX; stores appear in PARSEC and the Bazaar.
-2. **Buying** — the x402 `buy` endpoint paying the owner, the BANKON fee, orders recorded; buyer
+2. **Buying** — the x402 `buy` endpoint paying the owner, the BANKONx402 fee, orders recorded; buyer
    flow in PARSEC.
 3. **Fulfilment** — owner inbox, manual and auto-mint, buyer sees the minted name; fulfilment
    record per store.

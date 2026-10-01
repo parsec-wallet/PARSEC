@@ -8,7 +8,7 @@
 //   * Browse-all with filter by namespace / status
 //   * "Create listing" CTA (forwards to market-create)
 //   * Name stores — .algo subdomains and ArNS undernames sold by their owners
-//     over x402, BANKON facilitation fee 10 % (views/nfdominter-stores.ts)
+//     over x402, BANKONx402 facilitation fee 10 % (views/nfdominter-stores.ts)
 
 import { el, btn, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';

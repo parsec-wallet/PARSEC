@@ -1,12 +1,12 @@
-// Mint flow with the BANKON fee layer.
+// Mint flow with the BANKONx402 fee layer.
 //
 // The NFD Registry bakes its treasury + commission addresses into the TEAL
 // template at compile time — we can't slot BANKON into that split. The
-// BANKON fee is therefore a separate payment transaction the user signs
+// BANKONx402 fee is therefore a separate payment transaction the user signs
 // either (a) atomically before the SDK's mint group or (b) as a preceding
 // standalone group if atomic composition turns out to be impractical.
 //
-// This first pass uses strategy (b): a standalone BANKON fee payment,
+// This first pass uses strategy (b): a standalone BANKONx402 fee payment,
 // then the SDK's mint(). Two signatures for the user, but the UI is
 // explicit about exactly what each one is doing. A future revision will
 // compose them into a single atomic group once we can safely extend the
@@ -34,7 +34,7 @@ export interface QuoteArgs {
   years: number;
 }
 
-/** Fetch an NFD mint quote + layer BANKON's fee on top. */
+/** Fetch an NFD mint quote + layer BANKONx402's fee on top. */
 export async function getMintQuoteWithBankonFee(
   args: QuoteArgs,
 ): Promise<NfdMintCostBreakdown & { raw: NfdMintQuote }> {
@@ -70,7 +70,7 @@ export interface MintArgs {
 }
 
 /**
- * Full mint flow: (optional) BANKON fee payment, then SDK mint, then resolve.
+ * Full mint flow: (optional) BANKONx402 fee payment, then SDK mint, then resolve.
  * Emits progress via onProgress at each stage; throws on failure.
  */
 export async function mintNfdWithFee(args: MintArgs): Promise<Nfd> {
@@ -99,7 +99,7 @@ export async function mintNfdWithFee(args: MintArgs): Promise<Nfd> {
   const signer = makeParsecSigner(args.buyer, args.passphrase);
 
   // Mint FIRST. The NFD SDK simulates the mint group before submitting, so a
-  // registry rejection surfaces here — before any BANKON fee is charged.
+  // registry rejection surfaces here — before any BANKONx402 fee is charged.
   progress({ stage: 'awaiting-signature' });
   const client = getNfdClient(args.network).setSigner(args.buyer, signer);
 
@@ -110,14 +110,14 @@ export async function mintNfdWithFee(args: MintArgs): Promise<Nfd> {
     reservedFor: args.reservedFor,
   });
 
-  // The name is minted — only now collect BANKON's fee. A failure here does
+  // The name is minted — only now collect BANKONx402's fee. A failure here does
   // not undo the mint, so it is logged but is not fatal to the flow.
   if (quote.bankonFee > 0n && isFeeConfigured()) {
     progress({ stage: 'paying-bankon-fee' });
     try {
       await payBankonFee(args.network, args.buyer, quote.bankonFee, signer);
     } catch (e) {
-      console.warn('NFD minted, but the BANKON fee payment failed:', e);
+      console.warn('NFD minted, but the BANKONx402 fee payment failed:', e);
     }
   }
 

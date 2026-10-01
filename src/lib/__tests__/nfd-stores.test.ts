@@ -10,7 +10,7 @@ describe('.algo stores — the same rules as the registry', () => {
     expect(tierFor('alice')).toBe('standard');
   });
 
-  it('BANKON facilitation fee: 10 % with a $0.05 floor — the same figures as the registry', () => {
+  it('BANKONx402 facilitation fee: 10 % with a $0.05 floor — the same figures as the registry', () => {
     expect(bankonFeeMicro(50_000_000)).toBe(5_000_000);   // $50 → $5
     expect(bankonFeeMicro(15_000_000)).toBe(1_500_000);   // $15 → $1.50
     expect(bankonFeeMicro(3_000_000)).toBe(300_000);      // $3 → $0.30

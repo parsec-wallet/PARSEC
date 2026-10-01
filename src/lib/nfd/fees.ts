@@ -1,4 +1,4 @@
-// BANKON fee layer for NFDominter.
+// BANKONx402 fee layer for NFDominter.
 //
 // The NFD Registry hardcodes its treasury and commission addresses as TEAL
 // template variables — we can't redirect those. PARSEC's own fee is
@@ -62,7 +62,7 @@ export const BANKON_FEE_CONFIG: BankonFeeConfig = {
 };
 
 /**
- * Compute BANKON's fee for a given quote + buyer. Returns 0 if waived or
+ * Compute BANKONx402's fee for a given quote + buyer. Returns 0 if waived or
  * if the treasury address cannot be resolved (e.g. no wallet yet).
  */
 export function bankonFeeFor(

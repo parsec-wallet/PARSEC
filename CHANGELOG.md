@@ -8,13 +8,13 @@ All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri
 ### Arweave and ar.io
 - **Paid uploads over x402, from your own wallet.** Items over Turbo's free limit are paid
   per item in USDC on Base through Turbo's x402 endpoint, signed by the PARSEC Keycore — no
-  Turbo credits needed, nobody holds your money. The BANKON facilitation fee (10 %, at least
+  Turbo credits needed, nobody holds your money. The BANKONx402 facilitation fee (10 %, at least
   $0.05) is paid first, once, over x402; mindX computes it from Turbo's public prices and PARSEC
   refuses a fee above its own computation. Every payment is checked before signing — USDC, Base,
   and within the budget shown on screen — even under an auto-approve cap.
 - **What an upload costs, every way, exactly.** The upload screen prices the paid items by
   Arweave directly (AR), Turbo credits and Turbo over x402 (with Turbo's one-cent minimum per
-  item and the BANKON fee), in AR and dollars, with integer arithmetic rounded up.
+  item and the BANKONx402 fee), in AR and dollars, with integer arithmetic rounded up.
 - **ArNS prices read correctly.** Name costs showed the raw mARIO number labelled "ARIO" — a
   million times too large; the name controller divided as a float. They now show ARIO exactly,
   with its dollar value.
@@ -84,7 +84,7 @@ All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri
 
 ### Fixes
 - **x402: an order's terms are checked even under an auto-approve cap.** A new `verify` option runs
-  before anything is signed, always; the .algo/ArNS store payments and the BANKON fee use it, so a
+  before anything is signed, always; the .algo/ArNS store payments and the BANKONx402 fee use it, so a
   registry cannot redirect a capped payment to another payee or amount.
 - **Store orders**: every order the registry returns is checked against what was shown (fee = 10 %,
   at least $0.05; total = price + fee; price, payout and buyer unchanged); after each payment the
