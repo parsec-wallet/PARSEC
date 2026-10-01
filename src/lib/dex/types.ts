@@ -3,7 +3,14 @@
 // SpinTrade aggregates quotes from all enabled DEX sources.
 // Participant chooses the best price and path.
 
+import type algosdk from 'algosdk';
 import type { NetworkId } from '../../types/wallet';
+
+/** Signs for the swapping account — the PARSEC Keycore on desktop. Never a key. */
+export interface SwapSigner {
+  address: string;
+  sign: algosdk.TransactionSigner;
+}
 
 export interface DexQuote {
   inputAssetId: number;
@@ -15,7 +22,9 @@ export interface DexQuote {
   fee: number;
   minOutput: number;
   poolAddress: string;
-  dex: string; // which DEX provided this quote
+  dex: string; // which DEX provided this quote (display name)
+  /** The module that executes this quote (DexModule.id). */
+  dexId?: string;
 }
 
 export interface DexAsset {
@@ -49,7 +58,7 @@ export interface DexModule {
 
   /** Execute the swap on-chain */
   executeSwap(
-    mnemonic: string,
+    signer: SwapSigner,
     inputAssetId: number,
     outputAssetId: number,
     inputAmount: number,

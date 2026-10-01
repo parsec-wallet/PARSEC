@@ -1,12 +1,26 @@
-// SpinTrade — Tinyman On-Chain Module
-// ALL data read directly from Algorand blockchain via Algod + Indexer.
-// Zero third-party API dependencies. Sovereign data source.
-// Pool discovery via Indexer. Reserves from account state. Execution via AMM contracts.
+// SpinTrade — Tinyman v2, read and traded on chain.
+//
+// A Tinyman v2 pool is a logic-signature account whose program is a fixed
+// template with the validator app id and the two asset ids written into it
+// (Tinyman's SDK: tinyman/v2/contracts.py, get_pool_logicsig). So a pool's
+// address is derived, not looked up, and its reserves and fee are read from
+// the pool's local state in the validator app — the chain is the source, no
+// API is trusted for either.
+//
+//   asset_1 = the larger asset id, asset_2 = the smaller (ALGO is 0)
+//   quote   = fixed-input: fee = in × total_fee_share / 10 000; the rest
+//             swaps against the constant product; all bigint
+//   swap    = [transfer in → pool, app call "swap" "fixed-input" min_out],
+//             foreign assets [asset_1, asset_2], the pool as account, the
+//             app call paying 2 × min fee (it makes one inner transfer)
+//
+// Signing is the caller's SwapSigner (the PARSEC Keycore); no key here.
 
 import algosdk from 'algosdk';
 import type { NetworkId } from '../../types/wallet';
 import type { DexModule, DexQuote, DexAsset } from './types';
-import { getAlgodClient, getIndexerClient } from '../algorand/client';
+import { getAlgodClient } from '../algorand/client';
+import { standardAssets } from '../algorand/asset-whitelist';
 
 const TINYMAN_APP_ID: Record<NetworkId, number> = {
   mainnet: 1002541853,
@@ -14,96 +28,79 @@ const TINYMAN_APP_ID: Record<NetworkId, number> = {
   betanet: 0,
 };
 
-/** Known high-liquidity pairs — hardcoded from on-chain verified data */
-function getKnownPairs(assetId: number, network: NetworkId): DexAsset[] {
-  if (network === 'testnet') {
-    return assetId === 0
-      ? [{ assetId: 10458941, unitName: 'USDC', name: 'USDC (Testnet)', decimals: 6 }]
-      : [{ assetId: 0, unitName: 'ALGO', name: 'Algorand', decimals: 6 }];
-  }
-  const known: DexAsset[] = [
-    { assetId: 0, unitName: 'ALGO', name: 'Algorand', decimals: 6 },
-    { assetId: 31566704, unitName: 'USDC', name: 'USD Coin', decimals: 6 },
-    { assetId: 312769, unitName: 'USDt', name: 'Tether USDt', decimals: 6 },
-  ];
-  return known.filter(a => a.assetId !== assetId);
+/** Tinyman v2 pool logic-signature template (tinyman-py-sdk, tinyman/v2/constants.py). */
+const POOL_LOGICSIG_TEMPLATE = 'BoAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgQBbNQA0ADEYEkQxGYEBEkSBAUM=';
+
+function u64(n: number): Uint8Array {
+  const b = new Uint8Array(8);
+  new DataView(b.buffer).setBigUint64(0, BigInt(n));
+  return b;
 }
 
-/** Read pool reserves by finding the pool account on-chain */
-async function findPoolAndReserves(
-  inputAssetId: number,
-  outputAssetId: number,
-  network: NetworkId,
-): Promise<{ address: string; inputReserve: number; outputReserve: number } | null> {
+/** The v2 pool address for a pair: the template with app id and asset ids written in. */
+export function tinymanPoolAddress(appId: number, assetA: number, assetB: number): string {
+  const program = Uint8Array.from(atob(POOL_LOGICSIG_TEMPLATE), (c) => c.charCodeAt(0));
+  program.set(u64(appId), 3);
+  program.set(u64(Math.max(assetA, assetB)), 11);
+  program.set(u64(Math.min(assetA, assetB)), 19);
+  return new algosdk.LogicSigAccount(program).address().toString();
+}
+
+interface PoolState {
+  address: string;
+  asset1: number;
+  asset2: number;
+  reserve1: bigint;
+  reserve2: bigint;
+  feeBps: bigint;
+}
+
+/** Read a pool's state from chain; null when the pair has no bootstrapped v2 pool. */
+async function readPool(a: number, b: number, network: NetworkId): Promise<PoolState | null> {
   const appId = TINYMAN_APP_ID[network];
   if (!appId) return null;
-
-  const indexer = getIndexerClient(network);
-  const algod = getAlgodClient(network);
-
-  // Normalize: lower ID = asset1
-  const [a1, a2] = inputAssetId < outputAssetId
-    ? [inputAssetId, outputAssetId]
-    : [outputAssetId, inputAssetId];
-
+  const address = tinymanPoolAddress(appId, a, b);
   try {
-    // Find pool account: search for axfer transactions to the AMM involving our assets
-    const searchAsset = a2 > 0 ? a2 : a1; // search for the non-ALGO asset
-    const txResponse = await indexer
-      .searchForTransactions()
-      .applicationID(appId)
-      .txType('axfer')
-      .assetID(searchAsset > 0 ? searchAsset : undefined as unknown as number)
-      .limit(15)
-      .do();
-
-    // Candidate pool addresses from transaction receivers
-    const candidates = new Set<string>();
-    for (const tx of txResponse.transactions || []) {
-      const axfer = tx.assetTransferTransaction as Record<string, unknown> | undefined;
-      const receiver = String(axfer?.receiver || '');
-      if (receiver && receiver !== String(tx.sender || '')) {
-        candidates.add(receiver);
-      }
+    const info = await getAlgodClient(network).accountApplicationInformation(address, appId).do();
+    const kv = (info.appLocalState?.keyValue ?? []) as { key: Uint8Array | string; value: { uint: bigint | number } }[];
+    const state = new Map<string, bigint>();
+    for (const e of kv) {
+      const key = typeof e.key === 'string' ? atob(e.key) : new TextDecoder().decode(e.key);
+      state.set(key, BigInt(e.value.uint ?? 0));
     }
+    const asset1 = Number(state.get('asset_1_id') ?? -1n);
+    const asset2 = Number(state.get('asset_2_id') ?? -1n);
+    if (asset1 !== Math.max(a, b) || asset2 !== Math.min(a, b)) return null;
+    return {
+      address, asset1, asset2,
+      reserve1: state.get('asset_1_reserves') ?? 0n,
+      reserve2: state.get('asset_2_reserves') ?? 0n,
+      feeBps: state.get('total_fee_share') ?? 30n,
+    };
+  } catch {
+    return null; // no such account, or not opted in to the validator: no pool
+  }
+}
 
-    // Check each candidate — is it a pool for our pair?
-    for (const addr of candidates) {
-      try {
-        const acctInfo = await algod.accountInformation(addr).do();
-        const appsLocal = (acctInfo as unknown as { appsLocalState?: { id: unknown }[] }).appsLocalState || [];
-        const isPool = appsLocal.some(app => Number(app.id) === appId);
-        if (!isPool) continue;
+function reservesFor(pool: PoolState, inputAssetId: number): { inR: bigint; outR: bigint } {
+  return inputAssetId === pool.asset1
+    ? { inR: pool.reserve1, outR: pool.reserve2 }
+    : { inR: pool.reserve2, outR: pool.reserve1 };
+}
 
-        // Check it holds both assets
-        const algoBalance = Number(acctInfo.amount || 0);
-        const holdings = acctInfo.assets || [];
+/** Fixed-input swap output, as the validator computes it. */
+export function fixedInputOut(amountIn: bigint, inR: bigint, outR: bigint, feeBps: bigint): bigint {
+  if (amountIn <= 0n || inR <= 0n || outR <= 0n) return 0n;
+  const fee = (amountIn * feeBps) / 10_000n;
+  const swapIn = amountIn - fee;
+  return (outR * swapIn) / (inR + swapIn);
+}
 
-        let has1 = a1 === 0 ? algoBalance > 0 : false;
-        let has2 = false;
-        let reserve1 = a1 === 0 ? algoBalance : 0;
-        let reserve2 = 0;
-
-        for (const h of holdings) {
-          const hId = Number(h.assetId);
-          if (hId === a1 && a1 > 0) { has1 = true; reserve1 = Number(h.amount); }
-          if (hId === a2) { has2 = true; reserve2 = Number(h.amount); }
-        }
-
-        if (has1 && has2 && reserve1 > 0 && reserve2 > 0) {
-          // Map reserves back to input/output order
-          const inputIsA1 = inputAssetId === a1 || (inputAssetId === 0 && a1 === 0);
-          return {
-            address: addr,
-            inputReserve: inputIsA1 ? reserve1 : reserve2,
-            outputReserve: inputIsA1 ? reserve2 : reserve1,
-          };
-        }
-      } catch { continue; }
-    }
-  } catch { /* indexer search failed */ }
-
-  return null;
+/** Candidates for "what can this asset be swapped to": ALGO and the verified list. */
+function candidates(assetId: number, network: NetworkId): DexAsset[] {
+  const list: DexAsset[] = [{ assetId: 0, unitName: 'ALGO', name: 'Algorand', decimals: 6 }];
+  for (const s of standardAssets(network)) list.push({ assetId: s.assetId, unitName: s.unitName, name: s.name, decimals: s.decimals });
+  return list.filter((a) => a.assetId !== assetId);
 }
 
 export const tinymanOnchainModule: DexModule = {
@@ -112,147 +109,78 @@ export const tinymanOnchainModule: DexModule = {
   enabled: true,
 
   async fetchPairsForAsset(assetId: number, network: NetworkId): Promise<DexAsset[]> {
-    const appId = TINYMAN_APP_ID[network];
-    if (!appId) return getKnownPairs(assetId, network);
-
-    const indexer = getIndexerClient(network);
-    const algod = getAlgodClient(network);
-    const discovered: DexAsset[] = [];
-    const seenIds = new Set<number>();
-
-    try {
-      // Search recent AMM transactions to discover asset pairs
-      const response = await indexer
-        .searchForTransactions()
-        .applicationID(appId)
-        .limit(40)
-        .do();
-
-      for (const tx of response.transactions || []) {
-        const raw = tx as unknown as Record<string, unknown>;
-        const innerTxns = (raw.innerTxns || raw['inner-txns'] || []) as Record<string, unknown>[];
-        for (const inner of innerTxns) {
-          const axfer = (inner.assetTransferTransaction || inner['asset-transfer-transaction']) as Record<string, unknown> | undefined;
-          if (axfer) {
-            const aid = Number(axfer.assetId || axfer['asset-id'] || 0);
-            if (aid > 0 && aid !== assetId && !seenIds.has(aid)) {
-              seenIds.add(aid);
-            }
-          }
-        }
-      }
-    } catch { /* fall through to known pairs */ }
-
-    // Always include known pairs as fallback
-    for (const known of getKnownPairs(assetId, network)) {
-      if (!seenIds.has(known.assetId)) {
-        seenIds.add(known.assetId);
-        discovered.push(known);
-      }
-    }
-
-    // Look up metadata for discovered assets
-    for (const aid of seenIds) {
-      if (discovered.some(a => a.assetId === aid)) continue;
-      try {
-        const info = await algod.getAssetByID(aid).do();
-        discovered.push({
-          assetId: aid,
-          unitName: String(info.params?.unitName || ''),
-          name: String(info.params?.name || `ASA #${aid}`),
-          decimals: Number(info.params?.decimals ?? 6),
-        });
-      } catch {
-        discovered.push({ assetId: aid, unitName: `ASA#${aid}`, name: `ASA #${aid}`, decimals: 6 });
-      }
-    }
-
-    // Enrich each pair with pool reserves and price from on-chain data
-    for (const asset of discovered) {
-      try {
-        const pool = await findPoolAndReserves(assetId, asset.assetId, network);
-        if (pool && pool.inputReserve > 0 && pool.outputReserve > 0) {
-          // Input decimals (the asset we're swapping FROM)
-          const inputDec = assetId === 0 ? 6 : 6; // ALGO = 6, default 6
-          const outputDec = asset.decimals;
-
-          // Reserves in human-readable form
-          const inputReserveHuman = pool.inputReserve / Math.pow(10, inputDec);
-          const outputReserveHuman = pool.outputReserve / Math.pow(10, outputDec);
-
-          // Price: how much output per 1 input (constant product)
-          const price = outputReserveHuman / inputReserveHuman;
-
-          asset.poolReserveThis = pool.outputReserve;
-          asset.poolReserveOther = pool.inputReserve;
-          asset.poolPrice = price;
-          asset.poolLiquidity = `${inputReserveHuman.toFixed(2)} / ${outputReserveHuman.toFixed(2)}`;
-        }
-      } catch { /* pool lookup failed — show without liquidity data */ }
-    }
-
-    return discovered;
+    // One chain read per candidate, in parallel: a pair is listed only if its
+    // v2 pool exists and holds liquidity.
+    const found = await Promise.all(candidates(assetId, network).map(async (c) => {
+      const pool = await readPool(assetId, c.assetId, network);
+      if (!pool) return null;
+      const { inR, outR } = reservesFor(pool, assetId);
+      if (inR === 0n || outR === 0n) return null;
+      return {
+        ...c,
+        poolReserveThis: Number(outR),
+        poolReserveOther: Number(inR),
+        poolLiquidity: `${(Number(outR) / 10 ** c.decimals).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${c.unitName} in pool`,
+      } as DexAsset;
+    }));
+    return found.filter((a): a is DexAsset => a !== null);
   },
 
   async getQuote(inputAssetId, outputAssetId, inputAmount, slippageBps, network): Promise<DexQuote | null> {
-    const pool = await findPoolAndReserves(inputAssetId, outputAssetId, network);
-    if (!pool || pool.inputReserve === 0 || pool.outputReserve === 0) return null;
-
-    const feeRate = 0.003;
-    const inputAfterFee = inputAmount * (1 - feeRate);
-    const outputAmount = Math.floor(
-      (pool.outputReserve * inputAfterFee) / (pool.inputReserve + inputAfterFee)
-    );
-    const minOutput = Math.floor(outputAmount * (1 - slippageBps / 10000));
-
+    const pool = await readPool(inputAssetId, outputAssetId, network);
+    if (!pool) return null;
+    const { inR, outR } = reservesFor(pool, inputAssetId);
+    const amountIn = BigInt(Math.floor(inputAmount));
+    const out = fixedInputOut(amountIn, inR, outR, pool.feeBps);
+    if (out <= 0n) return null;
+    const minOut = (out * BigInt(10_000 - slippageBps)) / 10_000n;
+    // Impact: how far this trade's price is from the pool's spot price, fee
+    // aside (the fee is reported on its own).
+    const swapIn = amountIn - (amountIn * pool.feeBps) / 10_000n;
+    const spotOut = inR > 0n ? (swapIn * outR) / inR : 0n;
+    const impact = spotOut > 0n ? Number(((spotOut - out) * 1_000_000n) / spotOut) / 10_000 : 0;
     return {
-      inputAssetId, outputAssetId, inputAmount, outputAmount,
-      priceImpact: (inputAmount / pool.inputReserve) * 100,
-      exchangeRate: inputAmount > 0 ? outputAmount / inputAmount : 0,
-      fee: Math.floor(inputAmount * feeRate),
-      minOutput,
+      inputAssetId, outputAssetId,
+      inputAmount: Number(amountIn),
+      outputAmount: Number(out),
+      priceImpact: impact,
+      exchangeRate: Number(out) / Number(amountIn),
+      fee: Number((amountIn * pool.feeBps) / 10_000n),
+      minOutput: Number(minOut),
       poolAddress: pool.address,
-      dex: 'Tinyman v2 (on-chain)',
+      dex: 'Tinyman v2',
+      dexId: 'tinyman-onchain',
     };
   },
 
-  async executeSwap(mnemonic, inputAssetId, outputAssetId, inputAmount, minOutputAmount, poolAddress, network): Promise<{ txId: string }> {
+  async executeSwap(signer, inputAssetId, outputAssetId, inputAmount, minOutputAmount, poolAddress, network): Promise<{ txId: string }> {
     const client = getAlgodClient(network);
-    const account = algosdk.mnemonicToSecretKey(mnemonic.trim());
     const appId = TINYMAN_APP_ID[network];
-    const suggestedParams = await client.getTransactionParams().do();
-    const txns: algosdk.Transaction[] = [];
+    // The pool must be the derived v2 pool for this pair — never an address from elsewhere.
+    const expected = tinymanPoolAddress(appId, inputAssetId, outputAssetId);
+    if (poolAddress !== expected) throw new Error('The quoted pool is not the Tinyman v2 pool for this pair.');
+    const sender = signer.address;
+    const sp = await client.getTransactionParams().do();
+    const asset1 = Math.max(inputAssetId, outputAssetId);
+    const asset2 = Math.min(inputAssetId, outputAssetId);
 
-    if (inputAssetId === 0) {
-      txns.push(algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        sender: account.addr, receiver: poolAddress, amount: inputAmount, suggestedParams,
-      }));
-    } else {
-      txns.push(algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-        sender: account.addr, receiver: poolAddress, amount: inputAmount,
-        assetIndex: inputAssetId, suggestedParams,
-      }));
-    }
-
-    txns.push(algosdk.makeApplicationCallTxnFromObject({
-      sender: account.addr, appIndex: appId,
-      appArgs: [
-        new TextEncoder().encode('swap'),
-        new TextEncoder().encode('fixed-input'),
-        algosdk.encodeUint64(minOutputAmount),
-      ],
-      foreignAssets: [
-        ...(inputAssetId > 0 ? [inputAssetId] : []),
-        ...(outputAssetId > 0 ? [outputAssetId] : []),
-      ],
+    const transferIn = inputAssetId === 0
+      ? algosdk.makePaymentTxnWithSuggestedParamsFromObject({ sender, receiver: poolAddress, amount: inputAmount, suggestedParams: sp })
+      : algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({ sender, receiver: poolAddress, amount: inputAmount, assetIndex: inputAssetId, suggestedParams: sp });
+    const minFee = BigInt(sp.minFee ?? 1000);
+    const call = algosdk.makeApplicationCallTxnFromObject({
+      sender, appIndex: appId,
+      appArgs: [new TextEncoder().encode('swap'), new TextEncoder().encode('fixed-input'), algosdk.encodeUint64(minOutputAmount)],
+      foreignAssets: [asset1, asset2],
       accounts: [poolAddress],
-      suggestedParams: { ...suggestedParams, fee: 8000 },
+      suggestedParams: { ...sp, flatFee: true, fee: minFee * 2n },
       onComplete: algosdk.OnApplicationComplete.NoOpOC,
-    }));
-
+    });
+    const txns = [transferIn, call];
     algosdk.assignGroupID(txns);
-    const signedTxns = txns.map(txn => txn.signTxn(account.sk));
-    const { txid } = await client.sendRawTransaction(signedTxns).do();
+    // Every transaction in the group is the swapper's; the Keycore signs them.
+    const signed = await signer.sign(txns, [0, 1]);
+    const { txid } = await client.sendRawTransaction(signed).do();
     await algosdk.waitForConfirmation(client, txid, 6);
     return { txId: txid };
   },
