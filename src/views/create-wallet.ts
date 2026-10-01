@@ -1,4 +1,4 @@
-// Parsec Wallet — Create Wallet View (Algorand)
+// PARSEC Wallet — Create Wallet View (Algorand)
 //
 // Address first, then the backup: the private key and the 25-word recovery phrase,
 // each hidden until revealed and each copyable. Verification and the vault
@@ -66,7 +66,7 @@ export function createWalletView(): HTMLElement {
       addressPanel('Algorand', address).el,
       backupWarning(),
       privateKey.el,
-      phrasePanel(mnemonic.split(' '), 'Write the 25 words down in order. This is Algorand\'s own 25-word format, not BIP-39; it restores this wallet in Parsec, Pera, Defly and any Algorand wallet.'),
+      phrasePanel(mnemonic.split(' '), 'Write the 25 words down in order. This is Algorand\'s own 25-word format, not BIP-39; it restores this wallet in PARSEC, Pera, Defly and any Algorand wallet.'),
       btn('I\'ve backed it up — verify', {
         intent: 'primary', large: true, cls: 'parsec-create__continue',
         onClick: () => store.navigate('verify-mnemonic'),

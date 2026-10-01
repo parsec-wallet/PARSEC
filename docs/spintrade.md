@@ -1,6 +1,6 @@
 # SpinTrade — DEX Aggregator
 
-SpinTrade is the integrated DEX aggregator in Parsec Wallet. It queries multiple Algorand AMMs in parallel, finds the best price, and lets the participant choose their swap path.
+SpinTrade is the integrated DEX aggregator in PARSEC Wallet. It queries multiple Algorand AMMs in parallel, finds the best price, and lets the participant choose their swap path.
 
 ## Architecture
 

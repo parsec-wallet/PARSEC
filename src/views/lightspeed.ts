@@ -1,4 +1,4 @@
-// Parsec Wallet — Lightspeed
+// PARSEC Wallet — Lightspeed
 //
 // The template view for an observe-privilege module: states its choices in
 // place, lets the participant pick a provider (local default, or a JSON-RPC
@@ -147,7 +147,7 @@ export function lightspeedView(): HTMLElement {
       }),
       el('p', {
         cls: 'parsec-view__desc',
-        text: 'Reactive chain reads over a provider you choose — the light.js idea, in-house, zero dependencies. This is also the template for a new Parsec module: see docs/lightspeed.md.',
+        text: 'Reactive chain reads over a provider you choose — the light.js idea, in-house, zero dependencies. This is also the template for a new PARSEC module: see docs/lightspeed.md.',
       }),
       declaration,
       provider,

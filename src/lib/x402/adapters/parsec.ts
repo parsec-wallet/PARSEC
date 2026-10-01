@@ -1,6 +1,6 @@
-// Parsec's implementations of the x402 host ports.
+// PARSEC's implementations of the x402 host ports.
 //
-// The only file in the module that knows Parsec exists. Everything else talks to
+// The only file in the module that knows PARSEC exists. Everything else talks to
 // `host.ts`, which is why the same protocol code runs in another wallet unchanged.
 //
 // Both signers route through Rust: `chain_algo_sign_transaction` takes the exact
@@ -128,12 +128,12 @@ export function signersForAccount(account: WalletAccount): X402Signers {
 }
 
 
-// ── Parsec as a host ─────────────────────────────────────────────────────────
+// ── PARSEC as a host ─────────────────────────────────────────────────────────
 
 const oracle = new PriceOracle();
 
 /**
- * Register Parsec's facilities against the module's ports.
+ * Register PARSEC's facilities against the module's ports.
  *
  * Called once, from the module manifest. Everything the module needs from the
  * application it gets here and nowhere else — which is why the same code runs
@@ -144,7 +144,7 @@ const oracle = new PriceOracle();
  */
 export function configureParsecX402Host(): void {
   configureX402Host({
-    // Parsec's own algod configuration, so a payment and a balance read use the same node.
+    // PARSEC's own algod configuration, so a payment and a balance read use the same node.
     algod: (network) => getAlgodClient(describeNetwork(network).walletNetwork ?? 'testnet'),
 
     // The Vestige DEX feed, for display beside a quote. Returning null — which it does

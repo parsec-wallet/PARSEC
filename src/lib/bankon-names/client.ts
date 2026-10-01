@@ -1,5 +1,5 @@
 // BANKON Names Registry client — mirror of src/lib/arweave/ario.ts but
-// pointed at the Parsec-owned BNR. Callers can swap the two namespaces
+// pointed at the PARSEC-owned BNR. Callers can swap the two namespaces
 // at the type level without changing the surrounding code.
 
 import type { DataItemInput, DataItemTag } from '../arweave/ans104';

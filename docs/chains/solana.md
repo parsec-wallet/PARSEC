@@ -1,11 +1,11 @@
-# Solana — Parsec chain pack
+# Solana — PARSEC chain pack
 
 > BIP-39 → SLIP-0010 ed25519 wallet. Phantom / Solflare-compatible derivation.
 
 ## Overview
 
-The Solana pack creates and operates a Solana wallet inside a Parsec account.
-Derivation is byte-compatible with Phantom and Solflare, so a Parsec Solana
+The Solana pack creates and operates a Solana wallet inside a PARSEC account.
+Derivation is byte-compatible with Phantom and Solflare, so a PARSEC Solana
 recovery phrase restores in those wallets and vice versa.
 
 ## Key derivation
@@ -15,7 +15,7 @@ recovery phrase restores in those wallets and vice versa.
   **`m/44'/501'/0'/0'`** (every segment hardened — SLIP-0010 ed25519 permits
   hardened derivation only).
 - **CAIP-2:** `solana:101` (mainnet). Solana has no testnet tie to Algorand's
-  network setting — Parsec treats Solana as always-mainnet.
+  network setting — PARSEC treats Solana as always-mainnet.
 - A known-answer test (`src/lib/solana/__tests__/seed.test.ts`) pins the
   derivation against an independently-derived reference address.
 
@@ -46,7 +46,7 @@ request carrying a browser `Origin` header.
 
 ## Notes
 
-Parsec carries no `@solana/web3.js` dependency — the SOL transfer is assembled
+PARSEC carries no `@solana/web3.js` dependency — the SOL transfer is assembled
 by hand (shortvec encoding, System Program transfer) from the base58 +
 `@noble/curves` primitives already in the bundle. The transfer serializer has
 a unit test (`__tests__/transfer.test.ts`).

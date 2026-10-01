@@ -3,7 +3,7 @@
 // `location.origin` stubbed, because a browser provides it and Node does not.
 //
 // The only thing not exercised here is the GUI leg — a person reading the intent in the
-// Parsec approval dialog and pressing Approve. The harness stands in for exactly that, and
+// PARSEC approval dialog and pressing Approve. The harness stands in for exactly that, and
 // nothing else, so every other hop is production code.
 //
 //   cd src-tauri && cargo run --example connect_harness 9877

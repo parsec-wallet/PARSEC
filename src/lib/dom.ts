@@ -1,4 +1,4 @@
-// Parsec Wallet — DOM Helpers
+// PARSEC Wallet — DOM Helpers
 // Minimal utilities for building UI without a framework.
 
 // Resolved by the bundler, so the mark is hashed and cached like any other asset.
@@ -170,7 +170,7 @@ export function toast(
 
 
 /**
- * The Parsec mark, as a clickable element.
+ * The PARSEC mark, as a clickable element.
  *
  * An `<img>` of the SVG rather than inlined markup: the CSP forbids `unsafe-inline`, and
  * a vector asset served by the bundler costs nothing to cache. `small` is the header
@@ -179,7 +179,7 @@ export function toast(
 export function brandLogo(opts: { small?: boolean; alt?: string } = {}): HTMLElement {
   const img = document.createElement('img');
   img.src = brandMarkUrl;
-  img.alt = opts.alt ?? 'Parsec';
+  img.alt = opts.alt ?? 'PARSEC';
   img.className = opts.small ? 'parsec-brand parsec-brand--small' : 'parsec-brand';
   img.width = opts.small ? 24 : 96;
   img.draggable = false;

@@ -1,4 +1,4 @@
-# Algorand HD (ARC-52) — Parsec chain pack
+# Algorand HD (ARC-52) — PARSEC chain pack
 
 > BIP32-Ed25519 hierarchical Algorand wallet, parallel to the classic 25-word module.
 

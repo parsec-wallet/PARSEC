@@ -2,7 +2,8 @@
 // Portable across wallet implementations. Secrets stay in Rust.
 //
 // Storage: Argon2id KDF → AES-256-GCM encrypted files
-// Location: Tauri app_data_dir / bankon_vault /
+// Location: Tauri app_data_dir / bankon_vault /   (the `default` profile)
+//           Tauri app_data_dir / vaults / <name> /  (every other profile)
 // Interface: create, unlock, lock, store, retrieve, remove, list
 
 pub mod crypto;
@@ -10,6 +11,7 @@ pub mod kdf;
 pub mod secure_mem;
 pub mod store;
 pub mod commands;
+pub mod profiles;
 pub mod tomb;
 pub mod tomb_commands;
 

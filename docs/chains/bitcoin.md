@@ -1,4 +1,4 @@
-# Bitcoin — Parsec chain pack
+# Bitcoin — PARSEC chain pack
 
 > BIP-32/44 Bitcoin wallet. Thin TypeScript IPC wrapper over the Rust backend.
 

@@ -1,4 +1,4 @@
-# Parsec Wallet — TODO Index
+# PARSEC Wallet — TODO Index
 
 > **Quick start:** `npm install && npm run dev` → open http://localhost:1420
 > For Tauri desktop: `npm run tauri:dev`. Full options in [Production Deploy](./PRODUCTION_DEPLOY.md#running-the-ui-locally).
@@ -88,7 +88,7 @@
 - [x] ~~**Wire the name desk UI to `pay.ts`.**~~ **Done 2026-09-21.** `views/name-claim.ts` quotes the treasury, reuses a settlement already on file, and otherwise pays it — the proof is produced, not pasted. Requoting on a term change drops a proof that no longer covers the price (`proofStillCovers`, extracted to `pay.ts` so the rule is tested rather than buried in a view), and concurrent requotes are sequence-guarded so a stale one cannot land.
 - [x] ~~**x402 multi-chain signer selection.**~~ **Done 2026-09-18.** Replaced by the rail registry (`src/lib/x402/rails.ts`): one rail per CAIP-2 namespace, `selectRequirement()` asks the registry which offers are payable and `unpayableNetworks()` names the rest. Adding a chain is one `registerRail()` call. The EVM, Solana and Arweave slots are registrable and still empty — see [integration/toon-connector.md](./integration/toon-connector.md).
 - [x] ~~**An EVM rail for x402.**~~ **Done 2026-09-18.** `src/lib/x402/rails/evm.ts` — EIP-3009 `transferWithAuthorization`, with the EIP-712 digest built and signed in Rust (`src-tauri/src/chain_evm/eip712.rs`, pinned against an `eth_account` vector). No generic `sign_hash` door: the digest is built from named fields of one struct. Per-rail payer resolution (`payersFromAccount()` / `resolvePayer()`) so an EVM offer is paid from the EVM address.
-- [x] ~~**Make the x402 module usable outside Parsec.**~~ **Done 2026-09-19.** The core talked to Parsec directly — `rails/avm.ts` imported the `chain_algo` IPC, storage was `localStorage`, algod was Parsec's client — so the protocol work was portable and the one line that mattered was not. Now three ports in `host.ts` (signing, storage, nodes), with `AvmSigner.sign` being `algosdk.TransactionSigner` so use-wallet / AlgoKit / Pera / Defly / Lute need no adapter. `createX402Client()` is the one-call facade. `portability.test.ts` pays end to end with a bare algosdk account and an in-memory store, and its last case reads the source and fails if the core reaches back into the application.
+- [x] ~~**Make the x402 module usable outside PARSEC.**~~ **Done 2026-09-19.** The core talked to PARSEC directly — `rails/avm.ts` imported the `chain_algo` IPC, storage was `localStorage`, algod was PARSEC's client — so the protocol work was portable and the one line that mattered was not. Now three ports in `host.ts` (signing, storage, nodes), with `AvmSigner.sign` being `algosdk.TransactionSigner` so use-wallet / AlgoKit / Pera / Defly / Lute need no adapter. `createX402Client()` is the one-call facade. `portability.test.ts` pays end to end with a bare algosdk account and an in-memory store, and its last case reads the source and fails if the core reaches back into the application.
 - [ ] **A Solana rail for x402** — the last empty slot with a real payee behind it. One `registerRail({ family: 'svm' })`.
 - [ ] TOON connector module (`tier: 'agenticplace'`, `enabled: false`) — **blocked on upstream leaving testnet**; production is "a named, empty tier" (ADR 0056) with no mainnet contracts, still true on <https://toon.ar.io/> as of 2026-09-02. Snapshot + re-check: [reference/permaweb/toon-ar-io/](./reference/permaweb/toon-ar-io/README.md).
 - [x] ~~**cp4096 commitment IV — kill float money** in the x402 path.~~ **Done 2026-08-30.** New `src/lib/money.ts` (exact `bigint` fixed-point, zero deps); `payment.ts` / `oracle.ts` / `discount.ts` converted; `PendingX402Payment` carries exact amounts with display strings beside them; `usdToAlgo` → `usdToAlgoForDisplay`. 28 new tests.
@@ -97,11 +97,11 @@
 - [x] ~~**Wire `chain_algo` and `chain_evm` into `src-tauri/src/lib.rs`.**~~ **Done 2026-09-19.** The missing seam turned out to be two accessors, not the whole `bankon-vault/2` refactor: `VaultSession::{store_by_address, retrieve_by_address}` over the *existing* `store::VaultStore`, plus declaring `secure_mem` (already in the tree, undeclared). Additive — no IPC change, no on-disk format change. `retrieve_by_address` returns `SecretBytes`, so the plaintext is wiped on drop rather than left in the allocator. `cargo check` clean; the x402 signing path now reaches Rust.
 - [x] ~~**Wire `chain_ar` and `chain_sol` too.**~~ **Done 2026-09-19.** As predicted, a `mod` line and a handler list each — plus declaring `bankon_vault::kdf` (already in the tree, undeclared), which `chain_sol/seed.rs` needs for the SLIP-0010 HMAC. All four chain packs now register: 15 Rust modules, 102 commands, 36 of them `chain_*`. 85 Rust lib tests pass (was 46 — the two packs brought their own).
 - [ ] **Implement `chain_btc_sign_psbt` for real** — `chain_btc/mod.rs:11` is still a derivation scaffold. Blocks the whole Bitcoin path.
-- [ ] **Bitcoin provider seam** (`src/lib/bitcoin/providers/`) with a `local` implementation — Bitcoin must work in Parsec **alone**. Follows the `namespaces/registry.ts` and `marketplace/providers/` pattern.
+- [ ] **Bitcoin provider seam** (`src/lib/bitcoin/providers/`) with a `local` implementation — Bitcoin must work in PARSEC **alone**. Follows the `namespaces/registry.ts` and `marketplace/providers/` pattern.
 - [ ] `bitcoin` module (tier `modules`) on the `local` provider, exercised on **regtest**: descriptor → receive → PSBT → sign → broadcast.
-- [ ] `bankon-waas` **optional** provider + `btc-node` diagnostics module (tier `identity`), registering only when reachable. Parsec is compatible with BANKONBTCWaaS but **must never require it**; absent = `unknown`, never `deficient`.
+- [ ] `bankon-waas` **optional** provider + `btc-node` diagnostics module (tier `identity`), registering only when reachable. PARSEC is compatible with BANKONBTCWaaS but **must never require it**; absent = `unknown`, never `deficient`.
 - [ ] Add the WaaS origins (`127.0.0.1:8088`, `:8090`) to the CSP `connect-src` allowlist in `src-tauri/tauri.conf.json` when wiring the above.
-- [x] ~~Ask whether WaaS `bankon-vault` and Parsec's `bankon_vault` are the same component.~~ **Answered: one shared component.** It is finding its way into several applications and **Parsec offers it as a service** — treat its 16 IPC commands as a public contract, additive changes only.
+- [x] ~~Ask whether WaaS `bankon-vault` and PARSEC's `bankon_vault` are the same component.~~ **Answered: one shared component.** It is finding its way into several applications and **PARSEC offers it as a service** — treat its 16 IPC commands as a public contract, additive changes only.
 - [ ] **Confirm the naming network** for `pythai`, `bankon`, `deltaverse`, `spintrade` — ArNS (Solana authority) or Permaweb Names (Arweave authority)? The two tools have diverged; publishing with the wrong one updates nothing. Fact-finding, blocks the rest.
 - [ ] If ArNS-on-Solana: adopt `ario-deploy` (devDependency only — `@ar.io/sdk` and `@solana/kit` are already present) and port `deploy:permaweb` / `deploy:resolver`, keeping the old scripts until one deploy is verified end to end.
 - [ ] Move publishing to the `ario-deploy` **GitHub Action** with a controller key, owner cold — matching `spintrade/deploy.yml` and `deltaverse/deploy.yml`.
@@ -213,7 +213,7 @@
   - `admin.lua`: bootstrap reserved names (bankon, parsec, pythai, cypherpunk, ar, ao, …), Set-Reserved / Clear-Reserved
   - `Info` diagnostic handler in `main.lua` for client sanity-checks
 - [x] One-time spawn script `scripts/spawn-bnr.mjs`: bundles Lua, signs Spawn DataItem from `DEPLOY_KEY`, polls confirmation, writes `BNR_PROCESS_ID` to `src/lib/bankon-names/process-id.ts`. Idempotent with `--force` override.
-- [x] Parsec client (`src/lib/bankon-names/`): `process-id.ts` + `isBnrConfigured()` guard, `payment.ts` (discriminated-union PaymentProof + tag mapping), `client.ts` (read+write helpers mirroring `ario.ts`)
+- [x] PARSEC client (`src/lib/bankon-names/`): `process-id.ts` + `isBnrConfigured()` guard, `payment.ts` (discriminated-union PaymentProof + tag mapping), `client.ts` (read+write helpers mirroring `ario.ts`)
 - [x] Views: `bankon-hub.ts` (identity + owned-names + actions), `bankon-claim.ts` (search → configure → execute, single signed DataItem), `bankon-name.ts` (root @ + undernames + extend + primary + transfer), `bankon-resolve.ts` (in-wallet resolver)
 - [x] Public permaweb resolver SPA (`apps/bankon-resolver/`): standalone Vite project, 3.70 kB JS, reads name from `?name=` / `#hash` / pathname, dry-runs `Resolve` on the BNR via `cu.ardrive.io`, redirects to `https://<txid>.arweave.net`
 - [x] Build/deploy scripts: `build:resolver`, `deploy:resolver`
@@ -235,7 +235,7 @@
 - [ ] Run `scripts/spawn-bnr.mjs` once (mainnet) to instantiate the BNR; record the process id
 - [ ] Bridge a small test amount (e.g. 100 ARIO) BASE → AO to validate the relayer responds; then bridge ~10k for the pythai claim if proceeding via AO route
 - [ ] Claim `pythai` via `views/ario-claim-pythai.ts`; bind to deployment manifest tx-id
-- [ ] Deploy Parsec to Arweave via `npm run deploy:permaweb:txid` first, then re-deploy via `npm run deploy:permaweb` once pythai's ANT is owned
+- [ ] Deploy PARSEC to Arweave via `npm run deploy:permaweb:txid` first, then re-deploy via `npm run deploy:permaweb` once pythai's ANT is owned
 - [ ] Complete sol.ar.io registration for the 99,600 ARIO BASE holding (deadline: June 1, 2026)
 - [ ] Deploy the BANKON Names resolver SPA via `npm run deploy:resolver`
 
@@ -319,7 +319,7 @@
 | Priority | Task | Status |
 |----------|------|--------|
 | Next | Wire viem for Ethereum signing in pouch | Planned |
-| Next | End-to-end x402 payment test (Parsec -> MindX -> Facilitator) | Planned |
+| Next | End-to-end x402 payment test (PARSEC -> MindX -> Facilitator) | Planned |
 | Next | BANKON holder discount live verification | Planned |
 | Future | Reputation feedback after x402 payments (ReputationRegistryClient) | Planned |
 | Future | Venalicarii/Mercatores marketplace in wallet | Planned |

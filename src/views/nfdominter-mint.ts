@@ -249,7 +249,7 @@ function renderQuote(q: NfdMintCostBreakdown): HTMLElement {
     el('span', { text: 'NFD total' }),
     el('span', { text: formatAlgo(q.totalMicroAlgos) }),
   ]}));
-  rows.push(el('div', { cls: 'parsec-nfdominter__hint', text: 'These are necessary: paid to the NFD registry and the network. The BANKON fee for Parsec (USDC, over x402) is shown separately on the next screen, before anything is paid.' }));
+  rows.push(el('div', { cls: 'parsec-nfdominter__hint', text: 'These are necessary: paid to the NFD registry and the network. The BANKON fee for PARSEC (USDC, over x402) is shown separately on the next screen, before anything is paid.' }));
   return el('div', { cls: 'parsec-nfdominter__quote-box', children: rows });
 }
 

@@ -1,4 +1,4 @@
-// Parsec Wallet — Identity Login (.algo names)
+// PARSEC Wallet — Identity Login (.algo names)
 //
 // Open the wallet by typing `mindx.algo` instead of hunting for a 58-character
 // address.

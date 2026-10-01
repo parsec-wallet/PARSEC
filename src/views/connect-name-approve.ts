@@ -63,7 +63,7 @@ export function connectNameApproveView(): HTMLElement {
   }));
 
   if (!ns) {
-    root.appendChild(refusal(`Parsec has no adapter for the namespace "${req.namespace}".`, req));
+    root.appendChild(refusal(`PARSEC has no adapter for the namespace "${req.namespace}".`, req));
     return root;
   }
   if (view.error) {
@@ -100,7 +100,7 @@ export function connectNameApproveView(): HTMLElement {
   root.appendChild(actions);
   root.appendChild(el('p', {
     cls: 'parsec-view__desc',
-    text: 'Parsec builds and signs this itself with your vault key. The site never sees the key and never chose the transaction.',
+    text: 'PARSEC builds and signs this itself with your vault key. The site never sees the key and never chose the transaction.',
   }));
 
   void prepare(ns, req, current, actions, view.risk);
@@ -141,8 +141,8 @@ async function prepare(
       cls: 'parsec-callout bp5-callout bp5-intent-warning',
       children: [el('p', {
         text: address
-          ? `This account (${truncId(address)}) neither owns nor controls ${req.name}, so Parsec cannot make this change.`
-          : `This account has no ${addressChainFor(ns) === 'solana' ? 'Solana' : 'Arweave'} address, so Parsec cannot sign for ${req.name}.`,
+          ? `This account (${truncId(address)}) neither owns nor controls ${req.name}, so PARSEC cannot make this change.`
+          : `This account has no ${addressChainFor(ns) === 'solana' ? 'Solana' : 'Arweave'} address, so PARSEC cannot sign for ${req.name}.`,
       })],
     }));
     actions.appendChild(btn('Decline', { intent: 'danger', large: true, onClick: () => void decline(req, 'Wallet cannot sign for this name') }));

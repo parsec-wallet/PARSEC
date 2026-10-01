@@ -1,4 +1,4 @@
-// Parsec Wallet Pouch — Core Types
+// PARSEC Wallet Pouch — Core Types
 // Wallet Module → Pouch → Vault Identity
 // Cypherpunk2048 Standard
 

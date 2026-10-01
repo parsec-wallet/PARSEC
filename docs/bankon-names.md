@@ -2,9 +2,9 @@
 
 ## Overview
 
-BANKON Names is Parsec's sovereign alternative to AR.IO's ArNS. A single AO process (the **BANKON Names Registry**, BNR) holds every name; claims are signed ANS-104 DataItems carrying a token-agnostic `Payment-Method` + `Payment-Proof` tag pair. No per-name ANT (different from ArNS — names are records on the BNR directly). No AR.IO dependency at runtime.
+BANKON Names is PARSEC's sovereign alternative to AR.IO's ArNS. A single AO process (the **BANKON Names Registry**, BNR) holds every name; claims are signed ANS-104 DataItems carrying a token-agnostic `Payment-Method` + `Payment-Proof` tag pair. No per-name ANT (different from ArNS — names are records on the BNR directly). No AR.IO dependency at runtime.
 
-The BANKON namespace runs **alongside** ArNS — Parsec resolves both. A name like `pythai` can exist independently in both registries (different process IDs, different ownership graphs).
+The BANKON namespace runs **alongside** ArNS — PARSEC resolves both. A name like `pythai` can exist independently in both registries (different process IDs, different ownership graphs).
 
 ## Why a second namespace
 
@@ -15,7 +15,7 @@ The BANKON namespace runs **alongside** ArNS — Parsec resolves both. A name li
 ## Architecture
 
 ```
-Parsec Wallet                          BANKON Names Registry (BNR)
+PARSEC Wallet                          BANKON Names Registry (BNR)
 ─────────────                          ──────────────────────────
 src/views/bankon-*.ts          ───▶    AO process (single)
 src/lib/bankon-names/                  ├── state.lua
@@ -32,7 +32,7 @@ src/lib/bankon-names/                  ├── state.lua
 
 apps/bankon-resolver/          ───▶    BNR.Resolve (read-only)
 (standalone permaweb SPA;              dry-run via cu.ardrive.io;
- 3.70 kB; no Parsec dep)               redirect to <txid>.arweave.net
+ 3.70 kB; no PARSEC dep)               redirect to <txid>.arweave.net
 ```
 
 ## Lifecycle
@@ -50,7 +50,7 @@ The script bundles the Lua source from `bankon-names-process/`, signs an AO Spaw
 
 ### Claim (any user)
 
-From inside Parsec: Dashboard → **BANKON Names** → **Claim a Name** → search → pick payment method → confirm. One signed DataItem; no ANT spawn round trip.
+From inside PARSEC: Dashboard → **BANKON Names** → **Claim a Name** → search → pick payment method → confirm. One signed DataItem; no ANT spawn round trip.
 
 Payment methods accepted at launch:
 

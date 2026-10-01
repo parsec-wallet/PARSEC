@@ -1,4 +1,4 @@
-// Parsec Wallet — Unified Keystore
+// PARSEC Wallet — Unified Keystore
 // Tauri desktop: uses bankon_vault (Rust-side Argon2id + AES-256-GCM, file-based)
 // Web fallback: uses crypto.ts (Web Crypto API, localStorage)
 //
@@ -8,11 +8,14 @@
 import { assertAllowed } from './mode';
 import { isTauri, vaultCreate, vaultUnlock, vaultLock, vaultStatus, vaultStoreKey, vaultRetrieveKey, vaultRemoveAccount, vaultDestroy } from './vault';
 import * as webCrypto from './crypto';
+import { webKeysKey } from './profiles';
 
 export interface KeystoreStatus {
   exists: boolean;
   unlocked: boolean;
   accounts: { address: string; chain: string; label: string }[];
+  /** The profile whose vault this describes (desktop builds with profiles). */
+  profile?: string;
 }
 
 /** Initialize keystore — create vault if it doesn't exist */
@@ -117,6 +120,6 @@ export async function keystoreDestroy(passphrase: string): Promise<void> {
   } else {
     // The browser build has no IPC, so the mode guard is applied here.
     assertAllowed('keystore_destroy');
-    localStorage.removeItem('parsec-encrypted-keys');
+    localStorage.removeItem(webKeysKey());
   }
 }

@@ -1,184 +1,199 @@
-# PARSEC Wallet
+<p align="center">
+  <img src="docs/img/parsec-mark-128.png" width="96" height="96" alt="The PARSEC mark">
+</p>
 
-Sovereign multi-chain wallet — Algorand, Solana, Arweave. Your keys. Your coins. No compromises.
+<h1 align="center">PARSEC</h1>
 
-(c) 2026 BANKON. GPL-3.0-or-later (key generation, signing & privacy) · Apache-2.0 (the rest) · MIT (server side) — see [LICENSE](LICENSE).
+<p align="center">
+  <b>Sovereign multi-chain wallet — Algorand first; Solana, Arweave, EVM / Base and Bitcoin beside it.</b><br>
+  Your keys. Your coins. No compromises.
+</p>
 
-## What Is Parsec
+<p align="center">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-66%25-3178c6?style=flat-square&logo=typescript&logoColor=white&labelColor=0b0f16">
+  <img alt="Rust" src="https://img.shields.io/badge/Rust-15%25-dea584?style=flat-square&logo=rust&logoColor=white&labelColor=0b0f16">
+  <img alt="SCSS" src="https://img.shields.io/badge/SCSS-14%25-c6538c?style=flat-square&logo=sass&logoColor=white&labelColor=0b0f16">
+  <img alt="Lua (AO)" src="https://img.shields.io/badge/Lua%20(AO)-2%25-2c2d72?style=flat-square&logo=lua&logoColor=white&labelColor=0b0f16">
+  <img alt="Tauri 2" src="https://img.shields.io/badge/Tauri-2-24c8db?style=flat-square&logo=tauri&logoColor=white&labelColor=0b0f16">
+  <img alt="Tests: 687 passing" src="https://img.shields.io/badge/tests-687%20passing-3ff0b0?style=flat-square&labelColor=0b0f16">
+  <img alt="Licence by component" src="https://img.shields.io/badge/licence-GPL--3.0%20%C2%B7%20Apache--2.0%20%C2%B7%20MIT-555?style=flat-square&labelColor=0b0f16">
+</p>
 
-Parsec is a sovereign universal wallet built on cypherpunk2048 principles. No React, no frameworks — a lean dependency set (algosdk, @noble curves, arweave). Vanilla TypeScript frontend with Blueprint.js CSS. Rust backend via Tauri with bankon_vault encrypted key storage.
+<p align="center">
+  <img src="docs/img/landing.png" width="860" alt="The PARSEC landing: the market pyramid ranked by the selected period, price glyphs, overlay toggles">
+</p>
 
-Every Parsec node is both client and server. P2P mesh with IPFS content handoffs. PostgreSQL + pgvectorscale for search (no Elasticsearch). Resource-aware throttling maps CPU, bandwidth, and electricity to crypto exchange value. dApp filesystem access controlled by participant choice on a 1-10 scale.
+PARSEC is a desktop wallet that keeps the part able to spend your money small and inspectable:
+**Rust signs and validates; the TypeScript interface only asks**. It is Algorand first, because
+Algorand's accounts can move to Falcon-1024 keys while keeping their address
+([QUANTUM.md](QUANTUM.md)). It runs as a Tauri 2 desktop app, and the same frontend build ships to
+the permaweb. Status: **alpha** — see [Where it stands](#where-it-stands).
 
-Parsec never holds your private key or mnemonic. Keys are encrypted on your device with your passphrase. bankon_vault is recommended but optional — the web version works standalone. All security is open source.
+Public home: **[github.com/parsec-wallet/PARSEC](https://github.com/parsec-wallet/PARSEC)** ·
+for agents: [llms.txt](https://github.com/parsec-wallet/.github/blob/main/llms.txt)
 
-## Features
+## What it does
 
-- **Create or import** Algorand wallets (25-word mnemonic, base64 private key, or watch-only address)
-- **Send & receive** ALGO and any Algorand Standard Asset (ASA)
-- **Multi-chain** — one account holds addresses on Algorand, Solana, and Arweave; each chain created or imported from its own recovery phrase
-- **Wallet switcher** — Phantom-style header picker: switch account or chain in one click, copy any chain address, per-account emoji avatars
-- **Solana** — create or import a Solana wallet (SLIP-0010 ed25519, Phantom-compatible derivation), view SOL balance, send SOL
-- **Arweave** — create an RSA-4096 Arweave wallet (deterministic keygen runs in a background Web Worker), view AR balance, send AR
-- **NFDominter** — mint and manage `.algo` names via NFD contracts
-- **SpinTrade swap** — in-wallet DEX via Tinyman v2 pools
-- **ASA management** — opt-in, opt-out, verified registry (USDC, USDt)
-- **Transaction confirmation** — review recipient, amount, fee, and network before signing
-- **Freeze/clawback warnings** — flagged before opt-in and on dashboard
-- **bankon_vault** — Rust-side Argon2id + AES-256-GCM encrypted key storage
-- **Tomb cold storage** — Linux LUKS encrypted volumes with USB key separation
-- **Auto-lock** — enforced in Rust, on by default (5 min), configurable; the DEK is dropped even if the UI is wedged or compromised
-- **Multi-account** — create, import, switch between accounts
-- **Watch-only mode** — view balances without signing keys
-- **In-wallet docs** — quickstart, FAQ, security model, asset guide
-- **Network switching** — mainnet, testnet, betanet
-- **Input classifier** — live detection and validation of pasted secrets
-- **pmVPN** — wallet-authenticated SSH terminal for remote machine access
-- **parsec_search** — sovereign search via PostgreSQL + pgvectorscale (no Elasticsearch)
-- **parsec_mesh** — every client is a server; IPFS content-addressed handoffs
-- **parsec_throttle** — resource-aware rate limiting (CPU, bandwidth, electricity mapping)
-- **parsec_sandbox** — dApp filesystem permissions on 1-10 participant choice scale
+**Wallets and chains**
 
-## Quick Start
+- **Create a wallet in three plain steps** — your address first; then the private key and the
+  recovery phrase, each hidden until revealed and each copyable; then verify and save into the vault.
+  Algorand uses its own 25-word phrase; Solana and Arweave use 24-word BIP-39 (the Arweave key also
+  downloads as its JWK).
+- **Choose your chains** — Algorand (required, first), Bitcoin (desktop, native SegWit), Solana
+  (SLIP-0010, Phantom-compatible), Arweave (RSA-4096, generated in a Web Worker), EVM / Base
+  (EIP-55). Also Algorand HD (ARC-52) and EVM → Algorand xChain accounts.
+- **Import** an Algorand mnemonic, a base64 private key, or a watch-only address; many accounts,
+  switched from the header.
+- **Send and receive** ALGO, any Algorand Standard Asset, SOL and AR; ASA opt-in with a registry of
+  known assets (USDC, USDt) and a freeze/clawback warning before opt-in.
+- **SpinTrade** — in-wallet swaps, aggregated across Tinyman (on-chain and API) and Pact.
 
-### Prerequisites
+**Payments and names**
 
-- **Node.js** 20+ and npm
-- **Rust** (latest stable) — for desktop builds only
-- **Platform-specific dependencies (Linux):** `webkit2gtk-4.1`, `libappindicator3-dev`, `librsvg2-dev`
+- **x402** — pay any `402 Payment Required` resource from the x402 desk: probe it, see the price per
+  network, pick the rail explicitly, approve; the receipt keeps the settled transaction id. Rails for
+  Algorand (USDC, facilitator-sponsored, no ALGO needed for fees), EVM (EIP-3009) and Solana. Browse
+  sellers in the Bazaar. Standalone module: [parsec-wallet/x402](https://github.com/parsec-wallet/x402).
+- **.algo Names** — search, register and manage `.algo` names (NFD). The review screen separates
+  what registration requires — the NFD registry price and network fee, in ALGO — from the **BANKON
+  fee**, in USDC over x402. Two currencies, two parties, never added together.
+- **Names and markets** — ArNS, BANKON Names and Solana-ArNS through one name hub; Marketspace
+  listings and auctions as an AO process.
 
-### Install & Run (Web)
+**The rest of the wallet**
+
+- **The landing** — a live market view: a pyramid of the top coins ranked by the period you choose
+  (1h, 4h, 24h, 7d, 30d), price glyphs that float or sink, stablecoin pegs and supply flow, top 10 and
+  favourites. Red Pill to open the wallet; Blue Pill for view-only diagnostics that can never sign.
+- **Permaweb** — upload to Arweave through Turbo, manage ArNS, bridge ARIO, join ar.io as a gateway.
+- **PARSEC Connect** — a local dApp bridge on `ws://127.0.0.1:9876`; every signature is approved on
+  screen.
+- **Desktop shell** — PARSEC's own title bar and icon, a tray (Show, Lock wallet, Quit),
+  close-to-tray and start at login (both in Settings → Window).
+- **Also** — Identity, the Mausoleum (cold storage), a Key Ceremony for air-gapped keys,
+  Diagnostics, the Linkage map, pmVPN (wallet-authenticated SSH), Lightspeed reactive reads, in-wallet
+  docs, mainnet / testnet / betanet.
+
+<p align="center">
+  <img src="docs/img/create-wallet.png" width="720" alt="Creating an Algorand wallet: the address first, then the private key and the recovery phrase, each hidden until revealed">
+</p>
+
+## Quick start
+
+**Prerequisites:** Node.js 20+ and npm. For the desktop app, Rust (stable) and, on Linux,
+`libwebkit2gtk-4.1-dev`, `libappindicator3-dev`, `librsvg2-dev`.
 
 ```bash
 npm install
-npm run dev
+npm run tauri:dev      # the desktop app — the full wallet, keys in the Rust vault
+npm run dev            # the web build at http://localhost:1420
 ```
 
-Open `http://localhost:1420` in your browser. The web version is fully functional — create wallets, send/receive, swap, manage assets.
+The web build creates wallets, sends, swaps and pays; chain packs that live in Rust (Bitcoin,
+Litecoin) and the vault are desktop-only.
 
-### Run Desktop App (Tauri)
+## Commands
 
-```bash
-npm run tauri:dev
-```
-
-Requires Rust toolchain. Desktop version uses bankon_vault (Rust-side encryption) for stronger key protection.
-
-### Build for Production
-
-```bash
-# Frontend only
-npm run build
-
-# Desktop app (current platform)
-npm run tauri:build
-```
+| | |
+|---|---|
+| `npm run dev` · `npm run tauri:dev` | Web dev server · desktop app in dev mode |
+| `npm run build` · `npm run tauri:build` | Typecheck and build the frontend · package the desktop app |
+| `npm test` · `npm run test:watch` | The test suite (75 files, 687 tests) |
+| `npx tsc --noEmit` | Typecheck; with `npm test`, required before a change is done |
+| `npm run lint:css` · `lint:css:ci` · `lint:css:production` | Stylelint (fix) · CI output · production rules |
+| `npm run deploy:permaweb` · `deploy:permaweb:txid` | Publish `dist/` to Arweave (binding the ArNS name · by transaction id) |
+| `npm run build:resolver` · `deploy:resolver` | The ArNS resolver page |
+| `npm run map:arweave` | Regenerate the Arweave / ar.io source map |
+| `npm run spawn:bnr` · `spawn:bmr` | One-time AO process spawns (BANKON Names registry · Marketspace) |
 
 ## Architecture
 
 ```
-src/                          # Frontend — vanilla TypeScript
-├── main.ts                   # Entry point, view registration, auto-lock
+src/                     TypeScript interface — 71 views; lib/ holds one typed wrapper per Rust module
+├── main.ts              entry: views, router, title bar, viewport
 ├── lib/
-│   ├── store.ts              # State management (sensitive data in private fields)
-│   ├── router.ts             # View router (re-renders only on view change)
-│   ├── dom.ts                # DOM helpers (el, btn, input, toast)
-│   ├── keystore.ts           # Unified keystore (auto-selects vault or web crypto)
-│   ├── crypto.ts             # Web Crypto fallback (PBKDF2 + AES-256-GCM)
-│   ├── vault.ts              # Tauri vault IPC client
-│   ├── tomb.ts               # Tomb IPC client (Linux cold storage)
-│   ├── algorand/
-│   │   ├── account.ts        # Account create, import, validate
-│   │   ├── client.ts         # Algod/Indexer client config (AlgoNode)
-│   │   ├── transactions.ts   # Send ALGO, send ASA, fetch history
-│   │   ├── assets.ts         # ASA opt-in/out, lookup, enrichment, registry
-│   │   ├── swap.ts           # SpinTrade engine (Tinyman v2 quotes + execution)
-│   │   └── validate.ts       # Input classifier (mnemonic, key, address)
-│   ├── solana/               # Solana — SLIP-0010 ed25519 derivation, balance, transfer
-│   ├── arweave/              # Arweave — RSA-4096 keygen (Web Worker), tx, AO, ANS-104
-│   ├── dashboard/            # Dashboard module registry + wallet switcher
-│   ├── chains.ts             # Chain registry — CAIP-2 ids, per-chain metadata
-│   └── avatars.ts            # Deterministic per-account emoji avatars
-├── views/                    # UI views (vanilla DOM)
-│   ├── onboarding.ts         # Welcome screen
-│   ├── create-wallet.ts      # Generate mnemonic
-│   ├── verify-mnemonic.ts    # Verify + set passphrase
-│   ├── import-wallet.ts      # Import (mnemonic/key/address)
-│   ├── unlock.ts             # Session unlock
-│   ├── dashboard.ts          # Balance, assets, transactions
-│   ├── send.ts               # Send with asset selector
-│   ├── confirm-send.ts       # Transaction review
-│   ├── receive.ts            # Public address display
-│   ├── add-asset.ts          # ASA opt-in
-│   ├── swap.ts               # SpinTrade DEX
-│   ├── docs.ts               # In-wallet documentation
-│   ├── settings.ts           # Network, accounts, avatars, lock, reset
-│   ├── solana-create.ts      # Create a Solana wallet
-│   ├── solana-send.ts        # Send SOL
-│   ├── arweave-create.ts     # Create an Arweave (RSA-4096) wallet
-│   ├── arweave-send.ts       # Send AR
-│   └── nfdominter.ts         # Mint / manage .algo names (NFD)
-├── types/wallet.ts           # TypeScript types
-└── styles/                   # SCSS design system + Blueprint CSS
+│   ├── dom.ts           el() / btn() / input() — the whole component kit
+│   ├── platform.ts      the only path to Rust (and viewing-mode enforcement via mode.ts)
+│   ├── nav.ts           routes and the accordion: Chain Modules · Wallet Pouch · Vault Identity ·
+│   │                    AgenticPlace · .algo · Permaweb
+│   ├── pouch/           WalletModule registry — keys per chain
+│   ├── chains.ts        ChainDescriptor registry — display, CAIP-2, explorers
+│   ├── namespaces/      NamespaceAdapter registry — ArNS, BANKON Names, Solana-ArNS
+│   ├── algorand/ solana/ arweave/ bitcoin/ litecoin/ xchain/ algorand-hd/
+│   ├── x402/            the payment rail (also published standalone)
+│   ├── nfd/             .algo names, the BANKON fee over x402
+│   ├── dex/             SpinTrade (Tinyman, Pact)
+│   ├── permaweb/        Turbo uploads, ArNS, ar.io
+│   └── keystore.ts      vault on desktop, Web Crypto in the browser
+└── views/               matrix (landing), create-select, create-wallet, x402-desk, nfdominter-*, …
 
-src-tauri/                    # Backend — Rust
-├── src/
-│   ├── lib.rs                # Tauri app (6 states, 66 IPC commands)
-│   ├── main.rs               # Entry point
-│   ├── bankon_vault/         # Encrypted vault (16 commands)
-│   │   ├── crypto.rs         # Argon2id + AES-256-GCM
-│   │   ├── store.rs          # File-based vault storage
-│   │   ├── tomb.rs           # Tomb CLI wrapper (Linux cold storage)
-│   │   └── commands.rs + tomb_commands.rs
-│   ├── pmvpn/                # Wallet-authenticated SSH (5 commands)
-│   ├── parsec_search/        # PostgreSQL + pgvectorscale (8 commands)
-│   │   ├── pool.rs           # Connection pool + extension detection
-│   │   ├── schema.rs         # Auto-migrating tables
-│   │   └── search.rs         # Hybrid text + vector search
-│   ├── parsec_mesh/          # P2P mesh + IPFS handoffs (10 commands)
-│   │   ├── ipfs.rs           # Kubo HTTP API integration
-│   │   ├── peer.rs           # Discovery + reputation
-│   │   ├── resource.rs       # CPU/bandwidth/electricity mapping
-│   │   └── server.rs         # Embedded axum server
-│   ├── parsec_throttle/      # Rate limiting + energy cost (6 commands)
-│   └── parsec_sandbox/       # dApp filesystem 1-10 scale (11 commands)
-├── Cargo.toml
-└── tauri.conf.json
+src-tauri/src/           Rust — 16 modules, 9 managed states, 112 commands
+├── bankon_vault/        encrypted key storage + Tomb cold volumes
+├── chain_algo/ chain_sol/ chain_ar/ chain_evm/ chain_btc/ chain_ltc/   signing per chain
+├── parsec_validate/     address validators
+├── parsec_connect/      the dApp bridge
+├── app_shell/           title bar controls, tray, close-to-tray, start at login
+└── parsec_search/ parsec_mesh/ parsec_throttle/ parsec_sandbox/        optional infrastructure
 ```
 
-## Security Model
+Every Rust module, its command count and what it needs to run — including the optional peer server,
+IPFS handoffs, PostgreSQL search, rate limiting and the ten-level dApp sandbox — is in
+**[docs/technical.md](docs/technical.md)**. Adding a chain or tool is one module registration and one
+document: [docs/modules.md](docs/modules.md).
 
-- **Key sovereignty** — Parsec never stores raw keys. Encrypted with your passphrase on your device.
-- **Desktop encryption** — Argon2id key derivation + AES-256-GCM (bankon_vault, Rust)
-- **Web encryption** — PBKDF2 600K iterations + AES-256-GCM (Web Crypto API)
-- **Session isolation** — passphrase held in private class fields, never serialized to localStorage
-- **Mnemonic zeroing** — secrets overwritten after signing, cleared in finally blocks
-- **Auto-lock** — Rust-enforced idle timer, on by default, drops the vault key independently of the frontend
-- **CSP hardened** — no unsafe-inline, no unsafe-eval, whitelisted endpoints only
-- **Cold storage** — optional Tomb encrypted volumes with USB key separation (Linux)
-- **Watch-only** — explicit flag, signing blocked at view level
-- **Sovereign search** — PostgreSQL + pgvectorscale hybrid search (replaces Elasticsearch)
-- **P2P mesh** — every client is a server; content handoffs via IPFS CIDs
-- **Resource throttling** — CPU/bandwidth/electricity mapped to real cost; token bucket rate limiting
-- **dApp sandbox** — filesystem access on 1-10 participant choice scale, full audit log
+## Security model
 
-## Development
+- **Keys stay yours.** Keys rest encrypted on your device under your passphrase. On desktop the vault
+  is Rust's `bankon_vault` (Argon2id key derivation, AES-256-GCM); in the browser, Web Crypto
+  (PBKDF2, 600,000 iterations, AES-256-GCM). Signing runs in Rust for every chain pack and returns a
+  signature, never a key.
+- **Profiles.** A device can hold several vaults, each with its own passphrase and wallets; one is open
+  at a time. A forgotten passphrase is answered with a new vault beside the old one — nothing is
+  deleted. How to use it: [docs/bankon-vault.md](docs/bankon-vault.md).
+- **Session hygiene.** The passphrase is held in private fields, never in `localStorage`; mnemonics are
+  retrieved only to sign and cleared in `finally` blocks.
+- **Auto-lock.** On by default after 5 minutes of inactivity, enforced by the interface. The
+  Rust-enforced auto-lock belongs to the second-generation vault, which is not compiled in yet.
+- **Content Security Policy.** Scripts: `'self'` only — no `unsafe-inline`, no `unsafe-eval` — and
+  network access to an explicit list of endpoints. Styles allow `'unsafe-inline'`.
+- **Viewing mode.** The Blue Pill can never reach keys, signing, the dApp bridge or the encrypted
+  volume; `lib/mode.ts` refuses those commands.
+- **Watch-only accounts** are flagged and blocked from signing; **Tomb** cold volumes (Linux, LUKS)
+  keep keys offline with a separate USB key.
 
-```bash
-npm run dev              # Vite dev server (web only)
-npm run build            # TypeScript + Vite production build
-npm run tauri:dev        # Full Tauri desktop dev mode
-npm run tauri:build      # Production desktop build
-npm run lint:css         # SCSS lint
-```
+Details: [vault guide](docs/bankon-vault.md) · [SECURITY.md](SECURITY.md) (disclosure) · [threat model](docs/security/threat-model.md) ·
+[vault specification](docs/security/bankon-vault-spec.md).
 
-## License
+## Where it stands
 
-(c) 2026 BANKON. Licensed by component: **GPL-3.0-or-later** for client-facing encryption software — every file
-that generates keys, derives them from a seed or mnemonic, holds key material, or signs
-(`bankon_vault`, the `chain_*` packs, pmVPN, and the TypeScript key paths enumerated in
-`REUSE.toml`), **Apache-2.0** for the rest of the wallet, **MIT** for the
-server-side AO processes. Per-path mapping in [REUSE.toml](REUSE.toml); full texts in
-[LICENSES/](LICENSES/). See [LICENSE](LICENSE).
+Alpha, and the open items are stated rather than hidden:
+
+- **The first mainnet x402 settlement through PARSEC is the next step.** Until then the x402 path is
+  verified against stubs, test shapes and live read endpoints.
+- **The second-generation vault** (wrapped DEK, per-entry HKDF, Rust auto-lock) is written and
+  specified but not compiled in; `bankon_vault` runs its first-generation format.
+- **Bitcoin PSBT signing** is implemented in Rust (`chain_btc/sign.rs`) but not yet exercised end
+  to end — the regtest run is open in [docs/TODO-INDEX.md](docs/TODO-INDEX.md).
+- **cypherpunk4096** is the destination and it is binary — all five commitments or none. Two are not
+  met: zero runtime dependencies (there are 19), and no floating point in any value path
+  ([docs/cypherpunk4096.md](docs/cypherpunk4096.md)).
+
+## Documentation
+
+[docs/README.md](docs/README.md) is the index. Start with: [technical overview](docs/technical.md) ·
+[x402 protocol](docs/x402-integration.md) and [API](docs/x402-api.md) ·
+[BANKON Names](docs/bankon-names.md) · [permaweb](docs/permaweb/README.md) ·
+[PARSEC Connect](docs/parsec-connect.md) · [chain packs](docs/chains/README.md) ·
+[development plan](docs/DEVELOPMENT_PLAN.md) · [QUANTUM.md](QUANTUM.md) ·
+[PERA_DEPARTURE.md](PERA_DEPARTURE.md). Coding agents: [CLAUDE.md](CLAUDE.md).
+
+## Licence
+
+(c) 2026 BANKON. Licensed by component: **GPL-3.0-or-later** for client-facing encryption software —
+every file that generates keys, derives them from a seed or mnemonic, holds key material, or signs
+(`bankon_vault`, the `chain_*` packs, pmVPN, and the TypeScript key paths listed in `REUSE.toml`);
+**Apache-2.0** for the rest of the wallet; **MIT** for the server-side AO processes. Per-path mapping in
+[REUSE.toml](REUSE.toml); full texts in [LICENSES/](LICENSES/). See [LICENSE](LICENSE).
 
 Contact: sales@pythai.net

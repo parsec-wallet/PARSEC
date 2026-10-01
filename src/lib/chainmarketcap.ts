@@ -1,6 +1,6 @@
-// Parsec Wallet — chainmarketcap: the EVM chain reference, as an optional extension.
+// PARSEC Wallet — chainmarketcap: the EVM chain reference, as an optional extension.
 //
-// OFF BY DEFAULT, deliberately. Parsec works fully without it; switching it on
+// OFF BY DEFAULT, deliberately. PARSEC works fully without it; switching it on
 // is a decision to reach a service that is not required for the wallet to
 // function, and defaults that quietly add network reach are how sovereign tools
 // stop being sovereign.

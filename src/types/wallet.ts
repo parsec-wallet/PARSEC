@@ -1,4 +1,4 @@
-// Parsec Wallet — Core Types
+// PARSEC Wallet — Core Types
 
 import type { ChainId } from '../lib/pouch/types';
 

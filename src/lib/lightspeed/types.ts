@@ -1,4 +1,4 @@
-// Parsec Wallet — Lightspeed provider seam
+// PARSEC Wallet — Lightspeed provider seam
 //
 // A provider answers the few questions a light client answers — head block,
 // chain id, an account balance, sync state, and a read-only contract call.

@@ -1,7 +1,7 @@
 // ARIO BASE → Solana migration handler.
 //
 // We don't replicate sol.ar.io's registration schema (it's a closed dApp
-// and its signing payload is undocumented). Instead Parsec orchestrates
+// and its signing payload is undocumented). Instead PARSEC orchestrates
 // the prep step that sol.ar.io can't:
 //   * Reads the user's BASE ARIO balance via MetaMask (eth_call balanceOf)
 //   * Surfaces the Solana destination from the active account's chains map
@@ -9,7 +9,7 @@
 //   * Hands off to sol.ar.io with both addresses copied to clipboard
 //
 // The user then completes registration on sol.ar.io with their MetaMask
-// connected as the source wallet. Parsec stays sovereign over the
+// connected as the source wallet. PARSEC stays sovereign over the
 // destination Solana key.
 
 import { el, btn, toast } from '../lib/dom';
@@ -86,7 +86,7 @@ export function arioMigrateSolanaView(): HTMLElement {
     evmRow.appendChild(el('h4', { text: 'Source: BASE ARIO (MetaMask)' }));
     if (!provider) {
       evmRow.appendChild(el('p', {
-        text: 'No injected EVM wallet detected. Open Parsec in a browser with MetaMask installed (or run sol.ar.io directly).',
+        text: 'No injected EVM wallet detected. Open PARSEC in a browser with MetaMask installed (or run sol.ar.io directly).',
       }));
       return evmRow;
     }

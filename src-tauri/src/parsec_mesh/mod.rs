@@ -1,7 +1,7 @@
 //! parsec_mesh — Sovereign P2P mesh where every client is also a server
 //!
 //! Architecture:
-//! - Each Parsec node is both consumer and provider
+//! - Each PARSEC node is both consumer and provider
 //! - Handoffs happen via IPFS CIDs: data is content-addressed, location-independent
 //! - Peers discover each other through the PostgreSQL registry or IPFS DHT
 //! - Resource exchange is tracked: CPU cycles, bandwidth, storage ↔ crypto value

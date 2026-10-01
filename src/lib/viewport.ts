@@ -1,4 +1,4 @@
-// Parsec Wallet — screen-size awareness.
+// PARSEC Wallet — screen-size awareness.
 //
 // One place knows how big the window is, and says so to the stylesheet:
 //

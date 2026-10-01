@@ -1,4 +1,4 @@
-// Parsec Wallet — Linkage Map
+// PARSEC Wallet — Linkage Map
 //
 // A live rendering of the product architecture (PARSEC.png): the chain
 // modules feeding the Wallet Pouch, feeding Vault Identity, feeding
@@ -180,7 +180,7 @@ export function linkageView(): HTMLElement {
     variant: 'agentic',
     bullets: ['Agent discovery', 'x402 payments', 'dApp signing bridge', 'Marketspace'],
     detail: isTauri
-      ? 'Parsec Connect on 127.0.0.1:9876'
+      ? 'PARSEC Connect on 127.0.0.1:9876'
       : 'connect bridge is desktop-only — not available in the web build',
     onOpen: () => store.navigate('agents'),
   }));

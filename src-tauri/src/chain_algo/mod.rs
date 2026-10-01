@@ -1,6 +1,6 @@
 //! chain_algo — Algorand chain pack.
 //!
-//! Algorand is Parsec's first-class chain and does not use BIP-39. Accounts are
+//! Algorand is PARSEC's first-class chain and does not use BIP-39. Accounts are
 //! a 32-byte ed25519 seed rendered as a 25-word mnemonic with a SHA-512/256
 //! checksum word, and addresses are base32 of the public key plus a 4-byte
 //! checksum.

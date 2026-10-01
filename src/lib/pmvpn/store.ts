@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Follows Parsec's store pattern. Connection profiles persisted
+// Follows PARSEC's store pattern. Connection profiles persisted
 // in localStorage, sessions held in memory only.
 
 import type { PmvpnHost, PmvpnSession, PmvpnState, PmvpnConnectionState } from './types';

@@ -1,5 +1,5 @@
 // Solana transfer serializer — verifies the hand-rolled shortvec encoding
-// and legacy-message layout. Parsec builds the System Program transfer by
+// and legacy-message layout. PARSEC builds the System Program transfer by
 // hand (no @solana/web3.js), so this guards the wire format directly.
 
 import { describe, it, expect } from 'vitest';

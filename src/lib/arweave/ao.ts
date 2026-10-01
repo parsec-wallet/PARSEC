@@ -1,4 +1,4 @@
-// AO process transport — Parsec-owned subset of @permaweb/aoconnect.
+// AO process transport — PARSEC-owned subset of @permaweb/aoconnect.
 //
 // AO architecture (https://cookbook_ao.arweave.dev):
 //   * MU (Messaging Unit) — accepts signed ANS-104 DataItems, schedules them

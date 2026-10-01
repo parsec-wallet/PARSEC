@@ -21,7 +21,7 @@ export function listNamespaces(): NamespaceAdapter[] {
 }
 
 /** Read the id from sessionStorage; default to 'bankon' since that's the
- *  Parsec-sovereign namespace. Callers can override via `?ns=` or the
+ *  PARSEC-sovereign namespace. Callers can override via `?ns=` or the
  *  parsec:namespace-id session key set by the upstream view. */
 export function activeNamespaceId(): string {
   return sessionStorage.getItem('parsec:namespace-id') || 'bankon';

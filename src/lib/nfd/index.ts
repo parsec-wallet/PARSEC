@@ -1,4 +1,4 @@
-// Public surface of Parsec's NFD wrapper. One import path for views.
+// Public surface of PARSEC's NFD wrapper. One import path for views.
 
 export { getNfdClient, resetNfdClients } from './client';
 export { getBankonFeeAddress, BANKON_FEE_CONFIG, bankonFeeFor, isFeeConfigured } from './fees';

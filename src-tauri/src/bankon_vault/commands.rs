@@ -9,13 +9,10 @@ use tauri::Manager;
 use super::store::{VaultStore, AccountEntry};
 use super::VaultState;
 
-/// Resolve vault directory inside Tauri's app data
+/// The active profile's vault directory. The `default` profile is the original
+/// `app_data_dir/bankon_vault`; see `profiles.rs`.
 fn vault_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
-    let base = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("failed to resolve app data dir: {e}"))?;
-    Ok(base.join("bankon_vault"))
+    super::profiles::active_dir(app)
 }
 
 /// Check vault status — exists? unlocked?
@@ -45,10 +42,17 @@ pub fn vault_status(
         vec![]
     };
 
+    let profile = app
+        .path()
+        .app_data_dir()
+        .map(|base| super::profiles::active_in(&base))
+        .unwrap_or_else(|_| super::profiles::DEFAULT_PROFILE.to_string());
+
     Ok(serde_json::json!({
         "exists": exists,
         "unlocked": guard.is_unlocked(),
         "accounts": accounts,
+        "profile": profile,
     }))
 }
 

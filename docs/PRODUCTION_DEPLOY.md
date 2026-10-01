@@ -16,7 +16,7 @@ switch via Settings → Network. Hot-module reload covers everything in
 
 ---
 
-End-to-end checklist for wiring Parsec Wallet to production contracts.
+End-to-end checklist for wiring PARSEC Wallet to production contracts.
 Every contract id can be supplied through one of three layers — pick the
 one that matches the operational context:
 

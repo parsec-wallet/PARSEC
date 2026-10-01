@@ -1,0 +1,199 @@
+// ==========================================================================
+// PROFILES — the vault chooser (lib/ui/profile-chooser.ts)
+// ==========================================================================
+// One row per profile: its name, whether it has a vault, and every wallet's
+// address on one line. The open profile carries the gold rail.
+
+@use '../abstracts' as *;
+
+.parsec-profiles {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-3;
+  width: 100%;
+  text-align: left;
+}
+
+.parsec-profiles__list {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.parsec-profiles__row {
+  padding: $spacing-3 $spacing-4;
+  border: 1px solid $px-line;
+  border-left: 3px solid $px-steel-lo;
+  border-radius: $border-radius-md;
+  background: $px-panel;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    border-color: $px-steel;
+    outline: none;
+  }
+
+  &--active {
+    border-left-color: $px-gold;
+    cursor: default;
+
+    &:hover {
+      border-color: $px-line;
+      border-left-color: $px-gold;
+    }
+  }
+}
+
+.parsec-profiles__head {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-3;
+  margin-bottom: $spacing-1;
+}
+
+.parsec-profiles__pname {
+  color: $px-text;
+  font-weight: 600;
+}
+
+.parsec-profiles__state {
+  color: $px-muted;
+  font-size: $font-size-xs;
+}
+
+.parsec-profiles__badge {
+  margin-left: auto;
+  padding: 0 $spacing-2;
+  border: 1px solid $px-gold-deep;
+  border-radius: $border-radius-full;
+  color: $px-gold;
+  font-size: $font-size-xs;
+  letter-spacing: 0.04em;
+}
+
+.parsec-profiles__wallets {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.parsec-profiles__wallet {
+  display: grid;
+  grid-template-columns: minmax(6em, max-content) 6.5em minmax(0, 1fr);
+  gap: $spacing-3;
+  align-items: baseline;
+  font-size: $font-size-sm;
+}
+
+.parsec-profiles__wlabel {
+  overflow: hidden;
+  color: $px-text;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parsec-profiles__wchain {
+  color: $px-muted;
+  font-size: $font-size-xs;
+}
+
+// The public key on one line; ellipsis only when the window is too narrow.
+.parsec-profiles__waddr {
+  overflow: hidden;
+  color: $px-steel-hi;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.parsec-profiles__empty {
+  color: $px-muted;
+  font-size: $font-size-xs;
+}
+
+.parsec-profiles__create {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-2;
+}
+
+.parsec-profiles__hint {
+  margin: 0;
+  color: $px-muted;
+  font-size: $font-size-xs;
+  line-height: 1.5;
+}
+
+.parsec-profiles__create-actions {
+  display: flex;
+  gap: $spacing-2;
+}
+
+.parsec-profiles__new { align-self: flex-start; }
+
+// On the Red Pill door the list sits inside a narrow panel: tighter, and the
+// chain column folds away.
+.parsec-profiles--compact {
+  .parsec-profiles__row { padding: $spacing-2 $spacing-3; }
+
+  .parsec-profiles__wallet { grid-template-columns: minmax(0, 1fr) max-content; }
+
+  .parsec-profiles__wchain { display: none; }
+
+  .parsec-profiles__new { align-self: stretch; }
+}
+
+[data-viewport='compact'] .parsec-profiles__wallet {
+  grid-template-columns: minmax(0, 1fr) max-content;
+
+  .parsec-profiles__wchain { display: none; }
+}
+
+// The door's profile line: which vault the passphrase field opens.
+.parsec-matrix__profile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-2;
+  margin: 0 0 $spacing-2;
+  color: $px-muted;
+  font-size: $font-size-xs;
+
+  strong {
+    color: $px-gold;
+    font-weight: 600;
+  }
+
+  a { color: $px-steel-hi; }
+}
+
+// BANKON's sovereign-custody notice (lib/ui/sovereign-notice.ts).
+.parsec-sovereign {
+  margin: $spacing-3 0;
+  text-align: left;
+
+  p {
+    margin: 0;
+    font-size: $font-size-sm;
+    line-height: 1.5;
+  }
+}
+
+.parsec-sovereign__from {
+  margin-bottom: $spacing-1;
+  color: $px-gold;
+  font-size: $font-size-xs;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+// "Create a new vault" under an unlock field.
+.parsec-vaultpass__alt {
+  margin: $spacing-2 0 0;
+  font-size: $font-size-sm;
+
+  a { color: $px-steel-hi; }
+}

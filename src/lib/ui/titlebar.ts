@@ -1,7 +1,7 @@
-// Parsec Wallet — the custom title bar.
+// PARSEC Wallet — the custom title bar.
 //
 // The window is undecorated (tauri.conf.json `decorations: false`), so this bar
-// is the window's frame: the Parsec mark and name, a drag region (Tauri's
+// is the window's frame: the PARSEC mark and name, a drag region (Tauri's
 // `data-tauri-drag-region`, which also maximizes on double-click), and minimize,
 // maximize/restore and close. Close behaves like the system close: it hides to
 // the tray when that preference is on, otherwise it quits.
@@ -50,7 +50,7 @@ export function mountTitlebar(): HTMLElement {
     attrs: { 'data-tauri-drag-region': '', role: 'banner' },
     children: [
       mark,
-      el('span', { cls: 'parsec-titlebar__title', text: 'PARSEC', attrs: { 'data-tauri-drag-region': '', 'aria-label': 'Parsec Wallet' } }),
+      el('span', { cls: 'parsec-titlebar__title', text: 'PARSEC', attrs: { 'data-tauri-drag-region': '', 'aria-label': 'PARSEC Wallet' } }),
       el('div', { cls: 'parsec-titlebar__spacer', attrs: { 'data-tauri-drag-region': '' } }),
       control('Minimize', '—', 'min', () => { void windowControls.minimize(); }),
       maxBtn,

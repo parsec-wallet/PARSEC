@@ -7,7 +7,7 @@
 //
 // This is parsec's own derivation — it is NOT byte-compatible with Wander's
 // human-crypto-keys path. Users importing from Wander must use JWK import,
-// not mnemonic. Parsec-generated mnemonics produce parsec-deterministic keys.
+// not mnemonic. PARSEC-generated mnemonics produce parsec-deterministic keys.
 
 import * as bip39 from 'bip39';
 import forge from 'node-forge';

@@ -1,6 +1,6 @@
 // BANKON Names resolver — standalone permaweb SPA.
 //
-// Permaweb-deployable, no Parsec wallet dependency. Reads a name from
+// Permaweb-deployable, no PARSEC wallet dependency. Reads a name from
 // ?name=, the URL hash, or the path, calls the BNR's Resolve handler on
 // AR.IO's CU, and either redirects to the resolved @ target or shows
 // the record details inline.

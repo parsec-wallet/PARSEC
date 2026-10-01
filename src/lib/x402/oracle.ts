@@ -1,4 +1,4 @@
-// Parsec x402 Integration — Price Oracle
+// PARSEC x402 Integration — Price Oracle
 // Algorand DEX price oracle via Vestige API (Tinyman/Pact/Folks pools).
 // Augments the CoinGecko-only prices.ts with Algorand-native pricing.
 // SPDX-FileCopyrightText: 2026 BANKON

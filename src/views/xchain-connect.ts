@@ -96,7 +96,7 @@ export function xchainConnectView(): HTMLElement {
       }),
       el('p', {
         cls: 'parsec-view__desc',
-        text: 'Your EVM key (e.g. MetaMask) controls a deterministic Algorand LogicSig address on-chain. Parsec never holds the key — MetaMask remains the sole custodian. Each EVM address maps to exactly one Algorand address.',
+        text: 'Your EVM key (e.g. MetaMask) controls a deterministic Algorand LogicSig address on-chain. PARSEC never holds the key — MetaMask remains the sole custodian. Each EVM address maps to exactly one Algorand address.',
       }),
       status,
       evmList,

@@ -1,4 +1,4 @@
-// Parsec Wallet — Receive View
+// PARSEC Wallet — Receive View
 // Shows the address plus an ARC-26 algorand:// URI with optional amount.
 // The URI can be scanned by Pera/Defly mobile to pre-fill a payment.
 
@@ -43,7 +43,7 @@ export function receiveView(): HTMLElement {
   }
   rebuildUri();
 
-  // Primary .algo name — Parsec recognizes an NFD as part of the receive
+  // Primary .algo name — PARSEC recognizes an NFD as part of the receive
   // identity. Reverse-lookup is cached; render the chip only on a hit.
   const nfdChip = el('div', { cls: 'parsec-receive__nfd', attrs: { hidden: 'true' } });
   void resolveAddress(state.settings.network, account.address)

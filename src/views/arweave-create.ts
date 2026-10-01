@@ -1,4 +1,4 @@
-// Create an Arweave (HD) account for the active Parsec wallet.
+// Create an Arweave (HD) account for the active PARSEC wallet.
 // Used as: (1) the address that owns the `pythai` ANT after claim, and
 // (2) the signer for ANS-104 DataItems / AO process messages.
 //
@@ -116,7 +116,7 @@ export function arweaveCreateView(): HTMLElement {
       retryBtn,
       backupWarning(),
       privateKey.el,
-      phrasePanel(mnemonic.split(' '), 'Write the 24 words down in order. They re-derive this exact key in Parsec; most other Arweave wallets restore from the key file above.'),
+      phrasePanel(mnemonic.split(' '), 'Write the 24 words down in order. They re-derive this exact key in PARSEC; most other Arweave wallets restore from the key file above.'),
       saveBtn,
       status,
     ],

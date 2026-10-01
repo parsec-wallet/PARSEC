@@ -1,4 +1,4 @@
-// Parsec Wallet — Bazaar.
+// PARSEC Wallet — Bazaar.
 //
 // The catalogue of paid resources that settle through the configured facilitator. This
 // is the half of the agent economy that costs nothing: browsing, reading what an endpoint

@@ -1,8 +1,8 @@
-// Parsec Wallet — Whole-market readings for the Blue Pill
+// PARSEC Wallet — Whole-market readings for the Blue Pill
 //
 // The figures a trader reads before looking at any single coin: how big the
 // market is, how much traded, who dominates, how frightened everyone is, where
-// leverage sits, and — because Parsec is Algorand-first — the same questions
+// leverage sits, and — because PARSEC is Algorand-first — the same questions
 // asked of ALGO.
 //
 // Display only. Every value here is a third-party estimate rendered for a

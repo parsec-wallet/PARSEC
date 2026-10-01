@@ -1,15 +1,15 @@
-// Parsec Wallet — Blue Pill diagnostics profiles
+// PARSEC Wallet — Blue Pill diagnostics profiles
 //
 // The Blue Pill is diagnostics, and control of diagnostics: what the landing
 // shows, how deep the instruments go, which extensions are on, which period
 // every percentage is measured over, and which assets are emphasised. A profile
 // is a named snapshot of those choices.
 //
-// Parsec is the built-in default. Its emphasis is fixed in code — Algorand
-// first, then the chains Parsec carries — but its switches are the
-// participant's own: the first time profiles run on a device, Parsec is seeded
+// PARSEC is the built-in default. Its emphasis is fixed in code — Algorand
+// first, then the chains PARSEC carries — but its switches are the
+// participant's own: the first time profiles run on a device, PARSEC is seeded
 // from the selections already in place (landing toggles, extension switches,
-// depth, period), so introducing profiles changes nothing on screen. Parsec
+// depth, period), so introducing profiles changes nothing on screen. PARSEC
 // can be saved over but never deleted; "save as" makes further profiles.
 //
 // Profiles are participant preferences — no keys, no addresses, no balances —
@@ -50,7 +50,7 @@ export const FOCUS_CATALOG: ReadonlyArray<FocusAsset> = [
   { id: 'injective-protocol', symbol: 'INJ', name: 'Injective', perp: 'INJ', llamaChain: 'Injective' },
   { id: 'zero-gravity', symbol: '0G', name: '0G', perp: '0G', llamaChain: '0G' },
   { id: 'blast', symbol: 'BLAST', name: 'Blast', perp: 'BLAST', llamaChain: 'Blast' },
-  // Available to add, not in the Parsec default.
+  // Available to add, not in the PARSEC default.
   { id: 'ar-io-network', symbol: 'ARIO', name: 'AR.IO' },
   { id: 'blockstack', symbol: 'STX', name: 'Stacks', perp: 'STX', llamaChain: 'Stacks' },
   { id: 'aave', symbol: 'AAVE', name: 'Aave', perp: 'AAVE' },
@@ -109,13 +109,13 @@ export const MAX_WATCHED = 25;
 export const PARSEC_PROFILE_ID = 'parsec';
 
 /**
- * The code default, used only until the device's own Parsec seed exists (and
+ * The code default, used only until the device's own PARSEC seed exists (and
  * as the fallback if that seed is unreadable). The seed replaces every field
  * but the id, name and builtin flag.
  */
 export const PARSEC_PROFILE: Readonly<DiagProfile> = Object.freeze({
   id: PARSEC_PROFILE_ID,
-  name: 'Parsec',
+  name: 'PARSEC',
   builtin: true,
   focus: [
     'algorand', 'arweave', 'solana', 'bitcoin', 'ethereum', 'hyperliquid',
@@ -132,7 +132,7 @@ export const PARSEC_PROFILE: Readonly<DiagProfile> = Object.freeze({
 // ── Storage ──────────────────────────────────────────────────────────────────
 
 export const PROFILES_KEY = 'parsec:diag-profiles';
-/** The device's own Parsec choices, seeded once from the participant's selections. */
+/** The device's own PARSEC choices, seeded once from the participant's selections. */
 export const PARSEC_SEED_KEY = 'parsec:diag-profile-parsec';
 export const ACTIVE_PROFILE_KEY = 'parsec:diag-profile-active';
 
@@ -165,7 +165,7 @@ function bools<T extends object>(raw: unknown, fallback: T): T {
  *
  * Unknown focus ids are dropped rather than trusted: storage is writable by
  * anything running on this origin, and a profile only ever names assets from
- * the catalog. Missing fields fall back to the Parsec default.
+ * the catalog. Missing fields fall back to the PARSEC default.
  */
 export function sanitizeProfile(raw: unknown): DiagProfile | null {
   if (!raw || typeof raw !== 'object') return null;
@@ -204,7 +204,7 @@ function sanitizeWatchList(raw: unknown): WatchedWallet[] {
   return out;
 }
 
-/** Parsec as this device knows it: the seed when there is one, else the code default. */
+/** PARSEC as this device knows it: the seed when there is one, else the code default. */
 function cloneParsec(storage: ProfileStorage | null = defaultStorage()): DiagProfile {
   try {
     const raw: unknown = JSON.parse(storage?.getItem(PARSEC_SEED_KEY) ?? 'null');
@@ -221,13 +221,13 @@ function cloneParsec(storage: ProfileStorage | null = defaultStorage()): DiagPro
   };
 }
 
-/** Whether this device's Parsec profile has been seeded yet. */
+/** Whether this device's PARSEC profile has been seeded yet. */
 export function isParsecSeeded(storage = defaultStorage()): boolean {
   try { return storage?.getItem(PARSEC_SEED_KEY) != null; } catch { return true; }
 }
 
 /**
- * Seed Parsec from the participant's current selections and make it active.
+ * Seed PARSEC from the participant's current selections and make it active.
  * Runs once per device, the first time profiles exist; never overwrites a seed.
  */
 export function seedParsecProfile(
@@ -242,7 +242,7 @@ export function seedParsecProfile(
   return cloneParsec(storage);
 }
 
-/** Parsec first, then the participant's own profiles in the order saved. */
+/** PARSEC first, then the participant's own profiles in the order saved. */
 export function listProfiles(storage = defaultStorage()): DiagProfile[] {
   const own: DiagProfile[] = [];
   try {
@@ -266,7 +266,7 @@ export function getProfile(id: string, storage = defaultStorage()): DiagProfile 
   return listProfiles(storage).find((p) => p.id === id);
 }
 
-/** The active profile. Falls back to Parsec when none is set or it was deleted. */
+/** The active profile. Falls back to PARSEC when none is set or it was deleted. */
 export function getActiveProfile(storage = defaultStorage()): DiagProfile {
   let id: string | null = null;
   try { id = storage?.getItem(ACTIVE_PROFILE_KEY) ?? null; } catch { /* fall back */ }
@@ -289,7 +289,7 @@ export function profileIdFor(name: string, taken: ReadonlySet<string>): string {
 
 /**
  * Save choices under a new name. Returns the saved profile, which becomes active.
- * Always creates: this is how the built-in Parsec profile is customised.
+ * Always creates: this is how the built-in PARSEC profile is customised.
  */
 export function saveProfileAs(
   name: string,
@@ -308,7 +308,7 @@ export function saveProfileAs(
   return clean;
 }
 
-/** Overwrite a profile's choices. Parsec included: saving over it rewrites the seed. */
+/** Overwrite a profile's choices. PARSEC included: saving over it rewrites the seed. */
 export function updateProfile(
   id: string,
   choices: Omit<DiagProfile, 'id' | 'name' | 'builtin'>,
@@ -328,9 +328,9 @@ export function updateProfile(
   return clean;
 }
 
-/** Delete a saved profile. Parsec cannot be deleted. Active falls back to Parsec. */
+/** Delete a saved profile. PARSEC cannot be deleted. Active falls back to PARSEC. */
 export function deleteProfile(id: string, storage = defaultStorage()): void {
-  if (id === PARSEC_PROFILE_ID) throw new Error('The Parsec profile is built in and cannot be deleted.');
+  if (id === PARSEC_PROFILE_ID) throw new Error('The PARSEC profile is built in and cannot be deleted.');
   const all = listProfiles(storage);
   writeOwn(all.filter((p) => p.id !== id), storage);
   try {

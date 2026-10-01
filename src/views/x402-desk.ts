@@ -1,4 +1,4 @@
-// Parsec Wallet — x402 Desk.
+// PARSEC Wallet — x402 Desk.
 //
 // Everything about the payment rail that is not a payment: which rails are registered,
 // what the facilitator says it can settle and who sponsors fees there, the device's own

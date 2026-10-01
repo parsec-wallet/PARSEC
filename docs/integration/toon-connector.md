@@ -51,7 +51,7 @@ year (quoted 44,843, ends 2027-08-27), and an x402 leg of **0.004298 USDC** on
 Base **mainnet**. It also records a live Turbo defect —
 [`turbo-sdk#455`](https://github.com/ardriveapp/turbo-sdk/issues/455): the paid
 ARIO upload path refuses to debit a funded storage account, so the page shipped
-under the free signed tier and was trimmed to fit. Anything Parsec builds on
+under the free signed tier and was trimmed to fit. Anything PARSEC builds on
 Turbo-paid uploads should assume that path is not yet reliable. Upstream retired
 the x402-to-AR.IO leg on 2026-08-29 in favour of paying uploads in ARIO directly.
 
@@ -81,12 +81,12 @@ the x402-to-AR.IO leg on 2026-08-29 in favour of paying uploads in ARIO directly
 > *"a caller with no claim on a priced route gets `402`"* — with an **x402
 > document quoting the price** before any transmission.
 
-**Parsec already speaks that.** `src/lib/x402/client.ts` implements the whole
+**PARSEC already speaks that.** `src/lib/x402/client.ts` implements the whole
 payer flow: read the 402 challenge → choose an offer a registered rail can pay →
 quote it exactly → sign → resend with `PAYMENT-SIGNATURE` → read the settlement.
 `x402Request()` wraps it with an `approve` callback for the confirmation sheet.
 
-So Parsec does **not** need ILP, BTP, claims, or channels to be a *payer*. That
+So PARSEC does **not** need ILP, BTP, claims, or channels to be a *payer*. That
 machinery is the connector operator's concern. Paying a TOON-fronted route is
 the x402 path we already have, pointed at a different settlement chain.
 
@@ -97,7 +97,7 @@ adapter.
 
 | | Who | Where it belongs | Effort |
 |---|---|---|---|
-| **Payer** | Parsec wallet calls a TOON-fronted service | `agenticplace` tier module in the wallet | Small — extend an existing path |
+| **Payer** | PARSEC wallet calls a TOON-fronted service | `agenticplace` tier module in the wallet | Small — extend an existing path |
 | **Operator** | BANKON node monetizes THOT storage / the gateway per request | `bankon-node`, **not** the wallet | Separate work, separate repo |
 
 Keeping these apart matters. The wallet must never grow a payment-channel
@@ -180,7 +180,7 @@ data a name points at; it cannot be a `Payment-Proof`.
 ## The wider org — what else is upstream
 
 The connector is one repo of about twenty. Two are directly adjacent to work
-Parsec already does, and are worth reading before anyone reinvents them:
+PARSEC already does, and are worth reading before anyone reinvents them:
 
 | Repo | Licence | What it is | Why it matters here |
 |---|---|---|---|
@@ -195,7 +195,7 @@ is AGPL-3.0, `buzz` is Apache-2.0 — while `store`, `relay`, `rig`, `hub`,
 `toon-client` and `capability-market` carry no licence file at all, which means
 all rights reserved: readable on GitHub, not copyable into this tree. Check the
 repo, not the org. And every one of the
-TypeScript repos is an npm package, so Parsec's zero-dependency commitment rules
+TypeScript repos is an npm package, so PARSEC's zero-dependency commitment rules
 them out as dependencies regardless of licence. Read them for the protocol, write
 our own code.
 
@@ -210,12 +210,12 @@ our own code.
 2. **`decimals` is a mispricing bomb.** Upstream refuses to start when
    configured `decimals` disagrees with the token's on-chain value: *"a wrong
    `decimals` is not a rounding error: it misprices every route by a factor of
-   ten or more."* Parsec must apply the same rule on the payer side — read
+   ten or more."* PARSEC must apply the same rule on the payer side — read
    decimals from chain, never from the quote, and refuse to sign on a mismatch.
    This is exactly the "frontend suggests, Rust validates" boundary.
 3. **Prices are whole smallest-units.** With `decimals = 6`, `price = 1000000`
    is one token. Never render a raw price as a currency figure.
-4. **Claims are the truth.** *"a balance is a projection of them."* Parsec
+4. **Claims are the truth.** *"a balance is a projection of them."* PARSEC
    should display a claim-derived figure with provenance, never present a
    projected balance as settled.
 5. **No new frontend runtime dependency.** The payer path is `fetch` plus
@@ -224,17 +224,17 @@ our own code.
    TS bundle. MIT code can come in with its notice kept; a connector crate would sit
    outside the GPL-3.0-or-later core, under Apache-2.0 (`REUSE.toml`).
 6. **Licence hygiene.** MIT code may be incorporated; the `docs/rfcs/`
-   directory is CC BY-SA 4.0 and must not be copied into Parsec docs without
+   directory is CC BY-SA 4.0 and must not be copied into PARSEC docs without
    its own attribution. Link to the RFCs instead.
 
 ## What NOT to do
 
-- Do not vendor the connector crates into `src-tauri/`. Parsec is not a
+- Do not vendor the connector crates into `src-tauri/`. PARSEC is not a
   connector node, and the operator surface (`/peers`, `/channels`, `/routes`)
   has no business in a wallet.
 - Do not build a channel-management UI in the wallet. Opening a channel needs a
   funded settlement key and on-chain verification — that is operator work.
-- Do not let the wallet hold a long-lived settlement key for this. Parsec's
+- Do not let the wallet hold a long-lived settlement key for this. PARSEC's
   model is ephemeral retrieval for signing, zeroized after.
 
 ## Recommended sequence

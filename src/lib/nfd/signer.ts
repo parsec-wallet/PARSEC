@@ -1,7 +1,7 @@
-// Bridge Parsec's keystore to the SDK's TransactionSigner contract.
+// Bridge PARSEC's keystore to the SDK's TransactionSigner contract.
 //
 // The SDK expects a function that signs an arbitrary group with a set of
-// `indexesToSign`. Parsec holds the mnemonic inside the session passphrase-
+// `indexesToSign`. PARSEC holds the mnemonic inside the session passphrase-
 // derived keystore; this adapter retrieves it, uses algosdk to sign, then
 // wipes the mnemonic from local memory immediately.
 

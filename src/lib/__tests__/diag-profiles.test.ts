@@ -38,7 +38,7 @@ const choices = () => ({
   watch: [{ chain: 'algorand' as const, address: 'ABIZJORU6VRN4U5G2WZX2DEZ2WBWKWRRCTHCWH2TRMG3ZYAOCDNRNSWKHA', label: 'Main' }],
 });
 
-describe('the Parsec default', () => {
+describe('the PARSEC default', () => {
   it('emphasises the twelve chains in the stated order, Algorand first', () => {
     const syms = PARSEC_PROFILE.focus.map((id) => FOCUS_CATALOG.find((a) => a.id === id)!.symbol);
     expect(syms).toEqual(['ALGO', 'AR', 'SOL', 'BTC', 'ETH', 'HYPE', 'ARB', 'OP', 'POL', 'INJ', '0G', 'BLAST']);
@@ -55,7 +55,7 @@ describe('the Parsec default', () => {
     expect(() => deleteProfile(PARSEC_PROFILE_ID, s)).toThrow(/built in/);
   });
 
-  it('is seeded once from the participant\'s own selections, keeping the Parsec emphasis', () => {
+  it('is seeded once from the participant\'s own selections, keeping the PARSEC emphasis', () => {
     const s = memStorage();
     expect(isParsecSeeded(s)).toBe(false);
     const mine = { ...choices(), focus: [...PARSEC_PROFILE.focus], scene: { ...PARSEC_PROFILE.scene, top10: true, stablecoins: true } };
@@ -99,7 +99,7 @@ describe('saving and switching', () => {
   });
 
   it('gives each saved name a unique id, never "parsec"', () => {
-    expect(profileIdFor('Parsec', new Set(['parsec']))).toBe('parsec-copy');
+    expect(profileIdFor('PARSEC', new Set(['parsec']))).toBe('parsec-copy');
     expect(profileIdFor('Desk', new Set(['desk']))).toBe('desk-2');
     expect(profileIdFor('!!!', new Set())).toBe('profile');
   });
@@ -111,7 +111,7 @@ describe('saving and switching', () => {
     expect(listProfiles(s).find((x) => x.id === p.id)!.focus).toEqual(['ethereum']);
   });
 
-  it('falls back to Parsec when the active profile is deleted', () => {
+  it('falls back to PARSEC when the active profile is deleted', () => {
     const s = memStorage();
     const p = saveProfileAs('Desk', choices(), s);
     deleteProfile(p.id, s);
@@ -140,8 +140,8 @@ describe('sanitizeProfile', () => {
     expect(p.panels).toEqual(PARSEC_PROFILE.panels);
   });
 
-  it('refuses a stored profile that claims to be Parsec or has a hostile id', () => {
-    expect(sanitizeProfile({ id: 'parsec', name: 'Parsec' })).toBeNull();
+  it('refuses a stored profile that claims to be PARSEC or has a hostile id', () => {
+    expect(sanitizeProfile({ id: 'parsec', name: 'PARSEC' })).toBeNull();
     expect(sanitizeProfile({ id: '../x', name: 'x' })).toBeNull();
     expect(sanitizeProfile('nope')).toBeNull();
   });

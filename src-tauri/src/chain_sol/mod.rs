@@ -2,7 +2,7 @@
 //!
 //! BIP-39 mnemonic → 64-byte seed → SLIP-0010 ed25519 descent along
 //! `m/44'/501'/0'/0'`, every level hardened (SLIP-0010 permits nothing else for
-//! ed25519). This is the Phantom / Solflare convention, so an address Parsec
+//! ed25519). This is the Phantom / Solflare convention, so an address PARSEC
 //! shows is one an external sender's wallet derives identically.
 //!
 //! Moved out of `src/lib/solana/seed.ts` so the derived secret never exists as a

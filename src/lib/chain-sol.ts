@@ -1,7 +1,7 @@
-// Parsec Wallet — chain_sol IPC client (Solana).
+// PARSEC Wallet — chain_sol IPC client (Solana).
 //
 // SLIP-0010 ed25519 at m/44'/501'/0'/0', the Phantom / Solflare convention, so an
-// address Parsec shows is one an external sender's wallet derives identically.
+// address PARSEC shows is one an external sender's wallet derives identically.
 
 import { invoke } from './platform';
 

@@ -1,5 +1,5 @@
 // The local default — docs/modules.md rule 6: ship something that works with
-// nothing but Parsec. It has no network, so it answers `null` to everything;
+// nothing but PARSEC. It has no network, so it answers `null` to everything;
 // the feeds render `unknown · this device`, which is the truth.
 
 import type { LightspeedProvider } from '../types';

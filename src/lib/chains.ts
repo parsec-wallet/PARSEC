@@ -19,7 +19,7 @@ export interface ChainBalance {
 
 // Address-format family — chains that share one share an address format
 // (Phantom's `AddressType` grouping). EVM/Bitcoin/Sui are listed for forward
-// compatibility even though Parsec doesn't surface them as wallets yet.
+// compatibility even though PARSEC doesn't surface them as wallets yet.
 export type ChainAddressType =
   | 'algorand'
   | 'solana'

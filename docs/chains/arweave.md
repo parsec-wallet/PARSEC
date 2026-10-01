@@ -1,4 +1,4 @@
-# Arweave — Parsec chain pack
+# Arweave — PARSEC chain pack
 
 > Deterministic RSA-4096 Arweave wallet + the permaweb stack (AO, ANS-104, ArNS).
 

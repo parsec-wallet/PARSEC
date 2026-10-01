@@ -1,4 +1,4 @@
-// Parsec Wallet — parsec_sandbox IPC client
+// PARSEC Wallet — parsec_sandbox IPC client
 // dApp filesystem access control with 1-10 participant choice scale.
 // The participant ALWAYS chooses. No silent escalation.
 

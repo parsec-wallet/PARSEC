@@ -1,4 +1,4 @@
-# Algorand Testnet Configuration — Parsec Wallet
+# Algorand Testnet Configuration — PARSEC Wallet
 
 ## Node & Indexer Endpoints
 

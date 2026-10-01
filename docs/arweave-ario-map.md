@@ -1,6 +1,6 @@
 # Arweave & ar.io — the complete source map
 
-> Every place Parsec touches Arweave, AO, ar.io, ArNS or the sovereign name
+> Every place PARSEC touches Arweave, AO, ar.io, ArNS or the sovereign name
 > registries: in this tree, in the AO processes it deploys, in the upstream code
 > it depends on, and in the reference corpus behind it.
 > **Kept honest by** `python3 scripts/arweave-map.py` — it re-counts the tree and
@@ -99,10 +99,10 @@ Generated 2026-09-21. Every file in the tree carrying ≥3 Arweave/ar.io/AO/nami
 |---|--:|---|
 | `src/lib/arweave/client.ts` | 103 | Gateway client over `arweave-js`; `DEFAULT_GATEWAY` lives here |
 | `src/lib/arweave/tx.ts` | 250 | Transaction build → sign → upload |
-| `src/lib/arweave/ans104.ts` | 535 | **ANS-104 DataItem encode/sign/verify — Parsec-owned.** No `arbundles` dependency. `signDataItemWith` takes an external signer (Rust on desktop); `estimateDataItemSize` is exact before signing |
-| `src/lib/arweave/turbo.ts` | 263 | **Turbo upload — Parsec-owned.** Info, price, `POST /v1/tx/arweave`, per-platform signer, `planUpload` / `runUpload`. No `@ardrive/turbo-sdk` dependency |
+| `src/lib/arweave/ans104.ts` | 535 | **ANS-104 DataItem encode/sign/verify — PARSEC-owned.** No `arbundles` dependency. `signDataItemWith` takes an external signer (Rust on desktop); `estimateDataItemSize` is exact before signing |
+| `src/lib/arweave/turbo.ts` | 263 | **Turbo upload — PARSEC-owned.** Info, price, `POST /v1/tx/arweave`, per-platform signer, `planUpload` / `runUpload`. No `@ardrive/turbo-sdk` dependency |
 | `src/lib/arweave/manifest.ts` | 105 | `arweave/paths` 0.2.0 manifests — a folder becomes one id |
-| `src/lib/arweave/ao.ts` | 198 | **AO transport — Parsec-owned subset of `@permaweb/aoconnect`.** MU `mu.ao-testnet.xyz`, CU `cu.ardrive.io`, `AOS_MODULE` pinned |
+| `src/lib/arweave/ao.ts` | 198 | **AO transport — PARSEC-owned subset of `@permaweb/aoconnect`.** MU `mu.ao-testnet.xyz`, CU `cu.ardrive.io`, `AOS_MODULE` pinned |
 | `src/lib/arweave/inject.ts` | 378 | `window.arweaveWallet` — ArConnect/Wander-compatible injected API |
 | `src/lib/arweave/index.ts` | 73 | Barrel — the pack's public surface |
 
@@ -209,7 +209,7 @@ cheapest possible compatibility layer and should not grow.
 
 | Path | What it is |
 |---|---|
-| `apps/bankon-resolver/` | Standalone permaweb SPA (~3.7 kB) that dry-runs `Resolve` and redirects. No Parsec dependency |
+| `apps/bankon-resolver/` | Standalone permaweb SPA (~3.7 kB) that dry-runs `Resolve` and redirects. No PARSEC dependency |
 | `apps/parsec-names/` | The name-desk client library + its handshake test |
 | `scripts/spawn-bnr.mjs` | One-time BNR spawn; writes the process id back into the tree |
 | `scripts/spawn-bmr.mjs` | Same for the Marketspace |
@@ -253,7 +253,7 @@ dependency and should be argued for.
 | `@ardrive/turbo-sdk` | **Not a dependency** — re-implemented in `arweave/turbo.ts` | Two GETs and one POST; the SDK's signers would hold the key in JS |
 | `@ar.io/wayfinder-core` | **Not a dependency** — the verification idea is in `permaweb/verify.ts` | Hash-compare only; routing not built |
 | `permaweb-deploy` | devDependency, pinned `3.4.6` | Publishing only. **Two majors behind**, with flags that no longer exist upstream — see [`integration/ario-deploy.md`](./integration/ario-deploy.md) |
-| `ar-io-node` | Not vendored (AGPL-3.0) | Parsec *provisions* an operator's node (`permaweb/gateway/env.ts`); it does not contain one. Licence audit in [`reference/permaweb/arweave-as-a-service-without-ario.md`](./reference/permaweb/arweave-as-a-service-without-ario.md) |
+| `ar-io-node` | Not vendored (AGPL-3.0) | PARSEC *provisions* an operator's node (`permaweb/gateway/env.ts`); it does not contain one. Licence audit in [`reference/permaweb/arweave-as-a-service-without-ario.md`](./reference/permaweb/arweave-as-a-service-without-ario.md) |
 | `toon-protocol/*` | Not vendored | Read-only reference — [`integration/toon-connector.md`](./integration/toon-connector.md) |
 
 ## 12. Documentation map

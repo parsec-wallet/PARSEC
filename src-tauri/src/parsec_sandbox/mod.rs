@@ -1,6 +1,6 @@
 //! parsec_sandbox — dApp filesystem access control with participant choice
 //!
-//! Every dApp that connects to Parsec must request filesystem access.
+//! Every dApp that connects to PARSEC must request filesystem access.
 //! The user grants access on a 1-10 scale:
 //!
 //! Level 1:  No filesystem access. dApp can only call contract methods.

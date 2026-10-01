@@ -1,6 +1,6 @@
 # Security Policy
 
-Parsec is a sovereign wallet: it holds key material that maps directly to
+PARSEC is a sovereign wallet: it holds key material that maps directly to
 participant funds. Reports about the vault, the signing paths, or the dApp bridge
 are taken seriously and triaged ahead of feature work.
 
@@ -33,7 +33,7 @@ with one deliberate departure noted below.
 
 **Departure from Bitcoin Core:** they classify wallet bugs requiring local machine
 access as Low, because their threat model does not treat a compromised host as in
-scope. Ours does the opposite. Parsec's stated design centre is that *the
+scope. Ours does the opposite. PARSEC's stated design centre is that *the
 passphrase is the only thing protecting a stolen machine*, so anything that
 weakens at-rest protection, or that leaks a secret into swap, a core dump, or the
 renderer's JavaScript heap, is **Critical or High here** even though it needs
@@ -53,10 +53,10 @@ local access.
   the participant's user account *while the vault is unlocked*. We reduce that
   blast radius (see below) but do not claim to defeat it.
 - Tomb, `cryptsetup`, WebKitGTK, Tauri, and other upstream components. Report
-  those upstream; tell us too if Parsec's use of them makes it worse.
+  those upstream; tell us too if PARSEC's use of them makes it worse.
 - Missing hardware-wallet support. It is a known gap, not a vulnerability.
 
-## What Parsec does and does not defend against
+## What PARSEC does and does not defend against
 
 Stated plainly, because a security policy that only lists strengths is not one.
 The full analysis is in [`docs/security/threat-model.md`](docs/security/threat-model.md).
@@ -89,7 +89,7 @@ The full analysis is in [`docs/security/threat-model.md`](docs/security/threat-m
 
 ## Supported versions
 
-Parsec is pre-1.0 and moves fast. Fixes land on the default branch; there is no
+PARSEC is pre-1.0 and moves fast. Fixes land on the default branch; there is no
 backport channel yet. The Bitcoin path is gated behind an audit and is not
 supported for mainnet custody — see
 [`docs/integration/bankon-btc-waas.md`](docs/integration/bankon-btc-waas.md).
@@ -103,5 +103,5 @@ qualify"*. The vault format is specified byte-for-byte in
 properties are asserted by the test suite (`cargo test --lib bankon_vault`),
 including known-answer tests for the primitives.
 
-**Parsec has not been independently audited.** Do not read anything here as a
+**PARSEC has not been independently audited.** Do not read anything here as a
 substitute for one.

@@ -1,4 +1,4 @@
-// Parsec Wallet — stablecoin reading for the landing's liquidity ship.
+// PARSEC Wallet — stablecoin reading for the landing's liquidity ship.
 //
 // A stablecoin has one job: hold its peg. Market cap says how much of it there
 // is; the price says whether it is doing the job. The ship used to show only

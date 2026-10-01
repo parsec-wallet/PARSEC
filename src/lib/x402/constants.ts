@@ -1,4 +1,4 @@
-// Parsec x402 Integration — Constants
+// PARSEC x402 Integration — Constants
 // Adapted from x402-demo/modules/bankon-payments/constants.ts
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: Apache-2.0

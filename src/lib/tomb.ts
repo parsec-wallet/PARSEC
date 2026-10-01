@@ -1,4 +1,4 @@
-// Parsec Wallet — Tomb IPC client
+// PARSEC Wallet — Tomb IPC client
 // Cold storage via encrypted volumes. Linux-only.
 // .tomb on disk, .tomb.key on USB pen = poor man's cold storage.
 

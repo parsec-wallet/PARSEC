@@ -1,4 +1,4 @@
-//! WebSocket server for dApp ↔ Parsec Wallet communication
+//! WebSocket server for dApp ↔ PARSEC Wallet communication
 //!
 //! Runs on localhost:9876 (configurable). Web dApps connect via WebSocket
 //! and exchange JSON-RPC messages for account discovery and transaction signing.
@@ -108,7 +108,7 @@ pub async fn start_connect_server(
 
 // ── HTTP Endpoints ───────────────────────────────────────────────
 
-/// Health endpoint — dApps probe this to detect if Parsec is running
+/// Health endpoint — dApps probe this to detect if PARSEC is running
 async fn health_handler(
     AxumState(state): AxumState<Arc<ConnectServerState>>,
 ) -> Json<serde_json::Value> {
@@ -296,7 +296,7 @@ async fn handle_accounts(
                 json!({
                     "accounts": [{
                         "address": addr,
-                        "label": "Parsec",
+                        "label": "PARSEC",
                         "network": network,
                     }]
                 }),
@@ -403,7 +403,7 @@ async fn handle_sign_transactions(
         sess.pending_requests.insert(request_id, sign_req.clone());
         sess.response_channels.insert(request_id, tx);
 
-        // Emit event to Parsec frontend for approval dialog
+        // Emit event to PARSEC frontend for approval dialog
         if let Some(ref handle) = state.app_handle {
             let _ = handle.emit("parsec-connect-sign-request", &sign_req);
         }

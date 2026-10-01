@@ -1,10 +1,12 @@
-// Parsec Wallet — Client-Side Key Encryption
+// PARSEC Wallet — Client-Side Key Encryption
 // Keys never leave the device. Mnemonic encrypted with user passphrase via Web Crypto API.
 
 const SALT_LENGTH = 16;
 const IV_LENGTH = 12;
 const ITERATIONS = 600_000; // OWASP recommendation for PBKDF2-SHA256
-const STORAGE_KEY = 'parsec-encrypted-keys';
+import { webKeysKey } from './profiles';
+
+// Per profile: `parsec-encrypted-keys` for the default profile, `…@<name>` for others.
 
 interface EncryptedVault {
   // Each account's mnemonic encrypted separately
@@ -63,7 +65,7 @@ async function decrypt(cipher: string, passphrase: string): Promise<string> {
 
 function loadVault(): EncryptedVault {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(webKeysKey());
     return raw ? JSON.parse(raw) : { accounts: [] };
   } catch {
     return { accounts: [] };
@@ -71,7 +73,7 @@ function loadVault(): EncryptedVault {
 }
 
 function saveVault(vault: EncryptedVault): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(vault));
+  localStorage.setItem(webKeysKey(), JSON.stringify(vault));
 }
 
 /** Store an encrypted mnemonic for an address */

@@ -1,4 +1,4 @@
-// Parsec Wallet — NFDminter entry view.
+// PARSEC Wallet — NFDminter entry view.
 // Four tabs: Claim · Search · My Names · Subdomains. Each tab swaps its body
 // into the body container without navigating — heavier flows (review-and-
 // sign) get their own AppView via store.navigate. Tabs can also hand off to

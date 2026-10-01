@@ -2,7 +2,7 @@
 //
 // Why: the entire AO/Arweave ecosystem (sol.ar.io, ao.link, ao.arweave.dev,
 // Permanotes, etc.) connects to wallets through this single object. By
-// implementing the canonical surface, Parsec becomes a drop-in wallet for
+// implementing the canonical surface, PARSEC becomes a drop-in wallet for
 // every dApp without per-integration work.
 //
 // Custody invariant: every method that touches a private key goes through
@@ -129,14 +129,14 @@ const connections = new Map<string, ActiveConnection>();
 
 function originOf(): string {
   // dApp pages run in the same Tauri webview, so document.location.origin is
-  // the dApp's origin. For internal Parsec views (parsec://), we never call
+  // the dApp's origin. For internal PARSEC views (parsec://), we never call
   // the injected API.
   return typeof window !== 'undefined' ? window.location.origin : 'unknown';
 }
 
 function requirePermission(conn: ActiveConnection, perm: ArweavePermission): void {
   if (!conn.permissions.includes(perm)) {
-    throw new Error(`Parsec: missing permission ${perm} for ${conn.origin}`);
+    throw new Error(`PARSEC: missing permission ${perm} for ${conn.origin}`);
   }
 }
 
@@ -144,7 +144,7 @@ async function ensureSigner(conn: ActiveConnection): Promise<ArweaveSigner> {
   if (conn.signer) return conn.signer;
   const passphrase = store.getPassphrase();
   if (!passphrase) {
-    throw new Error('Parsec: wallet is locked');
+    throw new Error('PARSEC: wallet is locked');
   }
   conn.signer = await buildArweaveSigner(conn.address, passphrase);
   return conn.signer;
@@ -191,24 +191,24 @@ export interface ArweaveWalletAPI {
 
 function getConnection(origin: string): ActiveConnection {
   const conn = connections.get(origin);
-  if (!conn) throw new Error('Parsec: not connected. Call connect() first.');
+  if (!conn) throw new Error('PARSEC: not connected. Call connect() first.');
   return conn;
 }
 
 export function createArweaveWalletAPI(): ArweaveWalletAPI {
   return {
-    walletName: 'Parsec',
+    walletName: 'PARSEC',
     walletVersion: '0.1.0',
 
     async connect(permissions, appInfo) {
       const origin = originOf();
       const status = await keystoreStatus();
       if (!status.unlocked) {
-        throw new Error('Parsec: wallet is locked. Open Parsec and unlock first.');
+        throw new Error('PARSEC: wallet is locked. Open PARSEC and unlock first.');
       }
       const active = activeArweaveAccount();
       if (!active) {
-        throw new Error('Parsec: no Arweave account available. Create one in Parsec first.');
+        throw new Error('PARSEC: no Arweave account available. Create one in PARSEC first.');
       }
 
       // Honour cached permissions from prior approvals — if the dApp asks
@@ -269,7 +269,7 @@ export function createArweaveWalletAPI(): ArweaveWalletAPI {
       const out: Record<string, string> = {};
       for (const acc of state.accounts) {
         const a = getAccountAddress(acc, 'arweave') ?? getAccountAddress(acc, 'arweave-hd');
-        if (a) out[a] = acc.name || 'Parsec Account';
+        if (a) out[a] = acc.name || 'PARSEC Account';
       }
       return out;
     },

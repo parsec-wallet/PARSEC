@@ -1,4 +1,4 @@
-// Parsec x402 Integration — Core Types
+// PARSEC x402 Integration — Core Types
 // Adapted from x402-demo: erc8004/src/types.ts, modules/identity/types.ts, modules/bankon-payments/types.ts
 // No viem dependency — all address/hash types are plain strings.
 // SPDX-FileCopyrightText: 2026 BANKON

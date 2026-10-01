@@ -1,8 +1,14 @@
-// Parsec Wallet — Unlock View
+// PARSEC Wallet — Unlock View
+//
+// Opens the open profile's vault. Names the profile, offers the way to a new
+// vault when the passphrase is lost, and always offers the way back to the
+// Matrix (link or Escape).
 
 import { el, btn, input, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { keystoreUnlock } from '../lib/keystore';
+import { profileChooser } from '../lib/ui/profile-chooser';
+import { matrixEscape } from '../lib/ui/matrix-escape';
 
 export function unlockView(): HTMLElement {
   let passphrase = '';
@@ -15,6 +21,12 @@ export function unlockView(): HTMLElement {
     onEnter: () => doUnlock(),
   });
 
+  function clear(): void {
+    passphrase = '\0'.repeat(passphrase.length);
+    passphrase = '';
+    passphraseInput.value = '';
+  }
+
   async function doUnlock() {
     if (!passphrase) { toast('Enter your passphrase', 'danger'); return; }
     store.set({ isLoading: true });
@@ -22,11 +34,31 @@ export function unlockView(): HTMLElement {
     store.set({ isLoading: false });
     if (ok) {
       store.setPassphrase(passphrase);
+      clear();
       store.navigate('dashboard');
     } else {
+      clear();
       toast('Wrong passphrase', 'danger');
     }
   }
+
+  // The forgotten-passphrase path: a new vault beside this one (lib/profiles.ts).
+  const forgotBox = el('div', { cls: 'parsec-onboarding__actions' });
+  const forgot = el('a', {
+    text: 'Forgot the passphrase? Create a new vault',
+    attrs: { href: '#' },
+    onClick: (e) => {
+      e.preventDefault();
+      clear();
+      forgotBox.replaceChildren(
+        el('p', { cls: 'parsec-view__desc', text: 'A vault passphrase cannot be recovered or reset. Create a new vault, then restore '
+          + `your wallets into it from their recovery phrases. Profile “${store.profile}” stays on this device untouched.` }),
+        profileChooser({ compact: true, startCreating: true, onChanged: () => store.navigate('matrix') }),
+      );
+    },
+  });
+
+  setTimeout(() => passphraseInput.focus(), 50);
 
   return el('div', {
     cls: 'parsec-view parsec-onboarding',
@@ -36,6 +68,7 @@ export function unlockView(): HTMLElement {
         children: [
           el('div', { cls: 'parsec-logo', text: 'PARSEC' }),
           el('p', { cls: 'parsec-onboarding__tagline', text: 'Welcome back' }),
+          el('p', { cls: 'parsec-matrix__profile', children: ['Profile', el('strong', { text: store.profile })] }),
         ],
       }),
       el('div', {
@@ -45,6 +78,8 @@ export function unlockView(): HTMLElement {
           btn('Unlock', { intent: 'primary', large: true, icon: 'unlock', onClick: doUnlock }),
         ],
       }),
+      el('p', { cls: 'parsec-matrix__profile', children: [forgot] }),
+      forgotBox,
       el('p', {
         cls: 'parsec-onboarding__footer',
         children: [
@@ -55,6 +90,7 @@ export function unlockView(): HTMLElement {
           }),
         ],
       }),
+      matrixEscape(clear),
     ],
   });
 }

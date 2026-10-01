@@ -1,4 +1,4 @@
-// Parsec Wallet — passphrase field
+// PARSEC Wallet — passphrase field
 //
 // One control used everywhere a passphrase is chosen or entered: masked by
 // default with an eye toggle to reveal, a live strength meter, and a generator.

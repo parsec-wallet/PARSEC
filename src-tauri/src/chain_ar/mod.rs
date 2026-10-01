@@ -20,7 +20,7 @@
 //! of the participant's funds.
 //!
 //! Reimplementing node-forge's prime search in Rust to preserve that mapping is
-//! possible and is the wrong trade: it would pin Parsec forever to another
+//! possible and is the wrong trade: it would pin PARSEC forever to another
 //! library's internals in the one place where a mistake silently loses money.
 //! So the legacy derivation stays where it is, and new accounts get keys from the
 //! OS CSPRNG — which is stronger anyway, since it does not stretch 64 seed bytes

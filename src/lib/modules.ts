@@ -1,4 +1,4 @@
-// Parsec Wallet — Module Manifest
+// PARSEC Wallet — Module Manifest
 //
 // One registration for a whole feature. Today a new chain or dApp surface has
 // to be threaded through four separate places: the AppView union, the

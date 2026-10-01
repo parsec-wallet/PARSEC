@@ -1,4 +1,4 @@
-// Parsec Wallet — the desktop shell: window controls, close-to-tray, start at login.
+// PARSEC Wallet — the desktop shell: window controls, close-to-tray, start at login.
 //
 // One typed wrapper over the Rust `app_shell` module (src-tauri/src/app_shell),
 // through platform.ts like every other command. Everything here is desktop-only:

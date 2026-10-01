@@ -1,6 +1,6 @@
 # Memory hygiene
 
-The contract for anything in Parsec that touches key material.
+The contract for anything in PARSEC that touches key material.
 Implementation: `src-tauri/src/bankon_vault/secure_mem.rs`.
 
 ## Why this exists as its own module

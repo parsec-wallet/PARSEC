@@ -1,4 +1,4 @@
-// Parsec Wallet — Send View
+// PARSEC Wallet — Send View
 // Supports ALGO + any opted-in ASA. Navigates to confirm-send before signing.
 
 import { el, btn, input, toast } from '../lib/dom';

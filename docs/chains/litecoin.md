@@ -1,4 +1,4 @@
-# Litecoin — Parsec chain pack
+# Litecoin — PARSEC chain pack
 
 > BIP-32/44 Litecoin wallet. Mirrors the Bitcoin pack; LTC specifics live in Rust.
 

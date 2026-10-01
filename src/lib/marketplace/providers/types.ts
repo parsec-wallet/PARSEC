@@ -1,6 +1,6 @@
 // Extensible marketplace provider layer.
 //
-// Parsec is not bound to a single marketplace. A *provider* is any service
+// PARSEC is not bound to a single marketplace. A *provider* is any service
 // that can surface listings and complete a purchase: NFD's native
 // buy-it-now, the BANKON Marketspace Registry, AgenticPlace, or a
 // third-party plugin shipped as an extension. Providers self-register into
@@ -19,8 +19,8 @@ export type MarketAssetKind =
 
 /** How a buyer completes a purchase through a provider. */
 export type SettlementMode =
-  | 'in-wallet' // Parsec builds, signs and submits the purchase itself
-  | 'redirect' // Parsec routes to another in-wallet view to finish
+  | 'in-wallet' // PARSEC builds, signs and submits the purchase itself
+  | 'redirect' // PARSEC routes to another in-wallet view to finish
   | 'external'; // hands off to a hosted marketplace (opens a URL)
 
 /**
@@ -65,7 +65,7 @@ export interface MarketBuyArgs {
 }
 
 export interface MarketBuyResult {
-  /** True when the purchase settled on-chain from within Parsec. */
+  /** True when the purchase settled on-chain from within PARSEC. */
   settled: boolean;
   txid?: string;
   /** redirect providers: an in-wallet view name to navigate to. */

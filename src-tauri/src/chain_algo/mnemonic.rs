@@ -138,7 +138,7 @@ pub fn is_valid(phrase: &str) -> bool {
 mod tests {
     use super::*;
 
-    // Ground truth generated with algosdk (the JS library Parsec is replacing
+    // Ground truth generated with algosdk (the JS library PARSEC is replacing
     // here), so these assert cross-implementation agreement rather than merely
     // self-consistency.
     const VECTORS: &[(&str, &str)] = &[

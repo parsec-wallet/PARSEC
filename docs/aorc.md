@@ -5,11 +5,11 @@
 
 ## Overview
 
-aORC (Algorand Open Runtime Contracts) is Parsec's NFT minting layer. It builds
+aORC (Algorand Open Runtime Contracts) is PARSEC's NFT minting layer. It builds
 and submits mint transactions for the standard Algorand NFT ARCs and adds a
 **TypeMinter** for on-chain, contract-generated asset types.
 
-- **ARC-3 / ARC-19 / ARC-69** — the metadata standards Parsec mints and reads.
+- **ARC-3 / ARC-19 / ARC-69** — the metadata standards PARSEC mints and reads.
 - **TypeMinter** — mint instances of a type defined on-chain by an aORC
   contract, rather than ad-hoc per-asset metadata.
 

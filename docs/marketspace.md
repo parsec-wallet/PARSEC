@@ -2,9 +2,9 @@
 
 ## Overview
 
-BANKON Marketspace is Parsec's sovereign secondary market for names — both BANKON-namespace names (from the BNR) and ArNS names (via the ANT processes). A single AO process (the BANKON Marketspace Registry, **BMR**) holds listings, offers, auction state, and trade history. Listed names are escrowed on-process by transferring them to the BMR; settlement releases them to the buyer.
+BANKON Marketspace is PARSEC's sovereign secondary market for names — both BANKON-namespace names (from the BNR) and ArNS names (via the ANT processes). A single AO process (the BANKON Marketspace Registry, **BMR**) holds listings, offers, auction state, and trade history. Listed names are escrowed on-process by transferring them to the BMR; settlement releases them to the buyer.
 
-**Web mirror**: [`agenticplace.pythai.net/marketspace`](https://agenticplace.pythai.net/marketspace) — the public-facing companion dApp for non-Parsec users. The in-wallet view in Parsec is the sovereign client.
+**Web mirror**: [`agenticplace.pythai.net/marketspace`](https://agenticplace.pythai.net/marketspace) — the public-facing companion dApp for non-PARSEC users. The in-wallet view in PARSEC is the sovereign client.
 
 ## Why a sovereign marketspace
 
@@ -15,7 +15,7 @@ BANKON Marketspace is Parsec's sovereign secondary market for names — both BAN
 ## Architecture
 
 ```
-Parsec wallet                          BMR (AO process)
+PARSEC wallet                          BMR (AO process)
 ─────────────                          ────────────────
 src/views/market-*.ts        ───▶      Listings / Offers / Bids
 src/lib/marketplace/                   Trades / Fees / Treasury / Policy
@@ -39,7 +39,7 @@ In-wallet spawn flow
 ## Lifecycle of a listing
 
 1. **Seller** opens `Manage` on a name they own → `Marketspace` section → **List for sale**.
-2. Parsec posts a `Create-Listing` DataItem (fixed-price or auction) to the BMR.
+2. PARSEC posts a `Create-Listing` DataItem (fixed-price or auction) to the BMR.
 3. The wallet immediately follows up with the asset escrow: a BNR `Transfer` (for BANKON names) or an ANT `Transfer` (for ArNS) to the BMR's process id.
 4. The BMR's `escrow.lua` observes the inbound `Transfer-Notice` and flips the listing to `escrowed`.
 5. **Buyer** opens the listing in `market-listing` (or `market-auction` for auctions):
@@ -117,7 +117,7 @@ Writes return `Omit<DataItemInput, 'owner'>`; caller signs via `signDataItemFrom
 - Payment proofs are signed attestations (the wallet that posts `Settle-Trade` is on-record).
 - Auctions trust the winning bidder to honor their bid. v1 doesn't on-chain-escrow bid amounts.
 - Single-controller v1; governance voting deferred to v2.
-- The Marketspace web mirror at `agenticplace.pythai.net/marketspace` is the public-facing client. It uses the same BMR and the same payment-proof model. Parsec is the sovereign client; the web mirror is the public client.
+- The Marketspace web mirror at `agenticplace.pythai.net/marketspace` is the public-facing client. It uses the same BMR and the same payment-proof model. PARSEC is the sovereign client; the web mirror is the public client.
 
 ## v2 roadmap
 

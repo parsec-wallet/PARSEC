@@ -1,4 +1,4 @@
-// Parsec Wallet — Algorand Input Validation
+// PARSEC Wallet — Algorand Input Validation
 // Detects and validates: addresses, 25-word mnemonics, base64 private keys,
 // and ARC-26 algorand:// transaction-request URIs.
 // Frontend classifies, backend (Rust) validates in production.

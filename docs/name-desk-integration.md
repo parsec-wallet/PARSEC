@@ -1,7 +1,7 @@
 # Name desk — web integration
 
 How `bankon.pythai.net`, `agenticplace.pythai.net`, `mindx.pythai.net` and
-`deltaverse.pythai.net` manage ar.io names with Parsec holding the key.
+`deltaverse.pythai.net` manage ar.io names with PARSEC holding the key.
 
 Written 2026-08-28. Companion to `docs/parsec-connect.md` (the Algorand signing path this
 extends) and `DeltaVerse/deploy/arns/README.md` (the CLI for CI and headless boxes).
@@ -9,7 +9,7 @@ extends) and `DeltaVerse/deploy/arns/README.md` (the CLI for CI and headless box
 ## The shape of it
 
 ```
-  a PYTHAI site                    Parsec (localhost:9876)              ar.io / Solana
+  a PYTHAI site                    PARSEC (localhost:9876)              ar.io / Solana
   ─────────────                    ───────────────────────              ──────────────
   read: HEAD name.ar.io ─────────────────────────────────────────────▶  x-arns-resolved-id
         (no wallet, works for every visitor)
@@ -23,7 +23,7 @@ extends) and `DeltaVerse/deploy/arns/README.md` (the CLI for CI and headless box
 
 **A site states an intent; it never sends transaction bytes.** That is the whole design.
 A dApp asking "sign these 200 bytes" gives the user nothing to judge. A dApp asking
-*"point deltaverse at `<id>`"* gives them a sentence, and Parsec — not the page — decides
+*"point deltaverse at `<id>`"* gives them a sentence, and PARSEC — not the page — decides
 which transaction that sentence means. A hostile origin can ask for the wrong change, but it
 cannot dress an arbitrary payload up as a name change, and it cannot ask for anything outside
 the allowlist.
@@ -115,12 +115,12 @@ live from the gateways. Host it, or lift the pattern.
 
 **Read first, wallet second.** Every one of these pages should render the complete truth about
 a name to a visitor with nothing installed — what it serves, whether that is still ar.io's
-placeholder, which undernames are live. Only the *change* controls depend on Parsec, and when
+placeholder, which undernames are live. Only the *change* controls depend on PARSEC, and when
 it is absent they disable with a sentence saying why rather than disappearing.
 
 ## Origins
 
-The Connect server's CORS allowlist gates the HTTP endpoints a page uses to detect Parsec.
+The Connect server's CORS allowlist gates the HTTP endpoints a page uses to detect PARSEC.
 The default is now the PYTHAI suite — `bankon`, `agenticplace`, `mindx`, `deltaverse`, `rage`,
 and the apex — plus **any loopback origin on any port**, which the server allows for
 development (`http(s)://localhost`, `127.0.0.1`, `[::1]`, with or without a port). It has to be

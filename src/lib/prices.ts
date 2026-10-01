@@ -1,4 +1,4 @@
-// Parsec Wallet — Crypto Price Feed
+// PARSEC Wallet — Crypto Price Feed
 // CoinGecko free tier. No API key. Casual pricing for display only.
 // Cached. Fetched once per session. Not used for trading decisions.
 

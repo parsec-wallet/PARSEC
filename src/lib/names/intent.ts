@@ -1,4 +1,4 @@
-// Name intents — what a web page is allowed to ask Parsec to do to a name, and how that
+// Name intents — what a web page is allowed to ask PARSEC to do to a name, and how that
 // request is turned into a sentence a person can actually judge.
 //
 // The dApp never sends transaction bytes. It states an intent; this module validates it and
@@ -165,7 +165,7 @@ export function renderIntent(intent: NameIntent, chain: AddressChain): RenderedI
     }
 
     default:
-      return bad('Unsupported request', `Parsec does not support the operation "${String(intent.op)}".`);
+      return bad('Unsupported request', `PARSEC does not support the operation "${String(intent.op)}".`);
   }
 }
 
@@ -179,7 +179,7 @@ export function originLabel(origin: string): string {
 }
 
 /**
- * Origins Parsec will surface a name request from at all.
+ * Origins PARSEC will surface a name request from at all.
  *
  * The Rust CORS layer already gates who can open the socket; this is the second gate, in
  * the words the user sees — an origin not on this list is shown as untrusted even if it

@@ -1,4 +1,4 @@
-// Parsec Wallet — Blue Pill wallet watching
+// PARSEC Wallet — Blue Pill wallet watching
 //
 // The Blue Pill watches wallets. It never interacts with them: no key is
 // touched, nothing is signed, no dApp session is opened, no transaction is
@@ -42,7 +42,7 @@ export const WATCH_CHAIN_LABEL: Readonly<Record<WatchChain, string>> = {
   evm: 'EVM',
 };
 
-/** EVM networks an EVM address is read on — the ones the Parsec profile watches. */
+/** EVM networks an EVM address is read on — the ones the PARSEC profile watches. */
 export const EVM_NETWORKS: ReadonlyArray<{ name: string; unit: string; rpc: string }> = [
   { name: 'Ethereum', unit: 'ETH', rpc: 'https://ethereum-rpc.publicnode.com' },
   { name: 'Arbitrum', unit: 'ETH', rpc: 'https://arbitrum-one-rpc.publicnode.com' },

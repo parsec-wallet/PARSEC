@@ -1,4 +1,4 @@
-// Parsec Wallet — Wallet Recovery
+// PARSEC Wallet — Wallet Recovery
 //
 // Opening an existing wallet with nothing but the passphrase.
 //
@@ -99,7 +99,7 @@ export async function recoverKeys(): Promise<RecoveredKey[]> {
 /**
  * Fold recovered keys into the existing account list.
  *
- * Algorand keys become accounts — that is the identity Parsec is built on.
+ * Algorand keys become accounts — that is the identity PARSEC is built on.
  * Every other key attaches as a per-chain address on the account it belongs
  * to, matched by address where possible and otherwise onto the first account.
  * Accounts already known are left completely alone.

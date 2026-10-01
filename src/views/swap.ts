@@ -1,4 +1,4 @@
-// Parsec Wallet — SpinTrade Swap View
+// PARSEC Wallet — SpinTrade Swap View
 // Aggregates quotes from all DEX modules. Participant picks the best price.
 
 import { el, btn, input, toast } from '../lib/dom';

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Spawn the BANKON Names Registry (BNR) AO process.
 //
-// PREFERRED PATH: spawn from the wallet UI — open Parsec, unlock with the
+// PREFERRED PATH: spawn from the wallet UI — open PARSEC, unlock with the
 // maintainer Arweave key, then Dashboard → BANKON Names → "Spawn registry".
 // The in-wallet flow uses the same primitives, persists the resulting
 // process id to localStorage, and never asks for filesystem access.

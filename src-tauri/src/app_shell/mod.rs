@@ -60,14 +60,14 @@ fn toggle_main<R: Runtime>(app: &AppHandle<R>) {
 
 /// Build the tray and honour `--hidden`. Called from the builder's `setup`.
 pub fn setup<R: Runtime>(app: &mut App<R>) -> tauri::Result<()> {
-    let show = MenuItem::with_id(app, "show", "Show Parsec", true, None::<&str>)?;
+    let show = MenuItem::with_id(app, "show", "Show PARSEC", true, None::<&str>)?;
     let lock = MenuItem::with_id(app, "lock", "Lock wallet", true, None::<&str>)?;
     let sep = PredefinedMenuItem::separator(app)?;
-    let quit = MenuItem::with_id(app, "quit", "Quit Parsec", true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", "Quit PARSEC", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&show, &lock, &sep, &quit])?;
 
     let mut tray = TrayIconBuilder::with_id("parsec-tray")
-        .tooltip("Parsec Wallet")
+        .tooltip("PARSEC Wallet")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id.as_ref() {
@@ -114,7 +114,7 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
 
 // ── Start at login ──────────────────────────────────────────────────────────
 
-const APP_NAME: &str = "Parsec Wallet";
+const APP_NAME: &str = "PARSEC Wallet";
 
 fn exe() -> Result<String, String> {
     std::env::current_exe()

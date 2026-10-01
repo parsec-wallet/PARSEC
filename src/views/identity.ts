@@ -1,4 +1,4 @@
-// Parsec Wallet — Identity View
+// PARSEC Wallet — Identity View
 // ERC-8004 agent identity + BANKON IDNFT management.
 // Maps VaultIdentity <-> AgentRegistration across Algorand + EVM.
 

@@ -1,4 +1,4 @@
-// Parsec Wallet — complete logout
+// PARSEC Wallet — complete logout
 //
 // The Red Pill is a live wallet session. Leaving it must leave nothing behind:
 // no secret in memory, no open channel a dApp can still talk to, no cached

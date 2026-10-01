@@ -40,7 +40,7 @@ export function marketHubView(): HTMLElement {
     ],
   }));
 
-  // Mirror dApp on the web — useful for non-Parsec users or for quick
+  // Mirror dApp on the web — useful for non-PARSEC users or for quick
   // sharing of a listing URL. Always shown, regardless of BMR state.
   root.appendChild(el('div', {
     cls: 'parsec-callout',

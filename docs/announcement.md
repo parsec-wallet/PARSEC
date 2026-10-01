@@ -46,7 +46,7 @@ Lock the wallet. The session ends. Keys zeroed from memory. You return to the ma
 
 ## The Wallet IS the Login
 
-Parsec does not use passwords, emails, or OAuth tokens. The wallet is the identity. A cryptographic signature proves you hold the keys. From that proof, every choice opens — DEX, send, receive, onramp, offramp.
+PARSEC does not use passwords, emails, or OAuth tokens. The wallet is the identity. A cryptographic signature proves you hold the keys. From that proof, every choice opens — DEX, send, receive, onramp, offramp.
 
 No intermediary. No custodian. No permission layer.
 
@@ -54,9 +54,9 @@ If you hold the private key, you hold the asset.
 
 ---
 
-## What Parsec Is
+## What PARSEC Is
 
-Parsec is a sovereign wallet layer for Algorand, with Bitcoin and multi-chain expansion on the roadmap.
+PARSEC is a sovereign wallet layer for Algorand, with Bitcoin and multi-chain expansion on the roadmap.
 
 **Built from:**
 - Vanilla TypeScript — no React, no frameworks, no runtime dependencies beyond algosdk
@@ -81,7 +81,7 @@ Parsec is a sovereign wallet layer for Algorand, with Bitcoin and multi-chain ex
 
 ---
 
-## Parsec Paper Export
+## PARSEC Paper Export
 
 Offline Bitcoin wallet generator. Forked from bitaddress.org, rebranded to Cypherpunk2048 standard.
 
@@ -89,7 +89,7 @@ Single self-contained HTML file. Zero remote dependencies. All wallet types: sin
 
 **If you are smart, you generate your wallet while disconnected from the internet.**
 
-Private key hidden until hover. QR blurred by default. Transfer to Parsec Pouch with one click — key zeroed from memory immediately after transfer. Public address click-to-copy with green highlight.
+Private key hidden until hover. QR blurred by default. Transfer to PARSEC Pouch with one click — key zeroed from memory immediately after transfer. Public address click-to-copy with green highlight.
 
 ---
 
@@ -138,7 +138,7 @@ SpinTrade DEX
 - The holder verifies independently
 - The holder prints and exports directly
 - The holder retains custody through key possession
-- Parsec provides tooling, not custody
+- PARSEC provides tooling, not custody
 - No analytics, no telemetry, no beacons
 - Unencrypted backup prevented in standard mode
 

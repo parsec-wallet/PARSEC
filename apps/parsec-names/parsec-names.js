@@ -1,24 +1,24 @@
-// parsec-names.js — manage ar.io names from a web page, with Parsec holding the key.
+// parsec-names.js — manage ar.io names from a web page, with PARSEC holding the key.
 //
 // Drop-in for bankon.pythai.net, agenticplace.pythai.net, mindx.pythai.net and
 // deltaverse.pythai.net. No build step, no dependencies, no bundler:
 //
 //   import { ParsecNames } from '/vendor/parsec-names.js';
 //   const pn = new ParsecNames();
-//   await pn.detect();                                  // is Parsec running?
-//   const state = await pn.read('deltaverse');          // works with or without Parsec
-//   await pn.setRoot('deltaverse', manifestId, 900);    // asks Parsec; user approves
+//   await pn.detect();                                  // is PARSEC running?
+//   const state = await pn.read('deltaverse');          // works with or without PARSEC
+//   await pn.setRoot('deltaverse', manifestId, 900);    // asks PARSEC; user approves
 //
 // TWO HALVES, ON PURPOSE
 //   Reading is public: it goes to ar.io gateways over plain HTTPS and needs no wallet.
 //   A page can always show the truth about a name, even to a visitor with nothing installed.
-//   Writing goes to Parsec on localhost, which states the intent to the user and signs with a
+//   Writing goes to PARSEC on localhost, which states the intent to the user and signs with a
 //   vault key. This module never sees a private key, never builds a transaction, and cannot
-//   make a change without a human approving the sentence Parsec shows them.
+//   make a change without a human approving the sentence PARSEC shows them.
 //
 // WHY NOT A BROWSER WALLET
 //   A Phantom-style signer would mean this page builds the Solana transaction and asks for a
-//   blind byte-signature. Parsec is asked for a *named operation* instead — the wallet decides
+//   blind byte-signature. PARSEC is asked for a *named operation* instead — the wallet decides
 //   what transaction that means. A compromised page can ask for the wrong thing, but it cannot
 //   dress an arbitrary payload up as a name change.
 //
@@ -30,7 +30,7 @@
 const DEFAULT_PORT = 9876;
 const DEFAULT_GATEWAYS = ['ar.io', 'arweave.net', 'permagate.io'];
 
-/** Operations Parsec accepts. Mirrors ALLOWED_NAME_OPS in the Rust server. */
+/** Operations PARSEC accepts. Mirrors ALLOWED_NAME_OPS in the Rust server. */
 export const NAME_OPS = [
   'set-root',
   'set-undername',
@@ -42,13 +42,13 @@ export const NAME_OPS = [
 ];
 
 export class ParsecNotAvailable extends Error {
-  constructor(message = 'Parsec is not running on this machine') {
+  constructor(message = 'PARSEC is not running on this machine') {
     super(message);
     this.name = 'ParsecNotAvailable';
   }
 }
 
-/** The user declined, or Parsec refused. `code` is the JSON-RPC code. */
+/** The user declined, or PARSEC refused. `code` is the JSON-RPC code. */
 export class ParsecRejected extends Error {
   constructor(message, code) {
     super(message);
@@ -81,7 +81,7 @@ export class ParsecNames {
 
   // ── Detection ───────────────────────────────────────────────────────────────
 
-  /** Is Parsec running and reachable? Never throws; returns a boolean. */
+  /** Is PARSEC running and reachable? Never throws; returns a boolean. */
   async detect() {
     try {
       const res = await this.#fetchWithTimeout(`${this.base}/health`, this.timeoutMs);
@@ -93,7 +93,7 @@ export class ParsecNames {
     return this.available;
   }
 
-  /** Addresses Parsec has, once connected. Requires Parsec. */
+  /** Addresses PARSEC has, once connected. Requires PARSEC. */
   async accounts() {
     return this.#rpc('parsec_accounts', {});
   }
@@ -135,7 +135,7 @@ export class ParsecNames {
     return resolvedId === ParsecNames.PLACEHOLDER;
   }
 
-  // ── Writes (Parsec approves and signs) ──────────────────────────────────────
+  // ── Writes (PARSEC approves and signs) ──────────────────────────────────────
 
   /** Point the root (@) record at a manifest or transaction id. */
   setRoot(name, transactionId, ttlSeconds = 900) {
@@ -172,7 +172,7 @@ export class ParsecNames {
    * The general form. Resolves with the wallet's result (typically `{ id }`) once the user
    * approves and the transaction lands; rejects with ParsecRejected if they decline.
    *
-   * There is no progress callback: the page should say "waiting for approval in Parsec" from
+   * There is no progress callback: the page should say "waiting for approval in PARSEC" from
    * the moment this is called until it settles.
    */
   async request(op, name, params = {}) {
@@ -204,7 +204,7 @@ export class ParsecNames {
       const fail = () => {
         this.available = false;
         this._ws = null;
-        reject(new ParsecNotAvailable('Could not open a channel to Parsec'));
+        reject(new ParsecNotAvailable('Could not open a channel to PARSEC'));
       };
       ws.addEventListener('open', () => { this._ws = ws; resolve(ws); });
       ws.addEventListener('error', fail);
@@ -212,7 +212,7 @@ export class ParsecNames {
         this._ws = null;
         // Anything still in flight will never be answered — fail it rather than hang.
         for (const [, { reject: rj }] of this._waiting) {
-          rj(new ParsecNotAvailable('Parsec closed the connection'));
+          rj(new ParsecNotAvailable('PARSEC closed the connection'));
         }
         this._waiting.clear();
       });

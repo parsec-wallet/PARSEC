@@ -131,7 +131,7 @@ with tempfile.TemporaryDirectory() as tmp:
             f"     Upstream licence: MIT for the connector code, CC BY-SA 4.0 for the docs and RFCs\n"
             f"     (github.com/toon-protocol/connector). The quoted operator guide, ADRs and RFC\n"
             f"     delta table below are that CC BY-SA 4.0 material, reproduced with attribution and\n"
-            f"     redistributed under the same licence — NOT under the Parsec/BANKON licence. -->\n"
+            f"     redistributed under the same licence — NOT under the PARSEC/BANKON licence. -->\n"
         )
         open(f"{out}/{name}.md", "w").write(head + "\n" + md + "\n")
         ok.append((name, url, len(md)))
@@ -146,9 +146,9 @@ idx = ("# toon.ar.io snapshot\n\n"
        "It is the clearest worked example we have of paid permaweb writes end to end.\n\n"
        "Licence: MIT (connector code) / **CC BY-SA 4.0** (docs, ADRs, RFCs). The snapshot reproduces\n"
        "CC BY-SA 4.0 material with attribution and stays under that licence — see the header comment\n"
-       "in the file. Do not fold it into Parsec-licensed docs; link to it instead.\n\n"
+       "in the file. Do not fold it into PARSEC-licensed docs; link to it instead.\n\n"
        "| File | Source | chars |\n|---|---|---|\n"
        + "".join(f"| `{n}.md` | {u} | {l} |\n" for n, u, l in ok)
        + "\nRelated: [`../../integration/toon-connector.md`](../../integration/toon-connector.md) — the\n"
-         "Parsec-side review and integration plan (payer-only, `enabled: false` while upstream is testnet).\n")
+         "PARSEC-side review and integration plan (payer-only, `enabled: false` while upstream is testnet).\n")
 open(f"{out}/README.md", "w").write(idx)

@@ -1,7 +1,7 @@
 // BANKON fee layer for NFDominter.
 //
 // The NFD Registry hardcodes its treasury and commission addresses as TEAL
-// template variables — we can't redirect those. Parsec's own fee is
+// template variables — we can't redirect those. PARSEC's own fee is
 // therefore an additional payment transaction sent to the BANKON treasury
 // alongside the SDK-produced mint group.
 //

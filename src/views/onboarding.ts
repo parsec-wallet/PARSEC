@@ -1,4 +1,4 @@
-// Parsec Wallet — Onboarding View
+// PARSEC Wallet — Onboarding View
 // Shows unlock for returning participants, create/import for new ones.
 
 import { el, btn, input, toast } from '../lib/dom';
@@ -6,6 +6,7 @@ import { store } from '../lib/store';
 import { hasVault } from '../lib/crypto';
 import { isTauri } from '../lib/vault';
 import { keystoreUnlock } from '../lib/keystore';
+import { matrixEscape } from '../lib/ui/matrix-escape';
 
 export function onboardingView(): HTMLElement {
   const hasAccounts = store.get().accounts.length > 0;
@@ -125,6 +126,8 @@ export function onboardingView(): HTMLElement {
       passphrase = '';
     }
   }
+
+  children.push(matrixEscape(() => { passphrase = ''; }));
 
   return el('div', { cls: 'parsec-view parsec-onboarding', children });
 }

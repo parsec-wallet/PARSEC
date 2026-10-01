@@ -1,4 +1,4 @@
-// Parsec Wallet — Fuzzy Matching
+// PARSEC Wallet — Fuzzy Matching
 //
 // Subsequence scoring for the command palette. Kept free of any DOM reference
 // so the algorithm is unit-testable on its own.

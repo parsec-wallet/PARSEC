@@ -1,4 +1,4 @@
-// Parsec Wallet — Command Palette
+// PARSEC Wallet — Command Palette
 //
 // Ctrl/Cmd-K fuzzy search over the route registry. With 64 views this is the
 // difference between "I know it's in here somewhere" and "I'm there".

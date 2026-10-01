@@ -1,4 +1,4 @@
-// Parsec Wallet — parsec_validate IPC client
+// PARSEC Wallet — parsec_validate IPC client
 // Rust-side chain address validators.
 // The frontend classifier suggests; Rust validators are the gatekeepers.
 

@@ -1,6 +1,6 @@
 # Threat model
 
-What Parsec's vault defends against, what it does not, and why. Written to be
+What PARSEC's vault defends against, what it does not, and why. Written to be
 falsifiable: every claim maps to code and to a test.
 
 ## The design centre
@@ -19,7 +19,7 @@ bands by length — ≤6 weak, 7–11 medium, ≥12 strong — and the generator
 
 ## Tiers
 
-Parsec runs in four configurations with genuinely different properties. The UI
+PARSEC runs in four configurations with genuinely different properties. The UI
 must say which one is in force; a participant who thinks they are on Tier 3 when
 they are on Tier 1 has been misled about their own risk.
 

@@ -1,4 +1,4 @@
-// Parsec Wallet — chain_ar IPC client (Arweave).
+// PARSEC Wallet — chain_ar IPC client (Arweave).
 //
 // RSA-4096 with RSA-PSS / SHA-256 / 32-byte salt, matching ANS-104 signature
 // type 1.

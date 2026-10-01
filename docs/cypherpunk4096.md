@@ -1,6 +1,6 @@
-# cypherpunk4096 — the consortium, and where Parsec actually stands
+# cypherpunk4096 — the consortium, and where PARSEC actually stands
 
-> **Goal:** Parsec joins the **cypherpunk4096** consortium on completion.
+> **Goal:** PARSEC joins the **cypherpunk4096** consortium on completion.
 > **Standard:** <https://github.com/cypherpunk4096> · `standard` repo
 > **Repo:** <https://github.com/parsec-wallet>
 > **Assessed:** 2026-08-30 — re-check before making any conformance claim.
@@ -10,16 +10,16 @@ bar**. Everything that carried the 2048 mark is the floor here, not the
 ceiling." Each tier is a strict superset.
 
 **Compliance is binary — all commitments must be met, none optional.** So this
-document is a gap list, not a scorecard. Parsec does not carry the mark today.
+document is a gap list, not a scorecard. PARSEC does not carry the mark today.
 
-## The five commitments, against Parsec as it is
+## The five commitments, against PARSEC as it is
 
 ### I. Determinism as Identity
 
 > *"One deterministic address on every chain. The initcode **is** the name —
 > CREATE2/CREATE3 with a fixed salt and fixed constructor."*
 
-**Applies to:** Parsec's deployed contracts (aORC suite, BonaFide, the BNR/BMR
+**Applies to:** PARSEC's deployed contracts (aORC suite, BonaFide, the BNR/BMR
 AO processes), not the wallet binary.
 
 **Status:** Partial. The DeltaVerse/OVERLORD work already deploys deterministic
@@ -35,7 +35,7 @@ model that needs its own argument, not an assumed pass.
 
 **Status: this is the largest gap, and it is honest to say so.**
 
-Parsec's own README already softened the original rule to *"a lean dependency
+PARSEC's own README already softened the original rule to *"a lean dependency
 set"*. The frontend currently ships `algosdk`, `@algorandfoundation/*`,
 `@ar.io/sdk`, `@solana/kit`, `arweave`, `@txnlab/nfd-sdk`, `bip39`,
 `node-forge`, `@xterm/*`, `p-map`, `p-ratelimit`, `algo-x-evm-sdk`.
@@ -116,7 +116,7 @@ the same conclusion from the other direction — see
 > Signatures as `bytes` (not fixed `(v, r, s)`), ERC-1271 for smart accounts,
 > verifier replacement behind published timelocks.
 
-**Status:** Tracked in depth by [`../QUANTUM.md`](../QUANTUM.md). Parsec is
+**Status:** Tracked in depth by [`../QUANTUM.md`](../QUANTUM.md). PARSEC is
 **Tier-C** on signatures today (sovereign custody, classical schemes) and
 targets **Tier-Q on Algorand** via Falcon-1024 native accounts — which derive
 from the same 25-word seed and preserve the 58-char address, so the account
@@ -139,7 +139,7 @@ Grover-survivable at the 128-bit level, as stated above.
 
 ## Honest summary
 
-| Commitment | Parsec today | Gap |
+| Commitment | PARSEC today | Gap |
 |---|---|---|
 | I — Determinism | Partial | AO-process identity model needs its own argument |
 | II — Zero dependencies | **No** | Chain SDK surface must be vendored or replaced |
@@ -168,5 +168,5 @@ conformant until it is.
 `standard` (the doctrine) · `scientific` (reference ERC-20, 2²⁵⁶−1 supply,
 identical address across chains) · `engine` (LUV ENGINE) · `wei` · `exabyte` ·
 `chronos` · `kairos` · `liqlocker` · `pay2play` (Bitcoin payment-as-login) ·
-**`BANKONBTCWaaS`** — Parsec's Bitcoin path, see
+**`BANKONBTCWaaS`** — PARSEC's Bitcoin path, see
 [`integration/bankon-btc-waas.md`](./integration/bankon-btc-waas.md).

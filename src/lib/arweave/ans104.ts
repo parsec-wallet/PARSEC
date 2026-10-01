@@ -1,7 +1,7 @@
-// ANS-104 DataItem encoding, signing, and verification — Parsec-owned.
+// ANS-104 DataItem encoding, signing, and verification — PARSEC-owned.
 //
 // AO messages are signed DataItems per ANS-104 v1 (RSA-PSS signature type = 1).
-// We vendor the canonical algorithm here so Parsec is the keystore of record:
+// We vendor the canonical algorithm here so PARSEC is the keystore of record:
 // every byte that touches a vault-held JWK is code we control. No arbundles
 // dependency. Spec: https://github.com/ArweaveTeam/arweave-standards/blob/master/ans/ANS-104.md
 //

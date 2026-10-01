@@ -91,7 +91,7 @@ export function nfdominterConfirmView(): HTMLElement {
             el('span', { text: 'BANKON fee' }),
             el('span', { text: `${q.quote.amountDisplay} ${q.quote.assetSymbol}${q.quote.usdDisplay ? ` (${q.quote.usdDisplay})` : ''}` }),
           ]}),
-          el('div', { cls: 'parsec-nfdominter__hint', text: `Collected by BANKON for Parsec — the only fee here that is ours. Paid over x402 on ${q.quote.networkLabel}; the facilitator pays this transfer's network fee.` }),
+          el('div', { cls: 'parsec-nfdominter__hint', text: `Collected by BANKON for PARSEC — the only fee here that is ours. Paid over x402 on ${q.quote.networkLabel}; the facilitator pays this transfer's network fee.` }),
         );
       }
       feeReady = true;

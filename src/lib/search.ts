@@ -1,4 +1,4 @@
-// Parsec Wallet — parsec_search IPC client
+// PARSEC Wallet — parsec_search IPC client
 // PostgreSQL + pgvectorscale hybrid search engine.
 // All search operations go through Tauri invoke → Rust → PostgreSQL.
 
