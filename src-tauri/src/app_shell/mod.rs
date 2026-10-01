@@ -13,14 +13,22 @@
 //
 // Each entry launches the current executable with `--hidden`, which starts the
 // app in the tray instead of opening the window.
+//
+// Mobile (Android, iOS) has no tray, no window controls and no start at login:
+// there `setup` and `on_window_event` do nothing and the commands answer
+// harmlessly, so the same frontend calls resolve on every platform.
 
 pub mod commands;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
+#[cfg(desktop)]
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+#[cfg(desktop)]
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{App, AppHandle, Emitter, Manager, Runtime, Window, WindowEvent};
+#[cfg(desktop)]
+use tauri::{AppHandle, Emitter, Manager};
+use tauri::{App, Runtime, Window, WindowEvent};
 
 /// The flag the frontend passes when started at login.
 pub const HIDDEN_ARG: &str = "--hidden";
@@ -40,6 +48,7 @@ impl Default for ShellState {
     }
 }
 
+#[cfg(desktop)]
 pub fn show_main<R: Runtime>(app: &AppHandle<R>) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.unminimize();
@@ -48,6 +57,7 @@ pub fn show_main<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
+#[cfg(desktop)]
 fn toggle_main<R: Runtime>(app: &AppHandle<R>) {
     if let Some(w) = app.get_webview_window("main") {
         if w.is_visible().unwrap_or(false) {
@@ -58,7 +68,14 @@ fn toggle_main<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
+/// Mobile: no tray to build.
+#[cfg(mobile)]
+pub fn setup<R: Runtime>(_app: &mut App<R>) -> tauri::Result<()> {
+    Ok(())
+}
+
 /// Build the tray and honour `--hidden`. Called from the builder's `setup`.
+#[cfg(desktop)]
 pub fn setup<R: Runtime>(app: &mut App<R>) -> tauri::Result<()> {
     let show = MenuItem::with_id(app, "show", "Show PARSEC", true, None::<&str>)?;
     let lock = MenuItem::with_id(app, "lock", "Lock wallet", true, None::<&str>)?;
@@ -97,8 +114,13 @@ pub fn setup<R: Runtime>(app: &mut App<R>) -> tauri::Result<()> {
     Ok(())
 }
 
+/// Mobile: the system owns the app's lifecycle; nothing to intercept.
+#[cfg(mobile)]
+pub fn on_window_event<R: Runtime>(_window: &Window<R>, _event: &WindowEvent) {}
+
 /// Close-to-tray: a close request on the main window hides it when the
 /// preference is on. Quit (tray menu) exits for real.
+#[cfg(desktop)]
 pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
     if let WindowEvent::CloseRequested { api, .. } = event {
         if window.label() != "main" {

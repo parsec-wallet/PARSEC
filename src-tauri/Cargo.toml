@@ -50,7 +50,8 @@ hex = "0.4"
 sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "json"] }
 
 # parsec_mesh — P2P mesh with IPFS handoffs
-reqwest = { version = "0.12", features = ["json", "multipart"] }
+# rustls, not the platform OpenSSL: one TLS stack on desktop and Android (no OpenSSL to cross-compile).
+reqwest = { version = "0.12", default-features = false, features = ["json", "multipart", "rustls-tls", "charset", "http2"] }
 axum = { version = "0.7", features = ["ws"] }
 num_cpus = "1.16"
 
