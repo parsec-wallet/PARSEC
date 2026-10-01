@@ -53,8 +53,8 @@ export async function lookupAsset(assetId: number, network: NetworkId): Promise<
         unitName: String(params?.unitName || ''),
         decimals: Number(params?.decimals ?? DEFAULT_DECIMALS),
         total: Number(params?.total || 0),
-        hasFreezeAddr: !!params?.freeze,
-        hasClawbackAddr: !!params?.clawback,
+        hasFreezeAddr: isSetAddress(params?.freeze),
+        hasClawbackAddr: isSetAddress(params?.clawback),
         creator: String(params?.creator || ''),
         url: params?.url ? String(params.url) : undefined,
         reserve: params?.reserve ? String(params.reserve) : undefined,
@@ -63,6 +63,15 @@ export async function lookupAsset(assetId: number, network: NetworkId): Promise<
       return null;
     }
   });
+}
+
+const ZERO_ADDRESS = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY5HFKQ';
+
+/** An issuer role is held only when its address is set and not the zero address. */
+function isSetAddress(a: unknown): boolean {
+  if (a === undefined || a === null) return false;
+  const s = String(a);
+  return s !== '' && s !== ZERO_ADDRESS;
 }
 
 /** Search for an asset by name or ID */
@@ -79,16 +88,27 @@ export async function searchAssets(
 
   try {
     const indexer = getIndexerClient(network);
-    const response = await indexer.searchForAssets().name(query).limit(10).do();
-    return (response.assets || []).map((a) => {
+    // By name and by unit (ticker), merged: "USDC" is a unit, "USD Coin" a name.
+    const [byName, byUnit] = await Promise.all([
+      indexer.searchForAssets().name(query).limit(20).do().catch(() => ({ assets: [] })),
+      indexer.searchForAssets().unit(query).limit(20).do().catch(() => ({ assets: [] })),
+    ]);
+    const seen = new Set<string>();
+    const merged = [...(byUnit.assets || []), ...(byName.assets || [])].filter((a) => {
+      const k = String(a.index);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    }).slice(0, 24);
+    return merged.map((a) => {
       const params = a.params;
       return {
         assetId: Number(a.index),
         name: String(params?.name || ''),
         unitName: String(params?.unitName || ''),
         decimals: Number(params?.decimals ?? DEFAULT_DECIMALS),
-        hasFreezeAddr: !!params?.freeze,
-        hasClawbackAddr: !!params?.clawback,
+        hasFreezeAddr: isSetAddress(params?.freeze),
+        hasClawbackAddr: isSetAddress(params?.clawback),
       };
     });
   } catch {
@@ -96,7 +116,28 @@ export async function searchAssets(
   }
 }
 
-/** Opt in to an ASA */
+/**
+ * Opt in to an ASA, signed by the PARSEC Keycore: the transaction is built here,
+ * its bytes are signed in Rust (`chain_algo_sign_transaction`), and only the
+ * signature comes back. No key or phrase enters JavaScript.
+ */
+export async function optInWithKeycore(address: string, assetId: number, network: NetworkId): Promise<{ txId: string }> {
+  const { algoSignTransaction } = await import('../chain-algo');
+  const client = getAlgodClient(network);
+  const suggestedParams = await client.getTransactionParams().do();
+  const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+    sender: address, receiver: address, amount: 0, assetIndex: assetId, suggestedParams,
+  });
+  const toB64 = (b: Uint8Array) => btoa(String.fromCharCode(...b));
+  const fromB64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  const { signature_b64 } = await algoSignTransaction(address, toB64(txn.bytesToSign()));
+  const signed = txn.attachSignature(address, fromB64(signature_b64));
+  const { txid } = await client.sendRawTransaction(signed).do();
+  await algosdk.waitForConfirmation(client, txid, 4);
+  return { txId: txid };
+}
+
+/** Opt in to an ASA with a mnemonic held in JS — the browser build only, which has no Keycore. */
 export async function optInToAsset(mnemonic: string, assetId: number, network: NetworkId): Promise<{ txId: string }> {
   const client = getAlgodClient(network);
   const account = algosdk.mnemonicToSecretKey(mnemonic.trim());

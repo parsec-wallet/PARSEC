@@ -154,3 +154,10 @@
     outline-offset: 2px;
   }
 }
+
+.parsec-chainpick__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $spacing-2;
+  margin-top: $spacing-2;
+}
