@@ -136,3 +136,19 @@ describe('profileFor — an address opens the vault that holds its key', () => {
     expect(P.profileFor(list, ['NOPE']).name).toBeNull();
   });
 });
+
+describe('renameAccount', () => {
+  it('renames one account, trims and caps the name, ignores blanks', async () => {
+    const { renameAccount } = await import('../dashboard/wallet-switcher');
+    store.set({ accounts: [
+      { address: 'A1', name: 'Account 1', createdAt: 1, chains: {} },
+      { address: 'A5', name: 'Account 5', createdAt: 2, chains: {} },
+    ] as never, activeAccountIndex: 1 });
+    renameAccount(1, '  Treasury   payer  ');
+    expect(store.get().accounts.map((a) => a.name)).toEqual(['Account 1', 'Treasury payer']);
+    renameAccount(1, '   ');
+    expect(store.get().accounts[1].name).toBe('Treasury payer');
+    renameAccount(0, 'x'.repeat(60));
+    expect(store.get().accounts[0].name).toHaveLength(40);
+  });
+});

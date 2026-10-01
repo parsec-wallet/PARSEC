@@ -19,6 +19,18 @@ function accountChains(account: WalletAccount): ChainId[] {
   return [...new Set<string>(['algorand', ...Object.keys(account.chains ?? {})])];
 }
 
+/** Longest account name kept; any text is allowed. */
+const MAX_NAME = 40;
+
+/** Rename an account in the open profile. The name is the participant's own
+ *  label; it is never used to find or sign with a key. */
+export function renameAccount(index: number, name: string): void {
+  const clean = name.replace(/\s+/g, ' ').trim().slice(0, MAX_NAME);
+  if (!clean) return;
+  const accounts = store.get().accounts.map((a, i) => (i === index ? { ...a, name: clean } : a));
+  store.set({ accounts });
+}
+
 function avatarOf(account: WalletAccount): string {
   return account.avatar ?? defaultAvatarFor(account.address);
 }
@@ -80,6 +92,39 @@ export function createWalletSwitcher(): HTMLElement {
     });
   }
 
+  /** Swap an account's name for a field: Enter or leaving saves, Escape cancels. */
+  function startRename(index: number, nameSpan: HTMLElement): void {
+    const current = store.get().accounts[index]?.name ?? '';
+    const field = document.createElement('input');
+    field.className = 'parsec-wallet-switcher__rename-field';
+    field.value = current;
+    field.maxLength = MAX_NAME;
+    field.setAttribute('aria-label', 'Account name');
+    let done = false;
+    const finish = (save: boolean) => {
+      if (done) return;
+      done = true;
+      const next = field.value.trim();
+      if (save && next && next !== current) {
+        renameAccount(index, next);
+        toast(`Renamed to “${next}”`, 'success');
+      }
+      buildPopover();
+      pill.querySelector('.parsec-wallet-switcher__pill-name')!.textContent =
+        store.get().accounts[store.get().activeAccountIndex]?.name ?? 'Wallet';
+    };
+    field.addEventListener('click', (e) => e.stopPropagation());
+    field.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Enter') finish(true);
+      else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+    });
+    field.addEventListener('blur', () => finish(true));
+    nameSpan.replaceWith(field);
+    field.focus();
+    field.select();
+  }
+
   function buildPopover(): void {
     popover.innerHTML = '';
     const s = store.get();
@@ -87,14 +132,22 @@ export function createWalletSwitcher(): HTMLElement {
       const isActiveAccount = i === s.activeAccountIndex;
       const acctChain = (acct.activeChain ?? 'algorand') as ChainId;
 
-      popover.appendChild(el('div', {
+      const nameSpan = el('span', { cls: 'parsec-wallet-switcher__account-name', text: acct.name });
+      const row = el('div', {
         cls: `parsec-wallet-switcher__account${isActiveAccount ? ' parsec-wallet-switcher__account--active' : ''}`,
         children: [
           el('span', { cls: 'parsec-wallet-switcher__avatar', text: avatarOf(acct) }),
-          el('span', { cls: 'parsec-wallet-switcher__account-name', text: acct.name }),
+          nameSpan,
+          el('button', {
+            cls: 'parsec-wallet-switcher__rename',
+            text: '✎',
+            attrs: { type: 'button', title: 'Rename this account', 'aria-label': `Rename ${acct.name}` },
+            onClick: (e) => { e.stopPropagation(); startRename(i, nameSpan); },
+          }),
         ],
         onClick: () => { setOpen(false); store.selectChain(i, acctChain); },
-      }));
+      });
+      popover.appendChild(row);
 
       for (const chainId of accountChains(acct)) {
         const addr = getAccountAddress(acct, chainId);

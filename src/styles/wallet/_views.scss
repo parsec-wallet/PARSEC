@@ -4505,6 +4505,42 @@
   font-weight: $font-weight-semibold;
 }
 
+// Rename: a quiet ✎ that brightens on the row's hover, and the field it opens.
+.parsec-wallet-switcher__rename {
+  margin-left: auto;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: $border-radius-sm;
+  background: transparent;
+  color: $px-muted;
+  font-size: $font-size-base;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.5;
+
+  &:hover,
+  &:focus-visible {
+    background: rgba($px-steel, 0.3);
+    color: $px-gold;
+    opacity: 1;
+  }
+}
+
+.parsec-wallet-switcher__account:hover .parsec-wallet-switcher__rename { opacity: 1; }
+
+.parsec-wallet-switcher__rename-field {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid $px-gold;
+  border-radius: $border-radius-sm;
+  background: $px-void;
+  color: $px-text;
+  font: inherit;
+  font-weight: $font-weight-semibold;
+  outline: none;
+}
+
 .parsec-wallet-switcher__chain {
   display: flex;
   align-items: center;
