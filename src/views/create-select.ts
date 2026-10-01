@@ -138,7 +138,28 @@ export function createSelectView(): HTMLElement {
 
     row.appendChild(el('p', { cls: 'parsec-chainpick__detail', text: offer.detail }));
 
-    if (done) {
+    if (done && offer.required) {
+      // Algorand is the root of a wallet, and a person can hold several: the
+      // row shows the current account and still opens a new one. (Without
+      // this, a device that already had one Algorand account could never
+      // create another from here — the row was a dead end.)
+      row.appendChild(el('p', { cls: 'parsec-chainpick__addr', text: address! }));
+      const another = () => { store.setTempMnemonic(null); store.navigate('create-wallet'); };
+      const action = btn('Create another Algorand account', {
+        outlined: true,
+        onClick: (e) => { e.stopPropagation(); another(); },
+      });
+      action.classList.add('parsec-chainpick__action');
+      row.appendChild(action);
+      row.classList.add('parsec-chainpick__row--clickable');
+      row.setAttribute('role', 'button');
+      row.setAttribute('tabindex', '0');
+      row.setAttribute('aria-label', 'Create another Algorand account');
+      row.addEventListener('click', another);
+      row.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); another(); }
+      });
+    } else if (done) {
       row.appendChild(el('p', { cls: 'parsec-chainpick__addr', text: address! }));
     } else if (blocked) {
       row.appendChild(el('p', { cls: 'parsec-chainpick__note', text: 'Desktop only — this chain pack lives in the Rust backend.' }));
