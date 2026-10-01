@@ -59,4 +59,7 @@ jobs:
           tauriScript: 'npm run tauri'  # a template pnpm-lock.yaml would otherwise select pnpm
           releaseDraft: true
           prerelease: false
-          args: ${{ matrix.args }}
+          # The Rust crates (tauri 2.6) and the npm packages (api 2.10) are the
+          # pair `tauri dev` has run on throughout; ship that tested pair. Aligning
+          # them is tracked separately.
+          args: ${{ matrix.args }} --ignore-version-mismatches
