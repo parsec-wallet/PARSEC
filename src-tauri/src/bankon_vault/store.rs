@@ -48,12 +48,12 @@ impl VaultStore {
         let manifest = VaultManifest::default();
         let manifest_json = serde_json::to_vec_pretty(&manifest)
             .map_err(|e| format!("manifest serialize failed: {e}"))?;
-        fs::write(vault_dir.join(MANIFEST_FILE), &manifest_json)
+        Self::write_atomic(&vault_dir.join(MANIFEST_FILE), &manifest_json)
             .map_err(|e| format!("failed to write manifest: {e}"))?;
 
         // Write verification token — used to check passphrase without storing it
         let verify_data = crypto::encrypt(b"bankon_vault_ok", passphrase)?;
-        fs::write(vault_dir.join(VERIFY_FILE), &verify_data)
+        Self::write_atomic(&vault_dir.join(VERIFY_FILE), &verify_data)
             .map_err(|e| format!("failed to write verify token: {e}"))?;
 
         Ok(())
@@ -62,6 +62,48 @@ impl VaultStore {
     /// Check if a vault exists at the given path
     pub fn exists(vault_dir: &Path) -> bool {
         vault_dir.join(MANIFEST_FILE).exists() && vault_dir.join(VERIFY_FILE).exists()
+    }
+
+    /// Whether anything of a vault is at this path: the manifest, the verify token, or any
+    /// key file. `create` refuses over any of them — a vault missing one file is damaged,
+    /// not absent, and writing a fresh salt over it would orphan every key it holds.
+    pub fn has_any_artefact(vault_dir: &Path) -> bool {
+        vault_dir.join(MANIFEST_FILE).exists()
+            || vault_dir.join(VERIFY_FILE).exists()
+            || fs::read_dir(vault_dir.join(KEYS_DIR))
+                .map(|mut it| it.next().is_some())
+                .unwrap_or(false)
+    }
+
+    /// Write a vault file so it is either the old bytes or the new ones, never a torn mix:
+    /// a temp file in the same directory, owner-only (0600 on Unix), synced, then renamed
+    /// over the target, then the directory synced so the rename itself is durable.
+    pub fn write_atomic(path: &Path, data: &[u8]) -> Result<(), String> {
+        use std::io::Write;
+        let dir = path.parent().ok_or("vault path has no parent directory")?;
+        let name = path.file_name().and_then(|n| n.to_str()).ok_or("vault path has no file name")?;
+        let tmp = dir.join(format!(".{name}.tmp-{}", std::process::id()));
+        let mut opts = fs::OpenOptions::new();
+        opts.write(true).create(true).truncate(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            opts.mode(0o600);
+        }
+        let result = (|| {
+            let mut f = opts.open(&tmp).map_err(|e| format!("failed to write {name}: {e}"))?;
+            f.write_all(data).map_err(|e| format!("failed to write {name}: {e}"))?;
+            f.sync_all().map_err(|e| format!("failed to sync {name}: {e}"))?;
+            fs::rename(&tmp, path).map_err(|e| format!("failed to replace {name}: {e}"))?;
+            if let Ok(d) = fs::File::open(dir) {
+                let _ = d.sync_all(); // directory fsync: not available everywhere, best effort
+            }
+            Ok(())
+        })();
+        if result.is_err() {
+            let _ = fs::remove_file(&tmp);
+        }
+        result
     }
 
     /// Verify passphrase against stored verification token
@@ -109,7 +151,7 @@ impl VaultStore {
         let path = vault_dir.join(MANIFEST_FILE);
         let data = serde_json::to_vec_pretty(manifest)
             .map_err(|e| format!("manifest serialize failed: {e}"))?;
-        fs::write(&path, &data)
+        Self::write_atomic(&path, &data)
             .map_err(|e| format!("failed to write manifest: {e}"))
     }
 
@@ -127,7 +169,7 @@ impl VaultStore {
 
         // Write encrypted file
         let key_path = Self::key_path(vault_dir, address);
-        fs::write(&key_path, &encrypted)
+        Self::write_atomic(&key_path, &encrypted)
             .map_err(|e| format!("failed to write key file: {e}"))?;
 
         // Update manifest
@@ -198,5 +240,60 @@ impl VaultStore {
                 .map_err(|e| format!("failed to destroy vault: {e}"))?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn scratch(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("bankon-store-{tag}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&d);
+        fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn atomic_write_replaces_whole_and_leaves_no_temp() {
+        let d = scratch("atomic");
+        let p = d.join("vault.json");
+        VaultStore::write_atomic(&p, b"first").unwrap();
+        VaultStore::write_atomic(&p, b"second, longer").unwrap();
+        assert_eq!(fs::read(&p).unwrap(), b"second, longer");
+        let leftovers: Vec<_> = fs::read_dir(&d).unwrap().filter_map(|e| e.ok())
+            .filter(|e| e.file_name().to_string_lossy().contains(".tmp-")).collect();
+        assert!(leftovers.is_empty());
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(fs::metadata(&p).unwrap().permissions().mode() & 0o777, 0o600);
+        }
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn a_damaged_vault_still_counts_as_a_vault() {
+        let d = scratch("artefact");
+        assert!(!VaultStore::has_any_artefact(&d));
+        VaultStore::create(&d, b"correct horse battery").unwrap();
+        assert!(VaultStore::exists(&d) && VaultStore::has_any_artefact(&d));
+        // Losing the manifest makes `exists` false — but the vault is damaged, not absent.
+        fs::remove_file(d.join(MANIFEST_FILE)).unwrap();
+        assert!(!VaultStore::exists(&d));
+        assert!(VaultStore::has_any_artefact(&d), "create must not be allowed over a damaged vault");
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn a_vault_round_trips_and_rejects_a_wrong_passphrase() {
+        let d = scratch("roundtrip");
+        VaultStore::create(&d, b"correct horse battery").unwrap();
+        assert!(VaultStore::verify_passphrase(&d, b"correct horse battery").unwrap());
+        assert!(!VaultStore::verify_passphrase(&d, b"wrong").unwrap());
+        let key = VaultStore::derive_session_key(&d, b"correct horse battery").unwrap();
+        VaultStore::store_secret(&d, &key, "ADDR", "algorand", "a", b"secret words").unwrap();
+        assert_eq!(VaultStore::retrieve_secret(&d, &key, "ADDR").unwrap(), b"secret words");
+        let _ = fs::remove_dir_all(&d);
     }
 }

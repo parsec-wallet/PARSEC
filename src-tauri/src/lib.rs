@@ -46,6 +46,9 @@ use app_shell::commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Before anything can hold key material: no core dumps (a core written while the vault
+    // is unlocked would carry the session key), and on Linux no same-user ptrace/dump.
+    bankon_vault::secure_mem::harden_process();
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_http::init())

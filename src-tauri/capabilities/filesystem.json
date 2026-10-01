@@ -1,8 +1,10 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "filesystem",
-  "description": "File system access permissions with security scoping",
-  "windows": ["main"],
+  "description": "File system access permissions with security scoping The BANKON vault, its profiles and the tomb are denied to the webview: keys are reached only through the PARSEC Keycore.",
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "fs:default",
     "fs:allow-appdata-read-recursive",
@@ -16,7 +18,38 @@
     "fs:allow-download-meta-recursive",
     "fs:allow-desktop-read-recursive",
     "fs:allow-desktop-write-recursive",
-    "fs:allow-desktop-meta-recursive"
+    "fs:allow-desktop-meta-recursive",
+    {
+      "identifier": "fs:scope",
+      "allow": [],
+      "deny": [
+        {
+          "path": "$APPDATA/bankon_vault"
+        },
+        {
+          "path": "$APPDATA/bankon_vault/**"
+        },
+        {
+          "path": "$APPDATA/vaults"
+        },
+        {
+          "path": "$APPDATA/vaults/**"
+        },
+        {
+          "path": "$APPDATA/vault-profile"
+        },
+        {
+          "path": "$APPDATA/tomb"
+        },
+        {
+          "path": "$APPDATA/tomb/**"
+        }
+      ]
+    }
   ],
-  "platforms": ["windows", "macOS", "linux"]
+  "platforms": [
+    "windows",
+    "macOS",
+    "linux"
+  ]
 }

@@ -14,6 +14,7 @@ pub mod commands;
 pub mod profiles;
 pub mod tomb;
 pub mod tomb_commands;
+pub mod throttle;
 
 use std::sync::Mutex;
 /// Vault session state — managed by Tauri
@@ -31,8 +32,9 @@ impl Default for VaultState {
 
 /// Runtime session — tracks unlock state
 pub struct VaultSession {
-    /// Derived key held in memory while unlocked
-    session_key: Option<Vec<u8>>,
+    /// Derived key held in memory while unlocked: mlocked, excluded from core dumps,
+    /// wiped with volatile writes when it is dropped (`SecretBytes`).
+    session_key: Option<secure_mem::SecretBytes>,
     /// Path to vault directory
     vault_dir: Option<std::path::PathBuf>,
 }
@@ -46,34 +48,27 @@ impl Default for VaultSession {
     }
 }
 
-impl Drop for VaultSession {
-    fn drop(&mut self) {
-        // Zeroize session key on drop
-        if let Some(ref mut key) = self.session_key {
-            key.iter_mut().for_each(|b| *b = 0);
-        }
-    }
-}
-
 impl VaultSession {
     pub fn is_unlocked(&self) -> bool {
         self.session_key.is_some()
     }
 
+    /// Lock: drop the key (SecretBytes wipes it) AND forget the directory, so nothing that
+    /// checks only `dir()` can act on a vault after it is locked.
     pub fn lock(&mut self) {
-        if let Some(ref mut key) = self.session_key {
-            key.iter_mut().for_each(|b| *b = 0);
-        }
         self.session_key = None;
+        self.vault_dir = None;
     }
 
-    pub fn unlock(&mut self, key: Vec<u8>, vault_dir: std::path::PathBuf) {
-        self.session_key = Some(key);
+    /// Take the derived key into protected memory; the caller's copy is wiped.
+    pub fn unlock(&mut self, mut key: Vec<u8>, vault_dir: std::path::PathBuf) {
+        self.session_key = Some(secure_mem::SecretBytes::from_slice(&key));
+        secure_mem::wipe(&mut key);
         self.vault_dir = Some(vault_dir);
     }
 
     pub fn key(&self) -> Option<&[u8]> {
-        self.session_key.as_deref()
+        self.session_key.as_ref().map(|k| k.as_slice())
     }
 
     pub fn dir(&self) -> Option<&std::path::Path> {
@@ -85,7 +80,7 @@ impl VaultSession {
     /// Every chain pack needs the same pair, and each deriving it by hand is how one of
     /// them ends up reading `key()` without checking `dir()`.
     fn unlocked(&self) -> Result<(&std::path::Path, &[u8]), String> {
-        match (self.vault_dir.as_deref(), self.session_key.as_deref()) {
+        match (self.vault_dir.as_deref(), self.key()) {
             (Some(dir), Some(key)) => Ok((dir, key)),
             _ => Err("vault is locked".to_string()),
         }
@@ -118,5 +113,23 @@ impl VaultSession {
         let out = secure_mem::SecretBytes::from_slice(&plain);
         secure_mem::wipe(&mut plain);
         Ok(out)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lock_forgets_the_key_and_the_directory() {
+        let mut s = VaultSession::default();
+        s.unlock(vec![7u8; 32], std::path::PathBuf::from("/tmp/vault"));
+        assert!(s.is_unlocked());
+        assert_eq!(s.key().unwrap(), &[7u8; 32][..]);
+        assert!(s.dir().is_some());
+        s.lock();
+        assert!(!s.is_unlocked());
+        assert!(s.key().is_none());
+        assert!(s.dir().is_none(), "nothing may act on a vault directory after lock");
     }
 }

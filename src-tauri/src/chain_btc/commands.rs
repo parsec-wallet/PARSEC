@@ -190,7 +190,7 @@ pub fn chain_btc_derive_from_vault(
         })
     })();
     // Zero the decrypted mnemonic bytes regardless of outcome.
-    secret.iter_mut().for_each(|b| *b = 0);
+    crate::bankon_vault::secure_mem::wipe(&mut secret); // volatile: a plain loop is a dead store
     result
 }
 
@@ -227,6 +227,6 @@ pub fn chain_btc_sign_psbt(
         let signed = sign_psbt_base64(mnemonic, &args.passphrase, args.network, &args.psbt_base64)?;
         Ok(SignedPsbt { psbt_base64: signed })
     })();
-    secret.iter_mut().for_each(|b| *b = 0);
+    crate::bankon_vault::secure_mem::wipe(&mut secret); // volatile: a plain loop is a dead store
     result
 }

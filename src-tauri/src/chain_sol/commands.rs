@@ -54,7 +54,12 @@ fn secret_for(
     let phrase = std::str::from_utf8(stored.as_slice())
         .map_err(|_| "stored Solana secret is not a mnemonic")?;
     let bip39 = seed::seed_from_mnemonic(phrase)?;
-    seed::derive(bip39.as_slice(), &seed::SOLANA_PATH)
+    let derived = seed::derive(bip39.as_slice(), &seed::SOLANA_PATH)?;
+    // The key must be the one for this address (see chain_algo's seed_for).
+    if keys::address_from_seed(derived.as_slice())? != address {
+        return Err("the key stored for this address does not match it; nothing was signed".to_string());
+    }
+    Ok(derived)
 }
 
 #[derive(Debug, Deserialize)]

@@ -1,8 +1,10 @@
 {
   "$schema": "../gen/schemas/mobile-schema.json",
   "identifier": "mobile",
-  "description": "Android and iOS: what a phone can use. No shell, tray, window dragging or desktop file locations.",
-  "windows": ["main"],
+  "description": "Android and iOS: what a phone can use. No shell, tray, window dragging or desktop file locations. The BANKON vault, its profiles and the tomb are denied to the webview: keys are reached only through the PARSEC Keycore.",
+  "windows": [
+    "main"
+  ],
   "permissions": [
     "core:default",
     "core:app:default",
@@ -28,7 +30,17 @@
     "fs:allow-download-meta-recursive",
     {
       "identifier": "http:default",
-      "allow": [{ "url": "https://*" }, { "url": "http://localhost:*" }, { "url": "http://127.0.0.1:*" }],
+      "allow": [
+        {
+          "url": "https://*"
+        },
+        {
+          "url": "http://localhost:*"
+        },
+        {
+          "url": "http://127.0.0.1:*"
+        }
+      ],
       "deny": []
     },
     "notification:default",
@@ -36,7 +48,37 @@
     "os:allow-platform",
     "os:allow-os-type",
     "os:allow-version",
-    "os:allow-locale"
+    "os:allow-locale",
+    {
+      "identifier": "fs:scope",
+      "allow": [],
+      "deny": [
+        {
+          "path": "$APPDATA/bankon_vault"
+        },
+        {
+          "path": "$APPDATA/bankon_vault/**"
+        },
+        {
+          "path": "$APPDATA/vaults"
+        },
+        {
+          "path": "$APPDATA/vaults/**"
+        },
+        {
+          "path": "$APPDATA/vault-profile"
+        },
+        {
+          "path": "$APPDATA/tomb"
+        },
+        {
+          "path": "$APPDATA/tomb/**"
+        }
+      ]
+    }
   ],
-  "platforms": ["android", "iOS"]
+  "platforms": [
+    "android",
+    "iOS"
+  ]
 }

@@ -177,7 +177,7 @@ pub fn chain_ltc_derive_from_vault(
             kind: args.kind,
         })
     })();
-    secret.iter_mut().for_each(|b| *b = 0);
+    crate::bankon_vault::secure_mem::wipe(&mut secret); // volatile: a plain loop is a dead store
     result
 }
 
@@ -210,6 +210,6 @@ pub fn chain_ltc_sign_psbt(
         let signed = sign_psbt_base64(mnemonic, &args.passphrase, &args.psbt_base64)?;
         Ok(SignedPsbt { psbt_base64: signed })
     })();
-    secret.iter_mut().for_each(|b| *b = 0);
+    crate::bankon_vault::secure_mem::wipe(&mut secret); // volatile: a plain loop is a dead store
     result
 }
