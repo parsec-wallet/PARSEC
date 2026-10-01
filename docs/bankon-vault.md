@@ -47,7 +47,10 @@ address stores no key, so it never asks.
 ### Every day: unlock, use, lock
 
 1. **Red Pill.** The line under the title shows which profile the door opens: `Profile default`.
-2. Optionally type a name or address (`yourname.algo`) to choose which wallet opens first.
+2. Optionally type a name or address (`yourname.algo`) to choose which wallet opens first. The address
+   also chooses the **vault**: PARSEC finds the profile whose vault holds that key and opens it, so the
+   passphrase you enter is checked against the right vault. If the key is in several vaults (a wallet
+   restored into a new vault after a lost passphrase is in both), PARSEC lists them and you choose.
 3. Enter the passphrase → **Unlock Wallet**. Wallets recorded in the vault but missing from the list on
    screen are recovered automatically ("Recovered 1 account from the keystore").
 4. Work. Signing happens in Rust; the key is read from the vault for the signature and wiped after.
