@@ -19,6 +19,7 @@ import {
 } from '../lib/cryptocloud';
 import { keystoreUnlock, keystoreStatus } from '../lib/keystore';
 import { profileChooser } from '../lib/ui/profile-chooser';
+import { passphraseField } from '../lib/passphrase-field';
 import { recoverKeys, mergeRecovered } from '../lib/recovery';
 // Loaded at call time. `nfd/login` reaches `nfd/resolve` -> `nfd/client` ->
 // `@txnlab/nfd-sdk` -> algosdk + algokit-utils. As a static import from this
@@ -5226,8 +5227,10 @@ export function matrixView(): HTMLElement {
       panel.appendChild(idStatus);
 
       // Returning user — passphrase unlock
-      const passInput = input({ type: 'password', placeholder: 'Enter passphrase', cls: 'parsec-matrix__input', onInput: (v) => { passphrase = v; }, onEnter: () => doUnlock() });
-      panel.appendChild(passInput);
+      const passField = passphraseField({ placeholder: 'Enter passphrase', current: true, inputCls: 'parsec-matrix__input', onInput: (v) => { passphrase = v; }, onEnter: () => doUnlock() });
+      const passInput = passField.input;
+      passField.el.classList.add('parsec-matrix__pass');
+      panel.appendChild(passField.el);
       panel.appendChild(btn(recovering ? 'Open Wallet' : 'Unlock Wallet', { intent: 'primary', large: true, cls: 'parsec-matrix__action parsec-matrix__action--red', onClick: doUnlock }));
       setTimeout(() => passInput.focus(), 100);
       panel.appendChild(el('p', { cls: 'parsec-matrix__profile', children: [

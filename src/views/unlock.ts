@@ -4,7 +4,8 @@
 // vault when the passphrase is lost, and always offers the way back to the
 // Matrix (link or Escape).
 
-import { el, btn, input, toast } from '../lib/dom';
+import { el, btn, toast } from '../lib/dom';
+import { passphraseField } from '../lib/passphrase-field';
 import { store } from '../lib/store';
 import { keystoreUnlock } from '../lib/keystore';
 import { profileChooser } from '../lib/ui/profile-chooser';
@@ -13,10 +14,10 @@ import { matrixEscape } from '../lib/ui/matrix-escape';
 export function unlockView(): HTMLElement {
   let passphrase = '';
 
-  const passphraseInput = input({
-    type: 'password',
-    placeholder: 'Enter your passphrase',
-    cls: 'bp5-input bp5-large parsec-passphrase-input',
+  const field = passphraseField({
+    placeholder: 'Vault passphrase',
+    current: true,
+    autofocus: true,
     onInput: (v) => { passphrase = v; },
     onEnter: () => doUnlock(),
   });
@@ -24,7 +25,7 @@ export function unlockView(): HTMLElement {
   function clear(): void {
     passphrase = '\0'.repeat(passphrase.length);
     passphrase = '';
-    passphraseInput.value = '';
+    field.clear();
   }
 
   async function doUnlock() {
@@ -58,10 +59,9 @@ export function unlockView(): HTMLElement {
     },
   });
 
-  setTimeout(() => passphraseInput.focus(), 50);
 
   return el('div', {
-    cls: 'parsec-view parsec-onboarding',
+    cls: 'parsec-view parsec-onboarding parsec-vaultflow',
     children: [
       el('div', {
         cls: 'parsec-onboarding__hero',
@@ -74,7 +74,7 @@ export function unlockView(): HTMLElement {
       el('div', {
         cls: 'parsec-onboarding__actions',
         children: [
-          passphraseInput,
+          field.el,
           btn('Unlock', { intent: 'primary', large: true, icon: 'unlock', onClick: doUnlock }),
         ],
       }),

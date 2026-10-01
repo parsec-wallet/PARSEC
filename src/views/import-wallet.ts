@@ -2,12 +2,12 @@
 // Accepts: 25-word mnemonic, base64 private key, or watch-only address.
 // Live input classification with validation feedback.
 
-import { el, btn, toast } from '../lib/dom';
+import { el, btn, input, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { classifyInput } from '../lib/algorand/validate';
 import type { ClassifiedInput } from '../lib/algorand/validate';
 import { keystoreStore } from '../lib/keystore';
-import { vaultPass } from '../lib/ui/vault-pass';
+import { vaultPass, vaultAction } from '../lib/ui/vault-pass';
 import algosdk from 'algosdk';
 
 export function importWalletView(): HTMLElement {
@@ -31,15 +31,31 @@ export function importWalletView(): HTMLElement {
     renderClassification(lastClassification, detectionHint, addressPreview);
     // A watch-only address stores no key, so no vault passphrase is asked.
     passphraseSection.style.display = lastClassification.kind === 'algorand_address' ? 'none' : '';
+    action.refresh();
   });
+
+  // The account's name, chosen now rather than "Account N" (renamable later too).
+  let accountName = '';
+  const nameInput = input({
+    placeholder: 'Account name (optional), e.g. Treasury or Agent payer',
+    cls: 'bp5-input bp5-large parsec-import__name',
+    onInput: (v) => { accountName = v; },
+  });
+  nameInput.maxLength = 40;
 
   // Which vault the key goes into, and its passphrase — lib/ui/vault-pass.ts.
   // Not needed for a watch-only address, which stores no key.
-  const vault = vaultPass();
+  const vault = vaultPass({ onEnter: () => action.submit() });
   const passphraseSection = el('div', { cls: 'parsec-import__passphrase-section', children: [vault.element] });
 
+  const action = vaultAction(vault, doImport, {
+    extra: secretBlocker,
+    skip: isWatchOnly,
+    label: (base) => (isWatchOnly() ? 'Add watch-only account' : base.replace('Save to vault', 'Import to vault').replace(/ save$/, ' import')),
+  });
+
   return el('div', {
-    cls: 'parsec-view parsec-import',
+    cls: 'parsec-view parsec-import parsec-vaultflow',
     children: [
       el('div', {
         cls: 'parsec-view__header',
@@ -59,32 +75,29 @@ export function importWalletView(): HTMLElement {
       secretArea,
       detectionHint,
       addressPreview,
+      nameInput,
       passphraseSection,
-      btn('Import', { intent: 'primary', large: true, cls: 'parsec-import__submit', onClick: doImport }),
+      action.el,
     ],
   });
 
-  async function doImport() {
-    if (!lastClassification.valid) {
-      toast(lastClassification.reason || 'Invalid input', 'danger');
-      return;
-    }
+  function isWatchOnly(): boolean { return lastClassification.kind === 'algorand_address'; }
 
-    const state = store.get();
-    const isWatchOnly = lastClassification.kind === 'algorand_address';
+  function secretBlocker(): string {
+    if (!secret.trim()) return 'Paste a recovery phrase, private key or address.';
+    if (!lastClassification.valid) return lastClassification.reason || 'That is not a recovery phrase, key or address PARSEC can import.';
+    if (store.get().accounts.some((a) => a.address === lastClassification.address)) return 'This account is already in this profile.';
+    return '';
+  }
+
+  async function doImport(): Promise<void> {
     const address = lastClassification.address!;
+    const nameFor = (n: number, watch = false) => accountName.trim() || `Account ${n}${watch ? ' (watch)' : ''}`;
 
-    // Duplicate check
-    if (state.accounts.some(a => a.address === address)) {
-      toast('This account is already imported.', 'warning');
-      return;
-    }
-
-    if (isWatchOnly) {
+    if (isWatchOnly()) {
       // Watch-only: no passphrase needed, no key stored
-      store.set({
-        accounts: [...state.accounts, { address, name: `Account ${state.accounts.length + 1} (watch)`, createdAt: Date.now(), watchOnly: true }],
-      });
+      const accounts = store.get().accounts;
+      store.set({ accounts: [...accounts, { address, name: nameFor(accounts.length + 1, true), createdAt: Date.now(), watchOnly: true }] });
       store.setPassphrase('__watch_only__');
       toast('Watch-only account added', 'success');
       store.navigate('dashboard');
@@ -105,18 +118,19 @@ export function importWalletView(): HTMLElement {
       const passphrase = await vault.ready();
       // Read the list again: "Create a new vault" may have switched profile.
       const accounts = store.get().accounts;
-      await keystoreStore(address, mnemonic, passphrase, `Account ${accounts.length + 1}`);
+      const name = nameFor(accounts.length + 1);
+      await keystoreStore(address, mnemonic, passphrase, name);
       store.set({
-        accounts: [...accounts, { address, name: `Account ${accounts.length + 1}`, createdAt: Date.now() }],
-        isLoading: false,
+        accounts: [...accounts, { address, name, createdAt: Date.now() }],
+        activeAccountIndex: accounts.length,
       });
       store.setPassphrase(passphrase);
+      vault.wipe();
       secretArea.value = ''; secret = '';
       toast('Wallet imported', 'success');
       store.navigate('dashboard');
-    } catch (err) {
+    } finally {
       store.set({ isLoading: false });
-      toast(err instanceof Error ? err.message : 'Failed to encrypt keys', 'danger', 8000);
     }
   }
 }

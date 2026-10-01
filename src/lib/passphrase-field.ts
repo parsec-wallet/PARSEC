@@ -12,13 +12,16 @@
 //     a hand-rolled mask. A text input holding the real passphrase would be
 //     exposed to autofill, spellcheck and IME history; the mask glyph is then the
 //     platform's to choose.
-//   * The bands below mirror `bankon_vault::overseer::assess` so the meter can
-//     react per keystroke without an IPC round trip. Rust remains the authority
-//     (`vault_passphrase_strength`) — per CLAUDE.md, the frontend may classify
-//     and suggest, the backend verifies and decides.
+//   * The meter is `assessPassphrase` (lib/passphrase-strength.ts): an entropy
+//     estimate that sees common passwords, words, years, keyboard runs and
+//     look-alike swaps, not only length. It is guidance; the vault's own rule
+//     (Rust `vault_create`, 8 characters minimum) decides. `strengthOf` keeps the
+//     length bands of `bankon_vault::overseer` for the second-generation vault.
+//   * Generate draws six words from the BIP-39 English list (2,048 words, ~66
+//     bits) with the platform CSPRNG, and reveals them so they can be written down.
 
 import { el, input } from './dom';
-import { invoke } from './platform';
+import { assessPassphrase } from './passphrase-strength';
 
 export type Strength = 'weak' | 'medium' | 'strong';
 
@@ -34,11 +37,6 @@ export function strengthOf(passphrase: string): Strength {
   return 'weak';
 }
 
-const STRENGTH_LABEL: Record<Strength, string> = {
-  weak: 'Weak',
-  medium: 'Medium',
-  strong: 'Strong',
-};
 
 // Two 16px glyphs, drawn rather than pulled from an icon set (no runtime deps).
 const EYE_CLOSED = `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false">
@@ -59,6 +57,8 @@ export interface PassphraseField {
   setValue(v: string): void;
   /** Overwrite the field and re-mask it. */
   clear(): void;
+  /** Re-run the meter or the match check (a confirm field calls this when the first field changes). */
+  refresh(): void;
 }
 
 export interface PassphraseFieldOptions {
@@ -70,16 +70,31 @@ export interface PassphraseFieldOptions {
   autofocus?: boolean;
   onInput?: (value: string) => void;
   onEnter?: (value: string) => void;
+  /** Entering an existing passphrase: no meter, and offered as current-password. */
+  current?: boolean;
+  /** A confirm field: compares itself with this value and says whether they match. */
+  confirms?: () => string;
+  /** Extra classes for the input (e.g. a view's own input style). */
+  inputCls?: string;
+}
+
+/** Six words from the BIP-39 English list, uniformly, with the platform CSPRNG (~66 bits). */
+export async function generatePassphrase(count = 6): Promise<string> {
+  const { wordlists } = await import('bip39');
+  const list = wordlists.english as string[];
+  const idx = crypto.getRandomValues(new Uint16Array(count));
+  // 2,048 = 2^11, so masking to 11 bits is uniform.
+  return Array.from(idx, (i) => list[i & 0x7ff]).join('-');
 }
 
 export function passphraseField(opts: PassphraseFieldOptions = {}): PassphraseField {
-  const showMeter = opts.meter !== false;
+  const showMeter = opts.meter !== false && !opts.current && !opts.confirms;
   const showGenerate = opts.generate === true;
 
   const inp = input({
     type: 'password',
     placeholder: opts.placeholder ?? 'Passphrase',
-    cls: 'bp5-input bp5-large parsec-passphrase__input',
+    cls: `bp5-input bp5-large parsec-passphrase__input${opts.inputCls ? ` ${opts.inputCls}` : ''}`,
     onInput: (v) => {
       update(v);
       opts.onInput?.(v);
@@ -87,7 +102,7 @@ export function passphraseField(opts: PassphraseFieldOptions = {}): PassphraseFi
     onEnter: opts.onEnter,
   });
   // Never offer this to a password manager or spellchecker.
-  inp.autocomplete = 'new-password';
+  inp.autocomplete = opts.current ? 'current-password' : 'new-password';
   inp.spellcheck = false;
   inp.setAttribute('autocapitalize', 'off');
   inp.setAttribute('autocorrect', 'off');
@@ -123,43 +138,43 @@ export function passphraseField(opts: PassphraseFieldOptions = {}): PassphraseFi
       attrs: { type: 'button' },
     });
     gen.addEventListener('click', () => {
-      void invoke<{ passphrase: string }>('vault_generate_passphrase')
-        .then((r) => {
-          inp.value = r.passphrase;
+      void generatePassphrase()
+        .then((p) => {
+          inp.value = p;
           // Reveal it — a generated passphrase the participant cannot read is a
           // passphrase they cannot record, and this one is not recoverable.
           inp.type = 'text';
           reveal.innerHTML = EYE_OPEN;
           reveal.setAttribute('aria-pressed', 'true');
           reveal.setAttribute('aria-label', 'Hide passphrase');
-          update(r.passphrase);
-          opts.onInput?.(r.passphrase);
+          update(p);
+          opts.onInput?.(p);
         })
         .catch(() => {
-          note.textContent = 'Could not generate a passphrase on this platform.';
+          note.textContent = 'Could not generate a passphrase here.';
         });
     });
     children.push(el('div', { cls: 'parsec-passphrase__actions', children: [gen] }));
   }
   if (showMeter) children.push(meter, note);
+  else if (opts.confirms) children.push(note);
 
   const wrapper = el('div', { cls: 'parsec-passphrase', children });
 
   function update(v: string): void {
+    if (opts.confirms) {
+      const want = opts.confirms();
+      wrapper.dataset.match = !v ? '' : v === want ? 'yes' : 'no';
+      note.textContent = !v ? '' : v === want ? 'Matches' : want.startsWith(v) ? 'Keep typing…' : 'Doesn’t match yet';
+      return;
+    }
     if (!showMeter) return;
-    const n = [...v].length;
-    const s = strengthOf(v);
-    wrapper.dataset.strength = s;
-    fill.style.width = n === 0 ? '0%' : s === 'weak' ? '33%' : s === 'medium' ? '66%' : '100%';
-    label.textContent = n === 0 ? '' : `${STRENGTH_LABEL[s]} · ${n} characters`;
-    note.textContent =
-      n === 0
-        ? ''
-        : s === 'weak'
-          ? `${WEAK_AT_OR_BELOW} characters or fewer. If this machine is stolen, this is the only thing protecting your keys.`
-          : s === 'medium'
-            ? `${STRONG_AT} characters or more is meaningfully harder to break.`
-            : '';
+    const a = assessPassphrase(v);
+    const band: Strength = a.level <= 1 ? 'weak' : a.level === 2 ? 'medium' : 'strong';
+    wrapper.dataset.strength = v ? band : '';
+    fill.style.width = v ? `${(a.level + 1) * 20}%` : '0%';
+    label.textContent = v ? `${a.label} · ~${a.bits} bits` : '';
+    note.textContent = v ? (a.warnings[0] ?? a.hint) : '';
   }
 
   update('');
@@ -173,6 +188,7 @@ export function passphraseField(opts: PassphraseFieldOptions = {}): PassphraseFi
       inp.value = v;
       update(v);
     },
+    refresh: () => update(inp.value),
     clear: () => {
       inp.value = '';
       inp.type = 'password';
