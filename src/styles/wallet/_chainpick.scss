@@ -7,8 +7,12 @@
 
 @use '../abstracts' as *;
 
-.parsec-chainpick {
-  max-width: 640px;
+// Wide enough that every address reads as one horizontal line — a 58-char
+// Algorand address included. Qualified with .parsec-view so it outranks the
+// generic screen width in _keyflow.scss, which loads after this file.
+.parsec-view.parsec-chainpick {
+  width: min(100%, 960px);
+  max-width: none;
 }
 
 .parsec-chainpick__lede {
@@ -90,9 +94,24 @@
 
 .parsec-chainpick__addr {
   margin: $spacing-2 0 0;
+  padding: $spacing-2 $spacing-3;
+  border-radius: $border-radius-md;
+  background: rgb(0 0 0 / 30%);
   color: $px-gold;
   font-family: $font-family-mono;
-  font-size: $font-size-xs;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+
+  // One line: an address is read left to right as a single value. If a window
+  // is narrower than the address, it scrolls sideways rather than wrapping.
+  white-space: nowrap;
+  overflow-x: auto;
+  user-select: all;
+}
+
+// On a phone there is no room for one line; wrap rather than scroll.
+:root[data-viewport='compact'] .parsec-chainpick__addr {
+  white-space: normal;
   word-break: break-all;
 }
 
