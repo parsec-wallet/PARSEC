@@ -5,7 +5,7 @@
 // door PARSEC opens to it, and it treats everything that comes back as
 // untrusted data from outside:
 //
-//   * Bounded: 10 s timeout, a response larger than 1 MB is refused, at most 50
+//   * Bounded: 10 s timeout by default (a caller may allow up to 90 s), a response larger than 1 MB is refused, at most 50
 //     results a page, a query of at most 100 characters.
 //   * Checked: every record is rebuilt field by field — strings length-capped and
 //     stripped of control and bidirectional-override characters (so a name cannot
@@ -106,7 +106,7 @@ export function parseDirectory(body: string): DirectoryPage {
 /** Search the directory. An empty query lists agents. */
 export async function searchDirectory(
   query: string,
-  opts: { page?: number; limit?: number; signal?: AbortSignal } = {},
+  opts: { page?: number; limit?: number; signal?: AbortSignal; timeoutMs?: number } = {},
 ): Promise<DirectoryPage> {
   const q = cleanText(query, MAX_QUERY);
   const params = new URLSearchParams({
@@ -114,7 +114,8 @@ export async function searchDirectory(
     limit: String(Math.min(MAX_LIMIT, Math.max(1, Math.floor(opts.limit ?? 24)))),
   });
   if (q) params.set('q', q);
-  const signal = opts.signal ? AbortSignal.any([opts.signal, AbortSignal.timeout(10_000)]) : AbortSignal.timeout(10_000);
+  const timeout = AbortSignal.timeout(Math.min(Math.max(opts.timeoutMs ?? 10_000, 1_000), 90_000));
+  const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
   const res = await fetch(`${DIRECTORY_URL}/api/agents?${params}`, {
     signal,
     headers: { Accept: 'application/json' },
@@ -140,4 +141,23 @@ const CHAIN_NAMES: Record<number, string> = {
 
 export function chainName(id: number): string {
   return CHAIN_NAMES[id] ?? `Chain ${id}`;
+}
+
+const ownedCache = new Map<string, { at: number; agents: DirectoryAgent[] }>();
+
+/**
+ * Agents whose owner is exactly `evmAddress` (case-insensitive). The directory
+ * has no owner filter, so this searches by the address and keeps exact owner
+ * matches; on the live service that search is slow (tens of seconds), so the
+ * result is remembered for the session (one hour).
+ */
+export async function agentsOwnedBy(evmAddress: string, opts: { signal?: AbortSignal } = {}): Promise<DirectoryAgent[]> {
+  const key = evmAddress.toLowerCase();
+  if (!/^0x[0-9a-f]{40}$/.test(key)) return [];
+  const hit = ownedCache.get(key);
+  if (hit && Date.now() - hit.at < 3_600_000) return hit.agents;
+  const page = await searchDirectory(key, { limit: 50, timeoutMs: 60_000, signal: opts.signal });
+  const agents = page.agents.filter((a) => a.owner.toLowerCase() === key);
+  ownedCache.set(key, { at: Date.now(), agents });
+  return agents;
 }
