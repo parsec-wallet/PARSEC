@@ -156,7 +156,7 @@ export function permawebUploadView(): HTMLElement {
     st.busy = true;
     st.result = undefined;
     st.checks = undefined;
-    st.log = [`Signing as ${short(signer)} — ${isTauri ? 'Rust signer; the key stays in the vault' : 'browser build; the vault key is used in this tab and zeroed after'}.`];
+    st.log = [`Signing as ${short(signer)} — ${isTauri ? 'PARSEC Keycore; the key stays in the vault' : 'browser build; the vault key is used in this tab and zeroed after'}.`];
     render();
     try {
       st.result = await runUpload(plan, sign, (e) => {

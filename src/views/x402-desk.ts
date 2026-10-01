@@ -288,7 +288,7 @@ export function x402DeskView(): HTMLElement {
   const capField = input({ value: String(settings.autoApproveMicroUsd), type: 'number', cls: 'bp5-input' });
 
   return el('div', {
-    cls: 'parsec-view',
+    cls: 'parsec-view parsec-x402desk',
     children: [
       el('div', {
         cls: 'parsec-view__header',

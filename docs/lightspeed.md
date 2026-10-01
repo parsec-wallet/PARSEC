@@ -46,7 +46,7 @@ lines in place. A module that reaches past its declaration throws a
 The ladder:
 
 - **observe** — reads public state. Never sees a key, never asks for a signature.
-- **sign** — may request a signature from the Rust signer over the active account. Still never sees a key.
+- **sign** — may request a signature from the PARSEC Keycore over the active account. Still never sees a key.
 - **vault** — may create or import entries through `bankon_vault`.
 - **system** — may call OS-privileged commands. Diagnostics' MAC spoof is the precedent.
 
@@ -55,7 +55,7 @@ Defaults when a module declares nothing are the cautious side: `observe`, and
 believing a reading stayed local when it did not is the mistake that costs.
 
 **This is an honesty contract, not a security boundary.** The frontend
-classifies and suggests; `src-tauri/src/parsec_validate/` and the Rust signers
+classifies and suggests; `src-tauri/src/parsec_validate/` and the PARSEC Keycore's signers
 decide. A module lying about its choices gains nothing from Rust.
 
 ## Files

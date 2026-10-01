@@ -120,8 +120,10 @@ export function createShell(): Shell {
     }
   }
 
-  // Accordion: every section starts compressed; the one holding the current
-  // view opens itself; what the participant opens or closes is remembered.
+  // Accordion: one section open at a time. Opening a section closes the
+  // others; its header closes it again. Navigating to a view opens the section
+  // that holds it (once, on arrival — not on every redraw, which made that
+  // section impossible to close). The open section is remembered.
   const OPEN_KEY = 'parsec:rail-open';
   const readOpen = (): Set<string> => {
     try { return new Set(JSON.parse(localStorage.getItem(OPEN_KEY) ?? '[]') as string[]); } catch { return new Set(); }
@@ -130,19 +132,28 @@ export function createShell(): Shell {
     try { localStorage.setItem(OPEN_KEY, JSON.stringify([...open])); } catch { /* best effort */ }
   };
 
+  let railView: string | null = null;
+
   function renderRail(): void {
     const level = getDisclosure();
     const current = store.get().view;
     const currentRoute = getRoute(current);
     const currentGroup: NavGroup | null = currentRoute ? groupOf(currentRoute) : null;
-    const open = readOpen();
+    let open = readOpen();
+    if (current !== railView) {
+      railView = current;
+      if (currentGroup && !open.has(currentGroup)) {
+        open = new Set([currentGroup]);
+        writeOpen(open);
+      }
+    }
     rail.innerHTML = '';
 
     for (const group of GROUP_ORDER) {
       const routes = groupRoutes(group, level);
       if (routes.length === 0) continue;
 
-      const expanded = open.has(group) || group === currentGroup;
+      const expanded = open.has(group);
       const section = el('div', { cls: `parsec-shell__section${expanded ? ' parsec-shell__section--open' : ''}` });
       const bodyId = `parsec-rail-${group}`;
       const head = el('button', {
@@ -155,9 +166,7 @@ export function createShell(): Shell {
         ],
       });
       head.addEventListener('click', () => {
-        const now = readOpen();
-        if (section.classList.contains('parsec-shell__section--open')) now.delete(group); else now.add(group);
-        writeOpen(now);
+        writeOpen(expanded ? new Set() : new Set([group]));
         renderRail();
       });
       section.appendChild(head);
