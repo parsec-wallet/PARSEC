@@ -111,3 +111,14 @@
     display: none;
   }
 }
+
+// Toasts span the width of a phone screen instead of a 320px card in the corner.
+:root[data-viewport='compact'] .parsec-toast-container {
+  left: $spacing-3;
+  right: $spacing-3;
+}
+
+// A long address wraps rather than running off the screen.
+:root[data-platform='mobile'] .parsec-pubkey--expanded .parsec-pubkey__text {
+  overflow-wrap: anywhere;
+}

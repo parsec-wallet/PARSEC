@@ -156,6 +156,33 @@ signature *and* a key file can open the same vault.
 - *Open:* cp4096 commitment II is not met. The frontend still ships chain SDKs.
   See `docs/cypherpunk4096.md`.
 
+## Android (since 0.1.1)
+
+A phone is Tier 2: the same `bankon-vault/2` in Rust, the same PARSEC Keycore. What
+changes is the device around it, and each difference is answered or stated:
+
+- **Loopback is shared** — every installed app can reach `127.0.0.1`, so the A5
+  defence of `parsec_connect` (only this machine reaches the bridge) does not hold.
+  **The bridge does not run on a phone**: the frontend never starts it and
+  `connect_start` refuses on Android and iOS (0.1.2).
+- **Screens are visible to the system** — the recent-apps preview, screenshots and
+  screen recording. **`FLAG_SECURE`** keeps every PARSEC screen out of all three
+  (0.1.1), so a recovery phrase on screen is not captured by them.
+- **The clipboard is readable by other apps.** On a phone a key is copied rather than
+  downloaded, and the screen says so: paste it into a password manager, then
+  overwrite the clipboard (0.1.1).
+- **Timers are held back in the background**, so the auto-lock is measured when the
+  app returns to the foreground rather than trusted to a timer (0.1.1).
+- **Keyboards rewrite text** (capitalising, autocorrecting, learning words). Phrase
+  fields turn auto-capitalise, autocorrect and spellcheck off (0.1.1).
+- **Desktop-only defences are absent.** Tomb/LUKS (Tier 3a) needs root and tools an app
+  does not have; Mausoleum and pmVPN are not offered on a phone.
+- **Signing** — release builds are signed with the PARSEC release key, kept outside the
+  repository; the certificate sha256 is published with every release, and an update
+  signed by anything else is not ours.
+- *Open:* Tier 3b (Android Keystore / StrongBox as a second factor) is not implemented;
+  a rooted or compromised phone is A6.
+
 ## Explicitly out of scope
 
 - Physical attacks: cold boot, DMA, hardware implants.
@@ -171,5 +198,6 @@ signature *and* a key file can open the same vault.
 | Arweave legacy mnemonic→RSA recovery remains in TS | Deterministic only under node-forge; moving it would strand accounts |
 | No hardware / air-gapped signer | The highest-value keys must enter the vault at all |
 | Tier 3b (Android Keystore) not implemented | Mobile has no second factor |
+| `parsec_connect` unavailable on Android | dApps cannot reach a phone wallet over the bridge until it has an app-private channel |
 | No independent audit | Every claim here rests on our own tests |
 | Bitcoin path unaudited upstream | Gated to regtest; not for mainnet custody |

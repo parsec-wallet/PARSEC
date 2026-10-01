@@ -3,6 +3,28 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.1.2 — 2026-10-01
+
+### Android
+- **Installs on phones with 16 KB memory pages** (recent flagships such as the Galaxy S26).
+  The native library was linked for 4 KB pages and is loaded straight from the APK, which such
+  a phone refuses ("App not installed"); it is now linked with 16 KB alignment, which also runs
+  on 4 KB phones.
+- **The PARSEC icon** on the home screen and in the app drawer, as an adaptive icon on the
+  PARSEC navy; it showed the Tauri framework's default logo.
+- **The dApp bridge does not run on a phone.** On Android every installed app shares the
+  device's loopback address, so the bridge's protection (only this machine can reach it) does
+  not hold; the frontend no longer starts it and the PARSEC Keycore refuses to.
+- The full address is shown on the dashboard on a phone (a finger cannot hover), and
+  notifications span the width of a phone screen.
+
+### Security documentation
+- `docs/security/threat-model.md` gains an **Android** section: shared loopback, screen
+  capture (`FLAG_SECURE`), the clipboard, background timers, keyboards, the absent desktop-only
+  defences, release signing, and what is still open (Android Keystore as a second factor).
+- `SECURITY.md` brings the Android app into scope and publishes the release-signing
+  certificate.
+
 ## 0.1.1 — 2026-10-01
 
 ### Android
