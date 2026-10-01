@@ -122,3 +122,10 @@
 :root[data-platform='mobile'] .parsec-pubkey--expanded .parsec-pubkey__text {
   overflow-wrap: anywhere;
 }
+
+// The upload cost table stacks on a phone: route, then price, then what pays it.
+:root[data-viewport='compact'] .parsec-upload__cost {
+  grid-template-columns: 1fr auto;
+
+  .parsec-upload__meta { grid-column: 1 / -1; }
+}

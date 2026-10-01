@@ -3,6 +3,7 @@
 // sections (controllers, undername-limit) render only when the adapter
 // declares the capability.
 
+import { formatNameCost, warmArioPrice } from '../lib/names/cost-display';
 import { el, btn, input, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
 import {
@@ -13,6 +14,7 @@ import {
 } from '../lib/namespaces';
 
 export function nameManageView(): HTMLElement {
+  void warmArioPrice(); // costs gain their dollar value once the ARIO price is in
   const ns = getNamespace(activeNamespaceId());
   const name = sessionStorage.getItem('parsec:active-name') ?? '';
 
@@ -207,7 +209,7 @@ function buildExtendSection(ns: NamespaceAdapter, name: string, address: string,
     const yrs = parseInt(yearsInput.value, 10);
     if (!Number.isFinite(yrs) || yrs < 1 || yrs > 5) return;
     void ns.getCost({ intent: 'Extend-Lease', name, years: yrs, purchaseType: 'lease' })
-      .then((c) => { costEl.textContent = `${c.amount.toString()} ${c.unit}`; })
+      .then((c) => { costEl.textContent = formatNameCost(c.amount, c.unit); })
       .catch(() => { /* ignore */ });
   });
   return el('div', {
@@ -240,7 +242,7 @@ function buildIncreaseUndernameSection(
     const q = parseInt(qtyInput.value, 10);
     if (!Number.isFinite(q) || q < 1) return;
     void ns.getCost({ intent: 'Increase-Undername-Limit', name, quantity: q })
-      .then((c) => { costEl.textContent = `${c.amount.toString()} ${c.unit}`; })
+      .then((c) => { costEl.textContent = formatNameCost(c.amount, c.unit); })
       .catch(() => { /* ignore */ });
   });
   return el('div', {

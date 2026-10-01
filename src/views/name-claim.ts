@@ -2,6 +2,7 @@
 // (ANT spawn for ArNS, single message for BANKON). Linear state machine:
 //   search → configure → execute → done | failed.
 
+import { formatNameCost, warmArioPrice } from '../lib/names/cost-display';
 import { el, btn, input, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
 import { quoteNameClaim, proveNameClaimPayment, proofStillCovers, type NameClaimProof, type NameClaimQuote } from '../lib/bankon-names/pay';
@@ -41,6 +42,7 @@ interface State {
 }
 
 export function nameClaimView(): HTMLElement {
+  void warmArioPrice(); // costs gain their dollar value once the ARIO price is in
   const ns = getNamespace(activeNamespaceId());
   const prefill = sessionStorage.getItem('parsec:name-claim-prefill') ?? '';
   sessionStorage.removeItem('parsec:name-claim-prefill');
@@ -222,7 +224,7 @@ export function nameClaimView(): HTMLElement {
             ns.capabilities.acceptedPaymentMethods.length > 1
               ? row('Payment method', methodSelect)
               : el('span', {}),
-            row('Cost', state.costAmount === undefined ? 'Loading...' : `${state.costAmount.toString()} ${state.costUnit ?? ''}`),
+            row('Cost', state.costAmount === undefined ? 'Loading...' : formatNameCost(state.costAmount, state.costUnit ?? '')),
             proofInput ? el('label', { text: 'Payment proof' }) : el('span', {}),
             proofInput ? proofInput : el('span', {}),
           ].filter(node => (node as HTMLElement).childNodes.length > 0) as HTMLElement[],

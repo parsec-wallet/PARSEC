@@ -48,6 +48,9 @@ export interface PaymentRequirements {
   extra: Record<string, unknown>;
   /** Carried through from v1 so a v1 server sees its own vocabulary on the way back. */
   description?: string;
+  /** The network exactly as the server wrote it ('base', 'algorand-mainnet', or CAIP-2).
+   *  `network` is always CAIP-2 for comparison; a v1 payment echoes this one back. */
+  rawNetwork?: string;
   mimeType?: string;
   outputSchema?: unknown;
 }
@@ -64,9 +67,10 @@ export interface PaymentRequired {
 /** The payment the client sends back. */
 export interface PaymentPayload {
   x402Version: number;
-  /** Top-level scheme/network are redundant with `accepted` but several servers read them. */
+  /** Top-level scheme/network are redundant with `accepted` but several servers read them.
+   *  CAIP-2 in v2; in v1 the server's own word for its network ('base'). */
   scheme?: string;
-  network?: Caip2;
+  network?: Caip2 | string;
   resource?: ResourceInfo;
   /** Verbatim copy of the chosen `accepts[]` entry. Required in v2. */
   accepted: PaymentRequirements;
@@ -162,6 +166,7 @@ export function normalizeRequirement(raw: unknown): PaymentRequirements {
   return {
     scheme: str(r.scheme, 'exact'),
     network,
+    rawNetwork: str(r.network) || undefined,
     amount,
     asset: str(r.asset, '0'),
     payTo: str(r.payTo),
@@ -257,10 +262,12 @@ export function buildPayment(
   accepted: PaymentRequirements,
   payload: Record<string, unknown>,
 ): PaymentPayload {
+  const version = challenge.x402Version || X402_VERSION;
   return {
-    x402Version: challenge.x402Version || X402_VERSION,
+    x402Version: version,
     scheme: accepted.scheme,
-    network: accepted.network,
+    // A v1 server compares the network in its own words ('base'); v2 is CAIP-2 throughout.
+    network: version < 2 ? (accepted.rawNetwork ?? accepted.network) : accepted.network,
     resource: challenge.resource,
     accepted,
     payload,

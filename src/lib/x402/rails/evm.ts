@@ -145,7 +145,9 @@ export async function buildAuthorization(ctx: X402PaymentContext): Promise<EvmPa
     {
       // A token's EIP-712 domain is part of what makes the signature valid on that token
       // and nowhere else. The server states it; USDC's is ("USDC", "2").
-      name: typeof extra.name === 'string' && extra.name ? extra.name : 'USDC',
+      // When a server leaves it out, fall back to the token's own: Base mainnet USDC signs
+      // as "USD Coin"; a wrong name here is an invalid signature, not a cosmetic slip.
+      name: typeof extra.name === 'string' && extra.name ? extra.name : defaultTokenName(requirement.asset),
       version: typeof extra.version === 'string' && extra.version ? extra.version : '2',
       chainId: chainIdOf(requirement.network),
       verifyingContract: requirement.asset,
@@ -199,3 +201,8 @@ export const evmRail: X402Rail = {
 };
 
 registerRail(evmRail);
+
+/** The EIP-712 domain name of a known USDC, for a server that does not state it. */
+export function defaultTokenName(asset: string): string {
+  return asset.toLowerCase() === '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913' ? 'USD Coin' : 'USDC';
+}

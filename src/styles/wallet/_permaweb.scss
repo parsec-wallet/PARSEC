@@ -109,6 +109,17 @@
 
   &__files { display: grid; gap: 0.15rem; max-height: 18rem; overflow: auto; }
 
+  // Every route's price side by side (route · price · what pays it).
+  &__costs { display: grid; gap: 0.25rem; padding: 0.5rem 0.75rem; border: 1px solid rgb(255 255 255 / 8%); border-radius: 6px; }
+
+  &__cost {
+    display: grid; grid-template-columns: 9rem auto minmax(0, 1fr); align-items: baseline; gap: 0.25rem 0.75rem; font-size: 0.85rem;
+    strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .parsec-upload__meta { white-space: normal; }
+  }
+
+  &__cost-route { opacity: 0.85; }
+
   &__file {
     display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; align-items: center; gap: 0.5rem 0.75rem;
     padding: 0.3rem 0; border-bottom: 1px solid rgb(255 255 255 / 6%); font-size: 0.82rem;

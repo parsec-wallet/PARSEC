@@ -6,6 +6,7 @@
 // House rules (TIMELESS): the first thing on screen is the one number and the next action; every
 // write is followed by a live re-read; estimates are labelled; empty states point to the next step.
 
+import { formatNameCost, warmArioPrice } from '../lib/names/cost-display';
 import { el, btn, input, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
 import {
@@ -36,6 +37,7 @@ import { storeEditor } from '../lib/ui/store-editor';
 const C = 'parsec-namectl';
 
 export function nameControllerView(): HTMLElement {
+  void warmArioPrice(); // costs gain their dollar value once the ARIO price is in
   const ns = getNamespace(activeNamespaceId());
   const name = sessionStorage.getItem('parsec:active-name') ?? '';
 
@@ -489,7 +491,7 @@ function copy(text: string, done: string): void {
   void navigator.clipboard.writeText(text).then(() => toast(done, 'success')).catch(() => toast('Clipboard unavailable', 'warning'));
 }
 function fmt(amount: bigint, unit: string): string {
-  return unit === 'ARIO' ? `${(Number(amount) / 1e6).toLocaleString(undefined, { maximumFractionDigits: 2 })} ARIO` : `${amount.toString()} ${unit}`;
+  return formatNameCost(amount, unit); // exact; the old form divided as a float
 }
 function pass(): string {
   return store.getPassphrase()!;

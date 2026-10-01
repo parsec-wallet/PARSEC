@@ -3,6 +3,34 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.1.3 — 2026-10-01
+
+### Arweave and ar.io
+- **Paid uploads over x402, from your own wallet.** Items over Turbo's free limit are paid
+  per item in USDC on Base through Turbo's x402 endpoint, signed by the PARSEC Keycore — no
+  Turbo credits needed, nobody holds your money. The BANKON facilitation fee (10 %, at least
+  $0.05) is paid first, once, over x402; mindX computes it from Turbo's public prices and PARSEC
+  refuses a fee above its own computation. Every payment is checked before signing — USDC, Base,
+  and within the budget shown on screen — even under an auto-approve cap.
+- **What an upload costs, every way, exactly.** The upload screen prices the paid items by
+  Arweave directly (AR), Turbo credits and Turbo over x402 (with Turbo's one-cent minimum per
+  item and the BANKON fee), in AR and dollars, with integer arithmetic rounded up.
+- **ArNS prices read correctly.** Name costs showed the raw mARIO number labelled "ARIO" — a
+  million times too large; the name controller divided as a float. They now show ARIO exactly,
+  with its dollar value.
+
+### x402
+- **Version-1 servers hear their own network name** (`base`) in a payment, as Turbo expects;
+  internally and towards v2 servers networks stay CAIP-2.
+- **Base USDC signs as "USD Coin"** when a server leaves the EIP-712 name out — the token's
+  on-chain name; the old "USDC" default made an invalid signature on Base mainnet.
+- **"USD Coin" counts as a dollar** (quotes show USD and the auto-approve cap applies); **EURC no
+  longer does** — it is pegged to the euro.
+
+### Docs
+- `docs/permaweb/README.md` documents paid uploads and the three routes;
+  `docs/arweave-ario-map.md` is regenerated (179 files, none unmapped).
+
 ## 0.1.2 — 2026-10-01
 
 ### Android
