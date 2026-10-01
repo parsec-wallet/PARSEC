@@ -1,5 +1,7 @@
 // Parsec Wallet — Settings View
 
+import { isTauri } from '../lib/platform';
+import { getAutostart, getCloseToTray, setAutostart, setCloseToTray } from '../lib/app-shell';
 import { el, btn, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { ACCOUNT_AVATARS, defaultAvatarFor } from '../lib/avatars';
@@ -141,6 +143,7 @@ export function settingsView(): HTMLElement {
           store.navigate('dashboard');
         },
       }),
+      ...(isTauri ? [buildWindowSection()] : []),
       el('div', { cls: 'parsec-settings__section', children: [
         el('h3', { cls: 'parsec-section-title', text: 'Security & Vault' }),
         btn('Mausoleum', { outlined: true, icon: 'shield', onClick: () => store.navigate('mausoleum') }),
@@ -162,4 +165,51 @@ export function settingsView(): HTMLElement {
       ]}),
     ],
   });
+}
+
+/** Desktop only: what closing the window does, and whether Parsec starts at login. */
+function buildWindowSection(): HTMLElement {
+  const status = el('p', { cls: 'parsec-view__desc', attrs: { 'aria-live': 'polite' } });
+
+  const trayBox = el('input', { attrs: { type: 'checkbox', id: 'parsec-close-to-tray' } }) as HTMLInputElement;
+  trayBox.checked = getCloseToTray();
+  trayBox.addEventListener('change', () => {
+    void setCloseToTray(trayBox.checked).then(() => {
+      status.textContent = trayBox.checked
+        ? 'Closing the window keeps Parsec running in the tray. Quit from the tray menu.'
+        : 'Closing the window quits Parsec.';
+    });
+  });
+
+  const bootBox = el('input', { attrs: { type: 'checkbox', id: 'parsec-autostart' } }) as HTMLInputElement;
+  bootBox.disabled = true;
+  void getAutostart().then((on) => { bootBox.checked = on; bootBox.disabled = false; }).catch(() => {
+    status.textContent = 'Start at login is not available here.';
+  });
+  bootBox.addEventListener('change', () => {
+    bootBox.disabled = true;
+    void setAutostart(bootBox.checked)
+      .then((on) => {
+        bootBox.checked = on;
+        status.textContent = on ? 'Parsec starts at login, in the tray.' : 'Parsec no longer starts at login.';
+      })
+      .catch((e) => {
+        bootBox.checked = !bootBox.checked;
+        status.textContent = `Could not change start at login: ${e instanceof Error ? e.message : String(e)}`;
+      })
+      .finally(() => { bootBox.disabled = false; });
+  });
+
+  const row = (box: HTMLInputElement, label: string, hint: string) => el('label', {
+    cls: 'bp5-control bp5-switch parsec-settings__switch',
+    attrs: { for: box.id },
+    children: [box, el('span', { cls: 'bp5-control-indicator' }), el('span', { text: label }), el('small', { cls: 'parsec-view__desc', text: ` — ${hint}` })],
+  });
+
+  return el('div', { cls: 'parsec-settings__section', children: [
+    el('h3', { cls: 'parsec-section-title', text: 'Window' }),
+    row(trayBox, 'Close to tray', 'closing the window keeps Parsec running; the tray icon brings it back'),
+    row(bootBox, 'Start at login', 'opens in the tray when you sign in to this computer'),
+    status,
+  ]});
 }

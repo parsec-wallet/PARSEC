@@ -13,6 +13,7 @@ mod chain_evm;
 mod chain_ltc;
 mod chain_sol;
 mod network_monitor;
+mod app_shell;
 
 use bankon_vault::VaultState;
 use bankon_vault::commands::*;
@@ -38,6 +39,8 @@ use chain_ltc::commands::*;
 use chain_sol::commands::*;
 use network_monitor::NetworkMonitorState;
 use network_monitor::commands::*;
+use app_shell::ShellState;
+use app_shell::commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -58,6 +61,10 @@ pub fn run() {
         .manage(SandboxState::default())
         .manage(ConnectState::default())
         .manage(NetworkMonitorState::default())
+        .manage(ShellState::default())
+        // The desktop shell: tray, close-to-tray, start at login (app_shell).
+        .setup(|app| { app_shell::setup(app)?; Ok(()) })
+        .on_window_event(|window, event| app_shell::on_window_event(window, event))
         .invoke_handler(tauri::generate_handler![
             // pmvpn — wallet-authenticated SSH
             pmvpn_connect,
@@ -178,6 +185,15 @@ pub fn run() {
             network_monitor_set_enabled,
             network_info,
             network_set_mac,
+            // app_shell — custom title bar controls, tray, start at login
+            app_shell_minimize,
+            app_shell_toggle_maximize,
+            app_shell_close,
+            app_shell_quit,
+            app_shell_set_close_to_tray,
+            app_shell_autostart_get,
+            app_shell_autostart_set,
+            app_shell_started_hidden,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Parsec Wallet");
