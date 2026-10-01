@@ -47,6 +47,7 @@
 @use 'wallet/profiles';
 @use 'wallet/receive';
 @use 'wallet/agents';
+@use 'wallet/store';
 @use 'wallet/linkage';
 @use 'wallet/permaweb';
 @use 'wallet/matrix-recovered';

@@ -174,8 +174,11 @@
   }
   
   // Primary intent
+  // Primary is PARSEC gold (the brand's primary accent), not Blueprint blue.
   &.bp5-intent-primary {
-    @include button-variant($color-primary, white);
+    @include button-variant($px-gold, #1a1205);
+
+    background-image: linear-gradient(180deg, $px-gold-hi, $px-gold);
   }
   
   // Success intent
