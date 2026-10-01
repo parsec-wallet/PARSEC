@@ -266,6 +266,18 @@ export function matrixView(): HTMLElement {
   const matrixPref = overlayPref('parsec:matrix-rain', true);
   const cryptocloudPref = overlayPref('parsec:matrix-cryptocloud', false);
   const pyramidPref = overlayPref('parsec:matrix-pyramid', false);
+  // How many brick rows the pyramid shows between the apex and the base (+/−
+  // on the PYRAMID switch). More rows, more coins on the wall; the rest wait
+  // in the base row.
+  const PYRAMID_ROWS_KEY = 'parsec:matrix-pyramid-rows';
+  const PYRAMID_ROWS_MIN = 2;
+  const PYRAMID_ROWS_MAX = 14;
+  let pyramidRows = (() => {
+    try {
+      const n = Number(localStorage.getItem(PYRAMID_ROWS_KEY));
+      return Number.isInteger(n) && n >= PYRAMID_ROWS_MIN && n <= PYRAMID_ROWS_MAX ? n : 7;
+    } catch { return 7; }
+  })();
   const top10Pref = overlayPref('parsec:matrix-top10', false);
   const favouritesPref = overlayPref('parsec:matrix-favourites', false);
   const stablecoinsPref = overlayPref('parsec:matrix-stablecoins', false);
@@ -740,6 +752,36 @@ export function matrixView(): HTMLElement {
   });
   paintPeriod();
   toggleRepaints.push(paintPeriod);
+  /** + PYRAMID ON − : the switch, with a row more on the left and a row fewer on the right. */
+  function pyramidToggleGroup(): HTMLElement {
+    const toggle = makeToggle('PYRAMID', pyramidPref, 'the market pyramid');
+    const step = (sign: 1 | -1, text: string, what: string) => {
+      const b = el('button', { cls: 'parsec-matrix__toggle parsec-matrix__toggle-step', text, attrs: { type: 'button', 'aria-label': what } });
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const next = Math.min(PYRAMID_ROWS_MAX, Math.max(PYRAMID_ROWS_MIN, pyramidRows + sign));
+        if (next === pyramidRows) return;
+        pyramidRows = next;
+        try { localStorage.setItem(PYRAMID_ROWS_KEY, String(next)); } catch { /* best effort */ }
+        // Switching on through the switch itself repaints its label and shows the layer.
+        if (!pyramidPref.on) toggle.click();
+        renderPyramid();
+        paintSteps();
+      });
+      return b;
+    };
+    const plus = step(1, '+', 'Show one more pyramid row');
+    const minus = step(-1, '−', 'Show one fewer pyramid row');
+    const paintSteps = () => {
+      plus.toggleAttribute('disabled', pyramidRows >= PYRAMID_ROWS_MAX);
+      minus.toggleAttribute('disabled', pyramidRows <= PYRAMID_ROWS_MIN);
+      plus.title = `${pyramidRows} rows — add one`;
+      minus.title = `${pyramidRows} rows — remove one`;
+    };
+    paintSteps();
+    return el('div', { cls: 'parsec-matrix__toggle-group', children: [plus, toggle, minus] });
+  }
+
   // Top to bottom: CHANGE, MATRIX, PYRAMID, TOP 10, CRYPTOCLOUD, STABLECOINS,
   // FAVOURITES. Broadly short to long so the stack widens toward its corner,
   // with TOP 10 kept under PYRAMID and FAVOURITES last -- the participant's
@@ -747,7 +789,7 @@ export function matrixView(): HTMLElement {
   toggleStack.append(
     periodToggle,
     makeToggle('MATRIX', matrixPref, 'the matrix rain'),
-    makeToggle('PYRAMID', pyramidPref, 'the market pyramid'),
+    pyramidToggleGroup(),
     makeToggle('TOP 10', top10Pref, 'the top 10 by market cap'),
     makeToggle('CRYPTOCLOUD', cryptocloudPref, 'the winds of change — the drifting price cloud, where gainers float and losers fall'),
     makeToggle('STABLECOINS', stablecoinsPref, 'the stablecoin liquidity ship'),
@@ -1818,7 +1860,7 @@ export function matrixView(): HTMLElement {
     // list, before this session has watched it long enough) is neither a gainer
     // nor a loser -- it goes last, rather than posing as flat.
     const periodPct = new Map(pyramidPrices.map((c) => [c.id, shownChange(c).pct]));
-    const layout = layoutPyramid(pyramidPrices, (c) => periodPct.get(c.id) ?? null);
+    const layout = layoutPyramid(pyramidPrices, (c) => periodPct.get(c.id) ?? null, pyramidRows);
     if (!layout.apex) return;
     const { winners, losers } = layout;
 
@@ -1849,8 +1891,8 @@ export function matrixView(): HTMLElement {
       layout.rows.forEach(({ left, right }, k) => {
         const r = k + 1;
         const row = el('div', { cls: 'parsec-pyramid__row' });
-        // Width scales from narrow (top) to wide (base): row 1 ≈ 26 %, row 7 ≈ 95 %.
-        const widthPct = 14 + r * 11.5;
+        // Width scales from narrow (top) to wide (base) — ~26 % to ~95 % for any row count.
+        const widthPct = 14 + r * (81 / pyramidRows);
         row.style.width = `${widthPct}%`;
         row.style.maxWidth = `${widthPct}%`;
         for (const coin of left) row.appendChild(card(coin, false));
