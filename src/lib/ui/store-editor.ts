@@ -107,7 +107,7 @@ export function storeEditor(parent: string, owner: string, network: NetworkId): 
   });
 
   root.append(
-    el('p', { cls: 'parsec-store-editor__muted', text: `Sell subdomains of ${parent}: alice.${parent}. You set the prices; buyers pay you in USDC over x402, and your wallet mints each name for its buyer. Buying opens next; opening the store now lists it and lets anyone get quotes.` }),
+    el('p', { cls: 'parsec-store-editor__muted', text: `Sell subdomains of ${parent}: alice.${parent}. You set the prices; buyers pay you in USDC over x402, and your wallet mints each name for its buyer. Each buyer pays the BANKON fee on top; the price comes to you in full.` }),
     el('div', { cls: 'parsec-store-editor__tiers', children: tierRows }),
     example,
     el('label', { cls: 'parsec-store-editor__field', children: [el('span', { text: 'Payout address (must hold USDC)' }), payout] }),
