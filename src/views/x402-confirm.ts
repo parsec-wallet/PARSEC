@@ -12,7 +12,7 @@
 import { el, btn, toast } from '../lib/dom';
 import { store } from '../lib/store';
 import { explorerTxUrl } from '../lib/x402/networks';
-import { signPayment, submitPayment, type PendingX402Payment, type X402PaymentResult } from '../lib/x402/client';
+import { signPayment, submitPayment, recheckPayment, type PendingX402Payment, type X402PaymentResult } from '../lib/x402/client';
 
 type Resolver = (result: X402PaymentResult) => void;
 
@@ -162,7 +162,13 @@ export function x402ConfirmView(): HTMLElement {
                       button.disabled = true;
                       try {
                         await b.remedy!.run();
-                        toast('Done — reopen the payment to re-check.', 'success');
+                        // Seamless: re-check the same payment and redraw in place.
+                        // If nothing else blocks it, Pay is enabled at once.
+                        pendingPayment = await recheckPayment(pending);
+                        const fresh = x402ConfirmView();
+                        button.closest('.parsec-confirm')?.replaceWith(fresh);
+                        const ready = pendingPayment.preflight?.ok !== false;
+                        toast(ready ? 'Done. The payment is ready to approve.' : 'Done. Something else still blocks this payment.', ready ? 'success' : 'warning');
                       } catch (err) {
                         toast(err instanceof Error ? err.message : String(err), 'danger');
                         button.disabled = false;

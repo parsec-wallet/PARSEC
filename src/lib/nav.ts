@@ -159,7 +159,7 @@ registerRoutes([
   { id: 'send',            title: 'Send',            tier: 'pouch', disclosure: 'simple', inRail: true, keywords: ['transfer', 'pay'] },
   { id: 'receive',         title: 'Receive',         tier: 'pouch', disclosure: 'simple', inRail: true, keywords: ['address', 'qr', 'arc-26'] },
   { id: 'swap',            title: 'Swap',            tier: 'pouch', disclosure: 'simple', inRail: true, keywords: ['spintrade', 'dex', 'tinyman', 'pact'] },
-  { id: 'add-asset',       title: 'Add Asset',       tier: 'pouch', disclosure: 'more',   inRail: true, keywords: ['asa', 'opt-in', 'token'] },
+  { id: 'add-asset',       title: 'Add Assets',      tier: 'pouch', disclosure: 'simple', inRail: true, keywords: ['asa', 'opt-in', 'token', 'usdc', 'spam', 'verified'] },
   { id: 'onramp',          title: 'Buy',             tier: 'pouch', disclosure: 'more',   inRail: true, keywords: ['onramp', 'fiat'] },
   { id: 'confirm-send',    title: 'Confirm Send',    tier: 'pouch', disclosure: 'simple', modal: true },
   { id: 'solana-send',     title: 'Send SOL',        tier: 'pouch', disclosure: 'more' },

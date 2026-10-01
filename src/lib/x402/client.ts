@@ -227,6 +227,24 @@ export async function preparePayment(
   };
 }
 
+/**
+ * Re-run the rail's preflight for a prepared payment — after the wallet has
+ * cleared a blocker itself (an ASA opt-in), so the flow continues to payment
+ * without the participant starting over. The quote and requirement are kept.
+ */
+export async function recheckPayment(pending: PendingX402Payment): Promise<PendingX402Payment> {
+  const rail = railFor(pending.requirement.network);
+  if (!rail?.preflight) return pending;
+  const preflight = await rail.preflight({
+    requirement: pending.requirement,
+    challenge: pending.challenge,
+    payer: pending.payer,
+    walletNetwork: pending.walletNetwork,
+    signers: pending.signers,
+  });
+  return { ...pending, preflight };
+}
+
 /** Sign the payment for a prepared quote. Nothing is sent. */
 export async function signPayment(pending: PendingX402Payment): Promise<PaymentPayload> {
   const rail = railFor(pending.requirement.network);
