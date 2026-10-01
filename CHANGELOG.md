@@ -3,7 +3,11 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
-## 0.1.4 — unreleased
+## 0.1.4 — 2026-10-01
+
+Includes everything in 0.1.3 (held, never published) and the vault fixes below.
+Audit: [`docs/security/vault-audit-2026-10-01.md`](docs/security/vault-audit-2026-10-01.md);
+policy: `SECURITY.md` (supported versions, audits and advisories).
 
 ### Vault hardening (from the 2026-10-01 vault audit)
 - **Unlock attempts are limited**: three free, then a doubling wait up to an hour, on unlock,
@@ -25,7 +29,7 @@ All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri
   not-yet-shipping `bankon-vault/2`, and name what is still open: signing in the frontend on
   some paths, the v1 key derivation, the Tomb passphrase on the command line.
 
-## 0.1.3 — 2026-10-01
+## 0.1.3 — 2026-10-01 (held; shipped as part of 0.1.4)
 
 ### Arweave and ar.io
 - **Paid uploads over x402, from your own wallet.** Items over Turbo's free limit are paid

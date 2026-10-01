@@ -92,8 +92,30 @@ The full analysis is in [`docs/security/threat-model.md`](docs/security/threat-m
 
 ## Supported versions
 
-PARSEC is pre-1.0 and moves fast. Fixes land on the default branch; there is no
-backport channel yet. The Bitcoin path is gated behind an audit and is not
+PARSEC is pre-1.0 and moves fast. **Only the latest release is supported** — today
+**0.1.4**. Fixes land on the default branch and in the next release; there is no
+backport channel yet.
+
+| Version | Status |
+|---|---|
+| 0.1.4 | Supported. Carries the vault fixes of the 2026-10-01 audit. |
+| 0.1.0 – 0.1.2 | Unsupported — update. They lack the 0.1.4 vault fixes (attempt limiting, process hardening, vault paths denied to the web layer, Android backup off) and, for 0.1.0, the 0.1.1 payment-safety fixes. |
+| 0.1.0-android.1 | Withdrawn test build — do not install. |
+
+## Security audits and advisories
+
+| Date | What | Status |
+|---|---|---|
+| 2026-10-01 | [BANKON vault audit](docs/security/vault-audit-2026-10-01.md) (internal) | 12 findings fixed in 0.1.4; open items listed with their plan |
+
+Open findings are published by name, severity and plan; their detail is withheld until
+a fixed release exists, so a participant on the latest release is never the target of
+a published recipe. The same rule applies to reports we receive.
+
+The shipping vault is **`bankon-vault/1`**; `bankon-vault/2` (in
+[`docs/security/bankon-vault-spec.md`](docs/security/bankon-vault-spec.md)) is not yet
+compiled in. [`docs/security/threat-model.md`](docs/security/threat-model.md) states, section by
+section, what each one does. The Bitcoin path is gated behind an audit and is not
 supported for mainnet custody — see
 [`docs/integration/bankon-btc-waas.md`](docs/integration/bankon-btc-waas.md).
 
@@ -108,7 +130,9 @@ cp4096 commitment III is explicit that *"paid audits and screenshots do not
 qualify"*. The vault format is specified byte-for-byte in
 [`docs/security/bankon-vault-spec.md`](docs/security/bankon-vault-spec.md), and its
 properties are asserted by the test suite (`cargo test --lib bankon_vault`),
-including known-answer tests for the primitives.
+including known-answer tests for the primitives. *Note:* the spec describes
+`bankon-vault/2`, whose tests run only once it is compiled in; today the suite covers
+the shipping v1 vault, the attempt limiter and the shared primitives.
 
 **PARSEC has not been independently audited.** Do not read anything here as a
 substitute for one.
