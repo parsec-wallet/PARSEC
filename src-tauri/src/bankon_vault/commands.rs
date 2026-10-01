@@ -67,8 +67,10 @@ pub fn vault_create(
     }
 
     let dir = vault_dir(&app)?;
-    if VaultStore::exists(&dir) {
-        return Err("vault already exists".to_string());
+    // Any trace of a vault — a manifest, a verify token or a single key file — means one is
+    // here, perhaps damaged. Writing a fresh salt over it would orphan every key it holds.
+    if VaultStore::has_any_artefact(&dir) {
+        return Err("a vault (or part of one) already exists here; it was not overwritten".to_string());
     }
 
     VaultStore::create(&dir, passphrase.as_bytes())?;
@@ -89,10 +91,19 @@ pub fn vault_unlock(
         return Err("no vault found".to_string());
     }
 
+    // Attempt limiting: refused before the Argon2 work while a backoff is owed.
+    super::throttle::check(&dir)?;
     let valid = VaultStore::verify_passphrase(&dir, passphrase.as_bytes())?;
     if !valid {
-        return Err("wrong passphrase".to_string());
+        let log = super::throttle::record_failure(&dir);
+        let wait = super::throttle::delay_for(log.failures);
+        return Err(if wait > 0 {
+            format!("wrong passphrase — further attempts wait {wait} s")
+        } else {
+            "wrong passphrase".to_string()
+        });
     }
+    super::throttle::record_success(&dir);
 
     let session_key = VaultStore::derive_session_key(&dir, passphrase.as_bytes())?;
 
@@ -156,6 +167,8 @@ pub fn vault_remove_account(
     address: String,
 ) -> Result<serde_json::Value, String> {
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
+    // Unlocked, not merely "a directory was once opened": removing a key needs the session.
+    guard.key().ok_or("vault is locked")?;
     let dir = guard.dir().ok_or("vault is locked")?;
 
     VaultStore::remove_account(dir, &address)?;
@@ -190,8 +203,10 @@ pub fn vault_destroy(
         return Err("no vault to destroy".to_string());
     }
 
+    super::throttle::check(&dir)?;
     let valid = VaultStore::verify_passphrase(&dir, passphrase.as_bytes())?;
     if !valid {
+        super::throttle::record_failure(&dir);
         return Err("wrong passphrase — vault destruction requires verification".to_string());
     }
 

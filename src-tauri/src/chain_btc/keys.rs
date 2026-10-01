@@ -34,7 +34,7 @@ pub fn generate_mnemonic(words: MnemonicWords) -> Result<String, String> {
     let mnemonic = Mnemonic::from_entropy_in(Language::English, &entropy)
         .map_err(|e| format!("entropy→mnemonic failed: {e}"))?;
     // Zero the local entropy buffer before dropping.
-    entropy.iter_mut().for_each(|b| *b = 0);
+    crate::bankon_vault::secure_mem::wipe(&mut entropy); // volatile: a plain loop is a dead store
     Ok(mnemonic.to_string())
 }
 

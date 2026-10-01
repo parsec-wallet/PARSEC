@@ -24,10 +24,13 @@ use super::secure_mem::SecretBytes;
 ///
 /// SECURITY: a signature over this message is a bearer credential for the vault.
 /// Anyone who can persuade the participant to sign this exact string can derive
-/// the KEK, so it must never be reachable from a generic dApp signing path —
-/// `parsec_connect` blocks it explicitly. The per-vault salt is mixed in at
-/// derivation time so the same wallet key yields different vault keys for
-/// different vaults.
+/// the KEK, so it must never be reachable from a generic dApp signing path.
+/// `parsec_connect` happens not to expose message signing today, but NOTHING
+/// refuses these bytes: the raw signers (`chain_algo_sign_transaction`) will sign
+/// them. Before this vault ships, every `*_sign_*` must refuse the message, and the
+/// message must bind the vault id and an app domain (audit 2026-10-01, H7). The
+/// per-vault salt is mixed in at derivation time so the same wallet key yields
+/// different vault keys for different vaults.
 pub const BINDING_MESSAGE: &str = "BANKON-VAULT-KEY-BINDING/v1";
 
 const INFO_PASSPHRASE: &[u8] = b"bankon-overseer-passphrase-v1";

@@ -11,7 +11,8 @@ packs, and one correct `write_volatile` version in `chain_evm`. The plain loops
 are dead stores — nothing reads the buffer afterwards, so LLVM is entitled to
 delete them, and the "zeroization" they promise may not happen at all.
 
-The correct one is now the only one, shared by every module.
+The correct one is now the only one, shared by every module (the last plain loops,
+in the vault session and the BTC/LTC packs, were replaced in 0.1.4).
 
 ## No new dependencies
 
@@ -53,7 +54,8 @@ message, or a CI transcript. A test asserts it.
 
 ### `harden_process()`
 
-Called at `lib.rs:37`, before any state that could hold key material exists.
+Called first in `run()` (`lib.rs`), before any state that could hold key material
+exists (since 0.1.4 — an audit found it had been written but never called).
 
 - `RLIMIT_CORE = 0` — no core dumps.
 - `PR_SET_DUMPABLE = 0` on Linux — the kernel will not hand this process to a
@@ -90,8 +92,10 @@ keeping outside the locked region.
 ## Rules
 
 1. **A secret never becomes a JavaScript string.** Once it does it is immutable
-   and garbage-collected and cannot be wiped. Signing stays in Rust;
-   `vault_retrieve_key_bytes` is an export path and is documented as one.
+   and garbage-collected and cannot be wiped. Signing stays in Rust.
+   *Open:* the shipping vault still has `vault_retrieve_key`, which returns a
+   secret to the frontend, and several frontend paths still sign with it. Removing
+   them is the next remediation step; until then this rule is not met.
 2. **Retrieve a secret only for the moment of signing**, and let `SecretBytes`
    drop end the exposure. Do not hold one across an `await`.
 3. **Never `Debug`, log, or format a secret.** Use the redacting types.
@@ -100,7 +104,8 @@ keeping outside the locked region.
    every child process can read them. That is a service pattern; in a wallet it
    would be critical.
 5. **No process-lifetime plaintext cache.** If a cache is unavoidable, make it
-   TTL-bounded and zeroizing.
+   TTL-bounded and zeroizing. (The unlocked session key is such a cache: it lives in
+   `SecretBytes` — locked, excluded from dumps, wiped on lock — since 0.1.4.)
 6. **Prefer `ct_eq` for anything attacker-influenced.**
 
 ## What this does not achieve

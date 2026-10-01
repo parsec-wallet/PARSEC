@@ -130,6 +130,12 @@ fn seed_for(guard: &crate::bankon_vault::VaultSession, address: &str) -> Result<
     let phrase = std::str::from_utf8(secret.as_slice())
         .map_err(|_| "stored Algorand secret is not a mnemonic")?;
     let mut seed = mnemonic::to_seed(phrase)?;
+    // The key must be the one for this address: a secret stored under the wrong address
+    // would otherwise sign as someone else, silently.
+    if keys::address_from_seed(&seed)? != address {
+        wipe(&mut seed);
+        return Err("the key stored for this address does not match it; nothing was signed".to_string());
+    }
     let out = SecretBytes::from_slice(&seed);
     wipe(&mut seed);
     Ok(out)

@@ -137,5 +137,11 @@ pub fn chain_ar_export_jwk(
     let stored = guard.retrieve_by_address(&address)?;
     let text = std::str::from_utf8(stored.as_slice())
         .map_err(|_| "stored Arweave secret is not a JWK")?;
+    // Only a real Arweave key for exactly this address leaves: a mnemonic or another chain's
+    // secret stored under the address is refused, not exported.
+    let parsed = keys::jwk_from_json(text).map_err(|_| "the secret stored for this address is not an Arweave JWK")?;
+    if keys::address_from_jwk(&parsed)? != address {
+        return Err("the stored JWK belongs to a different address; nothing was exported".to_string());
+    }
     Ok(serde_json::json!({ "jwk": text }))
 }

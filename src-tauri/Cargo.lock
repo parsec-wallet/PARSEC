@@ -3816,7 +3816,7 @@ dependencies = [
 
 [[package]]
 name = "parsec-wallet"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "aes-gcm",
  "anyhow",

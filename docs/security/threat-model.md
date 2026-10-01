@@ -3,6 +3,16 @@
 What PARSEC's vault defends against, what it does not, and why. Written to be
 falsifiable: every claim maps to code and to a test.
 
+> **Status of the shipping vault (2026-10-01).** PARSEC ships **`bankon-vault/1`**.
+> The second-generation format, **`bankon-vault/2`** (wrapped key, per-entry keys,
+> authenticated header and index), is specified in `bankon-vault-spec.md` and
+> written, but **not yet compiled into the app**. Where a section below describes
+> v2, it says so and states what v1 does today. An internal audit on 2026-10-01
+> found that earlier versions of this document described v2 as if it were
+> shipping; they did not. Remediation is in progress in three steps: hardening the
+> shipping vault (done for the items marked *0.1.4*), moving every signature into
+> the PARSEC Keycore, then shipping v2.
+
 ## The design centre
 
 **The passphrase is the only thing protecting a stolen machine.**
@@ -26,7 +36,7 @@ they are on Tier 1 has been misled about their own risk.
 | Tier | Where | At rest | Notes |
 |---|---|---|---|
 | **1** | Web build, deployed to Arweave | PBKDF2-SHA-256 600k + AES-256-GCM in `localStorage` | Weakest. Reachable by any script that achieves XSS. Uses a non-extractable `CryptoKey`, which MetaMask does not. |
-| **2** | Tauri desktop (any OS) **and Android** | `bankon-vault/2` | The universal path. Pure Rust, cross-compiles to `aarch64-linux-android`. |
+| **2** | Tauri desktop (any OS) **and Android** | today `bankon-vault/1` (Argon2id at library defaults, AES-256-GCM); `bankon-vault/2` when it ships | The universal path. Pure Rust, cross-compiles to `aarch64-linux-android`. |
 | **3a** | Tauri on desktop Linux | Tier 2 inside a Tomb/LUKS volume, key on removable media | Optional. Degrades to Tier 2 when Tomb is absent, never fails shut. |
 | **3b** | Android | Tier 2 + platform Keystore/StrongBox as a second factor | Optional, not yet implemented. |
 
@@ -36,15 +46,18 @@ those. Making Tomb mandatory would *exclude* Android, not include it.
 
 ## Attackers
 
-### A1 — Stolen disk or laptop, vault locked · **Defended**
+### A1 — Stolen disk or laptop, vault locked · **Defended by the passphrase; weaker today than designed**
 
 The primary threat. The attacker has the vault file and unlimited offline time.
 
-- Argon2id at m=256 MiB, t=3, p=4, per-vault salt. Parameters are inside the
-  authenticated header, so an edited file asking for a cheaper derivation fails to
-  open rather than being honoured, and a floor is enforced regardless.
-- No sentinel, no verification token, no fixed known plaintext. The only way to
-  test a guess is a full Argon2id derivation followed by an AEAD unwrap.
+- **Today (v1):** Argon2id at the library defaults (m=19 MiB, t=2, p=1) with a
+  per-vault salt; a small verification token lets a guess be tested with one
+  derivation. A strong passphrase is the defence that matters.
+- **v2 (not yet shipping):** Argon2id at m=256 MiB, t=3, p=4 (64 MiB, t=3, p=2 on
+  phones), parameters inside the authenticated header with a floor, and no
+  sentinel — a guess costs a full derivation and an AEAD unwrap.
+- Android backup of app data is off (0.1.4), so the vault does not leave a phone
+  through cloud backup or device transfer.
 - *Residual:* a short passphrase still falls. The meter says so at the moment of
   choosing, and the generator offers an alternative.
 
@@ -53,38 +66,42 @@ The primary threat. The attacker has the vault file and unlimited offline time.
 An unprivileged process running as the same user, reading swap, core files, or
 `/proc`.
 
-- The DEK and every decrypted secret live in `mlock`ed pages marked
-  `MADV_DONTDUMP`, wiped with volatile writes on drop.
-- The process disables core dumps and sets `PR_SET_DUMPABLE=0` at startup, before
-  anything can hold key material.
+- The session key and every decrypted secret the Keycore uses live in `mlock`ed
+  pages marked `MADV_DONTDUMP`, wiped with volatile writes on drop (`SecretBytes`;
+  the session key since 0.1.4).
+- The process disables core dumps (and on Linux sets `PR_SET_DUMPABLE=0`) at
+  startup, before anything can hold key material (since 0.1.4).
 - Secrets never render through `Debug`, a log, or an error message — the types
   carry redacting `Debug` implementations and a test asserts it.
-- The Tomb passphrase is no longer passed as `--tomb-pwd`, which used to expose it
-  in `/proc/<pid>/cmdline`.
+- *Open:* the Tomb passphrase is still passed to `tomb` as `--tomb-pwd`, which
+  exposes it in `/proc/<pid>/cmdline` to processes of the same user while the
+  command runs. `tomb` has no non-interactive alternative; moving it is tracked.
 - *Residual:* page locking is best-effort. `RLIMIT_MEMLOCK` is small by default
   and zero in some containers; like Bitcoin Core's `LockingFailed()`, we proceed
   with a warning rather than refusing to open the wallet. `is_locked()` reports
   the truth rather than assuming success.
 
-### A3 — Write access to the vault directory · **Defended**
+### A3 — Write access to the vault directory · **Partially defended today; defended by v2**
 
 An attacker who can modify files but does not know the passphrase.
 
-- Every ciphertext authenticates `version ‖ vault_id ‖ purpose`. Entries cannot be
-  swapped between slots or vaults, relabelled, or have their declared scheme
-  changed.
-- The account index is encrypted and authenticated, so an address cannot be
-  substituted to redirect a deposit.
-- Initialisation over existing ciphertext is refused, so an attacker cannot force
-  a "fresh" vault that orphans the participant's keys and hides the loss.
+- **v2 (not yet shipping):** every ciphertext authenticates `version ‖ vault_id ‖
+  purpose`, and the account index is encrypted and authenticated, so entries cannot
+  be swapped or relabelled and an address cannot be substituted.
+- **Today (v1):** ciphertexts are authenticated but not bound to their address, and
+  the account index is plaintext. The webview has no file access to the vault
+  directory (denied in the capability scope since 0.1.4), and vault files are
+  written atomically, owner-only (since 0.1.4).
+- Initialisation over any existing vault artefact is refused (since 0.1.4), so a
+  "fresh" vault cannot be forced over the participant's keys.
 
 ### A4 — Online guessing · **Reduced, honestly scoped**
 
 Someone at the keyboard, or driving the IPC surface.
 
 - Three free attempts, then a doubling backoff to a one-hour cap, persisted across
-  restarts, applied to `vault_unlock`, `vault_v2_unlock` and `vault_destroy` so
-  the older command surface cannot be used to dodge it.
+  restarts, applied to `vault_unlock`, `vault_destroy` and the Tomb unlock paths
+  (since 0.1.4; `vault_v2_unlock` when v2 ships).
 - *This is a speed bump, not a boundary.* An attacker holding the file can copy it
   elsewhere and delete the counter. Against them the defence is Argon2id and the
   passphrase's own entropy. The counter is deliberately not tamper-proofed;
@@ -115,9 +132,14 @@ Once a secret becomes a JavaScript string it is immutable and garbage-collected;
 it cannot be wiped. `src/lib/store.ts` "zeroes" by `'\0'.repeat(...)`, which
 allocates a *new* string and leaves the original for the collector.
 
-- **Signing happens entirely in Rust for every chain pack** — Algorand, Solana,
-  Arweave, Bitcoin, Litecoin and EVM. The secret is retrieved, used and wiped
-  without crossing the boundary, and `*_sign_*` returns a signature only.
+- **Every chain pack can sign in Rust** — Algorand, Solana, Arweave, Bitcoin,
+  Litecoin and EVM: `*_sign_*` retrieves, uses and wipes the secret and returns a
+  signature only, and checks the key belongs to the address (Algorand and Solana
+  since 0.1.4).
+- ***Open:* several frontend paths still retrieve a secret and sign in JavaScript**
+  (some sends, dApp approvals, x402 and Arweave paths), through a retrieve command
+  that returns plaintext. Moving every one of them onto the Keycore and removing
+  that command is the next remediation step.
 - **Key generation moved for the participant-facing path.**
   `chain_algo_create_account` and `chain_ar_create_account` generate, store and
   drop the secret inside Rust, returning an address rather than a seed, and

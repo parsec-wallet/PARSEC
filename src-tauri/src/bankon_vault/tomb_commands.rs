@@ -113,10 +113,10 @@ pub fn tomb_open(
     // Check if already open
     if tomb::is_open(TOMB_NAME) {
         // Already mounted — just update session
+        // Verified like any unlock. There is no fallback: a key that is not derived from the
+        // vault's own salt would encrypt new secrets under a key nothing can reproduce.
+        let session_key = verified_session_key(&mount, &passphrase)?;
         let mut guard = state.inner.lock().map_err(|_| "state poisoned")?;
-        let session_key = super::store::VaultStore::derive_session_key(
-            &mount, passphrase.as_bytes()
-        ).unwrap_or_else(|_| passphrase.as_bytes().to_vec());
         guard.unlock(session_key, mount.clone());
 
         return Ok(serde_json::json!({
@@ -130,14 +130,14 @@ pub fn tomb_open(
 
     // Initialize vault store inside tomb if not exists
     let vault_inside = mount.clone();
-    if !super::store::VaultStore::exists(&vault_inside) {
+    if !super::store::VaultStore::has_any_artefact(&vault_inside) {
         super::store::VaultStore::create(&vault_inside, passphrase.as_bytes())?;
+    } else if !super::store::VaultStore::exists(&vault_inside) {
+        return Err("the vault inside the tomb is incomplete; it was left untouched".to_string());
     }
 
-    // Unlock the vault session
-    let session_key = super::store::VaultStore::derive_session_key(
-        &vault_inside, passphrase.as_bytes()
-    )?;
+    // Unlock the vault session — verified, under the attempt limiter
+    let session_key = verified_session_key(&vault_inside, &passphrase)?;
     let mut guard = state.inner.lock().map_err(|_| "state poisoned")?;
     guard.unlock(session_key, vault_inside);
 
@@ -189,4 +189,16 @@ pub fn tomb_status(
         "open": is_open,
         "tomb_path": tomb_path.to_string_lossy(),
     }))
+}
+
+/// The session key for the vault at `dir`, only after the passphrase verifies — with the
+/// same attempt limiting as `vault_unlock`.
+fn verified_session_key(dir: &std::path::Path, passphrase: &str) -> Result<Vec<u8>, String> {
+    super::throttle::check(dir)?;
+    if !super::store::VaultStore::verify_passphrase(dir, passphrase.as_bytes())? {
+        super::throttle::record_failure(dir);
+        return Err("wrong passphrase".to_string());
+    }
+    super::throttle::record_success(dir);
+    super::store::VaultStore::derive_session_key(dir, passphrase.as_bytes())
 }

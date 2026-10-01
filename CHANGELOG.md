@@ -3,7 +3,33 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
-## 0.1.3 — 2026-10-01
+## 0.1.4 — 2026-10-01
+
+Includes everything in 0.1.3 (held, never published) and the vault fixes below.
+Audit: [`docs/security/vault-audit-2026-10-01.md`](docs/security/vault-audit-2026-10-01.md);
+policy: `SECURITY.md` (supported versions, audits and advisories).
+
+### Vault hardening (from the 2026-10-01 vault audit)
+- **Unlock attempts are limited**: three free, then a doubling wait up to an hour, on unlock,
+  vault destruction and the Tomb unlock paths.
+- **No core dumps** (and on Linux, no same-user ptrace or dump) from the moment PARSEC starts; the
+  unlocked session key lives in locked, dump-excluded memory and is wiped on lock.
+- **Vault files are written atomically and owner-only** (0600), so a crash cannot leave a torn file.
+- **A vault is never re-created over an existing one**, even a damaged one; removing an account
+  requires an unlocked vault, and locking forgets the vault's location.
+- **The app's web layer cannot read or write the vault directory** (denied in both the desktop
+  and the Android capability sets).
+- **Android: app data is excluded from backup and device transfer.**
+- **The Tomb unlock verifies the passphrase** and no longer falls back to using the raw
+  passphrase as a key.
+- **Signers check the key belongs to the address** (Algorand, Solana); the Arweave export
+  returns only a real Arweave key for the address asked for.
+- The last plain (compiler-removable) wipes are replaced with volatile ones.
+- **The security documents now describe the shipping vault** (`bankon-vault/1`) rather than the
+  not-yet-shipping `bankon-vault/2`, and name what is still open: signing in the frontend on
+  some paths, the v1 key derivation, the Tomb passphrase on the command line.
+
+## 0.1.3 — 2026-10-01 (held; shipped as part of 0.1.4)
 
 ### Arweave and ar.io
 - **Paid uploads over x402, from your own wallet.** Items over Turbo's free limit are paid
