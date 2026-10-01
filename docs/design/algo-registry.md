@@ -1,7 +1,7 @@
 # .algo registry and subdomain stores — design
 
-**Status:** proposal (2026-10-01). Nothing here is built yet beyond what exists today: root-name
-registration in PARSEC (NFD price in ALGO + the BANKON fee over x402).
+**Status (2026-10-01):** phase 1 (listings, quotes) is live; phase 2 (buying over x402) is built —
+see *Buying, as built* below. Fulfilment (phase 3) and root names in USDC (phase 4) are next.
 
 ## The idea
 
@@ -59,6 +59,27 @@ Endpoints:
   the money. On settlement an order is recorded as `paid`.
 - `GET /names/stores/{parent}/orders` — for the owner, authenticated by a signature from the owner
   key; PARSEC polls it.
+
+#### Buying, as built (phase 2)
+
+The single `buy` endpoint became an **order paid in two x402 settlements**, so the fee and the price
+each go straight to their own recipient and neither passes through mindX:
+
+| Route | What it does |
+|---|---|
+| `POST /names/stores/{parent}/order` `{label, buyer, network}` | free; checks the store, reserves and the NFD registry; freezes price, fee and payout |
+| `POST /names/stores/orders/{ref}/fee` | **x402** — the BANKON fee to BANKON's address; holds the name for the buyer for 15 minutes |
+| `POST /names/stores/orders/{ref}/pay` | **x402** — the price to the store's payout address; the order becomes `paid` |
+| `GET /names/stores/orders/{ref}`, `GET /names/stores/orders?buyer=` | an order; a buyer's orders |
+
+The payment terms are rebuilt on the server from the order (network, USDC, amount, payee) and the
+facilitator verifies and settles against them; a settlement is never accepted twice. These routes
+grant **no free quota and no session bypass** — a purchase is paid every time. A step already paid
+answers with the order instead of a 402, so retrying never charges twice.
+
+In PARSEC the buyer approves the order's figures once (BUY → PAY); each payment is checked against
+the order before it is signed — network, USDC, exact amount, and for the price the payout address —
+and refused otherwise. *Your orders* in the Stores tab resumes an unfinished order.
 
 ### 3. Fulfilment (owner, in PARSEC)
 

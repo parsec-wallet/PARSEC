@@ -51,7 +51,7 @@ export function nfdominterView(): HTMLElement {
         body.appendChild(buildSubdomainsTab(account.address, network, switchTab));
         break;
       case 'stores':
-        body.appendChild(buildStoresTab(network));
+        body.appendChild(buildStoresTab(account.address, network));
         break;
     }
     for (const t of tabs) {
