@@ -4,7 +4,7 @@
 //   Turbo credits    payment.ardrive.io/v1/price/bytes    winc (= winston), bought by card or token
 //   Turbo over x402  priced from Turbo's own rates; the exact figure is Turbo's 402 quote for
 //                    the signed item, shown before anything is paid. At least $0.01 per item.
-//   BANKON fee       10 %, at least $0.05, on the x402 cost (lib/bankon-fee.ts)
+//   BANKONx402 fee       10 %, at least $0.05, on the x402 cost (lib/bankon-fee.ts)
 //
 // Every value is an integer (winston, winc, micro-USD). A market price (AR/USD) arrives as a
 // float from the price feed; it is converted once, to a 6-decimal rate, and every amount after

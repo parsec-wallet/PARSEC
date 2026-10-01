@@ -15,7 +15,7 @@
 // keys or money. Design: docs/design/algo-registry.md.
 //
 // Buying is an order (free; it freezes price, fee and payout) paid in two x402
-// payments, each settled by the facilitator: the BANKON fee to BANKON, which
+// payments, each settled by the facilitator: the BANKONx402 fee to BANKON, which
 // holds the name for 15 minutes, then the price straight to the store owner's
 // payout address. The owner's wallet then mints the name for the buyer.
 //
@@ -71,7 +71,7 @@ export function tierFor(label: string): Tier {
   return n <= 3 ? 'premium' : n === 4 ? 'valuable' : 'standard';
 }
 
-/** BANKON facilitation fee: 10 % of the price, at least $0.05, paid by the buyer on top
+/** BANKONx402 facilitation fee: 10 % of the price, at least $0.05, paid by the buyer on top
  *  (the one rule, in lib/bankon-fee.ts). */
 export { FEE_BPS, FEE_MIN_MICRO } from '../bankon-fee';
 export function bankonFeeMicro(priceMicro: number): number {
@@ -213,7 +213,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
  * Why an order the registry returned must not be paid, or null when it is sound.
  *
  * The registry is not trusted with the figures: the fee must be this wallet's own
- * computation of the BANKON fee on the price, the total their sum, and the price,
+ * computation of the BANKONx402 fee on the price, the total their sum, and the price,
  * payout, buyer and name the ones the person was shown.
  */
 export function orderProblem(
@@ -226,7 +226,7 @@ export function orderProblem(
   if (!Number.isSafeInteger(o.price_micro_usd) || o.price_micro_usd < 0) return 'the order has no valid price';
   if (expect.price_micro_usd !== undefined && o.price_micro_usd !== expect.price_micro_usd) return 'the price changed from the quote you saw';
   if (expect.payout !== undefined && o.payout !== expect.payout) return 'the payout is not the store\'s';
-  if (o.bankon_fee_micro_usd !== bankonFeeMicro(o.price_micro_usd)) return 'the BANKON fee is not 10 % of the price (at least $0.05)';
+  if (o.bankon_fee_micro_usd !== bankonFeeMicro(o.price_micro_usd)) return 'the BANKONx402 fee is not 10 % of the price (at least $0.05)';
   if (o.total_micro_usd !== o.price_micro_usd + o.bankon_fee_micro_usd) return 'the total is not the price plus the fee';
   return null;
 }
@@ -292,10 +292,10 @@ export async function payOrderStep(order: StoreOrder, step: OrderStep, signers: 
         && String(r.asset) === want.asset
         && String(pending.quote.amountAtomic) === want.amount
         && (want.payTo === null || r.payTo === want.payTo);
-      if (!same) throw new Error(`The ${step === 'fee' ? 'BANKON fee' : 'price'} asked for is not the one on your order. Nothing was paid.`);
+      if (!same) throw new Error(`The ${step === 'fee' ? 'BANKONx402 fee' : 'price'} asked for is not the one on your order. Nothing was paid.`);
     },
   });
-  if (!result.success) throw new Error(result.error || `The ${step === 'fee' ? 'BANKON fee' : 'price'} did not settle.`);
+  if (!result.success) throw new Error(result.error || `The ${step === 'fee' ? 'BANKONx402 fee' : 'price'} did not settle.`);
   // Read the order back rather than trusting the response body, and require that this
   // step actually moved it on: a step that settled but did not advance the order is
   // reported, never announced as paid.
@@ -303,7 +303,7 @@ export async function payOrderStep(order: StoreOrder, step: OrderStep, signers: 
   const advanced = step === 'fee' ? ['fee_paid', 'paid', 'minted'] : ['paid', 'minted'];
   if (!advanced.includes(next.state)) {
     const tx = result.txId ? ` (settlement ${result.txId})` : '';
-    throw new Error(`The ${step === 'fee' ? 'BANKON fee' : 'price'} settled${tx}, but the order is still "${next.state}". Keep this order and contact the store.`);
+    throw new Error(`The ${step === 'fee' ? 'BANKONx402 fee' : 'price'} settled${tx}, but the order is still "${next.state}". Keep this order and contact the store.`);
   }
   return { order: next, txId: result.txId ?? null, result };
 }

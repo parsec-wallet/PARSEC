@@ -35,7 +35,7 @@ GROUPS = [
         "src/lib/arweave/client.ts", "src/lib/arweave/tx.ts", "src/lib/arweave/ans104.ts",
         "src/lib/arweave/ao.ts", "src/lib/arweave/inject.ts", "src/lib/arweave/index.ts",
         "src/lib/arweave/turbo.ts", "src/lib/arweave/manifest.ts",
-        # Turbo uploads paid over x402 (USDC on Base) and the BANKON fee — lib/bankon-fee.ts
+        # Turbo uploads paid over x402 (USDC on Base) and the BANKONx402 fee — lib/bankon-fee.ts
         "src/lib/arweave/turbo-x402.ts"]),
     ("ar.io — AO era", [
         "src/lib/arweave/ario.ts", "src/lib/arweave/ant.ts", "src/lib/namespaces/arns.ts"]),

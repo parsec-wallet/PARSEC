@@ -1,6 +1,6 @@
 # NFDominter — `.algo` name minting
 
-> In-wallet minting and management of NFD (`.algo`) names, with a BANKON fee
+> In-wallet minting and management of NFD (`.algo`) names, with a BANKONx402 fee
 > attached to each mint.
 
 ## Overview
@@ -18,7 +18,7 @@ four-tab view (`src/views/nfdominter.ts`):
 
 ## Fee model
 
-Each mint attaches a configurable **BANKON fee** alongside the NFD registry
+Each mint attaches a configurable **BANKONx402 fee** alongside the NFD registry
 cost. The fee address is set at build time; the mint is skipped with a warning
 if it is unconfigured.
 

@@ -8,7 +8,7 @@
 // registry).
 //
 // BUY places an order (free; it freezes the figures), then pays it over x402 in
-// two settlements the buyer can see: the BANKON facilitation fee (10 %, at
+// two settlements the buyer can see: the BANKONx402 facilitation fee (10 %, at
 // least $0.05, on top of the price), which holds the name for
 // 15 minutes, then the price, straight to the store owner. The owner's wallet
 // mints the name for the buyer. A step that fails leaves the order where it
@@ -67,12 +67,12 @@ export function buildStoresTab(buyer: string, network: StoreRegistry): HTMLEleme
           el('div', { cls: 'parsec-stores__rows', children: [
             row('Tier', TIER_LABEL[q.tier as Tier] ?? q.tier),
             row(`Price, to the owner of ${s.parent}`, `${usd(q.price_micro_usd)} USDC`),
-            row('BANKON facilitation fee (10 %, min $0.05)', `${usd(q.bankon_fee_micro_usd)} USDC`),
+            row('BANKONx402 facilitation fee (10 %, min $0.05)', `${usd(q.bankon_fee_micro_usd)} USDC`),
             row('You pay', `${usd(q.total_micro_usd)} USDC`, true),
           ] }),
           ...(q.available ? [
             btn(`BUY ${q.name} · ${usd(q.total_micro_usd)} USDC`, { intent: 'primary', onClick: () => void order(s, label, q.price_micro_usd) }),
-            el('p', { cls: 'parsec-stores__muted', text: `Two x402 payments in USDC on Algorand: the BANKON facilitation fee, then the price straight to the owner of ${s.parent}, in full. The owner’s wallet then ${arns ? 'sets the undername and hands it to your Solana address' : 'mints the name for'} ${short(buyer)}.` }),
+            el('p', { cls: 'parsec-stores__muted', text: `Two x402 payments in USDC on Algorand: the BANKONx402 facilitation fee, then the price straight to the owner of ${s.parent}, in full. The owner’s wallet then ${arns ? 'sets the undername and hands it to your Solana address' : 'mints the name for'} ${short(buyer)}.` }),
           ] : []),
         );
       } catch (e) {
@@ -127,7 +127,7 @@ export function buildStoresTab(buyer: string, network: StoreRegistry): HTMLEleme
     function stepRow(step: OrderStep | 'mint'): HTMLElement {
       const done = step === 'fee' ? o.state !== 'quoted' : step === 'pay' ? ['paid', 'minted'].includes(o.state) : o.state === 'minted';
       const tx = step === 'fee' ? o.fee_settlement : step === 'pay' ? o.settlement : o.mint_tx;
-      const title = step === 'fee' ? `BANKON facilitation fee · ${usd(o.bankon_fee_micro_usd)} USDC`
+      const title = step === 'fee' ? `BANKONx402 facilitation fee · ${usd(o.bankon_fee_micro_usd)} USDC`
         : step === 'pay' ? `Price · ${usd(o.price_micro_usd)} USDC to ${short(o.payout)}`
         : arns ? `Set and handed over by the owner of ${o.parent}` : `Minted by the owner of ${o.parent}`;
       // Fee and price settle on Algorand; an ArNS undername is handed over on Solana.
@@ -156,7 +156,7 @@ export function buildStoresTab(buyer: string, network: StoreRegistry): HTMLEleme
       const signers = signersForAccount(account);
       try {
         if (o.state === 'quoted') {
-          status.textContent = 'Paying the BANKON facilitation fee…';
+          status.textContent = 'Paying the BANKONx402 facilitation fee…';
           o = (await payOrderStep(o, 'fee', signers)).order;
           paint();
         }
@@ -289,7 +289,7 @@ export function buildMarketspaceStores(): HTMLElement {
   return el('section', { cls: 'parsec-stores__market', children: [
     el('div', { cls: 'parsec-stores__market-head', children: [
       el('h3', { text: 'Name stores' }),
-      el('p', { cls: 'parsec-stores__muted', text: 'Names sold by their owners, priced by length. You pay the owner in USDC over x402, plus the BANKON facilitation fee of 10 % (at least $0.05), shown before you pay.' }),
+      el('p', { cls: 'parsec-stores__muted', text: 'Names sold by their owners, priced by length. You pay the owner in USDC over x402, plus the BANKONx402 facilitation fee of 10 % (at least $0.05), shown before you pay.' }),
       el('div', { cls: 'parsec-stores__featured', children: chips }),
     ] }),
     body,

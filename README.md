@@ -137,7 +137,7 @@ src/                     TypeScript interface — 72 views; lib/ holds one typed
 │   ├── namespaces/      NamespaceAdapter registry — ArNS, BANKON Names, Solana-ArNS
 │   ├── algorand/ solana/ arweave/ bitcoin/ litecoin/ xchain/ algorand-hd/
 │   ├── x402/            the payment rail (also published standalone)
-│   ├── nfd/             .algo names, the BANKON fee over x402
+│   ├── nfd/             .algo names, the BANKONx402 fee over x402
 │   ├── dex/             SpinTrade (Tinyman, Pact)
 │   ├── permaweb/        Turbo uploads, ArNS, ar.io
 │   └── keystore.ts      vault on desktop, Web Crypto in the browser

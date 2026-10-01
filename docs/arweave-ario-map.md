@@ -288,7 +288,7 @@ Stated here so the map is not read as a health certificate:
   USD value (`lib/names/cost-display.ts`); the name controller's float division is gone.
   [`cypherpunk4096.md`](./cypherpunk4096.md) commitment IV can be re-checked for this item.
 - **Paid uploads** go through Turbo's x402 endpoint in USDC on Base from the person's own wallet,
-  with the BANKON facilitation fee paid first (`lib/arweave/turbo-x402.ts`,
+  with the BANKONx402 facilitation fee paid first (`lib/arweave/turbo-x402.ts`,
   [`permaweb/README.md`](./permaweb/README.md)). Turbo credits are still not bought in the wallet.
 - **Test coverage is thin at the edges.** `arweave/` has three test files
   (`ans104`, `seed`, `tx`); `ario.ts`, `ant.ts`, `inject.ts` and both AO process

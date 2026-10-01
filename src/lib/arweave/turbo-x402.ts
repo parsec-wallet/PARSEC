@@ -5,7 +5,7 @@
 // signed by the PARSEC Keycore, and Turbo settles it and stores the item. Nobody holds the
 // person's money or keys; there are no Turbo credits to buy first.
 //
-// BANKON facilitates: its fee (10 %, at least $0.05, lib/bankon-fee.ts) is paid first, once
+// BANKONx402 facilitates: its fee (10 %, at least $0.05, lib/bankon-fee.ts) is paid first, once
 // for the whole upload, as its own x402 payment to mindX — which computes it from Turbo's
 // public prices, and is refused here if it asks more than this wallet computed.
 //
@@ -104,7 +104,7 @@ export async function postDataItemX402(
 }
 
 /**
- * Pay the BANKON facilitation fee for an upload (once, before the paid items).
+ * Pay the BANKONx402 facilitation fee for an upload (once, before the paid items).
  * `expectedMicro` is this wallet's own computation; a fee above it (plus a sliver for prices
  * moving between the two reads) is refused before signing.
  */
@@ -126,14 +126,14 @@ export async function payUploadFee(
     approve: async () => true,
     verify: (pending) => {
       const amount = pending.quote.amountAtomic;
-      if (pending.quote.usdMicro === null) throw new Error('The BANKON fee was not offered in a dollar stablecoin. Nothing was paid.');
+      if (pending.quote.usdMicro === null) throw new Error('The BANKONx402 fee was not offered in a dollar stablecoin. Nothing was paid.');
       if (pending.quote.usdMicro > ceiling) {
-        throw new Error(`The BANKON fee asked ($${fmt(pending.quote.usdMicro)}) is more than this wallet computed ($${fmt(expectedMicro)}). Nothing was paid.`);
+        throw new Error(`The BANKONx402 fee asked ($${fmt(pending.quote.usdMicro)}) is more than this wallet computed ($${fmt(expectedMicro)}). Nothing was paid.`);
       }
       asked = amount;
     },
   });
-  if (!result.success || !result.txId) throw new Error(result.error || 'The BANKON fee did not settle.');
+  if (!result.success || !result.txId) throw new Error(result.error || 'The BANKONx402 fee did not settle.');
   return { txId: result.txId, feeMicro: asked };
 }
 

@@ -1,4 +1,4 @@
-// .algo Names — the BANKON fee, paid over x402.
+// .algo Names — the BANKONx402 fee, paid over x402.
 //
 // Registering a .algo name through PARSEC is two payments to two parties:
 //

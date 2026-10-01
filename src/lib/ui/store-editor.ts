@@ -52,7 +52,7 @@ export function storeEditor(parent: string, owner: string, network: StoreRegistr
     const std = micro('standard');
     example.textContent = std === null
       ? 'Prices are USDC with up to 6 decimals.'
-      : `A buyer of a 5-letter name pays ${usd(std)} to you, plus the BANKON facilitation fee of ${usd(bankonFeeMicro(std))} (10 %, at least $0.05) — ${usd(std + bankonFeeMicro(std))} in all. You receive ${usd(std)} in full.`;
+      : `A buyer of a 5-letter name pays ${usd(std)} to you, plus the BANKONx402 facilitation fee of ${usd(bankonFeeMicro(std))} (10 %, at least $0.05) — ${usd(std + bankonFeeMicro(std))} in all. You receive ${usd(std)} in full.`;
   }
   paintExample();
 
@@ -117,8 +117,8 @@ export function storeEditor(parent: string, owner: string, network: StoreRegistr
 
   root.append(
     el('p', { cls: 'parsec-store-editor__muted', text: arns
-      ? `Sell undernames of ${parent}: ${fullName(network, parent, 'alice')}.ar.io. You set the prices; buyers pay you in USDC on Algorand over x402, and your wallet sets each undername and hands it to its buyer. Each buyer pays the BANKON facilitation fee on top; the price comes to you in full.`
-      : `Sell subdomains of ${parent}: ${fullName(network, parent, 'alice')}. You set the prices; buyers pay you in USDC over x402, and your wallet mints each name for its buyer. Each buyer pays the BANKON facilitation fee on top; the price comes to you in full.` }),
+      ? `Sell undernames of ${parent}: ${fullName(network, parent, 'alice')}.ar.io. You set the prices; buyers pay you in USDC on Algorand over x402, and your wallet sets each undername and hands it to its buyer. Each buyer pays the BANKONx402 facilitation fee on top; the price comes to you in full.`
+      : `Sell subdomains of ${parent}: ${fullName(network, parent, 'alice')}. You set the prices; buyers pay you in USDC over x402, and your wallet mints each name for its buyer. Each buyer pays the BANKONx402 facilitation fee on top; the price comes to you in full.` }),
     el('div', { cls: 'parsec-store-editor__tiers', children: tierRows }),
     example,
     el('label', { cls: 'parsec-store-editor__field', children: [el('span', { text: arns ? 'Payout — an Algorand address opted in to USDC' : 'Payout address (must hold USDC)' }), payout] }),
