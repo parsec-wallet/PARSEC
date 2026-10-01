@@ -12,12 +12,14 @@
 import { el, btn, brandLogo } from '../lib/dom';
 import { store } from '../lib/store';
 import {
-  TIER_LABEL,
-  TIER_ORDER,
+  GROUP_LABEL,
+  GROUP_ORDER,
+  groupOf,
+  groupRoutes,
+  type NavGroup,
   getDisclosure,
   getRoute,
   isModalRoute,
-  railRoutes,
   setDisclosure,
 } from '../lib/nav';
 import type { Disclosure } from '../lib/nav';
@@ -118,18 +120,50 @@ export function createShell(): Shell {
     }
   }
 
+  // Accordion: every section starts compressed; the one holding the current
+  // view opens itself; what the participant opens or closes is remembered.
+  const OPEN_KEY = 'parsec:rail-open';
+  const readOpen = (): Set<string> => {
+    try { return new Set(JSON.parse(localStorage.getItem(OPEN_KEY) ?? '[]') as string[]); } catch { return new Set(); }
+  };
+  const writeOpen = (open: Set<string>): void => {
+    try { localStorage.setItem(OPEN_KEY, JSON.stringify([...open])); } catch { /* best effort */ }
+  };
+
   function renderRail(): void {
     const level = getDisclosure();
     const current = store.get().view;
+    const currentRoute = getRoute(current);
+    const currentGroup: NavGroup | null = currentRoute ? groupOf(currentRoute) : null;
+    const open = readOpen();
     rail.innerHTML = '';
 
-    for (const tier of TIER_ORDER) {
-      const routes = railRoutes(tier, level);
+    for (const group of GROUP_ORDER) {
+      const routes = groupRoutes(group, level);
       if (routes.length === 0) continue;
 
-      const section = el('div', { cls: 'parsec-shell__section' });
-      section.appendChild(el('h6', { cls: 'parsec-shell__tier', text: TIER_LABEL[tier] }));
+      const expanded = open.has(group) || group === currentGroup;
+      const section = el('div', { cls: `parsec-shell__section${expanded ? ' parsec-shell__section--open' : ''}` });
+      const bodyId = `parsec-rail-${group}`;
+      const head = el('button', {
+        cls: 'parsec-shell__tier parsec-shell__accordion',
+        attrs: { type: 'button', 'aria-expanded': String(expanded), 'aria-controls': bodyId },
+        children: [
+          el('span', { cls: 'parsec-shell__accordion-label', text: GROUP_LABEL[group] }),
+          el('span', { cls: 'parsec-shell__accordion-count', text: String(routes.length) }),
+          el('span', { cls: 'parsec-shell__accordion-chevron', attrs: { 'aria-hidden': 'true' }, text: '›' }),
+        ],
+      });
+      head.addEventListener('click', () => {
+        const now = readOpen();
+        if (section.classList.contains('parsec-shell__section--open')) now.delete(group); else now.add(group);
+        writeOpen(now);
+        renderRail();
+      });
+      section.appendChild(head);
 
+      const body = el('div', { cls: 'parsec-shell__section-body', attrs: { id: bodyId } });
+      if (!expanded) body.hidden = true;
       for (const route of routes) {
         const item = el('button', { cls: 'parsec-shell__link', text: route.title });
         if (route.id === current) {
@@ -137,8 +171,9 @@ export function createShell(): Shell {
           item.setAttribute('aria-current', 'page');
         }
         item.addEventListener('click', () => store.navigate(route.id as Parameters<typeof store.navigate>[0]));
-        section.appendChild(item);
+        body.appendChild(item);
       }
+      section.appendChild(body);
       rail.appendChild(section);
     }
   }
@@ -149,7 +184,7 @@ export function createShell(): Shell {
     root.classList.toggle('parsec-shell--bare', bare);
 
     const route = getRoute(view);
-    crumb.textContent = route ? `${TIER_LABEL[route.tier]} · ${route.title}` : '';
+    crumb.textContent = route ? `${GROUP_LABEL[groupOf(route)]} · ${route.title}` : '';
     backBtn.hidden = !store.canGoBack();
   }
 

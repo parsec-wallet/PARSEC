@@ -77,6 +77,53 @@
   text-transform: uppercase;
 }
 
+// Accordion section header: the whole header toggles its section.
+.parsec-shell__accordion {
+  display: flex;
+  align-items: center;
+  gap: $spacing-2;
+  width: 100%;
+  margin: 0;
+  padding: $spacing-2 $spacing-4;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { color: var(--px-text); }
+
+  &:focus-visible {
+    outline: 2px solid var(--px-gold);
+    outline-offset: -2px;
+  }
+}
+
+.parsec-shell__accordion-label { flex: 1; }
+
+.parsec-shell__accordion-count {
+  color: var(--px-muted);
+  font-size: 0.7em;
+  letter-spacing: 0;
+}
+
+.parsec-shell__accordion-chevron {
+  display: inline-block;
+  font-size: 1.1em;
+  transition: transform 0.15s ease;
+
+  .parsec-shell__section--open & { transform: rotate(90deg); }
+}
+
+.parsec-shell__section-body {
+  padding-bottom: $spacing-2;
+
+  &[hidden] { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .parsec-shell__accordion-chevron { transition: none; }
+}
+
 .parsec-shell__link {
   display: block;
   width: 100%;

@@ -34,6 +34,8 @@ export interface NavRoute {
   readonly modal?: boolean;
   /** Extra search terms for the command palette. */
   readonly keywords?: readonly string[];
+  /** Rail section, when it is not the tier's own (see GROUP_ORDER). */
+  readonly group?: NavGroup;
 }
 
 export const TIER_LABEL: Record<NavTier, string> = {
@@ -44,6 +46,37 @@ export const TIER_LABEL: Record<NavTier, string> = {
 };
 
 export const TIER_ORDER: readonly NavTier[] = ['modules', 'pouch', 'identity', 'agenticplace'];
+
+// ── Rail sections (the accordion) ──────────────────────────────
+// The rail groups routes into collapsible sections. The four tiers are four of
+// them; two surfaces large enough to be their own place — .algo names and the
+// permaweb — get a section each instead of sitting inside AgenticPlace.
+
+export type NavGroup = NavTier | 'algo' | 'permaweb';
+
+export const GROUP_LABEL: Record<NavGroup, string> = {
+  modules: 'Chain Modules',
+  pouch: 'Wallet Pouch',
+  identity: 'Vault Identity',
+  agenticplace: 'AgenticPlace',
+  algo: '.algo',
+  permaweb: 'Permaweb',
+};
+
+export const GROUP_ORDER: readonly NavGroup[] = ['modules', 'pouch', 'identity', 'agenticplace', 'algo', 'permaweb'];
+
+/** The rail section a route sits in: its own `group`, else by id, else its tier. */
+export function groupOf(route: NavRoute): NavGroup {
+  if (route.group) return route.group;
+  if (route.id.startsWith('nfdominter')) return 'algo';
+  if (route.id.startsWith('permaweb') || route.id.startsWith('ario') || route.id.startsWith('arweave-ario')) return 'permaweb';
+  return route.tier;
+}
+
+/** Routes for one rail section at a disclosure level, in rail order. */
+export function groupRoutes(group: NavGroup, level: Disclosure): NavRoute[] {
+  return TIER_ORDER.flatMap((t) => railRoutes(t, level)).filter((r) => groupOf(r) === group);
+}
 
 const DISCLOSURE_RANK: Record<Disclosure, number> = { simple: 0, more: 1, pro: 2 };
 

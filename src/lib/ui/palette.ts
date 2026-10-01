@@ -7,7 +7,7 @@
 
 import { el } from '../dom';
 import { store } from '../store';
-import { TIER_LABEL, getDisclosure, visibleRoutes } from '../nav';
+import { GROUP_LABEL, groupOf, getDisclosure, visibleRoutes } from '../nav';
 import type { NavRoute } from '../nav';
 import { fuzzy } from './fuzzy';
 
@@ -125,7 +125,7 @@ export function mountPalette(): () => void {
       if (s.via) label.appendChild(el('span', { cls: 'parsec-palette__via', text: s.via }));
       row.appendChild(label);
 
-      row.appendChild(el('span', { cls: 'parsec-palette__tier', text: TIER_LABEL[s.route.tier] }));
+      row.appendChild(el('span', { cls: 'parsec-palette__tier', text: GROUP_LABEL[groupOf(s.route)] }));
       row.addEventListener('mouseenter', () => { active = i; paint(); });
       row.addEventListener('click', () => choose(i));
       list.appendChild(row);
