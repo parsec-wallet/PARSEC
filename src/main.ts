@@ -264,6 +264,10 @@ function deferredInit(): void {
     onModeChange((m) => { if (m === 'viewing') bridgeFor = null; });
     store.subscribe((state) => {
       preloadFor(state.view);
+      // Not on a phone: the bridge's defence is that only this machine can reach
+      // 127.0.0.1 (threat model A5), and on Android every installed app shares the
+      // device's loopback. A phone would expose the signing bridge to its other apps.
+      if (isMobile) return;
       if (isArmed() && state.accounts.length > 0 && state.view === 'dashboard') {
         const address = state.accounts[state.activeAccountIndex]?.address;
         if (address && address !== bridgeFor) {

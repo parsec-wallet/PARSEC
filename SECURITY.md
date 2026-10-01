@@ -46,6 +46,9 @@ local access.
 - `src-tauri/src/parsec_connect/` — the dApp bridge.
 - `src/lib/` — anything that can cause a secret to reach JavaScript, storage, or the DOM.
 - The published web build, including its `localStorage` fallback.
+- The Android app (`src-tauri/gen/android`, `capabilities/mobile.json`, `src/lib/mobile.ts`):
+  what a phone adds — shared loopback, screen capture, the clipboard, background timers — is
+  set out in [`docs/security/threat-model.md`](docs/security/threat-model.md#android-since-011).
 
 ## What is out of scope
 
@@ -93,6 +96,10 @@ PARSEC is pre-1.0 and moves fast. Fixes land on the default branch; there is no
 backport channel yet. The Bitcoin path is gated behind an audit and is not
 supported for mainnet custody — see
 [`docs/integration/bankon-btc-waas.md`](docs/integration/bankon-btc-waas.md).
+
+Android releases are signed with one PARSEC release key; its certificate sha256 is
+`c5:c3:c3:81:6d:41:0f:fa:e9:66:a4:d9:fb:ea:c6:8f:74:37:cf:8a:10:66:b5:20:e8:7a:7d:1d:41:10:6b:c8`.
+An APK signed with any other certificate is not a PARSEC release.
 
 ## Cryptographic claims
 

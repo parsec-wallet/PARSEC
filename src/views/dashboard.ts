@@ -1,5 +1,6 @@
 // PARSEC Wallet — Dashboard View
 
+import { isMobile } from '../lib/platform';
 import { el, btn, toast, copyText } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
 import { listDashboardModules } from '../lib/dashboard';
@@ -101,8 +102,12 @@ export function dashboardView(): HTMLElement {
     children: [keyText],
     onClick: () => { void copyText(addr, 'Public receive key copied'); },
   });
-  keyValue.addEventListener('mouseenter', () => { keyText.textContent = addr; keyValue.classList.add('parsec-pubkey--expanded'); });
-  keyValue.addEventListener('mouseleave', () => { keyText.textContent = `${addr.slice(0, 6)} ···· ${addr.slice(-6)}`; keyValue.classList.remove('parsec-pubkey--expanded'); });
+  // A finger cannot hover: on a phone the whole address is shown (it wraps), and a tap copies it.
+  if (isMobile) { keyText.textContent = addr; keyValue.classList.add('parsec-pubkey--expanded'); }
+  else {
+    keyValue.addEventListener('mouseenter', () => { keyText.textContent = addr; keyValue.classList.add('parsec-pubkey--expanded'); });
+    keyValue.addEventListener('mouseleave', () => { keyText.textContent = `${addr.slice(0, 6)} ···· ${addr.slice(-6)}`; keyValue.classList.remove('parsec-pubkey--expanded'); });
+  }
 
   // Primary .algo name — a quiet mark of identity above the raw key. Shown
   // only when the address actually carries one; clicking it copies the name.
@@ -219,8 +224,12 @@ function renderChainPanel(account: WalletAccount, chainId: ChainId): HTMLElement
     children: [keyText],
     onClick: () => { void copyText(addr, `${desc.label} address copied`); },
   });
-  keyValue.addEventListener('mouseenter', () => { keyText.textContent = addr; keyValue.classList.add('parsec-pubkey--expanded'); });
-  keyValue.addEventListener('mouseleave', () => { keyText.textContent = desc.truncate(addr); keyValue.classList.remove('parsec-pubkey--expanded'); });
+  // A finger cannot hover: on a phone the whole address is shown (it wraps), and a tap copies it.
+  if (isMobile) { keyText.textContent = addr; keyValue.classList.add('parsec-pubkey--expanded'); }
+  else {
+    keyValue.addEventListener('mouseenter', () => { keyText.textContent = addr; keyValue.classList.add('parsec-pubkey--expanded'); });
+    keyValue.addEventListener('mouseleave', () => { keyText.textContent = desc.truncate(addr); keyValue.classList.remove('parsec-pubkey--expanded'); });
+  }
   const addressCard = el('div', {
     cls: 'parsec-dashboard__pubkey',
     children: [

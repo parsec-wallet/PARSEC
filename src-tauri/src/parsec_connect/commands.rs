@@ -17,6 +17,12 @@ pub async fn connect_start(
     allowed_origins: Option<Vec<String>>,
     active_address: Option<String>,
 ) -> Result<String, String> {
+    // On a phone, loopback is shared by every installed app: the bridge's defence (only
+    // this machine reaches 127.0.0.1, threat model A5) does not hold there. Refuse.
+    if cfg!(target_os = "android") || cfg!(target_os = "ios") {
+        let _ = (&state, &app_handle, &port, &allowed_origins, &active_address);
+        return Err("the dApp bridge is not available on a phone: other apps share its loopback".into());
+    }
     let port = port.unwrap_or(9876);
     let origins = allowed_origins.unwrap_or_else(|| {
         vec!["https://agenticplace.pythai.net".into()]

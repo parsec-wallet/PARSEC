@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <!-- The PARSEC tile's own navy, so the adaptive icon reads as one dark tile on every launcher shape. -->
+  <color name="ic_launcher_background">#0D121A</color>
+</resources>
