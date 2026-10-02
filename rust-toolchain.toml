@@ -1,4 +1,5 @@
 # The PARSEC Keycore builds with exactly this compiler, on the laptop, the Android build
+# (whose packaging step runs cargo from the repository root, hence this file is here)
 # and CI. 1.99 is the first release with C-variadic function definitions and
 # `core::ffi::VaList` stable. Android targets are added per machine (`rustup target add`),
 # not here, so desktop CI does not download them.
