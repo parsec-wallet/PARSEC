@@ -72,7 +72,8 @@ creation time (the reference targets 750 ms) and MUST clamp the result to the fl
 ## Document
 
 One JSON document, `vault2.json`, written atomically. The previous generation is
-retained as `vault2.json.bak`.
+retained as `vault2.json.bak`, and the highest generation saved in the directory is
+recorded in `vault2.generation`.
 
 ```json
 {
@@ -97,11 +98,27 @@ retained as `vault2.json.bak`.
       "sealed": { "nonce": "<base64, 12>", "ct": "<base64>" },
       "updated_at": 1756500000
     }
-  ]
+  ],
+  "generation": 7,
+  "mac": "<128 hex chars>"
 }
 ```
 
 `kdf` is present only on wraps whose kind requires stretching.
+
+### Integrity and rollback
+
+- `mac` = HMAC-SHA-512(key, JSON of the document with `mac` = ""), key =
+  HKDF(salt=vault.salt, ikm=DEK, info="bankon-doc-mac/2", len=32). It is checked
+  (in constant time) on every unlock, so an entry or custodian removed, added or
+  swapped outside the implementation is refused — each entry also authenticates on
+  its own, but only the MAC catches a deletion.
+- `generation` increases on every save. `vault2.generation` records the highest
+  generation saved in the directory; a document with a lower generation is refused
+  as a possible rollback, until the participant removes `vault2.generation` to
+  accept a restore they made on purpose. This turns an accidental or naive restore
+  into a clear refusal; it is not a defence against someone who controls the whole
+  directory, who can rewrite the sidecar too.
 
 ### What is NOT in the document
 
@@ -221,10 +238,16 @@ Non-destructive and verified before it is declared successful:
 2. Decrypt every entry with the v1 session key.
 3. Classify each secret into a scheme (25 words on Algorand → `mnemonic-algo25`;
    12/15/18/21/24 words → `mnemonic-bip39`; otherwise `opaque`).
-4. Create a v2 vault with one custodian and re-seal every secret.
-5. **Read every secret back through the new format and compare.** Any mismatch
-   aborts with v1 untouched.
-6. Leave the v1 files in place. Removing them is the participant's decision, after
+4. Build the v2 document **in memory** with one custodian, re-seal every secret,
+   and set its generation and MAC.
+5. Write it atomically to `vault2.json.migrating` — never to `vault2.json`.
+6. **Read it back from disk** and check the MAC and every secret, comparing in
+   constant time. Any failure removes the `.migrating` file and aborts with v1
+   untouched; a `.migrating` file left by an interrupted attempt is discarded the
+   next time, never read as a vault.
+7. Only then rename it to `vault2.json`, sync the directory, and record the
+   generation.
+8. Leave the v1 files in place. Removing them is the participant's decision, after
    they have confirmed access.
 
 ## Test vectors

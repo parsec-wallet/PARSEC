@@ -22,11 +22,19 @@ use super::store::VaultStore;
 
 pub const DOC_FILE: &str = "vault2.json";
 pub const BACKUP_FILE: &str = "vault2.json.bak";
+/// A migration being built; renamed to `DOC_FILE` only once it reads back from disk.
+pub const MIGRATING_FILE: &str = "vault2.json.migrating";
+/// The highest generation saved in this directory (audit M7). Not a defence against
+/// someone who controls the whole directory — they can rewrite this too — but it turns
+/// an accidental or naive restore of an older vault into a clear refusal.
+pub const GENERATION_FILE: &str = "vault2.generation";
 
 /// A loaded vault document plus the directory it came from.
 pub struct Vault {
     dir: PathBuf,
     doc: VaultDoc,
+    /// Saves update the document in memory only (a migration being built).
+    staged: bool,
 }
 
 /// The unwrapped data-encryption key. Held only while the vault is unlocked.
@@ -95,9 +103,10 @@ impl Vault {
         let wrap = Self::make_wrap(&doc, overseer, dek.as_slice())?;
         doc.wraps.push(wrap);
 
-        let mut v = Self { dir: dir.to_path_buf(), doc };
-        v.write_index(&Dek(dek), &AccountIndex::default())?;
-        v.save()?;
+        let mut v = Self { dir: dir.to_path_buf(), doc, staged: false };
+        let dek = Dek(dek);
+        v.write_index(&dek, &AccountIndex::default())?;
+        v.save(&dek)?;
         Ok(v)
     }
 
@@ -115,7 +124,7 @@ impl Vault {
         let doc: VaultDoc = serde_json::from_slice(&raw)
             .map_err(|e| format!("vault document is corrupt or unreadable: {e}"))?;
         doc.validate()?;
-        Ok(Self { dir: dir.to_path_buf(), doc })
+        Ok(Self { dir: dir.to_path_buf(), doc, staged: false })
     }
 
     fn make_wrap(doc: &VaultDoc, overseer: &dyn Overseer, dek: &[u8]) -> Result<Wrap, String> {
@@ -184,7 +193,9 @@ impl Vault {
                 if dek.len() != DEK_LEN {
                     return Err("unwrapped DEK has the wrong length".to_string());
                 }
-                return Ok(Dek(dek));
+                let dek = Dek(dek);
+                self.verify_integrity(&dek)?;
+                return Ok(dek);
             }
         }
 
@@ -221,11 +232,11 @@ impl Vault {
         }
         let wrap = Self::make_wrap(&self.doc, overseer, dek.as_slice())?;
         self.doc.wraps.push(wrap);
-        self.save()
+        self.save(dek)
     }
 
     /// Remove a custodian, refusing to remove the last one.
-    pub fn remove_custodian(&mut self, kind: CustodyKind, label: &str) -> Result<(), String> {
+    pub fn remove_custodian(&mut self, dek: &Dek, kind: CustodyKind, label: &str) -> Result<(), String> {
         if self.doc.wraps.len() <= 1 {
             return Err(
                 "refusing to remove the only custodian — the vault would become \
@@ -238,7 +249,7 @@ impl Vault {
         if self.doc.wraps.len() == before {
             return Err("no such custodian".to_string());
         }
-        self.save()
+        self.save(dek)
     }
 
     /// Replace a passphrase custodian. O(1): one 32-byte rewrap, no entry is touched.
@@ -258,7 +269,7 @@ impl Vault {
             Some(slot) => *slot = wrap,
             None => return Err(format!("no passphrase custodian labelled {label:?}")),
         }
-        self.save()
+        self.save(dek)
     }
 
     // ── entries ─────────────────────────────────────────────────────────────
@@ -313,7 +324,7 @@ impl Vault {
             created_at: now,
         });
         self.write_index(dek, &index)?;
-        self.save()
+        self.save(dek)
     }
 
     pub fn retrieve_secret(
@@ -354,7 +365,7 @@ impl Vault {
         let mut index = self.read_index(dek)?;
         index.accounts.retain(|a| !(a.address == address && a.chain == chain));
         self.write_index(dek, &index)?;
-        self.save()
+        self.save(dek)
     }
 
     /// The account roster. Requires the DEK — a locked vault discloses neither
@@ -396,21 +407,71 @@ impl Vault {
         Ok(())
     }
 
-    /// Persist, retaining the previous generation as `.bak`.
+    /// The document MAC for the current contents (with `mac` itself empty).
+    fn compute_mac(&self, dek: &Dek) -> Result<String, String> {
+        let key = format::doc_mac_key(dek.as_slice(), &self.doc.salt_bytes()?)?;
+        let mut unsigned = self.doc.clone();
+        unsigned.mac = String::new();
+        let bytes = serde_json::to_vec(&unsigned).map_err(|e| format!("vault serialize failed: {e}"))?;
+        Ok(hex::encode(super::kdf::hmac_sha512(key.as_slice(), &bytes)))
+    }
+
+    /// Check the document MAC and that this is not an older generation than the last one
+    /// saved here. Called on every unlock, once the DEK is known.
+    fn verify_integrity(&self, dek: &Dek) -> Result<(), String> {
+        let want = self.compute_mac(dek)?;
+        if !super::secure_mem::ct_eq(want.as_bytes(), self.doc.mac.as_bytes()) {
+            return Err("the vault document fails its integrity check — an entry or custodian \
+                        was removed or altered outside PARSEC. Restore it from a backup."
+                .to_string());
+        }
+        if let Some(seen) = read_generation(&self.dir) {
+            if self.doc.generation < seen {
+                return Err(format!(
+                    "this vault is older than the last one PARSEC saved here (generation {} < {seen}); \
+                     it may have been rolled back. Restore the newer copy — or, if you restored this \
+                     backup on purpose, remove {GENERATION_FILE} to accept it.",
+                    self.doc.generation
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Persist: next generation, new MAC, previous document kept as `.bak`, atomic write,
+    /// then the generation sidecar. A staged vault (a migration being built) only updates
+    /// the document in memory.
     ///
     /// The whole vault is one document, so a bad write is a total loss. The write
     /// itself is atomic (temp, fsync, rename, fsync parent) and the prior version
-    /// is kept, which together give the same crash safety as production's
-    /// snapshot-and-candidate ceremony at a fraction of the machinery.
-    pub fn save(&self) -> Result<(), String> {
+    /// is kept.
+    pub fn save(&mut self, dek: &Dek) -> Result<(), String> {
+        self.doc.generation += 1;
+        self.doc.mac = self.compute_mac(dek)?;
+        if self.staged {
+            return Ok(());
+        }
         let path = Self::doc_path(&self.dir);
         if path.exists() {
             let _ = std::fs::copy(&path, self.dir.join(BACKUP_FILE));
         }
         let data = serde_json::to_vec_pretty(&self.doc)
             .map_err(|e| format!("vault serialize failed: {e}"))?;
-        VaultStore::write_atomic(&path, &data)
+        VaultStore::write_atomic(&path, &data)?;
+        write_generation(&self.dir, self.doc.generation)
     }
+}
+
+fn read_generation(dir: &Path) -> Option<u64> {
+    std::fs::read_to_string(dir.join(GENERATION_FILE)).ok()?.trim().parse().ok()
+}
+
+/// Record `generation` as the highest saved here (never lowers it).
+fn write_generation(dir: &Path, generation: u64) -> Result<(), String> {
+    if read_generation(dir).is_some_and(|g| g >= generation) {
+        return Ok(());
+    }
+    VaultStore::write_atomic(&dir.join(GENERATION_FILE), generation.to_string().as_bytes())
 }
 
 // ── migration from v1 ───────────────────────────────────────────────────────
@@ -433,19 +494,28 @@ pub fn migrate_v1(
     if !VaultStore::exists(dir) {
         return Err("no v1 vault found to migrate".to_string());
     }
+    // A leftover from an interrupted attempt: the v1 vault is still the source of truth.
+    let _ = std::fs::remove_file(dir.join(MIGRATING_FILE));
     if !VaultStore::verify_passphrase(dir, passphrase.as_bytes())? {
         return Err("wrong passphrase for the existing vault".to_string());
     }
 
-    let old_key = VaultStore::derive_session_key(dir, passphrase.as_bytes())?;
+    let old_key = SecretBytes::from_slice(&{
+        let mut k = VaultStore::derive_session_key(dir, passphrase.as_bytes())?;
+        let copy = k.clone();
+        super::secure_mem::wipe(&mut k);
+        copy
+    });
     let manifest = VaultStore::read_manifest(dir)?;
 
     // Collect and verify everything BEFORE writing anything.
     let mut staged: Vec<(AccountRecord, SecretBytes)> = Vec::new();
     for account in &manifest.accounts {
-        let secret = VaultStore::retrieve_secret(dir, &old_key, &account.address)
+        let mut plain = VaultStore::retrieve_secret(dir, old_key.as_slice(), &account.address)
             .map_err(|e| format!("cannot read {}: {e} — migration aborted", account.address))?;
-        let scheme = infer_scheme(&account.chain, &secret);
+        let secret = SecretBytes::from_slice(&plain);
+        super::secure_mem::wipe(&mut plain);
+        let scheme = infer_scheme(&account.chain, secret.as_slice());
         staged.push((
             AccountRecord {
                 address: account.address.clone(),
@@ -454,7 +524,7 @@ pub fn migrate_v1(
                 scheme,
                 created_at: account.created_at,
             },
-            SecretBytes::from_slice(&secret),
+            secret,
         ));
     }
 
@@ -464,7 +534,9 @@ pub fn migrate_v1(
     let dek = SecretBytes::from_slice(&format::random_bytes(DEK_LEN));
     doc.wraps.push(Vault::make_wrap(&doc, overseer, dek.as_slice())?);
 
-    let mut v = Vault { dir: dir.to_path_buf(), doc };
+    // Build the whole v2 document in memory: nothing named `vault2.json` exists until
+    // it has been written, read back from disk and verified (audit H8).
+    let mut v = Vault { dir: dir.to_path_buf(), doc, staged: true };
     let dek = Dek(dek);
     v.write_index(&dek, &AccountIndex::default())?;
 
@@ -479,18 +551,42 @@ pub fn migrate_v1(
         )?;
     }
 
-    // Read every secret back through the new format before declaring success.
-    for (record, secret) in &staged {
-        let got = v.retrieve_secret(&dek, &record.chain, &record.address)?;
-        if got.as_slice() != secret.as_slice() {
-            return Err(format!(
-                "migration verification failed for {} — v1 data left untouched",
-                record.address
-            ));
-        }
-    }
+    // Seal the finished document (generation and MAC) — also when there was nothing to move.
+    v.save(&dek)?;
 
-    Ok(v)
+    let migrating = dir.join(MIGRATING_FILE);
+    let result = (|| -> Result<Vault, String> {
+        let data = serde_json::to_vec_pretty(&v.doc).map_err(|e| format!("vault serialize failed: {e}"))?;
+        VaultStore::write_atomic(&migrating, &data)?;
+
+        // Read it back from disk — not from memory — and check every secret.
+        let raw = std::fs::read(&migrating).map_err(|e| format!("cannot read back the migrated vault: {e}"))?;
+        let doc: VaultDoc = serde_json::from_slice(&raw).map_err(|e| format!("migrated vault is unreadable: {e}"))?;
+        doc.validate()?;
+        let back = Vault { dir: dir.to_path_buf(), doc, staged: false };
+        back.verify_integrity(&dek)?;
+        for (record, secret) in &staged {
+            let got = back.retrieve_secret(&dek, &record.chain, &record.address)?;
+            if !super::secure_mem::ct_eq(got.as_slice(), secret.as_slice()) {
+                return Err(format!(
+                    "migration verification failed for {} — v1 data left untouched",
+                    record.address
+                ));
+            }
+        }
+
+        std::fs::rename(&migrating, Vault::doc_path(dir))
+            .map_err(|e| format!("could not put the migrated vault in place: {e}"))?;
+        if let Ok(d) = std::fs::File::open(dir) {
+            let _ = d.sync_all();
+        }
+        write_generation(dir, back.doc.generation)?;
+        Ok(back)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&migrating);
+    }
+    result
 }
 
 /// Best-effort classification of a v1 secret, which carried no scheme tag.
@@ -734,7 +830,8 @@ mod tests {
         let d = scratch("lastcust");
         let o = keyfile("usb");
         let mut v = Vault::create(&d, &o).unwrap();
-        let err = v.remove_custodian(CustodyKind::KeyFile, "usb").unwrap_err();
+        let dek = v.unlock(&o).unwrap();
+        let err = v.remove_custodian(&dek, CustodyKind::KeyFile, "usb").unwrap_err();
         assert!(err.contains("only custodian"), "got: {err}");
         std::fs::remove_dir_all(&d).ok();
     }
@@ -816,6 +913,60 @@ mod tests {
 
         // v1 data is left in place; migration is non-destructive.
         assert!(VaultStore::exists(&d));
+        // H8: nothing half-built is left behind, and the generation is recorded.
+        assert!(!d.join(MIGRATING_FILE).exists());
+        assert_eq!(read_generation(&d), Some(v.doc.generation));
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    /// H8: a leftover from an interrupted migration is discarded, not read as a vault.
+    #[test]
+    fn a_stale_migrating_file_is_discarded() {
+        let d = scratch("stale");
+        let pw = "Tr0ub4dor&3xKcd";
+        VaultStore::create(&d, pw.as_bytes()).unwrap();
+        std::fs::write(d.join(MIGRATING_FILE), b"half a vault").unwrap();
+        assert!(!Vault::exists(&d), "a partial migration is not a vault");
+        let o = pass(pw);
+        migrate_v1(&d, pw, &o).unwrap();
+        assert!(!d.join(MIGRATING_FILE).exists());
+        assert!(Vault::load(&d).unwrap().unlock(&o).is_ok());
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    /// M7: removing an entry outside PARSEC breaks the document MAC.
+    #[test]
+    fn a_deleted_entry_fails_the_integrity_check() {
+        let d = scratch("mac");
+        let o = keyfile("usb");
+        let mut v = Vault::create(&d, &o).unwrap();
+        let dek = v.unlock(&o).unwrap();
+        v.store_secret(&dek, "algorand", "A", "a", KeyScheme::Opaque, b"one").unwrap();
+        v.store_secret(&dek, "algorand", "B", "b", KeyScheme::Opaque, b"two").unwrap();
+        let path = Vault::doc_path(&d);
+        let mut doc: VaultDoc = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        doc.entries.pop();
+        std::fs::write(&path, serde_json::to_vec(&doc).unwrap()).unwrap();
+        let err = Vault::load(&d).unwrap().unlock(&o).unwrap_err();
+        assert!(err.contains("integrity"), "{err}");
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    /// M7: restoring an older copy is refused, until the person accepts it on purpose.
+    #[test]
+    fn an_older_generation_is_refused_as_a_rollback() {
+        let d = scratch("rollback");
+        let o = keyfile("usb");
+        let mut v = Vault::create(&d, &o).unwrap();
+        let dek = v.unlock(&o).unwrap();
+        v.store_secret(&dek, "algorand", "A", "a", KeyScheme::Opaque, b"one").unwrap();
+        let older = std::fs::read(Vault::doc_path(&d)).unwrap();
+        v.store_secret(&dek, "algorand", "B", "b", KeyScheme::Opaque, b"two").unwrap();
+        std::fs::write(Vault::doc_path(&d), &older).unwrap();
+        let err = Vault::load(&d).unwrap().unlock(&o).unwrap_err();
+        assert!(err.contains("rolled back"), "{err}");
+        std::fs::remove_file(d.join(GENERATION_FILE)).unwrap();
+        assert!(Vault::load(&d).unwrap().unlock(&o).is_ok(), "accepted once the sidecar is removed");
         std::fs::remove_dir_all(&d).ok();
     }
 

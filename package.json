@@ -1,7 +1,7 @@
 {
   "name": "parsec-wallet",
   "private": true,
-  "version": "0.2.3",
+  "version": "0.2.4",
   "type": "module",
   "description": "PARSEC Wallet — Algorand desktop wallet built on cypherpunk2048 principles",
   "author": "cypherpunk2048",

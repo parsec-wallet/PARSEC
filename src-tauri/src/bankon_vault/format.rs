@@ -212,6 +212,13 @@ pub struct VaultDoc {
     /// Encrypted `AccountIndex`. Absent only in a freshly created, empty vault.
     pub index: Option<Sealed>,
     pub entries: Vec<Entry>,
+    /// Incremented on every save. With the `vault2.generation` sidecar it detects a
+    /// restored older copy (audit M7).
+    pub generation: u64,
+    /// HMAC-SHA512 (hex) over the whole document with this field empty, keyed from
+    /// the DEK: an entry or custodian removed, added or swapped outside PARSEC fails
+    /// it, though each entry also authenticates on its own (audit M7).
+    pub mac: String,
 }
 
 impl VaultDoc {
@@ -223,6 +230,8 @@ impl VaultDoc {
             wraps: Vec::new(),
             index: None,
             entries: Vec::new(),
+            generation: 0,
+            mac: String::new(),
         }
     }
 
@@ -368,6 +377,11 @@ pub fn entry_key(dek: &[u8], salt: &[u8], oid: &str) -> Result<SecretBytes, Stri
 pub fn entry_oid(dek: &[u8], salt: &[u8], chain: &str, address: &str) -> Result<String, String> {
     let raw = kdf::hkdf(salt, dek, &info("bankon-oid/2", &[chain.as_bytes(), address.as_bytes()]), OID_LEN)?;
     Ok(hex::encode(raw.as_slice()))
+}
+
+/// Key for the document MAC.
+pub fn doc_mac_key(dek: &[u8], salt: &[u8]) -> Result<SecretBytes, String> {
+    kdf::hkdf(salt, dek, &info("bankon-doc-mac/2", &[]), 32)
 }
 
 /// Key for the encrypted account index.
