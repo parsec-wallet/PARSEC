@@ -3,6 +3,18 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.2.6 — 2026-10-01 (increment towards 0.3.0)
+
+`bankon-vault/2`, step 5: one seam for both vaults.
+- **Every key read and write goes through the session seam**, which serves an open
+  `bankon-vault/2` vault or the v1 vault: storing, reading, listing, removing, the export, the
+  one-time reveal, the passphrase re-check, and every chain pack — including Bitcoin and Litecoin
+  import, derivation and PSBT signing, and pmVPN sign-in, which read the v1 store directly.
+- `vault_status` and `vault_list_accounts` list a v2 vault's accounts from its encrypted index
+  (only while it is open — a locked v2 vault discloses none).
+- Test: with a v2 session open, store, read, list, remove, reveal and lock all act on the v2
+  vault and nothing is written to a v1 store.
+
 ## 0.2.5 — 2026-10-01 (increment towards 0.3.0)
 
 `bankon-vault/2`, step 4: its commands, compiled and fixed. (The app still runs on the v1 vault;

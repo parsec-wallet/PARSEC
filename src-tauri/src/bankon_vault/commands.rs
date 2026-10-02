@@ -25,8 +25,16 @@ pub fn vault_status(
     let dir = vault_dir(&app)?;
     let exists = VaultStore::exists(&dir);
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
+    let exists = exists || super::vault::Vault::exists(&dir);
 
-    let accounts: Vec<serde_json::Value> = if exists {
+    let accounts: Vec<serde_json::Value> = if guard.v2().is_some() {
+        // bankon-vault/2: the roster is in the encrypted index, readable only while open.
+        guard
+            .accounts()?
+            .into_iter()
+            .map(|(address, chain, label, _)| serde_json::json!({ "address": address, "chain": chain, "label": label }))
+            .collect()
+    } else if exists {
         VaultStore::read_manifest(&dir)
             .map(|m| {
                 m.accounts
@@ -138,12 +146,8 @@ pub fn vault_store_key(
     label: String,
     secret: String,
 ) -> Result<serde_json::Value, String> {
-    let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-
-    let key = guard.key().ok_or("vault is locked")?;
-    let dir = guard.dir().ok_or("vault is locked")?;
-
-    VaultStore::store_secret(dir, key, &address, &chain, &label, secret.as_bytes())?;
+    let mut guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
+    guard.store_by_address(&chain, &address, &label, secret.as_bytes())?;
 
     Ok(serde_json::json!({ "ok": true, "address": address }))
 }
@@ -172,11 +176,14 @@ pub fn vault_export_secret(
     // The directory of the open session; the lock is not held through the Argon2 check.
     let dir = {
         let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-        guard.key().ok_or("vault is locked")?;
+        if !guard.is_unlocked() {
+            return Err("vault is locked".to_string());
+        }
         guard.dir().ok_or("vault is locked")?.to_path_buf()
     };
     super::throttle::check(&dir)?;
-    if !VaultStore::verify_passphrase(&dir, args.passphrase.as_bytes())? {
+    let matches = state.inner.lock().map_err(|_| "vault state poisoned")?.passphrase_matches(&args.passphrase)?;
+    if !matches {
         let log = super::throttle::record_failure(&dir);
         let wait = super::throttle::delay_for(log.failures);
         return Err(if wait > 0 {
@@ -188,19 +195,13 @@ pub fn vault_export_secret(
     super::throttle::record_success(&dir);
 
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-    let key = guard.key().ok_or("vault is locked")?;
     let open = guard.dir().ok_or("vault is locked")?;
     if open != dir.as_path() {
         return Err("the open vault changed during the export; nothing was exported".to_string());
     }
-    let chain = VaultStore::read_manifest(&dir)?
-        .accounts
-        .into_iter()
-        .find(|a| a.address == args.address)
-        .map(|a| a.chain)
-        .ok_or("no account with that address in this vault")?;
-    let secret_bytes = VaultStore::retrieve_secret(&dir, key, &args.address)?;
-    let secret = String::from_utf8(secret_bytes).map_err(|_| "stored secret is not valid utf-8")?;
+    let chain = guard.chain_of(&args.address)?.ok_or("no account with that address in this vault")?;
+    let stored = guard.retrieve_by_address(&args.address)?;
+    let secret = std::str::from_utf8(stored.as_slice()).map_err(|_| "stored secret is not valid utf-8")?;
     Ok(serde_json::json!({ "secret": secret, "chain": chain }))
 }
 
@@ -219,13 +220,7 @@ pub fn vault_reveal_new(
     if !guard.take_fresh(&address) {
         return Err("only a key the Keycore just created can be shown this way, once; use the export".to_string());
     }
-    let dir = guard.dir().ok_or("vault is locked")?.to_path_buf();
-    let chain = VaultStore::read_manifest(&dir)?
-        .accounts
-        .into_iter()
-        .find(|a| a.address == address)
-        .map(|a| a.chain)
-        .ok_or("no account with that address in this vault")?;
+    let chain = guard.chain_of(&address)?.ok_or("no account with that address in this vault")?;
     let secret = guard.retrieve_by_address(&address)?;
     let text = std::str::from_utf8(secret.as_slice()).map_err(|_| "stored secret is not valid utf-8")?;
     Ok(serde_json::json!({ "secret": text, "chain": chain }))
@@ -237,12 +232,9 @@ pub fn vault_remove_account(
     state: tauri::State<'_, VaultState>,
     address: String,
 ) -> Result<serde_json::Value, String> {
-    let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
+    let mut guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
     // Unlocked, not merely "a directory was once opened": removing a key needs the session.
-    guard.key().ok_or("vault is locked")?;
-    let dir = guard.dir().ok_or("vault is locked")?;
-
-    VaultStore::remove_account(dir, &address)?;
+    guard.remove_by_address(&address)?;
 
     Ok(serde_json::json!({ "ok": true }))
 }
@@ -251,7 +243,18 @@ pub fn vault_remove_account(
 #[tauri::command]
 pub fn vault_list_accounts(
     app: AppHandle,
+    state: tauri::State<'_, VaultState>,
 ) -> Result<Vec<AccountEntry>, String> {
+    {
+        let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
+        if guard.v2().is_some() {
+            return Ok(guard
+                .accounts()?
+                .into_iter()
+                .map(|(address, chain, label, created_at)| AccountEntry { address, chain, label, created_at })
+                .collect());
+        }
+    }
     let dir = vault_dir(&app)?;
     if !VaultStore::exists(&dir) {
         return Ok(vec![]);
