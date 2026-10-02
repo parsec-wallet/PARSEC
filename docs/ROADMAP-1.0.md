@@ -60,7 +60,7 @@ first vault hardening from the [2026-10-01 audit](security/vault-audit-2026-10-0
 - **Exit:** the `generation` entries leave `keycore-js-surface.test.ts`. *(Met in 0.2.1; Arweave HD
   stays the documented exception, and the admin key ceremony remains a residual.)*
 
-### 0.3.0 — `bankon-vault/2` ships *(audit P2)* — increments 0.2.2–0.2.8
+### 0.3.0 — `bankon-vault/2` ships *(audit P2)* — **shipped 2026-10-01** (increments 0.2.2–0.2.8)
 - v2 compiled in; the audit's v2 findings fixed (atomic migration, re-authenticated custodians,
   bound KDF parameters with ceilings, vault-bound key-binding message, rollback protection,
   profile support, unambiguous HKDF info).
