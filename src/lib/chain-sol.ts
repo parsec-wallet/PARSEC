@@ -32,6 +32,7 @@ export async function solImportAccount(
 export async function solSign(
   address: string,
   payloadB64: string,
+  approval?: string,
 ): Promise<{ signature_b64: string; scheme: 'ed25519' }> {
-  return await invoke('chain_sol_sign', { args: { address, payload_b64: payloadB64 } });
+  return await invoke('chain_sol_sign', { args: { address, payload_b64: payloadB64, approval } });
 }

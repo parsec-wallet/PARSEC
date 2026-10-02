@@ -69,6 +69,15 @@ pub fn address_from_public(public: &VerifyingKey) -> String {
     base32_encode(&buf)
 }
 
+/// The address for raw public-key bytes (as they appear in a transaction).
+pub fn address_from_bytes(pk: &[u8; 32]) -> String {
+    let digest = Sha512_256::digest(pk);
+    let mut buf = Vec::with_capacity(SEED_LEN + CHECKSUM_LEN);
+    buf.extend_from_slice(pk);
+    buf.extend_from_slice(&digest[28..32]);
+    base32_encode(&buf)
+}
+
 /// The address for a seed.
 pub fn address_from_seed(seed: &[u8]) -> Result<String, String> {
     Ok(address_from_public(&signing_key(seed)?.verifying_key()))

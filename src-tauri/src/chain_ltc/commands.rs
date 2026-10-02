@@ -99,7 +99,6 @@ pub fn chain_ltc_import_account(
 pub struct NewAccountInfo {
     #[serde(flatten)]
     pub address: LtcAddressInfo,
-    pub mnemonic: String,
 }
 
 #[tauri::command]
@@ -132,7 +131,6 @@ pub fn chain_ltc_create_account(
             network: LtcNetwork::Mainnet,
             kind: LtcAddressKind::NativeSegwit,
         },
-        mnemonic,
     })
 }
 
@@ -195,10 +193,22 @@ pub struct SignedPsbt {
 }
 
 #[tauri::command]
-pub fn chain_ltc_sign_psbt(
+pub async fn chain_ltc_sign_psbt(
+    app: tauri::AppHandle,
     state: tauri::State<'_, VaultState>,
+    approvals: tauri::State<'_, crate::bankon_vault::approval::ApprovalState>,
     args: SignPsbtArgs,
 ) -> Result<SignedPsbt, String> {
+    {
+        use crate::bankon_vault::approval::{self, Request};
+        let facts = approval::psbt_facts(&args.psbt_base64, "LTC", |_| None);
+        approval::authorize(&app, &approvals, None, &args.primary_address, args.psbt_base64.as_bytes(), |d| {
+            let mut r = Request::new("sign a LTC transaction", "litecoin", &args.primary_address, std::slice::from_ref(d));
+            r.facts = facts;
+            r
+        })
+        .await?;
+    }
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
     let key = guard.key().ok_or("vault is locked")?;
     let dir = guard.dir().ok_or("vault is locked")?;

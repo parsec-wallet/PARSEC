@@ -3,6 +3,51 @@
 use super::eip712::{sign_transfer, Eip712Domain, TransferAuthorization};
 use super::sign::{address_from_secret, sign_eip1559};
 use super::{EvmTxRequest, SignedEvmTx};
+use crate::bankon_vault::approval::{self, ApprovalState, Request};
+
+/// A decimal base-unit amount with `decimals` places, exactly (no float).
+fn units(raw: &str, decimals: usize) -> String {
+    let digits = raw.trim().trim_start_matches('0');
+    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return if digits.is_empty() { "0".to_string() } else { format!("{raw} (unreadable)") };
+    }
+    let padded = format!("{digits:0>width$}", width = decimals + 1);
+    let (int, frac) = padded.split_at(padded.len() - decimals);
+    let frac = frac.trim_end_matches('0');
+    if frac.is_empty() { int.to_string() } else { format!("{int}.{frac}") }
+}
+
+fn network(chain_id: u64) -> String {
+    let name = match chain_id {
+        1 => "Ethereum",
+        8453 => "Base",
+        84532 => "Base Sepolia",
+        10 => "Optimism",
+        42161 => "Arbitrum One",
+        137 => "Polygon",
+        11155111 => "Sepolia",
+        _ => "chain",
+    };
+    format!("{name} (chain id {chain_id})")
+}
+
+/// What the Keycore reads from an EIP-1559 request.
+fn tx_facts(tx: &EvmTxRequest) -> Vec<String> {
+    let mut f = Vec::new();
+    let data_len = tx.data.trim().trim_start_matches("0x").len() / 2;
+    if tx.to.trim().is_empty() {
+        f.push("WARNING: creates a contract".to_string());
+    } else {
+        f.push(format!("Send {} ETH-units to {}", units(&tx.value, 18), tx.to.trim()));
+    }
+    if data_len > 0 {
+        f.push(format!("With {data_len} bytes of call data (a contract call; its effect is not decoded)"));
+    }
+    f.push(format!("Network {}", network(tx.chain_id)));
+    f.push(format!("Gas limit {}, max fee {} gwei", tx.gas_limit, units(&tx.max_fee_per_gas, 9)));
+    f.push(format!("Nonce {}", tx.nonce));
+    f
+}
 
 /// Decode a 0x-prefixed or raw hex private key into exactly 32 bytes.
 fn key_array_from_hex(secret: &str) -> Result<[u8; 32], String> {
@@ -28,10 +73,19 @@ fn wipe(key: &mut [u8; 32]) {
 /// The key is retrieved, checked against `address`, used once, then zeroed.
 #[tauri::command]
 pub async fn chain_evm_sign_tx(
+    app: tauri::AppHandle,
+    approvals: tauri::State<'_, ApprovalState>,
     vault_state: tauri::State<'_, crate::bankon_vault::VaultState>,
     address: String,
     tx: EvmTxRequest,
 ) -> Result<SignedEvmTx, String> {
+    let request = serde_json::to_vec(&tx).map_err(|e| e.to_string())?;
+    approval::authorize(&app, &approvals, None, &address, &request, |d| {
+        let mut r = Request::new("sign an EVM transaction", "evm", &address, std::slice::from_ref(d));
+        r.facts = tx_facts(&tx);
+        r
+    })
+    .await?;
     let guard = vault_state.inner.lock().map_err(|_| "vault state poisoned")?;
     // Session seam: resolves against bankon-vault/1 or /2. Reading `guard.key()`
     // directly would break signing the moment a participant migrates.
@@ -74,6 +128,8 @@ pub fn chain_evm_address_from_key(private_key_hex: String) -> Result<String, Str
 /// The signature comes back; the key does not.
 #[tauri::command]
 pub async fn chain_evm_sign_transfer_authorization(
+    app: tauri::AppHandle,
+    approvals: tauri::State<'_, ApprovalState>,
     vault_state: tauri::State<'_, crate::bankon_vault::VaultState>,
     address: String,
     domain: Eip712Domain,
@@ -86,6 +142,22 @@ pub async fn chain_evm_sign_transfer_authorization(
         ));
     }
 
+    let request = serde_json::to_vec(&(&domain, &authorization)).map_err(|e| e.to_string())?;
+    approval::authorize(&app, &approvals, None, &address, &request, |d| {
+        let mut r = Request::new("authorize a token transfer", "evm", &address, std::slice::from_ref(d));
+        r.facts = vec![
+            format!(
+                "Transfer {} base units of {} to {}",
+                authorization.value.trim(), domain.name, authorization.to.trim()
+            ),
+            format!("Token contract {}", domain.verifying_contract.trim()),
+            format!("Network {}", network(domain.chain_id)),
+            format!("Valid until unix time {}", authorization.valid_before.trim()),
+            "A facilitator may broadcast it; it cannot change the amount or the recipient".to_string(),
+        ];
+        r
+    })
+    .await?;
     let guard = vault_state.inner.lock().map_err(|_| "vault state poisoned")?;
     let secret = guard.retrieve_by_address(&address)?;
     let secret_text = std::str::from_utf8(secret.as_slice())

@@ -45,11 +45,14 @@ Do not relax them without an explicit instruction from the user.
    the store and in the Rust-side vault. Never `localStorage`.
    **Signing** runs in Rust for every chain pack — `chain_algo`, `chain_sol`,
    `chain_ar`, `chain_btc`, `chain_ltc`, `chain_evm`; `*_sign_*` returns a
-   signature, never a key. **Generation** runs in Rust on the participant-facing
-   desktop path: `create-wallet.ts` creates the vault *first*, then mints the
-   account into it, then reveals the phrase for backup. Two paths still generate
-   in the renderer and say so in their source — the browser build (no Rust) and
-   `views/admin-keygen.ts` (sets its passphrase after generating).
+   signature, never a key, and **only after the Keycore's own native approval
+   dialog** (or a batch token / x402 allowance that dialog issued —
+   `bankon_vault/approval.rs`). **Generation** does *not* yet run in Rust on the
+   desktop: the Algorand create flow (`create-wallet.ts`), the inline Bitcoin/EVM
+   packs, Solana and Arweave generate in the renderer and then seal the key in the
+   vault. `chain_algo_create_account` / `chain_ar_create_account` exist but are not
+   called. Moving generation into the Keycore is roadmap step 0.2.x; until then
+   `keycore-js-surface.test.ts` lists those files as `generation`.
    One caveat remains, tracked in `docs/security/threat-model.md`: *"zeroed on
    lock"* is not achievable in JS — `store.ts` overwrites with `'\0'.repeat(...)`,
    which allocates a new string and leaves the original for the collector. Anything

@@ -11,7 +11,7 @@ pub mod sign;
 use serde::{Deserialize, Serialize};
 
 /// Unsigned EIP-1559 transaction as sent by the frontend.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EvmTxRequest {
     pub chain_id: u64,
     pub nonce: u64,

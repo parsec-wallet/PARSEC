@@ -9,6 +9,7 @@ use serde::Deserialize;
 
 use super::{jwk, keys, sign, ArAccountInfo};
 use crate::bankon_vault::secure_mem::wipe;
+use crate::bankon_vault::approval::{self, ApprovalState, Request};
 use crate::bankon_vault::VaultState;
 
 const CHAIN: &str = "arweave";
@@ -100,18 +101,32 @@ pub fn chain_ar_account_info(
 pub struct ArSignArgs {
     pub address: String,
     pub payload_b64: String,
+    /// A `keycore_approve` token covering these bytes; without one the Keycore asks.
+    #[serde(default)]
+    pub approval: Option<String>,
 }
 
 /// Sign with RSA-PSS / SHA-256 / 32-byte salt. The signature returns; the key does not.
 #[tauri::command]
-pub fn chain_ar_sign(
+pub async fn chain_ar_sign(
+    app: tauri::AppHandle,
     state: tauri::State<'_, VaultState>,
+    approvals: tauri::State<'_, ApprovalState>,
     args: ArSignArgs,
 ) -> Result<serde_json::Value, String> {
     let payload = B64
         .decode(args.payload_b64.as_bytes())
         .map_err(|_| "payload_b64 is not valid base64".to_string())?;
     crate::bankon_vault::binding::refuse_binding(&payload)?;
+    approval::authorize(&app, &approvals, args.approval.as_deref(), &args.address, &payload, |d| {
+        let mut r = Request::new("sign for Arweave", "arweave", &args.address, std::slice::from_ref(d));
+        r.facts = vec![format!(
+            "An Arweave signature over {} bytes (a transaction or DataItem deep-hash, not decodable)",
+            payload.len()
+        )];
+        r
+    })
+    .await?;
 
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
     let stored = guard.retrieve_by_address(&args.address)?;

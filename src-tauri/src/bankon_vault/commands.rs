@@ -118,9 +118,14 @@ pub fn vault_unlock(
 #[tauri::command]
 pub fn vault_lock(
     state: tauri::State<'_, VaultState>,
+    approvals: tauri::State<'_, super::approval::ApprovalState>,
 ) -> Result<serde_json::Value, String> {
     let mut guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
     guard.lock();
+    // Locking ends every approval and the payment allowance with the session.
+    if let Ok(mut a) = approvals.inner.lock() {
+        *a = super::approval::Approvals::default();
+    }
     Ok(serde_json::json!({ "ok": true, "unlocked": false }))
 }
 

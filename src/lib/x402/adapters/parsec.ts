@@ -15,6 +15,7 @@ import { setX402Transport } from '../host';
 import { invoke, isTauri } from '../../platform';
 import type algosdk from 'algosdk';
 import { algoSignTransaction } from '../../chain-algo';
+import { keycoreApprove } from '../../keycore-approval';
 import { evmSignTransferAuthorization } from '../../chain-evm';
 import { solSign } from '../../chain-sol';
 import { getAccountAddress } from '../../store';
@@ -35,14 +36,21 @@ import { describeNetwork } from '../networks';
  */
 export function parsecAvmSigner(address: string): AvmSigner {
   const sign: algosdk.TransactionSigner = async (txnGroup, indexesToSign) => {
-    const out: Uint8Array[] = [];
     for (const i of indexesToSign) {
-      const txn = txnGroup[i];
-      if (txn.sender.toString() !== address) {
+      if (txnGroup[i].sender.toString() !== address) {
         throw new Error(`asked to sign transaction ${i}, which is not from ${address}`);
       }
-      const { signature_b64 } = await algoSignTransaction(address, bytesToBase64(txn.bytesToSign()));
-      out.push(txn.attachSignature(address, base64ToBytes(signature_b64)));
+    }
+    const payloads = indexesToSign.map((i) => txnGroup[i].bytesToSign());
+    // One Keycore dialog for the whole group; a single transaction is asked about (or
+    // paid from the allowance) by the signing command itself.
+    const approval = payloads.length > 1
+      ? await keycoreApprove({ address, chain: 'algorand', title: `sign ${payloads.length} transactions`, payloads })
+      : undefined;
+    const out: Uint8Array[] = [];
+    for (const [k, i] of indexesToSign.entries()) {
+      const { signature_b64 } = await algoSignTransaction(address, bytesToBase64(payloads[k]), approval);
+      out.push(txnGroup[i].attachSignature(address, base64ToBytes(signature_b64)));
     }
     return out;
   };

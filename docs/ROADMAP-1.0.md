@@ -39,7 +39,7 @@ Keycore one group per release, 0.1.5–0.1.9).
 Android, phone layouts, the BANKONx402 fee on stores and uploads, exact costs, and (0.1.4) the
 first vault hardening from the [2026-10-01 audit](security/vault-audit-2026-10-01.md).
 
-### 0.2.0 — Keys stay in the Keycore *(audit P1)*
+### 0.2.0 — Keys stay in the Keycore *(audit P1)* — **shipped 2026-10-01**
 - Every frontend signing path moved onto `chain_*_sign*` (Algorand, ASA, dApp approvals, x402,
   NFD, algorand-hd, Solana, Arweave, the builder).
 - `vault_retrieve_key` removed from the command surface; the session passphrase no longer held in
@@ -49,6 +49,15 @@ first vault hardening from the [2026-10-01 audit](security/vault-audit-2026-10-0
 - Every signer refuses the vault key-binding message.
 - **Exit:** a test fails if any registered command returns secret material outside export; the
   JavaScript bundle contains no `mnemonicToSecretKey` / raw-JWK signing on a participant path.
+- *As shipped:* the approval is a native Keycore dialog (or a batch token / x402 allowance it
+  issued), not an in-app nonce — an in-app view shares the webview it would be guarding.
+  `surface_tests.rs` and `keycore-js-surface.test.ts` are the exit tests.
+
+### 0.2.x — Generation in the Keycore
+- Creating a wallet generates the key in Rust after the vault exists, for every chain (today the
+  Algorand create flow, the inline Bitcoin/EVM packs, Solana and Arweave generate in the app and
+  then seal the key); the backup phrase is shown through a one-time reveal of the new account.
+- **Exit:** the `generation` entries leave `keycore-js-surface.test.ts`.
 
 ### 0.3.0 — `bankon-vault/2` ships *(audit P2)*
 - v2 compiled in; the audit's v2 findings fixed (atomic migration, re-authenticated custodians,

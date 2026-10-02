@@ -17,10 +17,13 @@
 
 import { isTauri } from '../platform';
 import { arAccountInfo, arSign } from '../chain-ar';
+import { keycoreApprove } from '../keycore-approval';
 import {
   estimateDataItemSize,
   signDataItemFromVault,
   signDataItemWith,
+  dataItemSignatureData,
+  encodeTags,
   type DataItemInput,
   type DataItemTag,
   type SignedDataItem,
@@ -118,7 +121,13 @@ export async function postDataItem(raw: Uint8Array): Promise<TurboReceipt> {
 // ── Signing ───────────────────────────────────────────────────────────────────
 
 /** Sign a data item for `owner`. Supplied per platform by uploadSignerFor. */
-export type UploadSigner = (input: Omit<DataItemInput, 'owner'>) => Promise<SignedDataItem>;
+export type UploadSigner = ((input: Omit<DataItemInput, 'owner'>) => Promise<SignedDataItem>) & {
+  /**
+   * Desktop: ask the PARSEC Keycore once for all of these items (one native dialog) before
+   * signing them; items signed later without a prepare — the manifest — are asked about singly.
+   */
+  prepare?: (inputs: readonly Omit<DataItemInput, 'owner'>[], claims?: string[]) => Promise<void>;
+};
 
 function toB64(bytes: Uint8Array): string {
   let s = '';
@@ -139,10 +148,33 @@ function fromB64(b64: string): Uint8Array {
 export function uploadSignerFor(address: string, passphrase: string | null): UploadSigner {
   if (isTauri) {
     let owner: string | undefined;
-    return async (input) => {
+    let approval: string | undefined;
+    const covered = new Set<string>();
+    const signer: UploadSigner = async (input) => {
       owner ??= (await arAccountInfo(address)).owner;
-      return signDataItemWith({ ...input, owner }, async (sigData) => fromB64((await arSign(address, toB64(sigData))).signature_b64));
+      return signDataItemWith({ ...input, owner }, async (sigData) => {
+        const b64 = toB64(sigData);
+        const token = covered.delete(b64) ? approval : undefined;
+        return fromB64((await arSign(address, b64, token)).signature_b64);
+      });
     };
+    signer.prepare = async (inputs, claims) => {
+      owner ??= (await arAccountInfo(address)).owner;
+      const payloads: Uint8Array[] = [];
+      for (const input of inputs) {
+        const data = typeof input.data === 'string' ? new TextEncoder().encode(input.data) : input.data;
+        payloads.push(await dataItemSignatureData({
+          owner, target: input.target, anchor: input.anchor, tagsBytes: encodeTags(input.tags ?? []), data,
+        }));
+      }
+      approval = await keycoreApprove({
+        address, chain: 'arweave', title: `upload ${inputs.length} item${inputs.length === 1 ? '' : 's'}`,
+        claims, payloads,
+      });
+      covered.clear();
+      for (const p of payloads) covered.add(toB64(p));
+    };
+    return signer;
   }
   if (!passphrase) throw new Error('Wallet is locked');
   return (input) => signDataItemFromVault(address, passphrase, input);
@@ -250,6 +282,10 @@ export async function runUpload(
     return up;
   };
 
+  await sign.prepare?.(
+    plan.items.map((i) => ({ data: i.bytes, tags: [...i.tags] })),
+    [`${plan.items.length} file${plan.items.length === 1 ? '' : 's'}, ${plan.totalBytes} bytes, public and permanent`],
+  );
   for (const item of plan.items) done.push(await put(item.path, item.bytes, item.tags));
 
   if (!plan.manifest) return { items: done, rootId: done[0].id };

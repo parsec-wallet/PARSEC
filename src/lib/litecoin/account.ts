@@ -29,9 +29,8 @@ export interface ImportArgs {
   label?: string;
 }
 
-export interface NewAccountInfo extends LtcAddressInfo {
-  mnemonic: string;
-}
+/** A new account: the phrase stays in the vault (back it up with `vaultExportSecret`). */
+export type NewAccountInfo = LtcAddressInfo;
 
 export interface VaultDeriveArgs {
   primaryAddress: string;
@@ -62,7 +61,7 @@ export function ltcImportAccount(args: ImportArgs): Promise<LtcAddressInfo> {
   return invoke<LtcAddressInfo>('chain_ltc_import_account', { args });
 }
 
-/** Generate a fresh 24-word mnemonic, persist it, return both address and mnemonic (once, for backup). */
+/** Generate a fresh 24-word mnemonic inside the Keycore and seal it in the vault; returns the address only. */
 export function ltcCreateAccount(label?: string): Promise<NewAccountInfo> {
   return invoke<NewAccountInfo>('chain_ltc_create_account', { label });
 }

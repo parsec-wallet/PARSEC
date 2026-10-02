@@ -40,6 +40,7 @@ export async function arAccountInfo(address: string): Promise<ArAccountInfo> {
 export async function arSign(
   address: string,
   payloadB64: string,
+  approval?: string,
 ): Promise<{ signature_b64: string; scheme: 'rsa-pss-sha256'; salt_len: number }> {
-  return await invoke('chain_ar_sign', { args: { address, payload_b64: payloadB64 } });
+  return await invoke('chain_ar_sign', { args: { address, payload_b64: payloadB64, approval } });
 }

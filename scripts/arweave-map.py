@@ -98,6 +98,9 @@ PERIPHERAL = [
     # watcher of addresses): another module's files, listed so the blast radius stays honest.
     "src/lib/diag-profiles.ts", "src/lib/router.ts", "src/lib/session.ts",
     "src/lib/watch.ts", "src/lib/__tests__/watch.test.ts",
+    # The Keycore's approval gate (asks before chain_ar_sign, among others) and the test that
+    # lists where JavaScript may still touch a key.
+    "src-tauri/src/bankon_vault/approval.rs", "src/lib/__tests__/keycore-js-surface.test.ts",
 ]
 
 

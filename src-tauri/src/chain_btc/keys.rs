@@ -10,17 +10,16 @@ use std::str::FromStr;
 
 use super::BtcNetwork;
 
-/// BIP-39 word count for a new mnemonic. 24 words = 256-bit entropy.
+/// BIP-39 word count for a new mnemonic. 24 words = 256-bit entropy. (12 words is still
+/// accepted on import; the Keycore only creates 24.)
 #[derive(Debug, Clone, Copy)]
 pub enum MnemonicWords {
-    Twelve = 12,
     TwentyFour = 24,
 }
 
 impl MnemonicWords {
     fn entropy_bytes(self) -> usize {
         match self {
-            Self::Twelve => 16,
             Self::TwentyFour => 32,
         }
     }
