@@ -3,6 +3,25 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.3.0 — 2026-10-01 — `bankon-vault/2` ships (milestone)
+
+The second milestone on the [road to 1.0.0](docs/ROADMAP-1.0.md), closing the vault audit's
+remaining High findings (P2). Everything in 0.2.1–0.2.8:
+
+- **New wallets are generated inside the PARSEC Keycore** (0.2.1).
+- **`bankon-vault/2` is the vault** (0.2.7): 256 MiB Argon2id on desktop (64 MiB on phones),
+  calibrated to ~750 ms; wrapped data key; per-entry keys; encrypted account index; no
+  verification token. **A v1 vault migrates on its next unlock**, atomically and verified from
+  disk, keeping the v1 files until the person removes them.
+- The format fixes from the audit (0.2.3–0.2.5): KDF parameters bound and capped (H10),
+  unambiguous encodings (M10), a vault-bound key-binding message (H7), atomic migration (H8), a
+  document MAC and rollback check (M7), custodian changes re-authenticated with signatures verified
+  in Rust (H9), no v2 plaintext retrieve (M11), profiles (M8).
+- One session seam for both formats (0.2.6); the Keycore's tests in CI, and a committed v1 vault
+  migrating in a test (0.2.8).
+- The test config finds libsodium the same way the build does, so the TypeScript tests also pass
+  under npm (CI) and not only pnpm.
+
 ## 0.2.8 — 2026-10-01 (increment towards 0.3.0)
 
 `bankon-vault/2`, the exit checks.
