@@ -169,7 +169,7 @@ document: [docs/modules.md](docs/modules.md).
 - **Session hygiene.** The passphrase is held in private fields, never in `localStorage`; mnemonics are
   retrieved only to sign and cleared in `finally` blocks.
 - **Auto-lock.** On by default after 5 minutes of inactivity, enforced by the interface. The
-  Rust-enforced auto-lock belongs to the second-generation vault, which is not compiled in yet.
+  second-generation vault also offers an idle lock enforced in Rust.
 - **Content Security Policy.** Scripts: `'self'` only — no `unsafe-inline`, no `unsafe-eval` — and
   network access to an explicit list of endpoints. Styles allow `'unsafe-inline'`.
 - **Viewing mode.** The Blue Pill can never reach keys, signing, the dApp bridge or the encrypted
@@ -186,8 +186,8 @@ Alpha, and the open items are stated rather than hidden:
 
 - **The first mainnet x402 settlement through PARSEC is the next step.** Until then the x402 path is
   verified against stubs, test shapes and live read endpoints.
-- **The second-generation vault** (wrapped DEK, per-entry HKDF, Rust auto-lock) is written and
-  specified but not compiled in; `bankon_vault` runs its first-generation format.
+- **The second-generation vault** (`bankon-vault/2`: wrapped DEK, per-entry HKDF, encrypted index,
+  256 MiB Argon2id) is the vault since 0.2.7; first-generation vaults migrate on their next unlock.
 - **Bitcoin PSBT signing** is implemented in Rust (`chain_btc/sign.rs`) but not yet exercised end
   to end — the regtest run is open in [docs/TODO-INDEX.md](docs/TODO-INDEX.md).
 - **cypherpunk4096** is the destination and it is binary — all five commitments or none. Two are not

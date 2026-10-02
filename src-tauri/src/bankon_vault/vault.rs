@@ -920,6 +920,27 @@ mod tests {
         std::fs::remove_dir_all(&d).ok();
     }
 
+    /// 0.2.7: what unlock does to a v1 vault — migrate, open as v2 — and the clean-up after.
+    #[test]
+    fn after_migration_the_v1_files_can_go_and_v2_still_opens() {
+        let d = scratch("retire");
+        let pw = "Tr0ub4dor&3xKcd";
+        VaultStore::create(&d, pw.as_bytes()).unwrap();
+        let old_key = VaultStore::derive_session_key(&d, pw.as_bytes()).unwrap();
+        VaultStore::store_secret(&d, &old_key, "ALGO", "algorand", "main", b"words").unwrap();
+
+        let o = pass(pw);
+        migrate_v1(&d, pw, &o).unwrap();
+        assert!(VaultStore::has_any_artefact(&d), "v1 kept until the person removes it");
+        VaultStore::remove_v1_files(&d).unwrap();
+        assert!(!VaultStore::has_any_artefact(&d));
+
+        let v = Vault::load(&d).unwrap();
+        let dek = v.unlock(&PassphraseOverseer::for_unlock(pw)).unwrap();
+        assert_eq!(v.retrieve_secret(&dek, "algorand", "ALGO").unwrap().as_slice(), b"words");
+        std::fs::remove_dir_all(&d).ok();
+    }
+
     /// H8: a leftover from an interrupted migration is discarded, not read as a vault.
     #[test]
     fn a_stale_migrating_file_is_discarded() {

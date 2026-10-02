@@ -3,15 +3,16 @@
 What PARSEC's vault defends against, what it does not, and why. Written to be
 falsifiable: every claim maps to code and to a test.
 
-> **Status of the shipping vault (2026-10-01).** PARSEC ships **`bankon-vault/1`**.
-> The second-generation format, **`bankon-vault/2`** (wrapped key, per-entry keys,
-> authenticated header and index), is specified in `bankon-vault-spec.md` and
-> written, but **not yet compiled into the app**. Where a section below describes
-> v2, it says so and states what v1 does today. An internal audit on 2026-10-01
-> found that earlier versions of this document described v2 as if it were
-> shipping; they did not. Remediation is in progress in three steps: hardening the
-> shipping vault (done for the items marked *0.1.4*), moving every signature into
-> the PARSEC Keycore, then shipping v2.
+> **Status of the vault (2026-10-01).** Since PARSEC 0.2.7 (first released in 0.3.0)
+> the app uses **`bankon-vault/2`** (wrapped key, per-entry keys, authenticated
+> header, encrypted index, document MAC): new vaults are v2, and a
+> **`bankon-vault/1`** vault migrates on its next unlock — atomically, verified from
+> disk before it is used — with the v1 files kept until the person removes them. Where
+> a section below names v1, it describes a vault not yet migrated (or a Tomb volume,
+> which still holds v1). An internal audit on 2026-10-01 found that earlier versions of
+> this document described v2 as if it were shipping when it was not compiled in; the
+> three remediation steps — hardening v1 (0.1.4), every signature in the PARSEC
+> Keycore (0.2.0), shipping v2 (0.3.0) — are now done.
 
 ## The design centre
 
@@ -50,12 +51,14 @@ those. Making Tomb mandatory would *exclude* Android, not include it.
 
 The primary threat. The attacker has the vault file and unlimited offline time.
 
-- **Today (v1):** Argon2id at the library defaults (m=19 MiB, t=2, p=1) with a
-  per-vault salt; a small verification token lets a guess be tested with one
-  derivation. A strong passphrase is the defence that matters.
-- **v2 (not yet shipping):** Argon2id at m=256 MiB, t=3, p=4 (64 MiB, t=3, p=2 on
-  phones), parameters inside the authenticated header with a floor, and no
-  sentinel — a guess costs a full derivation and an AEAD unwrap.
+- **v2 (since 0.2.7):** Argon2id at m=256 MiB, t=3+ (calibrated to ~750 ms), p=4
+  (64 MiB, t=3, p=2 on phones), parameters bound into the wrap's associated data
+  with a floor and a ceiling, and no sentinel — a guess costs a full derivation and
+  an AEAD unwrap.
+- **A v1 vault not yet migrated, or the v1 copy a migration leaves:** Argon2id at the
+  library defaults (m=19 MiB, t=2, p=1) with a verification token that lets a guess
+  be tested with one derivation. The vault screen asks the person to remove the v1
+  files once the v2 vault opens.
 - Android backup of app data is off (0.1.4), so the vault does not leave a phone
   through cloud backup or device transfer.
 - *Residual:* a short passphrase still falls. The meter says so at the moment of
@@ -85,11 +88,13 @@ An unprivileged process running as the same user, reading swap, core files, or
 
 An attacker who can modify files but does not know the passphrase.
 
-- **v2 (not yet shipping):** every ciphertext authenticates `version ‖ vault_id ‖
-  purpose`, and the account index is encrypted and authenticated, so entries cannot
-  be swapped or relabelled and an address cannot be substituted.
-- **Today (v1):** ciphertexts are authenticated but not bound to their address, and
-  the account index is plaintext. The webview has no file access to the vault
+- **v2 (since 0.2.7):** every ciphertext authenticates its slot (length-prefixed
+  `version ‖ vault_id ‖ purpose ‖ fields`), the account index is encrypted, and a
+  document MAC covers the whole vault, so entries cannot be swapped, relabelled or
+  deleted unnoticed; a document older than the last one saved is refused as a
+  possible rollback (not proof against someone who controls the whole directory).
+- **v1 (not migrated):** ciphertexts are authenticated but not bound to their address,
+  and the account index is plaintext. The webview has no file access to the vault
   directory (denied in the capability scope since 0.1.4), and vault files are
   written atomically, owner-only (since 0.1.4).
 - Initialisation over any existing vault artefact is refused (since 0.1.4), so a

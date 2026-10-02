@@ -90,14 +90,14 @@ export async function vaultDestroy(passphrase: string): Promise<void> {
 // Typed wrappers for the 18 commands in src-tauri/src/bankon_vault/commands_v2.rs.
 // That backend is in the tree but not yet compiled in: bankon_vault/mod.rs does
 // not declare it, lib.rs does not register its commands, and VaultSession has
-// no v2 state. (0.2.5: the v2 commands are compiled and registered; the app moves onto
-// them in 0.2.7.) Until then VAULT_V2_IN_BUILD is false and:
+// no v2 state. Since 0.2.7 it is: VAULT_V2_IN_BUILD is true, new vaults are v2, and a v1
+// vault migrates on its next unlock. The flag stays so a build without v2 degrades as below:
 //   - reads degrade: vaultV2Status() reports the v1 vault honestly, the plan
 //     says no migration is possible, the KDF and auto-lock read as unavailable;
 //   - writes refuse with VaultV2Unavailable before anything reaches IPC.
 // Flip it in the same change that registers the commands in lib.rs.
 
-export const VAULT_V2_IN_BUILD = false;
+export const VAULT_V2_IN_BUILD = true;
 
 export class VaultV2Unavailable extends Error {
   constructor(op: string) {
@@ -115,6 +115,8 @@ export interface VaultV2Status {
   format: 'bankon-vault/2' | 'bankon-vault/1' | null;
   exists: boolean;
   needsMigration: boolean;
+  /** A migrated vault whose old v1 files are still on disk (remove with vaultRemoveV1Files). */
+  v1FilesPresent?: boolean;
   unlocked: boolean;
   entryCount: number;
   custodians: VaultCustodian[];
@@ -186,6 +188,15 @@ export async function vaultMigrate(
 export async function vaultChangePassphrase(current: string, newPassphrase: string): Promise<void> {
   if (!VAULT_V2_IN_BUILD) throw new VaultV2Unavailable('vaultChangePassphrase');
   await invoke('vault_change_passphrase', { current, newPassphrase });
+}
+
+/**
+ * Remove the bankon-vault/1 files a migration left behind. Needs the v2 vault open and the
+ * passphrase again; until then the old copy keeps v1's weaker protection on disk.
+ */
+export async function vaultRemoveV1Files(passphrase: string): Promise<{ ok: boolean; removed: boolean }> {
+  if (!VAULT_V2_IN_BUILD) throw new VaultV2Unavailable('vaultRemoveV1Files');
+  return await invoke('vault_remove_v1_files', { passphrase });
 }
 
 /** Remove a custodian. The current passphrase is checked again (attempt-limited). */

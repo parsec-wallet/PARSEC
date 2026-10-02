@@ -89,6 +89,7 @@ pub fn run() {
             vault_store_key,
             vault_export_secret,
             vault_reveal_new,
+            vault_remove_v1_files,
             // bankon-vault/2 (0.2.5; the app moves onto it in 0.2.6–0.2.7)
             vault_v2_status,
             vault_v2_create,

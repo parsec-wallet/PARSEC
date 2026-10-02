@@ -112,9 +112,9 @@ Open findings are published by name, severity and plan; their detail is withheld
 a fixed release exists, so a participant on the latest release is never the target of
 a published recipe. The same rule applies to reports we receive.
 
-The shipping vault is **`bankon-vault/1`**; `bankon-vault/2` (in
-[`docs/security/bankon-vault-spec.md`](docs/security/bankon-vault-spec.md)) is not yet
-compiled in. [`docs/security/threat-model.md`](docs/security/threat-model.md) states, section by
+The vault is **`bankon-vault/2`** (specified in
+[`docs/security/bankon-vault-spec.md`](docs/security/bankon-vault-spec.md)) since PARSEC 0.2.7,
+first released in 0.3.0; a `bankon-vault/1` vault migrates on its next unlock. [`docs/security/threat-model.md`](docs/security/threat-model.md) states, section by
 section, what each one does. The Bitcoin path is gated behind an audit and is not
 supported for mainnet custody — see
 [`docs/integration/bankon-btc-waas.md`](docs/integration/bankon-btc-waas.md).

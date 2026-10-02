@@ -101,6 +101,8 @@ pub fn vault_v2_status(
         },
         "exists": v2_exists || v1_exists,
         "needsMigration": v1_exists && !v2_exists,
+        // A migration keeps the v1 files until the person removes them (vault_remove_v1_files).
+        "v1FilesPresent": v2_exists && super::store::VaultStore::has_any_artefact(&dir),
         "unlocked": guard.is_unlocked(),
         "entryCount": entries,
         "custodians": custodians,
