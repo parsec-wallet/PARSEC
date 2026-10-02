@@ -76,7 +76,8 @@ impl Vault {
             return Err("vault already exists".to_string());
         }
         // The same total-loss guard v1 lacked: never initialise over ciphertext.
-        if VaultStore::has_key_material(dir) || VaultStore::exists(dir) {
+        // M9: a lone `vault2.json.bak` is the only copy of a vault; never create over it.
+        if VaultStore::has_any_artefact(dir) || dir.join(BACKUP_FILE).exists() {
             return Err(format!(
                 "refusing to create a vault at {}: an earlier vault's data is \
                  already present. Migrate it instead, or move it aside deliberately.",
@@ -515,6 +516,16 @@ mod tests {
 
     fn pass(p: &str) -> PassphraseOverseer {
         PassphraseOverseer::new(p, "primary", KdfParams::FLOOR).unwrap()
+    }
+
+    /// M9: the backup file alone is a vault's only copy; create must not overwrite it.
+    #[test]
+    fn create_refuses_over_a_lone_backup() {
+        let d = scratch("bak");
+        std::fs::write(d.join(BACKUP_FILE), b"{}").unwrap();
+        assert!(Vault::create(&d, &keyfile("usb")).is_err());
+        assert_eq!(std::fs::read(d.join(BACKUP_FILE)).unwrap(), b"{}");
+        std::fs::remove_dir_all(&d).ok();
     }
 
     #[test]
