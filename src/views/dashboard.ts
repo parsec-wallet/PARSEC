@@ -17,6 +17,11 @@ import { resolveAddress, searchByOwner } from '../lib/nfd';
 import { formatPrice, fetchPrices, fetchPricesByIds } from '../lib/prices';
 import type { CoinPrice } from '../lib/prices';
 import type { AccountInfo, TransactionRecord, NetworkId, WalletAccount } from '../types/wallet';
+import { classifyAsset } from '../lib/algorand/asset-classify';
+import { formatDecimal } from '../lib/money';
+
+/** Verified dollar stablecoins, by id: Circle USDC, Tether USDt, Wormhole-bridged USDC. */
+const USD_STABLE_IDS = new Set([31566704, 312769, 887407002]);
 
 export function dashboardView(): HTMLElement {
   const state = store.get();
@@ -372,6 +377,10 @@ function renderAssets(container: HTMLElement, info: AccountInfo, userAddress: st
     if (asset.isFrozen) badges.push(el('span', { cls: 'parsec-badge parsec-badge--danger', text: 'Frozen' }));
     if (asset.hasFreezeAddr) badges.push(el('span', { cls: 'parsec-badge parsec-badge--warn', text: 'Freezable' }));
     if (asset.hasClawbackAddr) badges.push(el('span', { cls: 'parsec-badge parsec-badge--warn', text: 'Clawback' }));
+    // Verified by id against PARSEC's list — never by ticker (asset-classify.ts).
+    const cls = classifyAsset(network as NetworkId, { assetId: asset.assetId, unitName: asset.unitName ?? '', name: asset.name ?? '' });
+    if (cls.kind === 'verified') badges.unshift(el('span', { cls: 'parsec-badge parsec-badge--ok', text: `✓ ${cls.asset.issuer}` }));
+    else if (cls.kind === 'lookalike') badges.unshift(el('span', { cls: 'parsec-badge parsec-badge--danger', text: `⚠ Not ${cls.of.unitName}` }));
 
     const canOptOut = asset.amount === 0 && !asset.isFrozen;
 
@@ -390,9 +399,10 @@ function renderAssets(container: HTMLElement, info: AccountInfo, userAddress: st
       links.unshift(el('a', { text: 'price', cls: 'parsec-asset-link', attrs: { href: `https://www.coingecko.com/en/coins/${cgSlug}`, target: '_blank', rel: 'noopener' } }));
     }
 
-    // USD value for stablecoins
-    const usdValue = (asset.unitName === 'USDC' || asset.unitName === 'USDt')
-      ? `≈ $${(asset.amount / Math.pow(10, asset.decimals ?? 6)).toFixed(2)}`
+    // USD value only for verified dollar stablecoins, chosen by id — an asset that merely calls
+    // itself USDC is worth nothing here. Exact: base units to cents in bigint, no float.
+    const usdValue = cls.kind === 'verified' && USD_STABLE_IDS.has(asset.assetId)
+      ? `≈ $${formatDecimal((BigInt(asset.amount) * 100n) / 10n ** BigInt(asset.decimals ?? 6), 2)}`
       : '';
 
     // NFT thumbnail when metadata is available

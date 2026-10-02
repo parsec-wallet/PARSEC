@@ -3,6 +3,10 @@
 // Ctrl/Cmd-K fuzzy search over the route registry. With 64 views this is the
 // difference between "I know it's in here somewhere" and "I'm there".
 //
+// It also finds Algorand assets (palette-assets.ts): a separate, Algorand-only section —
+// verified matches at once, then the indexer's — and choosing one opens ADD ASSETS on it.
+// EVM chains are not searched here; they are the RAGEbar's, in the Matrix.
+//
 // Zero dependencies: subsequence matching, a scored sort, and plain DOM.
 
 import { el } from '../dom';
@@ -10,6 +14,11 @@ import { store } from '../store';
 import { GROUP_LABEL, groupOf, getDisclosure, visibleRoutes } from '../nav';
 import type { NavRoute } from '../nav';
 import { fuzzy } from './fuzzy';
+import {
+  assetNetwork, isAssetQuery, instantAssetHits, indexerAssetHits, describeHit, setAssetFocus, type AssetHit,
+} from './palette-assets';
+
+type Row = { kind: 'route'; s: Scored } | { kind: 'asset'; h: AssetHit };
 
 interface Scored {
   route: NavRoute;
@@ -80,8 +89,8 @@ export function mountPalette(): () => void {
 
   const field = el('input', { cls: 'parsec-palette__input' }) as HTMLInputElement;
   field.type = 'text';
-  field.placeholder = 'Go to…';
-  field.setAttribute('aria-label', 'Search views');
+  field.placeholder = 'Go to… or find an Algorand asset by name, ticker or id';
+  field.setAttribute('aria-label', 'Search views and Algorand assets');
   field.autocomplete = 'off';
   field.spellcheck = false;
 
@@ -92,61 +101,122 @@ export function mountPalette(): () => void {
   overlay.appendChild(panel);
   document.body.appendChild(overlay);
 
-  let results: Scored[] = [];
+  let rows: Row[] = [];
+  let nodes: HTMLElement[] = [];
   let active = 0;
+  let seq = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  function section(text: string): void {
+    const h = el('li', { cls: 'parsec-palette__section', text });
+    h.setAttribute('role', 'presentation');
+    list.appendChild(h);
+  }
+
+  function addRow(row: Row): void {
+    const i = rows.length;
+    rows.push(row);
+    const li = el('li', { cls: 'parsec-palette__item' });
+    li.setAttribute('role', 'option');
+    if (row.kind === 'route') {
+      const label = el('span', { cls: 'parsec-palette__label' });
+      label.appendChild(highlight(row.s.route.title, row.s.hits));
+      // Name the keyword that pulled this row in, so the match is never opaque.
+      if (row.s.via) label.appendChild(el('span', { cls: 'parsec-palette__via', text: row.s.via }));
+      li.appendChild(label);
+      li.appendChild(el('span', { cls: 'parsec-palette__tier', text: GROUP_LABEL[groupOf(row.s.route)] }));
+    } else {
+      const d = describeHit(row.h);
+      li.classList.add('parsec-palette__item--asset');
+      const label = el('span', { cls: 'parsec-palette__label', children: [
+        el('span', { cls: 'parsec-palette__title', text: `${row.h.unitName || '—'} · ${row.h.name || 'Unnamed asset'}` }),
+        el('span', { cls: 'parsec-palette__via', text: d.detail }),
+      ] });
+      li.appendChild(label);
+      li.appendChild(el('span', { cls: `parsec-palette__badge parsec-palette__badge--${d.tone}`, text: d.badge }));
+    }
+    li.addEventListener('mouseenter', () => { active = i; paint(); });
+    li.addEventListener('click', () => choose(i));
+    list.appendChild(li);
+    nodes.push(li);
+  }
 
   function render(): void {
     const query = field.value.trim();
     const corpus = visibleRoutes(getDisclosure());
+    const my = ++seq;
+    if (timer) { clearTimeout(timer); timer = null; }
 
-    results = query
+    const routes = query
       ? corpus
           .map((r) => scoreRoute(query, r))
-          .filter((s): s is Scored => s !== null)
+          .filter((x): x is Scored => x !== null)
           .sort((a, b) => b.score - a.score)
-          .slice(0, 12)
+          .slice(0, 8)
       : corpus.slice(0, 12).map((route) => ({ route, score: 0, hits: [] }));
 
+    rows = [];
+    nodes = [];
     active = 0;
     list.innerHTML = '';
 
-    if (results.length === 0) {
+    const network = query && isAssetQuery(query) ? assetNetwork() : null;
+    const instant = network ? instantAssetHits(query, network) : [];
+
+    if (routes.length) {
+      if (network) section('Views');
+      for (const r of routes) addRow({ kind: 'route', s: r });
+    }
+    let assetHead = false;
+    if (network) {
+      section(`Algorand assets · ${network}`);
+      assetHead = true;
+      for (const h of instant) addRow({ kind: 'asset', h });
+      const pending = el('li', { cls: 'parsec-palette__empty', text: 'Searching the Algorand indexer…' });
+      list.appendChild(pending);
+      const shown = new Set(instant.map((h) => h.assetId));
+      timer = setTimeout(() => {
+        indexerAssetHits(query, network, shown)
+          .then((more) => {
+            if (my !== seq || overlay.hidden) return;
+            pending.remove();
+            for (const h of more) addRow({ kind: 'asset', h });
+            if (!instant.length && !more.length) list.appendChild(el('li', { cls: 'parsec-palette__empty', text: 'No Algorand asset matches.' }));
+            paint();
+          })
+          .catch((e) => {
+            if (my !== seq) return;
+            pending.textContent = `Indexer search failed: ${e instanceof Error ? e.message : String(e)}`;
+          });
+      }, 300);
+    }
+
+    if (!rows.length && !assetHead) {
       list.appendChild(el('li', { cls: 'parsec-palette__empty', text: `Nothing matches “${query}”` }));
       return;
     }
-
-    results.forEach((s, i) => {
-      const row = el('li', { cls: 'parsec-palette__item' });
-      row.setAttribute('role', 'option');
-
-      const label = el('span', { cls: 'parsec-palette__label' });
-      label.appendChild(highlight(s.route.title, s.hits));
-      // Name the keyword that pulled this row in, so the match is never opaque.
-      if (s.via) label.appendChild(el('span', { cls: 'parsec-palette__via', text: s.via }));
-      row.appendChild(label);
-
-      row.appendChild(el('span', { cls: 'parsec-palette__tier', text: GROUP_LABEL[groupOf(s.route)] }));
-      row.addEventListener('mouseenter', () => { active = i; paint(); });
-      row.addEventListener('click', () => choose(i));
-      list.appendChild(row);
-    });
     paint();
   }
 
   function paint(): void {
-    Array.from(list.children).forEach((node, i) => {
+    nodes.forEach((node, i) => {
       const on = i === active;
       node.classList.toggle('parsec-palette__item--active', on);
       node.setAttribute('aria-selected', String(on));
-      if (on) (node as HTMLElement).scrollIntoView({ block: 'nearest' });
+      if (on) node.scrollIntoView({ block: 'nearest' });
     });
   }
 
   function choose(i: number): void {
-    const hit = results[i];
-    if (!hit) return;
+    const row = rows[i];
+    if (!row) return;
     close();
-    store.navigate(hit.route.id as Parameters<typeof store.navigate>[0]);
+    if (row.kind === 'route') {
+      store.navigate(row.s.route.id as Parameters<typeof store.navigate>[0]);
+    } else {
+      setAssetFocus(row.h.assetId);
+      store.navigate('add-asset');
+    }
   }
 
   function open(): void {
@@ -159,6 +229,8 @@ export function mountPalette(): () => void {
 
   function close(): void {
     overlay.hidden = true;
+    seq++;
+    if (timer) { clearTimeout(timer); timer = null; }
   }
 
   openPalette = open;
@@ -171,7 +243,7 @@ export function mountPalette(): () => void {
 
   field.addEventListener('keydown', (e) => {
     switch (e.key) {
-      case 'ArrowDown': e.preventDefault(); active = Math.min(active + 1, results.length - 1); paint(); break;
+      case 'ArrowDown': e.preventDefault(); active = Math.min(active + 1, rows.length - 1); paint(); break;
       case 'ArrowUp':   e.preventDefault(); active = Math.max(active - 1, 0); paint(); break;
       case 'Enter':     e.preventDefault(); choose(active); break;
       case 'Escape':    e.preventDefault(); close(); break;

@@ -68,5 +68,20 @@ every disguise to come out a lookalike. A name that merely *contains* a ticker (
 flagged — it would flag most of the ecosystem — and the confusables table covers the scripts used in
 real impersonation, extended as new ones are found.
 
-Next ([plan](TODO-INDEX.md)): finding and adding assets from the ragebar (0.3.3); SPINTRADE using
-this list as its authority (0.3.4).
+## Finding and adding an asset
+
+- **The command palette (Ctrl/Cmd-K)** finds Algorand assets by name, ticker or id, in its own
+  "Algorand assets" section: verified matches at once, then the indexer's, each badged
+  verified / lookalike ("⚠ Not USDC") / unverified, with its ASA id and network. It searches
+  Algorand only — an ASA id means nothing on other chains, and EVM chains are the RAGEbar's.
+- Choosing a result opens **ADD ASSETS** on that asset. The card states the cost first (0.1 ALGO set
+  aside, returned on removal; 0.001 ALGO fee); an unverified or lookalike asset, or one whose issuer
+  can freeze or claw back, takes a second, explicit click; the opt-in is signed in the Keycore.
+- An asset the account holds with a zero balance can be **removed** (opted out) the same way.
+- **The dashboard** badges each held asset verified or lookalike, and shows a dollar value only for
+  verified dollar stablecoins chosen by id — an asset that merely calls itself USDC shows none.
+
+Live Pera lookups for unlisted results are not made: that would tell a third party which assets a
+person looks at. The list records Pera's tier at each check instead.
+
+Next ([plan](TODO-INDEX.md)): SPINTRADE using this list as its authority (0.3.4).

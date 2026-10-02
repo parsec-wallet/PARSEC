@@ -124,3 +124,36 @@
 
   &::before { content: '· '; }
 }
+
+// ── Sections, and Algorand asset results ────────────────────────────────────
+.parsec-palette__section {
+  padding: $spacing-2 $spacing-3 $spacing-1;
+  color: $px-muted;
+  font-family: $font-family-mono;
+  font-size: $font-size-xs;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.parsec-palette__item--asset .parsec-palette__label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.parsec-palette__item--asset .parsec-palette__via::before { content: none; }
+
+.parsec-palette__badge {
+  flex: 0 0 auto;
+  padding: 2px $spacing-2;
+  border: 1px solid $px-line;
+  border-radius: 999px;
+  font-size: $font-size-xs;
+  white-space: nowrap;
+
+  &--ok { border-color: $px-success; color: $px-success; }
+  &--danger { border-color: $px-danger; color: $px-danger; }
+  &--muted { color: $px-muted; }
+}
