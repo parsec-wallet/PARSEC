@@ -32,7 +32,7 @@ pub fn chain_ar_create_account(
     let mut json = keys::jwk_to_json(&j)?;
 
     let mut guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-    let stored = guard.store_by_address(
+    let stored = guard.store_new(
         CHAIN,
         &address,
         label.as_deref().unwrap_or("Arweave"),

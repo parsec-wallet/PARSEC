@@ -10,7 +10,7 @@ import { join, relative } from 'node:path';
 const ROOT = join(__dirname, '..', '..');
 const KEY_USE = /mnemonicToSecretKey|signWithJwk|crypto\.subtle\.sign\(|ed25519\.sign\(|\.signTxn\(|createKeyPairSignerFromBytes|secp256k1\.sign\(/;
 
-type Why = 'browser-build' | 'typed-phrase-preview' | 'pure-helper' | 'external-signer' | 'generation';
+type Why = 'browser-build' | 'typed-phrase-preview' | 'pure-helper' | 'external-signer';
 const ALLOWED: Record<string, Why> = {
   'lib/algorand/signer.ts': 'browser-build',
   'lib/algorand/assets.ts': 'browser-build',
@@ -24,10 +24,11 @@ const ALLOWED: Record<string, Why> = {
   'lib/arweave/tx.ts': 'pure-helper',
   // MetaMask signs; PARSEC never holds that key.
   'lib/xchain/sign.ts': 'external-signer',
-  // Key generation still happens in the renderer before the key is sealed in the vault —
-  // tracked in docs/ROADMAP-1.0.md ("generation in the Keycore").
-  'lib/algorand/account.ts': 'generation',
-  'views/create-wallet.ts': 'generation',
+  // The browser build's create flow; on the desktop the Keycore creates (0.2.1).
+  'views/create-wallet.ts': 'browser-build',
+  // generateAccount / recoverAccount: the browser build's create flow, the admin key
+  // ceremony (admin-keygen.ts, a documented residual) and typed-phrase checks.
+  'lib/algorand/account.ts': 'pure-helper',
 };
 
 function files(dir: string): string[] {

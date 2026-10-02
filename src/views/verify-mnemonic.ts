@@ -1,4 +1,8 @@
 // PARSEC Wallet — Verify Mnemonic & Set Passphrase
+//
+// Desktop: the PARSEC Keycore already created and sealed the account (create-wallet), so
+// this step only checks three words of the backup. Browser build: it also opens the vault
+// and stores the key.
 
 import { exactTextField } from '../lib/phrase-input';
 import { el, btn, input, toast } from '../lib/dom';
@@ -6,6 +10,7 @@ import { store } from '../lib/store';
 import { keystoreStore } from '../lib/keystore';
 import { vaultPass, vaultAction } from '../lib/ui/vault-pass';
 import { stepStrip } from '../lib/ui/keyreveal';
+import { isTauri } from '../lib/platform';
 
 export function verifyMnemonicView(): HTMLElement {
   const mnemonic = store.getTempMnemonic();
@@ -18,6 +23,9 @@ export function verifyMnemonicView(): HTMLElement {
 
   const accountIndex = state.accounts.length - 1;
   const account = state.accounts[accountIndex];
+
+  // Desktop: already sealed by the Keycore; only the words are checked.
+  const sealed = isTauri;
 
   // Create, unlock or reuse the open profile's vault — see lib/ui/vault-pass.ts.
   const vault = vaultPass({ carry: () => account.address, onEnter: () => action.submit() });
@@ -33,10 +41,12 @@ export function verifyMnemonicView(): HTMLElement {
   const action = vaultAction(vault, async () => {
     store.set({ isLoading: true });
     try {
-      const pass = await vault.ready();
-      await keystoreStore(account.address, mnemonic!, pass, account.name);
+      if (!sealed) {
+        const pass = await vault.ready();
+        await keystoreStore(account.address, mnemonic!, pass, account.name);
+        store.setPassphrase(pass);
+      }
       store.setTempMnemonic(null);
-      store.setPassphrase(pass);
       vault.wipe();
       // The account just created is the one the participant is working with now.
       // It may have moved to a new vault's profile; find it where it is now.
@@ -49,7 +59,7 @@ export function verifyMnemonicView(): HTMLElement {
     } finally {
       store.set({ isLoading: false });
     }
-  }, { extra: wordsBlocker });
+  }, { extra: wordsBlocker, ...(sealed ? { skip: () => true, label: () => 'Confirm backup' } : {}) });
 
   return el('div', {
     cls: 'parsec-view parsec-verify parsec-keyflow parsec-vaultflow',
@@ -60,7 +70,7 @@ export function verifyMnemonicView(): HTMLElement {
           btn('Back', { minimal: true, icon: 'arrow-left', onClick: () => store.navigate('create-wallet') }),
         ],
       }),
-      stepStrip(['Address', 'Back up', 'Verify & save'], 2),
+      stepStrip(sealed ? ['Vault', 'Back up', 'Verify'] : ['Address', 'Back up', 'Verify & save'], 2),
       el('h2', { cls: 'parsec-view__title', text: 'Verify Recovery Phrase' }),
       el('p', { cls: 'parsec-view__desc', text: 'Enter the requested words to confirm you saved them.' }),
       el('div', {
@@ -78,7 +88,7 @@ export function verifyMnemonicView(): HTMLElement {
           });
         }),
       }),
-      vault.element,
+      ...(sealed ? [] : [vault.element]),
       action.el,
     ],
   });

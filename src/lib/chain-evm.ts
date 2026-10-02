@@ -33,6 +33,11 @@ export interface SignedEvmTx {
 }
 
 /** Sign an EIP-1559 transaction with the vault-held key for `address`. */
+/** Create an EVM account inside the PARSEC Keycore; returns the address only. */
+export async function evmCreateAccount(label?: string): Promise<{ address: string }> {
+  return await invoke<{ address: string }>('chain_evm_create_account', { label });
+}
+
 export async function evmSignTx(address: string, tx: EvmTxRequest): Promise<SignedEvmTx> {
   return await invoke<SignedEvmTx>('chain_evm_sign_tx', { address, tx });
 }

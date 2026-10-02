@@ -217,6 +217,7 @@ list UI used by the Red Pill and Settings.
 | `vault_lock` | yes (teardown) | Erase the vault key from memory |
 | `vault_store_key(address, chain, label, secret)` | no | Encrypt and save a key; add it to the manifest |
 | `vault_export_secret({address, passphrase, confirm})` | no | Backup export, the only command that returns a secret: needs an unlocked vault, the passphrase again (attempt-limited) and `confirm` equal to the address. Replaced `vault_retrieve_key` in 0.1.9 |
+| `vault_reveal_new(address)` | no | The phrase of an account the Keycore created this session, once, within 10 minutes, before lock — the backup step at creation (0.2.1) |
 | `keycore_approve({address, chain, title, claims, payloads_b64})` | no | One native Keycore dialog for a batch; returns a single-use token covering exactly those payloads (SHA-256), for that account, for 2 minutes (0.2.0) |
 | `keycore_allowance_grant({address, genesis_id, asset_id, per_payment, total, minutes})` / `_revoke` / `_status` | grant: no; revoke/status: yes | Session allowance for Algorand asset payments (the x402 auto-approve cap), granted in a native dialog, enforced on the decoded amount, ended by lock (0.2.0) |
 | `vault_remove_account(address)` | no | Delete one key file and its manifest entry |

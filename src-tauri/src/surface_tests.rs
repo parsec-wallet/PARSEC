@@ -18,7 +18,8 @@ const SECRET_NAMES: &[&str] = &[
     "secret", "secret_key", "mnemonic", "phrase", "seed", "jwk", "private_key", "xprv", "xpriv", "wif", "sk",
 ];
 const SECRET_COMMAND_WORDS: &[&str] = &["reveal", "export", "retrieve", "generate_mnemonic"];
-const EXPORTS_ALLOWED: &[&str] = &["vault_export_secret"];
+/// The re-authenticated export, and the one-time reveal of a key the Keycore just created.
+const EXPORTS_ALLOWED: &[&str] = &["vault_export_secret", "vault_reveal_new"];
 /// Commands with `sign` in the name that relay or refuse a signature made elsewhere.
 const SIGN_RELAYS: &[&str] = &["connect_approve_sign", "connect_reject_sign"];
 

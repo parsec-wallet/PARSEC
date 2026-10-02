@@ -20,6 +20,9 @@ pub mod tomb_commands;
 pub mod throttle;
 
 use std::sync::Mutex;
+
+/// How long a newly created account can be revealed without the passphrase.
+const FRESH_FOR: std::time::Duration = std::time::Duration::from_secs(600);
 /// Vault session state — managed by Tauri
 pub struct VaultState {
     pub inner: Mutex<VaultSession>,
@@ -40,6 +43,8 @@ pub struct VaultSession {
     session_key: Option<secure_mem::SecretBytes>,
     /// Path to vault directory
     vault_dir: Option<std::path::PathBuf>,
+    /// Accounts the Keycore created this session, not yet revealed for backup.
+    fresh: std::collections::HashMap<String, std::time::Instant>,
 }
 
 impl Default for VaultSession {
@@ -47,6 +52,7 @@ impl Default for VaultSession {
         Self {
             session_key: None,
             vault_dir: None,
+            fresh: std::collections::HashMap::new(),
         }
     }
 }
@@ -61,6 +67,7 @@ impl VaultSession {
     pub fn lock(&mut self) {
         self.session_key = None;
         self.vault_dir = None;
+        self.fresh.clear();
     }
 
     /// Take the derived key into protected memory; the caller's copy is wiped.
@@ -105,6 +112,19 @@ impl VaultSession {
         store::VaultStore::store_secret(dir, key, address, chain, label, secret)
     }
 
+    /// Store a key the Keycore just generated, and remember it as revealable once for its
+    /// backup (`vault_reveal_new`) — for ten minutes, until it is revealed, or until lock.
+    pub fn store_new(&mut self, chain: &str, address: &str, label: &str, secret: &[u8]) -> Result<(), String> {
+        self.store_by_address(chain, address, label, secret)?;
+        self.fresh.insert(address.to_string(), std::time::Instant::now());
+        Ok(())
+    }
+
+    /// True once for an address `store_new` stored in the last ten minutes of this session.
+    pub fn take_fresh(&mut self, address: &str) -> bool {
+        matches!(self.fresh.remove(address), Some(at) if at.elapsed() < FRESH_FOR)
+    }
+
     /// Retrieve a chain secret by address.
     ///
     /// Returns [`secure_mem::SecretBytes`] rather than a `Vec<u8>` so the plaintext is
@@ -121,6 +141,20 @@ impl VaultSession {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_fresh_account_is_revealable_once_and_lock_forgets_it() {
+        let mut s = VaultSession::default();
+        s.fresh.insert("NEW".into(), std::time::Instant::now());
+        assert!(!s.take_fresh("OTHER"));
+        assert!(s.take_fresh("NEW"));
+        assert!(!s.take_fresh("NEW"), "once");
+        s.fresh.insert("NEW2".into(), std::time::Instant::now());
+        s.lock();
+        assert!(!s.take_fresh("NEW2"), "lock forgets");
+        s.fresh.insert("OLD".into(), std::time::Instant::now() - FRESH_FOR - std::time::Duration::from_secs(1));
+        assert!(!s.take_fresh("OLD"), "expired");
+    }
     use super::*;
 
     #[test]

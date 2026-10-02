@@ -156,13 +156,14 @@ allocates a *new* string and leaves the original for the collector.
   to each item's SHA-256; the x402 auto-approve cap is a Keycore allowance checked
   against the decoded amount. *Limit:* where the Keycore cannot decode (Solana,
   Arweave), the person is confirming the app's description and the item count.
-- ***Open:* key generation is still in the renderer on the desktop.** Creating an
-  Algorand account (`create-wallet.ts`), the inline Bitcoin/EVM packs, Solana and
-  Arweave generate the key in JavaScript and then seal it in the vault.
-  `chain_algo_create_account` and `chain_ar_create_account` generate inside Rust but
-  are not yet called; earlier versions of this document said they were. Roadmap
-  step 0.2.x moves generation into the Keycore. New Bitcoin and Litecoin accounts
-  created *by the Keycore* no longer return their phrase (0.2.0).
+- **Key generation is in the Keycore on the desktop** (0.2.1). Creating an Algorand,
+  Solana, Bitcoin, Litecoin or EVM account opens the vault first; the Keycore
+  generates and seals the key and returns the address; the phrase is shown once
+  through `vault_reveal_new` (only for a key it created this session, within ten
+  minutes, before lock). Until 0.2.0 this document said Algorand creation had moved
+  to Rust when it had not. *Residuals:* Arweave HD derives its RSA key from the
+  phrase in the app (node-forge determinism — see `chain_ar/mod.rs`); the admin key
+  ceremony (`admin-keygen.ts`); the browser build.
 - **Residual:** the admin ceremony in `src/views/admin-keygen.ts` still mints in
   the renderer with `algosdk`, because it chooses its passphrase after generating
   and so has no vault to write into. Marked in the source; inverting that flow is

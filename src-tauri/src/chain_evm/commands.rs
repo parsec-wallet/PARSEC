@@ -105,6 +105,36 @@ pub async fn chain_evm_sign_tx(
     result
 }
 
+/// Create an EVM account inside the Keycore: a secp256k1 key from the OS CSPRNG, stored
+/// in the vault as 0x-hex under its EIP-55 address. Only the address returns.
+#[tauri::command]
+pub fn chain_evm_create_account(
+    vault_state: tauri::State<'_, crate::bankon_vault::VaultState>,
+    label: Option<String>,
+) -> Result<serde_json::Value, String> {
+    use rand::RngCore;
+    let mut key = [0u8; 32];
+    // A uniformly random 32 bytes is a valid secp256k1 key except with negligible
+    // probability; address_from_secret refuses the invalid ones, so retry.
+    let address = loop {
+        rand::rngs::OsRng.fill_bytes(&mut key);
+        if let Ok(a) = address_from_secret(&key) {
+            break a;
+        }
+    };
+    let mut hex_key = format!("0x{}", hex::encode(key));
+    wipe(&mut key);
+    let stored = vault_state
+        .inner
+        .lock()
+        .map_err(|_| "vault state poisoned".to_string())
+        .and_then(|mut g| g.store_new("ethereum", &address, label.as_deref().unwrap_or("Ethereum"), hex_key.as_bytes()));
+    // SAFETY: overwriting a String's bytes in place with zero bytes of equal length.
+    unsafe { crate::bankon_vault::secure_mem::wipe(hex_key.as_bytes_mut()) };
+    stored?;
+    Ok(serde_json::json!({ "address": address }))
+}
+
 /// Pure helper for import preview: derive the 0x address from a hex private key. Stores nothing.
 #[tauri::command]
 pub fn chain_evm_address_from_key(private_key_hex: String) -> Result<String, String> {
