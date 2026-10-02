@@ -115,6 +115,7 @@ impl KeyScheme {
 
     /// True if this scheme's key material is binary rather than text. Purely
     /// informational — no storage path treats the two differently.
+    #[allow(dead_code)] // informational; no storage path depends on it
     pub fn is_binary(&self) -> bool {
         !matches!(self, Self::MnemonicBip39 | Self::MnemonicAlgo25)
     }

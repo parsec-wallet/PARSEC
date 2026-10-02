@@ -409,7 +409,7 @@ pub fn validate_any_address(address: &str) -> ValidationResult {
 
 // --- Base32 decoder (RFC 4648, no padding) for Algorand ---
 
-fn base32_decode(input: &str) -> Option<Vec<u8>> {
+pub(crate) fn base32_decode(input: &str) -> Option<Vec<u8>> {
     let alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     let mut bits: u64 = 0;
     let mut bit_count: u32 = 0;

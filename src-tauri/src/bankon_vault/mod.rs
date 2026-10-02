@@ -8,24 +8,20 @@
 
 pub mod approval;
 pub mod binding;
+pub mod binding_verify;
 pub mod crypto;
-// bankon-vault/2: compiled and tested since 0.2.2, wired into the session in 0.2.6.
-#[allow(dead_code)]
 pub mod format;
 pub mod kdf;
 pub mod msgpack;
-// bankon-vault/2: compiled and tested since 0.2.2, wired into the session in 0.2.6.
-#[allow(dead_code)]
 pub mod overseer;
 pub mod secure_mem;
 pub mod store;
 pub mod commands;
+pub mod commands_v2;
 pub mod profiles;
 pub mod tomb;
 pub mod tomb_commands;
 pub mod throttle;
-// bankon-vault/2: compiled and tested since 0.2.2, wired into the session in 0.2.6.
-#[allow(dead_code)]
 pub mod vault;
 
 use std::sync::Mutex;
@@ -45,6 +41,12 @@ impl Default for VaultState {
     }
 }
 
+/// An open `bankon-vault/2` vault and its data key.
+pub struct V2Session {
+    pub vault: vault::Vault,
+    pub dek: vault::Dek,
+}
+
 /// Runtime session — tracks unlock state
 pub struct VaultSession {
     /// Derived key held in memory while unlocked: mlocked, excluded from core dumps,
@@ -54,6 +56,11 @@ pub struct VaultSession {
     vault_dir: Option<std::path::PathBuf>,
     /// Accounts the Keycore created this session, not yet revealed for backup.
     fresh: std::collections::HashMap<String, std::time::Instant>,
+    /// The open `bankon-vault/2` vault, if the session is a v2 one.
+    v2: Option<V2Session>,
+    /// Idle auto-lock in seconds (0 = off) and the last activity.
+    auto_lock_secs: u64,
+    last_activity: Option<std::time::Instant>,
 }
 
 impl Default for VaultSession {
@@ -62,13 +69,66 @@ impl Default for VaultSession {
             session_key: None,
             vault_dir: None,
             fresh: std::collections::HashMap::new(),
+            v2: None,
+            auto_lock_secs: 0,
+            last_activity: None,
         }
     }
 }
 
 impl VaultSession {
     pub fn is_unlocked(&self) -> bool {
-        self.session_key.is_some()
+        self.session_key.is_some() || self.v2.is_some()
+    }
+
+    pub fn v2(&self) -> Option<&V2Session> {
+        self.v2.as_ref()
+    }
+
+    pub fn v2_mut(&mut self) -> Option<&mut V2Session> {
+        self.v2.as_mut()
+    }
+
+    /// Open a v2 session (closing whatever was open).
+    pub fn unlock_v2(&mut self, vault: vault::Vault, dek: vault::Dek, vault_dir: std::path::PathBuf) {
+        self.lock();
+        self.v2 = Some(V2Session { vault, dek });
+        self.vault_dir = Some(vault_dir);
+        self.last_activity = Some(std::time::Instant::now());
+    }
+
+    /// Lock if the idle timeout has passed. True if it locked now.
+    pub fn lock_if_idle(&mut self) -> bool {
+        if self.auto_lock_secs == 0 || !self.is_unlocked() {
+            return false;
+        }
+        let idle = self.last_activity.map_or(true, |t| t.elapsed().as_secs() >= self.auto_lock_secs);
+        if idle {
+            self.lock();
+        }
+        idle
+    }
+
+    pub fn touch(&mut self) {
+        self.last_activity = Some(std::time::Instant::now());
+    }
+
+    pub fn set_auto_lock_secs(&mut self, secs: u64) {
+        self.auto_lock_secs = secs;
+        self.touch();
+    }
+
+    pub fn auto_lock_secs(&self) -> u64 {
+        self.auto_lock_secs
+    }
+
+    /// Seconds left before the idle lock, if it is on and a session is open.
+    pub fn idle_remaining_secs(&self) -> Option<u64> {
+        if self.auto_lock_secs == 0 || !self.is_unlocked() {
+            return None;
+        }
+        let used = self.last_activity.map_or(self.auto_lock_secs, |t| t.elapsed().as_secs());
+        Some(self.auto_lock_secs.saturating_sub(used))
     }
 
     /// Lock: drop the key (SecretBytes wipes it) AND forget the directory, so nothing that
@@ -77,6 +137,8 @@ impl VaultSession {
         self.session_key = None;
         self.vault_dir = None;
         self.fresh.clear();
+        self.v2 = None;
+        self.last_activity = None;
     }
 
     /// Take the derived key into protected memory; the caller's copy is wiped.

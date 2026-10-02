@@ -237,6 +237,9 @@ directory, so existing vaults and every existing command behave as before.
 
 `bankon-vault/2` (Argon2id → wrapped data key → per-entry HKDF, an encrypted index, Rust-enforced
 auto-lock, passphrase change without re-encryption) is specified in
-[security/bankon-vault-spec.md](security/bankon-vault-spec.md) and its 18 commands are in
-`commands_v2.rs`, **not compiled in**. `src/lib/vault.ts` gates its wrappers on `VAULT_V2_IN_BUILD`
-(false). When it lands, each profile directory migrates in place.
+[security/bankon-vault-spec.md](security/bankon-vault-spec.md). Since 0.2.5 its 17 commands in
+`commands_v2.rs` are compiled and registered — in the active profile's directory; custodian changes
+re-check the passphrase (attempt-limited) and a wallet-signature custodian's signature is verified
+in Rust against the vault's binding message (`binding_verify.rs`); `vault_retrieve_key_bytes` is
+removed. The app moves onto v2 in 0.2.7 (`src/lib/vault.ts` gates its wrappers on
+`VAULT_V2_IN_BUILD`, false until then), when each profile directory migrates in place on unlock.

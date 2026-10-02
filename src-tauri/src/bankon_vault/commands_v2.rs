@@ -14,21 +14,40 @@
 
 use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 use super::format::{CustodyKind, KeyScheme};
 use super::kdf::KdfParams;
-use super::overseer::{Overseer, PassphraseOverseer, SignatureOverseer};
+use super::overseer::{PassphraseOverseer, SignatureOverseer};
 use super::secure_mem::wipe;
 use super::vault::{self, Vault};
 use super::VaultState;
 
+/// The active profile's vault directory — the same one v1 uses (audit M8: this was
+/// hard-coded to the default profile).
 fn vault_dir(app: &AppHandle) -> Result<std::path::PathBuf, String> {
-    let base = app
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("failed to resolve app data dir: {e}"))?;
-    Ok(base.join("bankon_vault"))
+    super::profiles::active_dir(app)
+}
+
+/// Re-prove the passphrase of the open v2 vault, under the attempt limiter. Used before
+/// anything that changes who can open the vault (audit H9).
+fn reauth(dir: &std::path::Path, vault: &Vault, passphrase: &str) -> Result<(), String> {
+    super::throttle::check(dir)?;
+    match vault.unlock(&PassphraseOverseer::for_unlock(passphrase)) {
+        Ok(_) => {
+            super::throttle::record_success(dir);
+            Ok(())
+        }
+        Err(_) => {
+            let log = super::throttle::record_failure(dir);
+            let wait = super::throttle::delay_for(log.failures);
+            Err(if wait > 0 {
+                format!("current passphrase is incorrect — further attempts wait {wait} s")
+            } else {
+                "current passphrase is incorrect".to_string()
+            })
+        }
+    }
 }
 
 /// Which vault generation is on disk, and whether a session is open.
@@ -93,7 +112,7 @@ pub fn vault_v2_status(
 
 /// Create a new v2 vault with a passphrase custodian.
 #[tauri::command]
-pub fn vault_v2_create(
+pub async fn vault_v2_create(
     app: AppHandle,
     state: tauri::State<'_, VaultState>,
     passphrase: String,
@@ -118,7 +137,7 @@ pub fn vault_v2_create(
 
 /// Unlock with a passphrase.
 #[tauri::command]
-pub fn vault_v2_unlock(
+pub async fn vault_v2_unlock(
     app: AppHandle,
     state: tauri::State<'_, VaultState>,
     passphrase: String,
@@ -184,29 +203,6 @@ pub fn vault_store_key_bytes(
     Ok(serde_json::json!({ "ok": true, "address": address, "scheme": scheme.tag() }))
 }
 
-/// Retrieve raw key material as base64 bytes.
-///
-/// EXPORT PATH ONLY. Anything returned here becomes an immutable JavaScript
-/// string that can never be wiped, so signing must not go through it — Phase 3
-/// adds `vault_sign_*` commands that keep the secret inside Rust. Kept in the
-/// contract because other projects in the family depend on it.
-#[tauri::command]
-pub fn vault_retrieve_key_bytes(
-    state: tauri::State<'_, VaultState>,
-    chain: String,
-    address: String,
-) -> Result<serde_json::Value, String> {
-    let mut guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-    gate_idle(&mut guard)?;
-    let s = guard.v2().ok_or("vault is locked")?;
-    let secret = s.vault.retrieve_secret(&s.dek, &chain, &address)?;
-    let scheme = s.vault.scheme_of(&s.dek, &chain, &address)?;
-    Ok(serde_json::json!({
-        "secret_b64": B64.encode(secret.as_slice()),
-        "scheme": scheme.tag(),
-    }))
-}
-
 /// Remove an account and its key.
 #[tauri::command]
 pub fn vault_v2_remove_account(
@@ -223,11 +219,13 @@ pub fn vault_v2_remove_account(
 
 /// Change the passphrase. One 32-byte rewrap — no entry is re-encrypted.
 #[tauri::command]
-pub fn vault_change_passphrase(
+pub async fn vault_change_passphrase(
+    app: AppHandle,
     state: tauri::State<'_, VaultState>,
     current: String,
     new_passphrase: String,
 ) -> Result<serde_json::Value, String> {
+    let dir = vault_dir(&app)?;
     let params = super::kdf::calibrate(750);
     let new_overseer = PassphraseOverseer::new(&new_passphrase, "primary", params)?;
 
@@ -237,10 +235,7 @@ pub fn vault_change_passphrase(
 
     // Re-prove the current passphrase even though a session is already open, so
     // an unattended unlocked wallet cannot have its passphrase silently replaced.
-    let current_overseer = PassphraseOverseer::for_unlock(&current);
-    s.vault
-        .unlock(&current_overseer)
-        .map_err(|_| "current passphrase is incorrect".to_string())?;
+    reauth(&dir, &s.vault, &current)?;
 
     s.vault
         .change_passphrase(&s.dek, "primary", &new_overseer)?;
@@ -254,33 +249,44 @@ pub fn vault_change_passphrase(
 /// signing with a random `k` would produce a different key every time and make
 /// the vault unopenable through this custodian.
 #[tauri::command]
-pub fn vault_add_signature_custodian(
+pub async fn vault_add_signature_custodian(
+    app: AppHandle,
     state: tauri::State<'_, VaultState>,
+    chain: String,
     signature_b64: String,
     address: String,
     label: String,
+    passphrase: String,
 ) -> Result<serde_json::Value, String> {
+    let dir = vault_dir(&app)?;
     let mut sig = B64
         .decode(signature_b64.as_bytes())
         .map_err(|_| "signature_b64 is not valid base64".to_string())?;
-    let overseer = SignatureOverseer::new(&sig, &address, &label);
-    wipe(&mut sig);
-    let overseer = overseer?;
 
     let mut guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
     gate_idle(&mut guard)?;
     let s = guard.v2_mut().ok_or("vault is locked")?;
-    s.vault.add_custodian(&s.dek, &overseer)?;
+    // H9: the person at the keyboard proves the passphrase, and the signature must be
+    // the named address's signature over THIS vault's binding message.
+    reauth(&dir, &s.vault, &passphrase)?;
+    let message = super::overseer::binding_message(s.vault.vault_id(), &address);
+    let checked = super::binding_verify::verify(&chain, &address, message.as_bytes(), &sig);
+    let overseer = checked.and_then(|_| SignatureOverseer::new(&sig, &address, &label));
+    wipe(&mut sig);
+    s.vault.add_custodian(&s.dek, &overseer?)?;
     Ok(serde_json::json!({ "ok": true, "custodians": s.vault.custodians().len() }))
 }
 
 /// Remove a custodian by kind and label. Never the last one.
 #[tauri::command]
-pub fn vault_remove_custodian(
+pub async fn vault_remove_custodian(
+    app: AppHandle,
     state: tauri::State<'_, VaultState>,
     kind: String,
     label: String,
+    passphrase: String,
 ) -> Result<serde_json::Value, String> {
+    let dir = vault_dir(&app)?;
     let kind = match kind.as_str() {
         "passphrase" => CustodyKind::Passphrase,
         "wallet-signature" => CustodyKind::WalletSignature,
@@ -290,7 +296,8 @@ pub fn vault_remove_custodian(
     let mut guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
     gate_idle(&mut guard)?;
     let s = guard.v2_mut().ok_or("vault is locked")?;
-    s.vault.remove_custodian(kind, &label)?;
+    reauth(&dir, &s.vault, &passphrase)?;
+    s.vault.remove_custodian(&s.dek, kind, &label)?;
     Ok(serde_json::json!({ "ok": true }))
 }
 
@@ -333,12 +340,20 @@ pub fn vault_migration_plan(app: AppHandle) -> Result<serde_json::Value, String>
 /// v1 files are left in place, so a failure at any point leaves the participant's
 /// keys exactly where they were.
 #[tauri::command]
-pub fn vault_migrate(
+pub async fn vault_migrate(
     app: AppHandle,
     state: tauri::State<'_, VaultState>,
     passphrase: String,
 ) -> Result<serde_json::Value, String> {
     let dir = vault_dir(&app)?;
+    // The v1 passphrase is checked under the same attempt limiter as unlock.
+    super::throttle::check(&dir)?;
+    if !super::store::VaultStore::verify_passphrase(&dir, passphrase.as_bytes())? {
+        let log = super::throttle::record_failure(&dir);
+        let wait = super::throttle::delay_for(log.failures);
+        return Err(if wait > 0 { format!("wrong passphrase — further attempts wait {wait} s") } else { "wrong passphrase".to_string() });
+    }
+    super::throttle::record_success(&dir);
     let params = super::kdf::calibrate(750);
 
     // Policy is not enforced on migration: the existing passphrase may predate

@@ -349,6 +349,7 @@ impl Vault {
         format::open(ekey.as_slice(), &entry.sealed, &aad)
     }
 
+    #[allow(dead_code)] // for the v2 export path (0.2.6)
     pub fn scheme_of(&self, dek: &Dek, chain: &str, address: &str) -> Result<KeyScheme, String> {
         let oid = self.oid(dek, chain, address)?;
         self.doc

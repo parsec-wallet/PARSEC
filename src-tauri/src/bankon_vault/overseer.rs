@@ -42,6 +42,7 @@ pub fn binding_message(vault_id_hex: &str, address: &str) -> String {
 
 const INFO_PASSPHRASE: &[u8] = b"bankon-overseer-passphrase-v1";
 const INFO_WALLET: &[u8] = b"bankon-overseer-wallet-v1:";
+#[allow(dead_code)] // key-file custody has no command yet (audit L8)
 const INFO_KEYFILE: &[u8] = b"bankon-overseer-keyfile-v1";
 
 /// Length at which a passphrase is considered strong.
@@ -168,11 +169,14 @@ impl Overseer for SignatureOverseer {
 }
 
 /// Key-file custody: raw high-entropy bytes, typically on removable media.
+/// No command creates one yet (audit L8); the vault tests use it as the fast custodian.
+#[allow(dead_code)]
 pub struct KeyFileOverseer {
     raw: SecretBytes,
     label: String,
 }
 
+#[allow(dead_code)]
 impl KeyFileOverseer {
     pub fn new(raw: &[u8], label: &str) -> Result<Self, String> {
         if raw.len() < 32 {

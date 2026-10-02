@@ -135,7 +135,7 @@ fn every_signing_command_asks_the_keycore_first() {
     let srcs = sources();
     let unguarded: Vec<String> = registered(&srcs)
         .into_iter()
-        .filter(|n| n.contains("sign") && !SIGN_RELAYS.contains(&n.as_str()))
+        .filter(|n| n.split('_').any(|w| w == "sign") && !SIGN_RELAYS.contains(&n.as_str()))
         .filter(|n| !body(&srcs, n).is_some_and(|b| b.contains("approval::authorize(") || b.contains("spend_allowance(")))
         .collect();
     assert!(unguarded.is_empty(), "signing commands without a Keycore approval: {unguarded:?}");

@@ -3,6 +3,27 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.2.5 — 2026-10-01 (increment towards 0.3.0)
+
+`bankon-vault/2`, step 4: its commands, compiled and fixed. (The app still runs on the v1 vault;
+it moves onto v2 in 0.2.7.)
+- **Custodian changes need the person, and a real signature (H9).** Adding a wallet-signature
+  custodian or removing any custodian checks the current passphrase again, under the attempt
+  limiter; a signature custodian is accepted only if the Keycore verifies it is the named
+  address's signature over this vault's binding message (Algorand — raw or `MX`-prefixed —
+  Solana, and EVM `personal_sign`). Before, an unlocked session could add "a signature" that was
+  any 32 bytes, or remove the passphrase.
+- **No v2 plaintext retrieve (M11).** `vault_retrieve_key_bytes` is removed; the export is
+  `vault_export_secret`.
+- **Profiles (M8).** The v2 vault lives in the active profile's directory, like v1 — it was
+  hard-coded to the default profile.
+- Passphrase change and migration check the passphrase under the attempt limiter; the
+  Argon2-heavy v2 commands run off the UI thread.
+- `VaultSession` holds a v2 session (vault, data key, idle auto-lock); 17 v2 commands registered.
+- The vault screen asks for the current passphrase to change custodians, and shows the binding
+  message for the active account (it showed `[object Object]`).
+- Tests: signature verification for each chain.
+
 ## 0.2.4 — 2026-10-01 (increment towards 0.3.0)
 
 `bankon-vault/2`, step 3: a migration that cannot half-happen, and tampering that shows.

@@ -49,8 +49,8 @@ describe('bankon-vault/2 absent from this build', () => {
   it('refuses every write before IPC', async () => {
     await expect(vaultMigrate('pw')).rejects.toBeInstanceOf(VaultV2Unavailable);
     await expect(vaultChangePassphrase('a', 'b')).rejects.toBeInstanceOf(VaultV2Unavailable);
-    await expect(vaultRemoveCustodian('passphrase', 'x')).rejects.toBeInstanceOf(VaultV2Unavailable);
-    await expect(vaultBindingMessage()).rejects.toBeInstanceOf(VaultV2Unavailable);
+    await expect(vaultRemoveCustodian('passphrase', 'x', 'pw')).rejects.toBeInstanceOf(VaultV2Unavailable);
+    await expect(vaultBindingMessage('ADDR')).rejects.toBeInstanceOf(VaultV2Unavailable);
     await expect(vaultSetAutoLock(300)).rejects.toBeInstanceOf(VaultV2Unavailable);
     expect(calls).toEqual([]);
   });
