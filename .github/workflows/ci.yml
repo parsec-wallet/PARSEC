@@ -5,6 +5,7 @@ on:
     branches: [ dev, matrix-entry ]
   pull_request:
     branches: [ dev, matrix-entry ]
+  workflow_dispatch:
 
 jobs:
   lint-and-test:
