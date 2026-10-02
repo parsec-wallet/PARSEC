@@ -3,6 +3,24 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.2.4 — 2026-10-01 (increment towards 0.3.0)
+
+`bankon-vault/2`, step 3: a migration that cannot half-happen, and tampering that shows.
+- **Atomic migration (H8).** A v1 → v2 migration builds the whole document in memory, writes it
+  to `vault2.json.migrating`, reads it back **from disk** and checks every secret in constant
+  time, and only then renames it into place. A failure removes the partial file with v1
+  untouched; a leftover from an interrupted attempt is discarded, never read as a vault. Before,
+  the document was saved after every account, and a failure left a partial vault that read as
+  complete.
+- **Document MAC and generation (M7).** Every save increments a generation and seals the whole
+  document with an HMAC keyed from the vault key; unlocking checks it, so an entry or custodian
+  removed or swapped outside PARSEC is refused. `vault2.generation` records the highest
+  generation saved, and an older copy is refused as a possible rollback until the person removes
+  that file to accept a restore they made on purpose (it does not stop someone who controls the
+  whole directory — the spec says so).
+- The v1 session key and each v1 secret read during migration are wiped after use (L2).
+- Tests: no partial file left, a stale one discarded, a deleted entry and a rollback refused.
+
 ## 0.2.3 — 2026-10-01 (increment towards 0.3.0)
 
 `bankon-vault/2`, step 2: the format fixes from the audit. (No v2 vault exists yet, so the format
