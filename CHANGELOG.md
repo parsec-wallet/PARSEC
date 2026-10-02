@@ -3,6 +3,18 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.1.6 — 2026-10-01 (increment towards 0.2.0)
+
+Keys stay in the Keycore, step 2 of 5.
+- **dApp approvals are signed by the PARSEC Keycore.** The approval screen decoded the dApp's
+  transactions and signed them in JavaScript from the recovery phrase; each now goes to Rust.
+  A dApp may only ask this account to sign its own transactions — one from another address is
+  refused.
+- **.algo name transactions (mint, renew, segments, manage, Marketspace) are signed by the
+  Keycore**, through the NFD SDK's signer, which refuses a transaction from another address before
+  anything is signed.
+- Removed an unused ARC-52 signing helper that read the HD seed out of the vault.
+
 ## 0.1.5 — 2026-10-01 (increment towards 0.2.0)
 
 Keys stay in the Keycore, step 1 of 5 ([roadmap](docs/ROADMAP-1.0.md#020--keys-stay-in-the-keycore-audit-p1)).
