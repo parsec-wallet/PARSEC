@@ -1,20 +1,29 @@
-// PARSEC Wallet — the standard Algorand assets offered for one-click opt-in.
+// PARSEC Wallet — the verified Algorand assets: offered for one-click opt-in and the authority
+// for what "verified" means anywhere in the wallet.
 //
-// A short, curated list. Each entry was checked against the mainnet indexer on
-// 2026-10-01: the id, unit, decimals, creator and whether the issuer kept freeze
-// or clawback rights. The creator is part of the entry so a match means the
-// real asset, not one that copied its name. Anything not on this list is shown
-// as unverified, and an asset that borrows a listed unit name under another id
+// The data is `asset-whitelist.json`. Every entry is pinned by id, creator, unit, on-chain name,
+// decimals and the issuer's freeze/clawback rights, with the sources it was confirmed from;
+// `scripts/asa-whitelist-check.mjs` re-derives each one from the indexer (and Pera's verification
+// tier on mainnet) and the test suite holds the list to its committed snapshot. The creator is
+// part of the entry so a match means the real asset, not one that copied its name.
+//
+// Several real assets can share a ticker — Circle's USDC and Wormhole's bridged USDC are both
+// "USDC" — so the list tells them apart by issuer, and an asset is verified only by its id.
+// Anything not on the list is unverified, and an unlisted asset borrowing a listed unit or name
 // is called out as not the listed one.
 
 import type { NetworkId } from '../../types/wallet';
+import data from './asset-whitelist.json';
 
 export type AssetGroup = 'Stablecoins' | 'Bitcoin & Ether' | 'Algorand ecosystem';
 
 export interface StandardAsset {
   assetId: number;
   unitName: string;
+  /** The asset's on-chain name, exactly. */
   name: string;
+  /** How PARSEC names it where the on-chain name is ambiguous ("USD Coin (Wormhole)"). */
+  label?: string;
   decimals: number;
   issuer: string;
   creator: string;
@@ -23,24 +32,20 @@ export interface StandardAsset {
   freeze: boolean;
   /** The issuer can take tokens back. */
   clawback: boolean;
+  /** Where the entry was confirmed (the issuer's own page first). */
+  sources: string[];
 }
 
-const MAINNET: StandardAsset[] = [
-  { assetId: 31566704, unitName: 'USDC', name: 'USD Coin', decimals: 6, issuer: 'Circle', creator: '2UEQTE5QDNXPI7M3TU44G6SYKLFWLPQO7EBZM7K7MHMQQMFI4QJPLHQFHM', group: 'Stablecoins', freeze: true, clawback: false },
-  { assetId: 312769, unitName: 'USDt', name: 'Tether USDt', decimals: 6, issuer: 'Tether', creator: 'XIU7HGGAJ3QOTATPDSIIHPFVKMICXKHMOR2FJKHTVLII4FAOA3CYZQDLG4', group: 'Stablecoins', freeze: true, clawback: true },
-  { assetId: 227855942, unitName: 'EURS', name: 'STASIS EURO', decimals: 6, issuer: 'STASIS', creator: 'XOS4GHMBFJD3I7TYZQFB7FPZ25NHW5V2LS7O54JFSVTPNDAE45DFTKVN3U', group: 'Stablecoins', freeze: true, clawback: false },
-  { assetId: 386192725, unitName: 'goBTC', name: 'goBTC', decimals: 8, issuer: 'Algomint', creator: 'ETGSQKACKC56JWGMDAEP5S2JVQWRKTQUVKCZTMPNUGZLDVCWPY63LSI3H4', group: 'Bitcoin & Ether', freeze: false, clawback: false },
-  { assetId: 386195940, unitName: 'goETH', name: 'goETH', decimals: 8, issuer: 'Algomint', creator: 'ETGSQKACKC56JWGMDAEP5S2JVQWRKTQUVKCZTMPNUGZLDVCWPY63LSI3H4', group: 'Bitcoin & Ether', freeze: false, clawback: false },
-  { assetId: 793124631, unitName: 'gALGO', name: 'Governance Algo', decimals: 6, issuer: 'Folks Finance', creator: 'GGP73AZM3CMLDLXUDVR2NIULL3M7SORSI4N7DFIOZTVL62UOVSQUTZYEA4', group: 'Algorand ecosystem', freeze: false, clawback: false },
-  { assetId: 3203964481, unitName: 'FOLKS', name: 'Folks Finance', decimals: 6, issuer: 'Folks Finance', creator: 'RKBPWO3MXTHHMK2IZQSZK63XQQSWR7LCUCP4GXKD3T6WT5GZNNZI5XZUQE', group: 'Algorand ecosystem', freeze: false, clawback: false },
-  { assetId: 2200000000, unitName: 'TINY', name: 'TINY', decimals: 6, issuer: 'Tinyman', creator: 'TINY2IS2LVHYXH6YCVXMRKWET5YTMAUXOTGAMLVYKTJGQOEKNB2BZ6TINY', group: 'Algorand ecosystem', freeze: false, clawback: false },
-  { assetId: 700965019, unitName: 'VEST', name: 'Vestige', decimals: 6, issuer: 'Vestige', creator: 'VESTIG3V77NNVBT5SM636UKAZ3M5OQHM76TC5622RQ4Q2XUCYZ5E4ENB3E', group: 'Algorand ecosystem', freeze: false, clawback: false },
-  { assetId: 1138500612, unitName: 'GORA', name: 'GORA', decimals: 9, issuer: 'Gora', creator: 'J2GVFTADZB7QPJOZ4R3FHABV4NWGE6CN6SYPHW32N3CNEWCRD6ACYTPYVU', group: 'Algorand ecosystem', freeze: false, clawback: false },
-];
+/** The date the list was last checked against the chain. */
+export const WHITELIST_CHECKED: string = data.checked;
 
-const TESTNET: StandardAsset[] = [
-  { assetId: 10458941, unitName: 'USDC', name: 'USDC (Testnet)', decimals: 6, issuer: 'Circle', creator: '', group: 'Stablecoins', freeze: true, clawback: false },
-];
+const MAINNET = data.mainnet as StandardAsset[];
+const TESTNET = data.testnet as StandardAsset[];
+
+/** The name to show for a listed asset. */
+export function displayName(a: StandardAsset): string {
+  return a.label ?? a.name;
+}
 
 export function standardAssets(network: NetworkId): StandardAsset[] {
   return network === 'mainnet' ? MAINNET : network === 'testnet' ? TESTNET : [];
@@ -57,6 +62,8 @@ export function standardAsset(network: NetworkId, assetId: number): StandardAsse
  * it is the listed asset itself or borrows nothing.
  */
 export function lookalikeOf(network: NetworkId, assetId: number, unitName: string, name: string): StandardAsset | undefined {
+  // A listed asset is never a lookalike, even when another listed asset shares its ticker.
+  if (standardAsset(network, assetId)) return undefined;
   const u = unitName.trim().toLowerCase();
   const n = name.trim().toLowerCase();
   return standardAssets(network).find((a) => a.assetId !== assetId
@@ -74,5 +81,6 @@ export function searchStandard(network: NetworkId, query: string): StandardAsset
   return standardAssets(network).filter((a) => String(a.assetId) === q
     || a.unitName.toLowerCase().includes(q)
     || a.name.toLowerCase().includes(q)
+    || (a.label ?? '').toLowerCase().includes(q)
     || a.issuer.toLowerCase().includes(q));
 }

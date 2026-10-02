@@ -3,6 +3,22 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.3.1 — 2026-10-02 (increment towards 0.4.0)
+
+The verified asset list, as data that can be checked.
+- **22 verified mainnet assets** (was 10), each pinned by id, creator, unit, on-chain name,
+  decimals and freeze/clawback rights, with the sources it was confirmed from:
+  [`asset-whitelist.json`](src/lib/algorand/asset-whitelist.json). Added: goUSD, Wormhole's bridged
+  USDC, WBTC and WETH, the Wormhole NTT WBTC and WETH, xALGO, DEFLY, OPUL, HDL, COMPX, AKTA.
+- **`npm run asa:check`** re-derives every entry from the indexer and Pera's verification tier and
+  fails on any mismatch; `--write-snapshot` records the result, and the test suite holds the list to
+  that snapshot ([docs/verified-assets.md](docs/verified-assets.md)).
+- **Assets sharing a ticker are told apart**: Circle's USDC and Wormhole's bridged USDC are both on
+  the list, by issuer and label; a listed asset is never flagged as a lookalike of another.
+- Corrections found by the check: Circle's USDC is named "USDC" on chain (the list said "USD Coin" —
+  now its display label); testnet USDC has a clawback address (the list said it had none).
+- The check reads u64 supplies from the response text — `JSON.parse` rounded 2^64−1.
+
 ## 0.3.0 — 2026-10-01 — `bankon-vault/2` ships (milestone)
 
 The second milestone on the [road to 1.0.0](docs/ROADMAP-1.0.md), closing the vault audit's

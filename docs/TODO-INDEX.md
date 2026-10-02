@@ -18,15 +18,15 @@ Cadence as before: each 0.0.1 increment is pushed when its tests pass; installer
 release only at 0.4.0. Mainnet steps that move funds are the participant's — PARSEC prepares,
 the person signs in the Keycore dialog.
 
-### 0.3.1 — Verified ASA whitelist, the data
-- [ ] `src/lib/assets/whitelist.ts` (+ JSON snapshot): every entry pinned by id, creator, unit, name,
+### 0.3.1 — Verified ASA whitelist, the data *(done 2026-10-02 — 22 mainnet assets; [docs](./verified-assets.md))*
+- [x] `src/lib/algorand/asset-whitelist.json` (+ snapshot): every entry pinned by id, creator, unit, name,
   decimals, freeze/clawback addresses, source URL and the date it was checked. Start from the
   issuers' own published ids (Circle USDC/EURC, Tether, wrapped-asset bridges) and recognised
   verification registries; grow from today's dozen.
-- [ ] `scripts/asa-whitelist-check.mjs`: re-derives every entry against the mainnet indexer and its
+- [x] `scripts/asa-whitelist-check.mjs`: re-derives every entry against the mainnet indexer and its
   source snapshot; fails on any mismatch.
-- [ ] Test: the shipped list matches its snapshot; no two entries share a unit or name without the
-  lookalike flag.
+- [x] Test: the shipped list matches its snapshot; listed assets sharing a ticker are told apart by
+  issuer and label, never flagged as lookalikes.
 
 ### 0.3.2 — Lookalike detection
 - [ ] `classifyAsset(id, meta)` → `verified | unverified | lookalike(of)`: same unit or name (case,
