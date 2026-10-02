@@ -5,7 +5,7 @@
 > is wrong.
 >
 > Reference implementation: `src-tauri/src/bankon_vault/`.
-> Conformance suite: `cargo test --lib bankon_vault`.
+> Conformance suite: `cargo test --lib bankon_vault` (the v2 modules compile and run in it since PARSEC 0.2.2; the vault is not yet used by the app — see the roadmap, 0.3.0).
 
 ## Why a new format
 

@@ -9,8 +9,14 @@
 pub mod approval;
 pub mod binding;
 pub mod crypto;
+// bankon-vault/2: compiled and tested since 0.2.2, wired into the session in 0.2.6.
+#[allow(dead_code)]
+pub mod format;
 pub mod kdf;
 pub mod msgpack;
+// bankon-vault/2: compiled and tested since 0.2.2, wired into the session in 0.2.6.
+#[allow(dead_code)]
+pub mod overseer;
 pub mod secure_mem;
 pub mod store;
 pub mod commands;
@@ -18,6 +24,9 @@ pub mod profiles;
 pub mod tomb;
 pub mod tomb_commands;
 pub mod throttle;
+// bankon-vault/2: compiled and tested since 0.2.2, wired into the session in 0.2.6.
+#[allow(dead_code)]
+pub mod vault;
 
 use std::sync::Mutex;
 

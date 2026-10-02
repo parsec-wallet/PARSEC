@@ -3,6 +3,17 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.2.2 — 2026-10-01 (increment towards 0.3.0)
+
+`bankon-vault/2`, step 1: compiled and tested.
+- The second-generation vault (`format`, `vault`, `overseer`) is compiled into the Keycore for the
+  first time, and its own test suite runs in `cargo test --lib bankon_vault` (158 library tests,
+  37 of them newly compiled). The app does not use it yet — it is wired into the session in 0.2.6
+  and v1 vaults migrate on unlock in 0.2.7.
+- Its create guard used a check that no longer existed; it now uses the vault's "any trace of a
+  vault" check, and also refuses to create over a lone `vault2.json.bak` — the only copy of a vault
+  whose document was lost (audit M9).
+
 ## 0.2.1 — 2026-10-01 (increment towards 0.3.0)
 
 Generation in the Keycore.
