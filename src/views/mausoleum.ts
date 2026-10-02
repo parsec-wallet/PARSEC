@@ -12,7 +12,7 @@ import { tombCheck, tombClose, tombCreate, tombDetectUsb, tombOpen, tombSlam, to
 import {
   isTauri,
   vaultV2Status, vaultMigrationPlan, vaultMigrate, vaultChangePassphrase,
-  vaultRemoveCustodian, vaultBindingMessage,
+  vaultRemoveCustodian, vaultBindingMessage, vaultRemoveV1Files,
   vaultKdfProfile, vaultAutoLockStatus, vaultSetAutoLock,
   type VaultV2Status, type MigrationPlan, type KdfProfile, type AutoLockStatus,
 } from '../lib/vault';
@@ -653,6 +653,30 @@ export function mausoleumView(): HTMLElement {
           },
         }),
         status,
+      ]));
+    }
+
+    // ── Old v1 files after a migration ───────────────────────
+    if (ks.unlocked && ks.format === 'bankon-vault/2' && ks.v1FilesPresent) {
+      const pass = passphraseField({ placeholder: 'Current vault passphrase', meter: false });
+      body.appendChild(section('Remove the old bankon-vault/1 files', [
+        note(
+          'This vault was upgraded and opens as bankon-vault/2. The old v1 copy is still on disk with its weaker protection (19 MiB Argon2id, a verification token, a plaintext account list). Remove it once you are sure this vault opens — your keys stay in the v2 vault.',
+          'warning',
+        ),
+        pass.el,
+        btn('Remove old v1 files', {
+          intent: 'danger',
+          onClick: async () => {
+            if (!pass.value()) { toast('Enter your current passphrase.', 'danger'); return; }
+            try {
+              await vaultRemoveV1Files(pass.value());
+              pass.clear();
+              toast('Old v1 files removed.', 'success');
+              await loadKeystoreState(); render();
+            } catch (e) { toast(String(e), 'danger'); }
+          },
+        }),
       ]));
     }
 

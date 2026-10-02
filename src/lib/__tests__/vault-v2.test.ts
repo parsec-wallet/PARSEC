@@ -1,57 +1,53 @@
-// bankon-vault/2 is in the tree but not compiled into this build (VAULT_V2_IN_BUILD).
-// These pin the degraded contract: reads report the v1 vault honestly, and every
-// v2 write refuses before anything reaches IPC.
+// bankon-vault/2 is the vault in this build (0.2.7). These pin the wrappers' contract:
+// each reaches its Keycore command with the arguments the Rust side expects.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const calls: string[] = [];
+const calls: [string, unknown][] = [];
 
 vi.mock('../platform', () => ({
   isTauri: true,
-  invoke: async (cmd: string) => {
-    calls.push(cmd);
-    if (cmd === 'vault_status') {
-      return { exists: true, unlocked: false, accounts: [{ address: 'A1', chain: 'algorand', label: 'main' }] };
+  invoke: async (cmd: string, args?: unknown) => {
+    calls.push([cmd, args]);
+    if (cmd === 'vault_v2_status') {
+      return { format: 'bankon-vault/2', exists: true, needsMigration: false, v1FilesPresent: true, unlocked: true, entryCount: 2, custodians: [], accounts: [] };
     }
-    throw new Error(`Command ${cmd} not found`);
+    if (cmd === 'vault_binding_message') return { message: 'BANKON-VAULT-KEY-BINDING/2\n…' };
+    return { ok: true, removed: true };
   },
 }));
 
 import {
-  VAULT_V2_IN_BUILD, VaultV2Unavailable,
-  vaultV2Status, vaultMigrationPlan, vaultKdfProfile, vaultAutoLockStatus,
-  vaultMigrate, vaultChangePassphrase, vaultRemoveCustodian, vaultBindingMessage, vaultSetAutoLock,
+  VAULT_V2_IN_BUILD, vaultV2Status, vaultRemoveCustodian, vaultBindingMessage,
+  vaultAddSignatureCustodian, vaultRemoveV1Files,
 } from '../vault';
 
-describe('bankon-vault/2 absent from this build', () => {
+describe('bankon-vault/2 in this build', () => {
   beforeEach(() => { calls.length = 0; });
 
-  it('is switched off', () => {
-    expect(VAULT_V2_IN_BUILD).toBe(false);
+  it('is switched on', () => {
+    expect(VAULT_V2_IN_BUILD).toBe(true);
   });
 
-  it('reports the v1 vault as it is', async () => {
+  it('reads the v2 status from the Keycore', async () => {
     const s = await vaultV2Status();
-    expect(s).toMatchObject({
-      format: 'bankon-vault/1', exists: true, needsMigration: false, unlocked: false,
-      entryCount: 1, custodians: [], v2Available: false,
-    });
-    expect(calls).toEqual(['vault_status']);
+    expect(s).toMatchObject({ format: 'bankon-vault/2', v1FilesPresent: true, v2Available: true });
+    expect(calls.map((c) => c[0])).toEqual(['vault_v2_status']);
   });
 
-  it('offers no migration, KDF profile or auto-lock', async () => {
-    expect((await vaultMigrationPlan()).needed).toBe(false);
-    expect(await vaultKdfProfile()).toBeNull();
-    expect(await vaultAutoLockStatus()).toBeNull();
-    expect(calls).toEqual([]);
+  it('custodian changes and the v1 clean-up carry the passphrase', async () => {
+    await vaultRemoveCustodian('passphrase', 'old', 'pw');
+    await vaultAddSignatureCustodian({ chain: 'algorand', address: 'A', label: 'pera', signatureB64: 'c2ln', passphrase: 'pw' });
+    await vaultRemoveV1Files('pw');
+    expect(calls).toEqual([
+      ['vault_remove_custodian', { kind: 'passphrase', label: 'old', passphrase: 'pw' }],
+      ['vault_add_signature_custodian', { chain: 'algorand', address: 'A', label: 'pera', signatureB64: 'c2ln', passphrase: 'pw' }],
+      ['vault_remove_v1_files', { passphrase: 'pw' }],
+    ]);
   });
 
-  it('refuses every write before IPC', async () => {
-    await expect(vaultMigrate('pw')).rejects.toBeInstanceOf(VaultV2Unavailable);
-    await expect(vaultChangePassphrase('a', 'b')).rejects.toBeInstanceOf(VaultV2Unavailable);
-    await expect(vaultRemoveCustodian('passphrase', 'x', 'pw')).rejects.toBeInstanceOf(VaultV2Unavailable);
-    await expect(vaultBindingMessage('ADDR')).rejects.toBeInstanceOf(VaultV2Unavailable);
-    await expect(vaultSetAutoLock(300)).rejects.toBeInstanceOf(VaultV2Unavailable);
-    expect(calls).toEqual([]);
+  it('the binding message is asked for a named address', async () => {
+    expect((await vaultBindingMessage('ADDR')).message).toContain('BANKON-VAULT-KEY-BINDING/2');
+    expect(calls).toEqual([['vault_binding_message', { address: 'ADDR' }]]);
   });
 });

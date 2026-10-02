@@ -1,11 +1,11 @@
 # bankon_vault — how PARSEC keeps your keys
 
 The vault is where PARSEC keeps the secret half of every wallet: Algorand's 25-word phrase, Solana and
-Arweave seeds, EVM and Bitcoin keys. This guide covers the vault as it is built today (the
-first-generation format in `src-tauri/src/bankon_vault/`): what it is, how to use it, what to do when
-something goes wrong, and how code talks to it. The second-generation format is specified separately in
-[security/bankon-vault-spec.md](security/bankon-vault-spec.md) and is not compiled in yet (see the end of
-this guide).
+Arweave seeds, EVM and Bitcoin keys. Since PARSEC 0.2.7 new vaults are the
+second-generation format, `bankon-vault/2` ([security/bankon-vault-spec.md](security/bankon-vault-spec.md)),
+and a first-generation vault migrates on its next unlock. Much of this guide describes the
+first-generation format, which still matters for vaults not yet migrated and for Tomb volumes; the end of
+the guide covers the second generation.
 
 ## In one paragraph
 

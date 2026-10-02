@@ -234,6 +234,22 @@ impl VaultStore {
     }
 
     /// Destroy the entire vault
+    /// Delete only the `bankon-vault/1` files (manifest, verification token, key files),
+    /// leaving a `bankon-vault/2` vault in the same directory untouched.
+    pub fn remove_v1_files(vault_dir: &Path) -> Result<(), String> {
+        for f in [MANIFEST_FILE, VERIFY_FILE] {
+            let p = vault_dir.join(f);
+            if p.exists() {
+                fs::remove_file(&p).map_err(|e| format!("could not remove {f}: {e}"))?;
+            }
+        }
+        let keys = vault_dir.join(KEYS_DIR);
+        if keys.exists() {
+            fs::remove_dir_all(&keys).map_err(|e| format!("could not remove the v1 key files: {e}"))?;
+        }
+        Ok(())
+    }
+
     pub fn destroy(vault_dir: &Path) -> Result<(), String> {
         if vault_dir.exists() {
             fs::remove_dir_all(vault_dir)

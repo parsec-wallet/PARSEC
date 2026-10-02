@@ -92,8 +92,9 @@ pub fn active_dir(app: &AppHandle) -> Result<PathBuf, String> {
 
 fn describe(base: &Path, name: &str) -> serde_json::Value {
     let dir = dir_for(base, name);
-    let exists = VaultStore::exists(&dir);
-    let accounts: Vec<serde_json::Value> = if exists {
+    // A v2 vault keeps its account list encrypted, so a locked one lists none here.
+    let exists = VaultStore::exists(&dir) || super::vault::Vault::exists(&dir);
+    let accounts: Vec<serde_json::Value> = if VaultStore::exists(&dir) {
         VaultStore::read_manifest(&dir)
             .map(|m| {
                 m.accounts

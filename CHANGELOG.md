@@ -3,6 +3,24 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.2.7 — 2026-10-01 (increment towards 0.3.0)
+
+`bankon-vault/2` is the vault.
+- **New vaults are `bankon-vault/2`**, at the platform's Argon2id cost — 256 MiB on the desktop,
+  64 MiB on phones — with the number of passes calibrated to about 750 ms on the machine.
+- **A `bankon-vault/1` vault migrates on its next unlock.** The passphrase is checked, the vault is
+  rebuilt as v2 (atomically, read back from disk and verified before it is used) and opened as v2.
+  The first unlock after updating takes a few seconds longer. The v1 files are kept.
+- **Removing the old v1 files** is the person's choice: the vault screen explains that the old copy
+  still has v1's weaker protection and removes it with the passphrase (`vault_remove_v1_files`).
+- Unlock reports a tampered, rolled-back or out-of-bounds vault as such, not as a wrong passphrase;
+  destroying a vault checks the passphrase against whichever format it is.
+- The app's v2 wrappers are on (`VAULT_V2_IN_BUILD`).
+- Tomb volumes still hold a `bankon-vault/1` vault; moving them is tracked.
+- Docs: the threat model, SECURITY.md, README and the vault guide describe v2 as the vault; the
+  public audit marks the v1-derivation and v2-fix findings fixed.
+- Test: migrate, remove the v1 files, and the v2 vault still opens with every secret.
+
 ## 0.2.6 — 2026-10-01 (increment towards 0.3.0)
 
 `bankon-vault/2`, step 5: one seam for both vaults.

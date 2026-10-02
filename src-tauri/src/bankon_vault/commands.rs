@@ -65,10 +65,12 @@ pub fn vault_status(
     }))
 }
 
-/// Create a new vault with a passphrase
+/// Create a new vault with a passphrase — a `bankon-vault/2` vault since 0.2.7, at the
+/// platform's Argon2id cost (256 MiB desktop, 64 MiB phone), passes calibrated to ~750 ms.
 #[tauri::command]
-pub fn vault_create(
+pub async fn vault_create(
     app: AppHandle,
+    state: tauri::State<'_, VaultState>,
     passphrase: String,
 ) -> Result<serde_json::Value, String> {
     if passphrase.len() < 8 {
@@ -76,50 +78,106 @@ pub fn vault_create(
     }
 
     let dir = vault_dir(&app)?;
-    // Any trace of a vault — a manifest, a verify token or a single key file — means one is
-    // here, perhaps damaged. Writing a fresh salt over it would orphan every key it holds.
-    if VaultStore::has_any_artefact(&dir) {
+    // Any trace of a vault, of either generation, means one is here, perhaps damaged.
+    if VaultStore::has_any_artefact(&dir) || super::vault::Vault::exists(&dir) {
         return Err("a vault (or part of one) already exists here; it was not overwritten".to_string());
     }
 
-    VaultStore::create(&dir, passphrase.as_bytes())?;
+    let params = super::kdf::calibrate(750);
+    let overseer = super::overseer::PassphraseOverseer::new(&passphrase, "primary", params)?;
+    let v = super::vault::Vault::create(&dir, &overseer)?;
+    let dek = v.unlock(&overseer)?;
+    state.inner.lock().map_err(|_| "vault state poisoned")?.unlock_v2(v, dek, dir);
 
-    Ok(serde_json::json!({ "ok": true }))
+    Ok(serde_json::json!({ "ok": true, "format": "bankon-vault/2" }))
 }
 
-/// Unlock the vault — verifies passphrase, starts session
+/// Unlock the vault — verifies the passphrase, starts a session.
+///
+/// A `bankon-vault/2` vault opens directly. A `bankon-vault/1` vault is migrated on this
+/// unlock: verified, rebuilt as v2 (atomically, read back from disk before it is put in
+/// place — `vault::migrate_v1`), and opened as v2. The v1 files are left where they were
+/// until the person removes them (`vault_remove_v1_files`). Every path is attempt-limited.
 #[tauri::command]
-pub fn vault_unlock(
+pub async fn vault_unlock(
     app: AppHandle,
     state: tauri::State<'_, VaultState>,
     passphrase: String,
 ) -> Result<serde_json::Value, String> {
     let dir = vault_dir(&app)?;
-
-    if !VaultStore::exists(&dir) {
+    let v2 = super::vault::Vault::exists(&dir);
+    if !v2 && !VaultStore::exists(&dir) {
         return Err("no vault found".to_string());
     }
 
     // Attempt limiting: refused before the Argon2 work while a backoff is owed.
     super::throttle::check(&dir)?;
-    let valid = VaultStore::verify_passphrase(&dir, passphrase.as_bytes())?;
-    if !valid {
-        let log = super::throttle::record_failure(&dir);
+    let wrong = |dir: &std::path::Path| {
+        let log = super::throttle::record_failure(dir);
         let wait = super::throttle::delay_for(log.failures);
-        return Err(if wait > 0 {
-            format!("wrong passphrase — further attempts wait {wait} s")
-        } else {
-            "wrong passphrase".to_string()
-        });
+        if wait > 0 { format!("wrong passphrase — further attempts wait {wait} s") } else { "wrong passphrase".to_string() }
+    };
+
+    if v2 {
+        let v = super::vault::Vault::load(&dir)?;
+        let dek = match v.unlock(&super::overseer::PassphraseOverseer::for_unlock(&passphrase)) {
+            Ok(dek) => dek,
+            // A tampered or rolled-back document is not a wrong passphrase; say what it is.
+            Err(e) if e.contains("integrity") || e.contains("rolled back") || e.contains("unsafe") || e.contains("malformed") => return Err(e),
+            Err(_) => return Err(wrong(&dir)),
+        };
+        super::throttle::record_success(&dir);
+        state.inner.lock().map_err(|_| "vault state poisoned")?.unlock_v2(v, dek, dir);
+        return Ok(serde_json::json!({ "ok": true, "unlocked": true, "format": "bankon-vault/2" }));
+    }
+
+    if !VaultStore::verify_passphrase(&dir, passphrase.as_bytes())? {
+        return Err(wrong(&dir));
     }
     super::throttle::record_success(&dir);
 
-    let session_key = VaultStore::derive_session_key(&dir, passphrase.as_bytes())?;
+    let params = super::kdf::calibrate(750);
+    let overseer = super::overseer::PassphraseOverseer::new(&passphrase, "primary", params)
+        .unwrap_or_else(|_| super::overseer::PassphraseOverseer::for_unlock(&passphrase));
+    let v = super::vault::migrate_v1(&dir, &passphrase, &overseer)?;
+    let dek = v.unlock(&overseer)?;
+    let migrated = v.entry_count();
+    state.inner.lock().map_err(|_| "vault state poisoned")?.unlock_v2(v, dek, dir);
 
-    let mut guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-    guard.unlock(session_key, dir);
+    Ok(serde_json::json!({ "ok": true, "unlocked": true, "format": "bankon-vault/2", "migrated": migrated }))
+}
 
-    Ok(serde_json::json!({ "ok": true, "unlocked": true }))
+/// Remove the `bankon-vault/1` files a migration left behind.
+///
+/// Only with the v2 vault open (so it is known to work) and the passphrase checked again.
+/// Until then the v1 copy keeps its weaker protection on disk (19 MiB Argon2id, a
+/// verification token, a plaintext account list).
+#[tauri::command]
+pub async fn vault_remove_v1_files(
+    app: AppHandle,
+    state: tauri::State<'_, VaultState>,
+    passphrase: String,
+) -> Result<serde_json::Value, String> {
+    let dir = vault_dir(&app)?;
+    {
+        let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
+        if guard.v2().is_none() {
+            return Err("open the bankon-vault/2 vault first".to_string());
+        }
+    }
+    if !VaultStore::has_any_artefact(&dir) {
+        return Ok(serde_json::json!({ "ok": true, "removed": false }));
+    }
+    super::throttle::check(&dir)?;
+    let matches = state.inner.lock().map_err(|_| "vault state poisoned")?.passphrase_matches(&passphrase)?;
+    if !matches {
+        let log = super::throttle::record_failure(&dir);
+        let wait = super::throttle::delay_for(log.failures);
+        return Err(if wait > 0 { format!("wrong passphrase — further attempts wait {wait} s") } else { "wrong passphrase".to_string() });
+    }
+    super::throttle::record_success(&dir);
+    VaultStore::remove_v1_files(&dir)?;
+    Ok(serde_json::json!({ "ok": true, "removed": true }))
 }
 
 /// Lock the vault — clears session key from memory
@@ -273,12 +331,19 @@ pub fn vault_destroy(
 ) -> Result<serde_json::Value, String> {
     let dir = vault_dir(&app)?;
 
-    if !VaultStore::exists(&dir) {
+    let v2 = super::vault::Vault::exists(&dir);
+    if !v2 && !VaultStore::exists(&dir) {
         return Err("no vault to destroy".to_string());
     }
 
     super::throttle::check(&dir)?;
-    let valid = VaultStore::verify_passphrase(&dir, passphrase.as_bytes())?;
+    let valid = if v2 {
+        super::vault::Vault::load(&dir)?
+            .unlock(&super::overseer::PassphraseOverseer::for_unlock(&passphrase))
+            .is_ok()
+    } else {
+        VaultStore::verify_passphrase(&dir, passphrase.as_bytes())?
+    };
     if !valid {
         super::throttle::record_failure(&dir);
         return Err("wrong passphrase — vault destruction requires verification".to_string());
