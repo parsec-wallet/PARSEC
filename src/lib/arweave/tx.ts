@@ -1,26 +1,22 @@
 // Arweave transaction builder + vault-bridged signer.
 //
 // The signing flow is Arweave-specific (deep-hash → RSA-PSS → derive id from
-// signature) and is not a plain "sign this payload, return signature" call.
-// Arweave needs the signature THEN sets it back onto the tx and derives an
-// id from it. So this module owns its own vault-retrieval path — but uses
-// the same primitives (keystoreRetrieve + WebCrypto RSA-PSS) for parity.
+// signature): the signature is set back onto the tx and the id derived from it.
+// The signature itself comes from `vaultArweaveKey` — the PARSEC Keycore
+// (`chain_ar_sign`) on the desktop, the browser keystore otherwise.
 //
 // Public surface:
 //   buildUploadTx   — construct an unsigned tx (fetches anchor + price)
 //   signTx          — sign with a JWK (pure, no vault, useful for tests)
-//   signTxFromVault — retrieve JWK from vault, sign, zero JWK
+//   signTxWith      — sign with any owner + RSA-PSS signer
+//   signTxFromVault — sign with the vault key for an address
 //   uploadTx        — chunked POST to the gateway with progress callbacks
 //   uploadData      — one-shot: build → sign → upload
 
 import type Transaction from 'arweave/node/lib/transaction';
 import { getArweaveClient } from './client';
-import {
-  addressFromJwk,
-  bytesToBase64url,
-  type ArweaveJwk,
-} from './jwk';
-import { keystoreRetrieve } from '../keystore';
+import { bytesToBase64url, type ArweaveJwk } from './jwk';
+import { signWithJwk, vaultArweaveKey } from './vault-key';
 
 export interface ArweaveTag {
   name: string;
@@ -91,30 +87,27 @@ export async function signTx(
   jwk: ArweaveJwk | JsonWebKey,
 ): Promise<Transaction> {
   if (!jwk.n) throw new Error('JWK missing public modulus n');
+  return signTxWith(tx, jwk.n, (data) => signWithJwk(jwk, data));
+}
 
-  // Ensure owner matches the JWK we're signing with. Mismatches here
+/**
+ * Sign an unsigned tx as `owner` with any RSA-PSS signer (the Keycore, or a
+ * JWK). Mutates `tx` by setting its signature and id.
+ */
+export async function signTxWith(
+  tx: Transaction,
+  owner: string,
+  sign: (signatureData: Uint8Array) => Promise<Uint8Array>,
+): Promise<Transaction> {
+  // Ensure owner matches the key we're signing with. Mismatches here
   // would post a tx whose signature doesn't verify against owner.
   if (!tx.owner) {
-    tx.setOwner(jwk.n);
-  } else if (tx.owner !== jwk.n) {
-    throw new Error('Transaction owner does not match signing JWK');
+    tx.setOwner(owner);
+  } else if (tx.owner !== owner) {
+    throw new Error('Transaction owner does not match signing key');
   }
 
-  const sigData = await tx.getSignatureData();
-
-  const cryptoKey = await crypto.subtle.importKey(
-    'jwk',
-    jwk,
-    { name: 'RSA-PSS', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  );
-  const sigBuf = await crypto.subtle.sign(
-    { name: 'RSA-PSS', saltLength: 32 },
-    cryptoKey,
-    sigData as unknown as BufferSource,
-  );
-  const signature = new Uint8Array(sigBuf);
+  const signature = await sign(await tx.getSignatureData());
 
   // Arweave tx id = SHA-256(signature), base64url-encoded.
   const idBuf = await crypto.subtle.digest('SHA-256', signature as unknown as BufferSource);
@@ -122,42 +115,23 @@ export async function signTx(
 
   tx.setSignature({
     id,
-    owner: jwk.n,
+    owner,
     signature: bytesToBase64url(signature),
   });
   return tx;
 }
 
-/**
- * Retrieve the JWK from the vault, sign the tx, zero the plaintext JWK.
- */
+/** Sign the tx with the vault key for `address`. */
 export async function signTxFromVault(
   address: string,
   passphrase: string,
   tx: Transaction,
 ): Promise<Transaction> {
-  const secret = await keystoreRetrieve(address, passphrase);
-  if (!secret) throw new Error(`No Arweave key in vault for ${address}`);
-
-  let jwk: ArweaveJwk;
+  const key = await vaultArweaveKey(address, passphrase);
   try {
-    jwk = JSON.parse(secret) as ArweaveJwk;
-  } catch {
-    throw new Error('Vault secret for Arweave wallet must be a JWK JSON string');
-  }
-
-  try {
-    return await signTx(tx, jwk);
+    return await signTxWith(tx, key.owner, key.sign);
   } finally {
-    // Best-effort: drop references to JWK fields. JS strings are immutable
-    // so true zeroing requires Uint8Array buffers — this at least breaks
-    // the object graph so the JWK is eligible for GC immediately.
-    jwk.d = '';
-    jwk.p = '';
-    jwk.q = '';
-    jwk.dp = '';
-    jwk.dq = '';
-    jwk.qi = '';
+    key.dispose();
   }
 }
 
@@ -220,29 +194,12 @@ export async function uploadData(
   opts: UploadOptions,
   onProgress?: (p: UploadProgress) => void,
 ): Promise<TxReceipt> {
-  const secret = await keystoreRetrieve(address, passphrase);
-  if (!secret) throw new Error(`No Arweave key in vault for ${address}`);
-  let jwk: ArweaveJwk;
+  const key = await vaultArweaveKey(address, passphrase);
   try {
-    jwk = JSON.parse(secret) as ArweaveJwk;
-  } catch {
-    throw new Error('Vault secret for Arweave wallet must be a JWK JSON string');
-  }
-  try {
-    // Sanity-check: confirm JWK address matches the requested wallet.
-    const derived = await addressFromJwk(jwk);
-    if (derived !== address) {
-      throw new Error(`Vault JWK address (${derived}) does not match wallet ${address}`);
-    }
-    const tx = await buildUploadTx(jwk.n!, opts);
-    await signTx(tx, jwk);
+    const tx = await buildUploadTx(key.owner, opts);
+    await signTxWith(tx, key.owner, key.sign);
     return await uploadTx(tx, onProgress);
   } finally {
-    jwk.d = '';
-    jwk.p = '';
-    jwk.q = '';
-    jwk.dp = '';
-    jwk.dq = '';
-    jwk.qi = '';
+    key.dispose();
   }
 }

@@ -3,6 +3,24 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.1.8 — 2026-10-01 (increment towards 0.2.0)
+
+Keys stay in the Keycore, step 4 of 5.
+- **Arweave signs in the PARSEC Keycore.** Transactions, AR transfers, uploads, ANS-104 DataItems
+  (AO messages, ArNS and ANT writes, Marketspace escrow, name mints) and the dApp
+  `window.arweaveWallet` signer read the JWK into JavaScript and signed with WebCrypto; each now
+  hands the deep-hash to `chain_ar_sign` and gets back only the signature. The AO process spawns
+  on the BANKON admin screen sign the same way. One seam, `arweave/vault-key.ts`.
+- **Solana signs in the Keycore.** SOL sends, wallet message signing and the @solana/kit signer
+  used for ArNS (Solana-era) writes go through `chain_sol_sign`.
+- **The Keycore's Solana signer reads raw keys** imported from Phantom, Solflare or
+  `solana-keygen` (`solana-raw:`), not only phrases, and refuses one whose public half does not
+  match. **`chain_ar_sign` now checks the stored key belongs to the address**, as the Algorand
+  and Solana signers do.
+- The browser build (no Keycore) keeps reading the key for the moment of signing.
+- Tests: Arweave and Solana sign through the Keycore with no secret read into JavaScript; Rust
+  tests for stored raw Solana keys.
+
 ## 0.1.7 — 2026-10-01 (increment towards 0.2.0)
 
 Keys stay in the Keycore, step 3 of 5.

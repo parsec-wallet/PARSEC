@@ -3,9 +3,8 @@
 // transfer is small enough to assemble from the base58 + ed25519 primitives
 // already in the bundle (src/lib/solana/address.ts, @noble/curves).
 
-import { ed25519 } from '@noble/curves/ed25519.js';
 import { base58Decode } from './address';
-import { deriveSolanaFromMnemonic } from './seed';
+import type { SolanaMessageSigner } from './kit-signer';
 import { solanaRpc, LAMPORTS_PER_SOL } from './balance';
 
 // System Program id is 32 zero bytes (base58 "111…11").
@@ -68,20 +67,21 @@ export function buildTransferMessage(
 }
 
 /** Build → sign → submit a SOL transfer. Returns the transaction signature. */
-export async function sendSol(mnemonic: string, to: string, amountSol: number): Promise<string> {
+export async function sendSol(signer: SolanaMessageSigner, to: string, amountSol: number): Promise<string> {
   const toBytes = base58Decode(to);
   if (toBytes.length !== 32) throw new Error('Invalid Solana recipient address');
   if (!(amountSol > 0)) throw new Error('Amount must be greater than zero');
   const lamports = BigInt(Math.round(amountSol * LAMPORTS_PER_SOL));
 
-  const { secretSeed, publicKey } = await deriveSolanaFromMnemonic(mnemonic);
-  try {
+  const publicKey = base58Decode(signer.address);
+  if (publicKey.length !== 32) throw new Error('Invalid Solana sender address');
+  {
     const { value } = await solanaRpc<{ value: { blockhash: string } }>(
       'getLatestBlockhash',
       [{ commitment: 'finalized' }],
     );
     const message = buildTransferMessage(publicKey, toBytes, lamports, base58Decode(value.blockhash));
-    const signature = ed25519.sign(message, secretSeed);
+    const signature = await signer.sign(message);
     const wire = base64(concat([compactU16(1), signature, message]));
 
     // Preflight: simulate the signed transaction before broadcasting. A
@@ -98,7 +98,5 @@ export async function sendSol(mnemonic: string, to: string, amountSol: number): 
     }
 
     return await solanaRpc<string>('sendTransaction', [wire, { encoding: 'base64' }]);
-  } finally {
-    secretSeed.fill(0);
   }
 }

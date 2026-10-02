@@ -116,7 +116,12 @@ pub fn chain_ar_sign(
     let stored = guard.retrieve_by_address(&args.address)?;
     let text = std::str::from_utf8(stored.as_slice())
         .map_err(|_| "stored Arweave secret is not a JWK")?;
-    let key = jwk::to_private_key(&keys::jwk_from_json(text)?)?;
+    let parsed = keys::jwk_from_json(text)?;
+    // The key must be the one for this address (see chain_algo's seed_for).
+    if keys::address_from_jwk(&parsed)? != args.address {
+        return Err("the key stored for this address does not match it; nothing was signed".to_string());
+    }
+    let key = jwk::to_private_key(&parsed)?;
     let sig = sign::sign(&key, &payload)?;
 
     Ok(serde_json::json!({

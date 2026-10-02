@@ -7,7 +7,6 @@
 // yet surfaced in any UI flow; the migration just needs the address.
 
 import * as bip39 from 'bip39';
-import { ed25519 } from '@noble/curves/ed25519.js';
 import type {
   WalletModule,
   CreatedWallet,
@@ -16,7 +15,6 @@ import type {
 } from '../pouch/types';
 import { deriveSolanaFromMnemonic } from './seed';
 import { isSolanaAddress } from './address';
-import { keystoreRetrieve } from '../keystore';
 
 export const solanaModule: WalletModule = {
   chainId: 'solana',
@@ -57,19 +55,9 @@ export const solanaModule: WalletModule = {
   },
 
   async signMessage(walletId: string, message: Uint8Array): Promise<Uint8Array> {
-    // walletId = Solana base58 address. Retrieves mnemonic from vault,
-    // derives the secret seed, signs, discards.
-    const mnemonic = await keystoreRetrieve(walletId, '');
-    if (!mnemonic) throw new Error(`No Solana key in vault for ${walletId}`);
-    const { secretSeed, address } = await deriveSolanaFromMnemonic(mnemonic);
-    if (address !== walletId) {
-      throw new Error(`Vault key mismatch: expected ${walletId}, got ${address}`);
-    }
-    try {
-      return ed25519.sign(message, secretSeed);
-    } finally {
-      secretSeed.fill(0);
-    }
+    // walletId = Solana base58 address. Signed by the Keycore on the desktop.
+    const { solanaMessageSigner } = await import('./kit-signer');
+    return solanaMessageSigner(walletId).sign(message);
   },
 
   async exportPublicSurface(walletId: string): Promise<PublicSurface> {

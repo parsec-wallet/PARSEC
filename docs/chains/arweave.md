@@ -32,7 +32,7 @@ DataItems, and ArNS / BANKON name actions.
 | Import | ✅ mnemonic · JWK (private-key) · watch-only |
 | Balance | ✅ via the gateway client |
 | Send | ✅ `views/arweave-send.ts` — AR transfer |
-| Sign | ✅ RSA-PSS via WebCrypto |
+| Sign | ✅ RSA-PSS in the PARSEC Keycore (`chain_ar_sign`, via `arweave/vault-key.ts`); WebCrypto in the browser build |
 | Permaweb | ✅ AO messages/spawn, ANS-104 DataItems, ArNS, ANT, gateway upload |
 
 ## Key files

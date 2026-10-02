@@ -21,8 +21,8 @@
 // The signed payload is a deep-hash over a fixed list of fields per the spec
 // (NOT the binary above) — see dataItemSignatureData().
 
-import { addressFromJwk, base64urlToBytes, bytesToBase64url, parseJwk, type ArweaveJwk } from './jwk';
-import { keystoreRetrieve } from '../keystore';
+import { base64urlToBytes, bytesToBase64url, type ArweaveJwk } from './jwk';
+import { signWithJwk, vaultArweaveKey } from './vault-key';
 
 export interface DataItemTag {
   name: string;
@@ -73,22 +73,7 @@ export async function signDataItem(
   if (jwk.n !== input.owner) {
     throw new Error('DataItem owner does not match signing JWK');
   }
-  return signDataItemWith(input, async (sigData) => {
-    // RSA-PSS sign with SHA-256 + 32-byte salt (Arweave convention).
-    const cryptoKey = await crypto.subtle.importKey(
-      'jwk',
-      jwk,
-      { name: 'RSA-PSS', hash: 'SHA-256' },
-      false,
-      ['sign'],
-    );
-    const sigBuf = await crypto.subtle.sign(
-      { name: 'RSA-PSS', saltLength: 32 },
-      cryptoKey,
-      sigData as unknown as BufferSource,
-    );
-    return new Uint8Array(sigBuf);
-  });
+  return signDataItemWith(input, (sigData) => signWithJwk(jwk, sigData));
 }
 
 /**
@@ -177,36 +162,17 @@ export function estimateDataItemSize(opts: {
     + 8 + 8 + encodeTags(opts.tags ?? []).length + opts.dataLength;
 }
 
-/**
- * Retrieve the JWK from the vault, sign the DataItem, zero the plaintext JWK.
- * Mirrors signTxFromVault() in tx.ts.
- */
+/** Sign the DataItem with the vault key for `address` (the Keycore on the desktop). */
 export async function signDataItemFromVault(
   address: string,
   passphrase: string,
   input: Omit<DataItemInput, 'owner'> & { owner?: string },
 ): Promise<SignedDataItem> {
-  const secret = await keystoreRetrieve(address, passphrase);
-  if (!secret) throw new Error(`No Arweave key in vault for ${address}`);
-  let jwk: ArweaveJwk;
+  const key = await vaultArweaveKey(address, passphrase);
   try {
-    jwk = parseJwk(secret);
-  } catch {
-    throw new Error('Vault secret for Arweave wallet must be a JWK JSON string');
-  }
-  try {
-    const derived = await addressFromJwk(jwk);
-    if (derived !== address) {
-      throw new Error(`Vault JWK address (${derived}) does not match wallet ${address}`);
-    }
-    return await signDataItem({ ...input, owner: jwk.n! }, jwk);
+    return await signDataItemWith({ ...input, owner: key.owner }, key.sign);
   } finally {
-    jwk.d = '';
-    jwk.p = '';
-    jwk.q = '';
-    jwk.dp = '';
-    jwk.dq = '';
-    jwk.qi = '';
+    key.dispose();
   }
 }
 

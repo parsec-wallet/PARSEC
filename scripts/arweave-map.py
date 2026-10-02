@@ -30,7 +30,7 @@ GROUPS = [
     ("Keys & signing", [
         "src-tauri/src/chain_ar/*.rs", "src/lib/chain-ar.ts",
         "src/lib/arweave/seed.ts", "src/lib/arweave/derive-worker.ts", "src/lib/arweave/jwk.ts",
-        "src/lib/arweave/module.ts", "src/lib/arweave/signer.ts"]),
+        "src/lib/arweave/module.ts", "src/lib/arweave/signer.ts", "src/lib/arweave/vault-key.ts"]),
     ("Transport & encoding", [
         "src/lib/arweave/client.ts", "src/lib/arweave/tx.ts", "src/lib/arweave/ans104.ts",
         "src/lib/arweave/ao.ts", "src/lib/arweave/inject.ts", "src/lib/arweave/index.ts",
@@ -69,7 +69,7 @@ GROUPS = [
         "src/lib/namespaces/__tests__/*.ts", "src/lib/names/__tests__/*.ts",
         "src/lib/marketplace/providers/__tests__/*.ts", "apps/parsec-names/test/*.mjs",
         "src/lib/__tests__/storage-cost.test.ts", "src/lib/__tests__/name-cost.test.ts",
-        "src/lib/__tests__/nfd-stores.test.ts"]),
+        "src/lib/__tests__/nfd-stores.test.ts", "src/lib/__tests__/keycore-arweave-solana.test.ts"]),
 ]
 
 # Files that mention the permaweb in passing and belong to another module. Listed, not hidden:

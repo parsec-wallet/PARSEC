@@ -135,11 +135,15 @@ allocates a *new* string and leaves the original for the collector.
 - **Every chain pack can sign in Rust** — Algorand, Solana, Arweave, Bitcoin,
   Litecoin and EVM: `*_sign_*` retrieves, uses and wipes the secret and returns a
   signature only, and checks the key belongs to the address (Algorand and Solana
-  since 0.1.4).
-- ***Open:* several frontend paths still retrieve a secret and sign in JavaScript**
-  (some sends, dApp approvals, x402 and Arweave paths), through a retrieve command
-  that returns plaintext. Moving every one of them onto the Keycore and removing
-  that command is the next remediation step.
+  since 0.1.4, Arweave since 0.1.8; Solana raw keys since 0.1.8).
+- **On the desktop, every participant signing path uses the Keycore** (0.1.5–0.1.8):
+  ALGO/ASA sends and opt-outs, dApp approvals, .algo name transactions, x402 and AORC
+  mints, Solana sends and @solana/kit writes, and every Arweave transaction, upload,
+  DataItem and dApp signature. The browser build has no Keycore and still reads the
+  key for the moment of signing.
+- ***Open:* the retrieve command that returns plaintext is still registered**, and
+  signing commands have no Rust-side approval step. Removing it (with one
+  re-authenticated export in its place) and adding the approval complete 0.2.0.
 - **Key generation moved for the participant-facing path.**
   `chain_algo_create_account` and `chain_ar_create_account` generate, store and
   drop the secret inside Rust, returning an address rather than a seed, and

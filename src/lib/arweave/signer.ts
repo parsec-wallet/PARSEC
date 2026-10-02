@@ -1,19 +1,19 @@
-// Vault-bridged Arweave signer factory. Mirrors src/lib/x402/bridge.ts's
-// buildAlgorandX402Signer pattern: retrieve the JWK from BANKON once, hold
-// it in a closure for one logical interaction, sign whatever the dApp asks,
-// then discard. The keys never leave the closure scope.
+// Vault-bridged Arweave signer factory: one signer per dApp connection or
+// logical interaction. Signatures come from `vaultArweaveKey` — the PARSEC
+// Keycore (`chain_ar_sign`) on the desktop, so the JWK never enters JavaScript;
+// the browser build holds the JWK until dispose().
 //
 // The injected window.arweaveWallet API consumes one of these per connection.
 
 import type Transaction from 'arweave/node/lib/transaction';
-import { addressFromJwk, base64urlToBytes, bytesToBase64url, parseJwk, type ArweaveJwk } from './jwk';
-import { signDataItem, type DataItemInput, type SignedDataItem } from './ans104';
-import { signTx, uploadTx, type TxReceipt } from './tx';
+import { base64urlToBytes, bytesToBase64url } from './jwk';
+import { signDataItemWith, type DataItemInput, type SignedDataItem } from './ans104';
+import { signTxWith, uploadTx, type TxReceipt } from './tx';
 import { getArweaveClient } from './client';
-import { keystoreRetrieve } from '../keystore';
+import { vaultArweaveKey, type ArweaveVaultKey } from './vault-key';
 
 export interface ArweaveSigner {
-  /** 43-char base64url address bound to this signer's JWK. */
+  /** 43-char base64url address bound to this signer's key. */
   address: string;
   /** base64url RSA-4096 public modulus (= JWK `n`). */
   publicKey: string;
@@ -29,41 +29,25 @@ export interface ArweaveSigner {
   /** Convenience: verify a signature against this signer's public key. */
   verifyMessage(data: Uint8Array, signature: Uint8Array): Promise<boolean>;
 
-  /** Zero the held JWK fields. Idempotent. Call when the dApp disconnects. */
+  /** Release the signer (and, in the browser build, the held JWK). Idempotent. */
   dispose(): void;
 }
 
 /**
- * Build a vault-secured Arweave signer for the given address. The JWK is
- * retrieved once and held until dispose() is called. Re-issue per dApp
- * connection so disposal is bounded to that session.
+ * Build a vault-secured Arweave signer for the given address. Re-issue per
+ * dApp connection so disposal is bounded to that session.
  */
 export async function buildArweaveSigner(
   address: string,
   passphrase: string,
 ): Promise<ArweaveSigner> {
-  const secret = await keystoreRetrieve(address, passphrase);
-  if (!secret) throw new Error(`No Arweave key in vault for ${address}`);
-
-  let jwk: ArweaveJwk | null;
-  try {
-    jwk = parseJwk(secret);
-  } catch {
-    throw new Error('Vault secret for Arweave wallet must be a JWK JSON string');
-  }
-
-  // Sanity-check the JWK belongs to the requested address.
-  const derived = await addressFromJwk(jwk);
-  if (derived !== address) {
-    throw new Error(`Vault JWK address (${derived}) does not match wallet ${address}`);
-  }
-
-  const publicKey = jwk.n!;
+  let key: ArweaveVaultKey | null = await vaultArweaveKey(address, passphrase);
+  const publicKey = key.owner;
   let publicKeyImported: CryptoKey | null = null;
 
-  function requireKey(): ArweaveJwk {
-    if (!jwk) throw new Error('Arweave signer has been disposed');
-    return jwk;
+  function requireKey(): ArweaveVaultKey {
+    if (!key) throw new Error('Arweave signer has been disposed');
+    return key;
   }
 
   return {
@@ -71,36 +55,25 @@ export async function buildArweaveSigner(
     publicKey,
 
     async signTransaction(tx: Transaction): Promise<Transaction> {
-      return await signTx(tx, requireKey());
+      const k = requireKey();
+      return await signTxWith(tx, k.owner, k.sign);
     },
 
     async dispatch(tx: Transaction): Promise<TxReceipt> {
       // Sign in-place, then post to the base layer. Bundling via Turbo is a
       // separate path (Phase 3+) and would slot in here as an optional route.
-      await signTx(tx, requireKey());
+      const k = requireKey();
+      await signTxWith(tx, k.owner, k.sign);
       return await uploadTx(tx);
     },
 
     async signDataItem(input): Promise<SignedDataItem> {
       const k = requireKey();
-      return await signDataItem({ ...input, owner: k.n! }, k);
+      return await signDataItemWith({ ...input, owner: k.owner }, k.sign);
     },
 
     async signMessage(data: Uint8Array): Promise<Uint8Array> {
-      const k = requireKey();
-      const cryptoKey = await crypto.subtle.importKey(
-        'jwk',
-        k,
-        { name: 'RSA-PSS', hash: 'SHA-256' },
-        false,
-        ['sign'],
-      );
-      const sigBuf = await crypto.subtle.sign(
-        { name: 'RSA-PSS', saltLength: 32 },
-        cryptoKey,
-        data as unknown as BufferSource,
-      );
-      return new Uint8Array(sigBuf);
+      return await requireKey().sign(data);
     },
 
     async verifyMessage(data: Uint8Array, signature: Uint8Array): Promise<boolean> {
@@ -122,15 +95,8 @@ export async function buildArweaveSigner(
     },
 
     dispose(): void {
-      if (jwk) {
-        jwk.d = '';
-        jwk.p = '';
-        jwk.q = '';
-        jwk.dp = '';
-        jwk.dq = '';
-        jwk.qi = '';
-      }
-      jwk = null;
+      key?.dispose();
+      key = null;
       publicKeyImported = null;
     },
   };
