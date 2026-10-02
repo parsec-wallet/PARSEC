@@ -73,7 +73,7 @@ choices.ts        privilege: sign · reach: external · persistence: device
 
 [`bridge.ts`](bridge.ts), [`oracle.ts`](oracle.ts), [`discount.ts`](discount.ts), [`constants.ts`](constants.ts), [`types.ts`](types.ts) and
 [`agenticplace-client.ts`](agenticplace-client.ts) predate the rewrite and serve the identity and AgenticPlace
-surfaces; [`bridge.ts`](bridge.ts) is a legacy vault signer used by the AORC minters, **not** the
+surfaces; [`bridge.ts`](bridge.ts) adapts the Keycore signer for the AORC minters, **not** the
 payment path.
 
 ## The four ports

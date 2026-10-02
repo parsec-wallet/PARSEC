@@ -3,6 +3,21 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.1.7 — 2026-10-01 (increment towards 0.2.0)
+
+Keys stay in the Keycore, step 3 of 5.
+- **x402 and AORC mints are signed by the PARSEC Keycore.** The x402 signer read the recovery
+  phrase out of the vault and kept the secret key in a JavaScript closure; it now hands each
+  transaction to Rust and refuses one whose sender is not the account. AORC NFT mints use it.
+- **Message signing (Algorand `MX` prefix) goes through `chain_algo_sign_bytes`** on the desktop.
+- **The builder's isolation layer no longer signs.** Its JavaScript vault signers (Algorand, EVM,
+  Arweave and stubs) are removed; the layer registers addresses and checks zones, and vault keys
+  sign only in the Keycore.
+- Removed two unused helpers that read secrets from the vault: an ARC-52 x402 signer and a direct
+  ALGO payment.
+- Tests: the bridge signs only the requested indexes, refuses another sender before signing, and
+  signs messages through the Keycore.
+
 ## 0.1.6 — 2026-10-01 (increment towards 0.2.0)
 
 Keys stay in the Keycore, step 2 of 5.

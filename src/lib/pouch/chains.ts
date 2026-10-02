@@ -326,11 +326,9 @@ export const arweaveModule: WalletModule = {
   },
 
   async signMessage(_walletId: string, _message: Uint8Array): Promise<Uint8Array> {
-    // Arweave signing uses vault-secured RSA-PSS.
-    // The isolation layer's signArweave() handles this via WebCrypto.
-    // This stub exists for the WalletModule interface — actual signing
-    // goes through builder/isolation.ts → vaultSign().
-    throw new Error('Use builder isolation layer for Arweave signing (vault-secured RSA-PSS)');
+    // Arweave signs in the PARSEC Keycore (`chain_ar_sign`, RSA-PSS).
+    // This stub exists for the WalletModule interface.
+    throw new Error('Arweave signing goes through the Keycore (chain_ar_sign)');
   },
 
   async exportPublicSurface(walletId: string): Promise<PublicSurface> {
