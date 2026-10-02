@@ -287,13 +287,33 @@ pub fn now_secs() -> u64 {
 /// vaults, renaming it, or replaying an old wrap all fail authentication rather
 /// than decrypting into the wrong context.
 pub fn aad(vault_id: &[u8], purpose: &str) -> Vec<u8> {
-    let mut a = Vec::with_capacity(1 + vault_id.len() + purpose.len() + 2);
-    a.push(VERSION);
-    a.push(0x00);
-    a.extend_from_slice(vault_id);
-    a.push(0x00);
-    a.extend_from_slice(purpose.as_bytes());
+    aad_parts(vault_id, purpose, &[])
+}
+
+/// `aad` with further fields. Every field is length-prefixed (u32, big-endian), so no
+/// choice of label, chain or address can make two different tuples encode the same
+/// bytes — a `:`-joined string could (audit M10).
+pub fn aad_parts(vault_id: &[u8], purpose: &str, fields: &[&[u8]]) -> Vec<u8> {
+    let mut a = vec![VERSION];
+    for f in [vault_id, purpose.as_bytes()].into_iter().chain(fields.iter().copied()) {
+        lp(&mut a, f);
+    }
     a
+}
+
+/// Append `field` with its u32 big-endian length.
+pub fn lp(out: &mut Vec<u8>, field: &[u8]) {
+    out.extend_from_slice(&(field.len() as u32).to_be_bytes());
+    out.extend_from_slice(field);
+}
+
+/// An HKDF info string: a fixed label, then length-prefixed fields.
+pub fn info(label: &str, fields: &[&[u8]]) -> Vec<u8> {
+    let mut i = label.as_bytes().to_vec();
+    for f in fields {
+        lp(&mut i, f);
+    }
+    i
 }
 
 pub fn seal(key: &[u8], plaintext: &[u8], aad: &[u8]) -> Result<Sealed, String> {
@@ -338,7 +358,7 @@ pub fn open(key: &[u8], sealed: &Sealed, aad: &[u8]) -> Result<SecretBytes, Stri
 /// One compromised entry key reveals nothing about any other, and no per-entry
 /// key is ever stored. v1 encrypted every account under a single session key.
 pub fn entry_key(dek: &[u8], salt: &[u8], oid: &str) -> Result<SecretBytes, String> {
-    kdf::hkdf(salt, dek, format!("bankon-entry:{oid}").as_bytes(), 32)
+    kdf::hkdf(salt, dek, &info("bankon-entry/2", &[oid.as_bytes()]), 32)
 }
 
 /// The opaque on-disk identifier for an account.
@@ -346,14 +366,13 @@ pub fn entry_key(dek: &[u8], salt: &[u8], oid: &str) -> Result<SecretBytes, Stri
 /// Derived from the DEK, so the mapping from address to filename is only
 /// computable by someone who can already open the vault.
 pub fn entry_oid(dek: &[u8], salt: &[u8], chain: &str, address: &str) -> Result<String, String> {
-    let info = format!("bankon-oid:{chain}:{address}");
-    let raw = kdf::hkdf(salt, dek, info.as_bytes(), OID_LEN)?;
+    let raw = kdf::hkdf(salt, dek, &info("bankon-oid/2", &[chain.as_bytes(), address.as_bytes()]), OID_LEN)?;
     Ok(hex::encode(raw.as_slice()))
 }
 
 /// Key for the encrypted account index.
 pub fn index_key(dek: &[u8], salt: &[u8]) -> Result<SecretBytes, String> {
-    kdf::hkdf(salt, dek, b"bankon-index:v2", 32)
+    kdf::hkdf(salt, dek, &info("bankon-index/2", &[]), 32)
 }
 
 #[cfg(test)]
@@ -420,6 +439,16 @@ mod tests {
         let a = aad(&vid(), "entry:falcon");
         let s = seal(&key, &falcon, &a).unwrap();
         assert_eq!(open(&key, &s, &a).unwrap().as_slice(), &falcon[..]);
+    }
+
+    /// M10: fields are length-prefixed, so a `:` inside one cannot collide with another split.
+    #[test]
+    fn info_and_aad_fields_cannot_be_reshuffled() {
+        let salt = [3u8; SALT_LEN];
+        let a = entry_oid(&[9u8; 32], &salt, "algo:rand", "X").unwrap();
+        let b = entry_oid(&[9u8; 32], &salt, "algo", "rand:X").unwrap();
+        assert_ne!(a, b);
+        assert_ne!(aad_parts(&vid(), "wrap", &[b"a:b", b"c"]), aad_parts(&vid(), "wrap", &[b"a", b"b:c"]));
     }
 
     #[test]

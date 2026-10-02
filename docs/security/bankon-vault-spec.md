@@ -35,7 +35,7 @@ custody credential
                                                               │
                           DEK (32 random bytes) ◀──AES-256-GCM unwrap──┘
                                                               │
-   entry key = HKDF-SHA512(salt, ikm=DEK, info="bankon-entry:{oid}")
+   entry key = HKDF-SHA512(salt, ikm=DEK, info="bankon-entry/2" || lp(oid))
    ciphertext = AES-256-GCM(nonce, secret, aad)
 ```
 
@@ -56,6 +56,7 @@ to open one vault.
 | Desktop cost | m = 262144 KiB (256 MiB), t = 3, p = 4 |
 | Mobile cost | m = 65536 KiB (64 MiB), t = 3, p = 2 |
 | Cost floor | m = 65536 KiB, t = 2, p = 1 — parameters below this MUST be refused |
+| Cost ceiling | m = 1048576 KiB (1 GiB), t = 16, p = 16 — parameters above this MUST be refused, before any derivation, with an error distinct from a wrong credential |
 | Expansion KDF | HKDF-SHA-512 (RFC 5869) |
 | AEAD | AES-256-GCM, 96-bit nonce, 128-bit tag |
 | Salt | 32 bytes, per vault; each wrap additionally carries its own 32-byte salt |
@@ -115,16 +116,19 @@ retained as `vault2.json.bak`.
 Every AEAD operation binds:
 
 ```
-AAD = 0x02 || 0x00 || vault_id || 0x00 || purpose
+AAD = 0x02 || lp(vault_id) || lp(purpose) || lp(field_1) || … || lp(field_n)
+lp(x) = u32_be(len(x)) || x
 ```
 
-`0x02` is the format version. `purpose` is:
+`0x02` is the format version. Every field is length-prefixed, so no value of a
+label, chain or address can make two different tuples encode the same bytes (a
+`:`-joined string could). `purpose` and its fields are:
 
-| Operation | `purpose` |
-|---|---|
-| DEK wrap | `wrap:{kind}:{label}` |
-| Entry | `entry:{oid}:{scheme}` |
-| Account index | `index` |
+| Operation | `purpose` | fields |
+|---|---|---|
+| DEK wrap | `wrap` | kind tag, label, KDF parameters (`u32_be(m) ‖ u32_be(t) ‖ u32_be(p)`, empty for kinds that are not stretched) |
+| Entry | `entry` | oid, scheme tag |
+| Account index | `index` | — |
 
 Consequences, each covered by a test: a ciphertext cannot be moved to another
 entry, to another vault, relabelled, reinterpreted as another custody kind, or
@@ -141,15 +145,33 @@ KEK(key file)    = HKDF(salt=wrap.salt, ikm=file_bytes,
                         info="bankon-overseer-keyfile-v1", len=32)
 
 oid              = hex(HKDF(salt=vault.salt, ikm=DEK,
-                            info="bankon-oid:{chain}:{address}", len=16))
+                            info="bankon-oid/2" || lp(chain) || lp(address), len=16))
 entry_key        = HKDF(salt=vault.salt, ikm=DEK,
-                        info="bankon-entry:{oid}", len=32)
-index_key        = HKDF(salt=vault.salt, ikm=DEK, info="bankon-index:v2", len=32)
+                        info="bankon-entry/2" || lp(oid), len=32)
+index_key        = HKDF(salt=vault.salt, ikm=DEK, info="bankon-index/2", len=32)
 ```
 
 Per-kind `info` prefixes mean a credential accepted for one custody kind can never
 be replayed as another. The address inside the signature prefix means a signature
 bound to one account cannot open a vault bound to a different one.
+
+### The key-binding message
+
+A wallet-signature custodian signs exactly:
+
+```
+BANKON-VAULT-KEY-BINDING/2
+app: PARSEC
+vault: {vault_id, hex}
+address: {address}
+Signing this lets this signature open this vault. Sign it only in PARSEC's vault settings.
+```
+
+It names the vault, so a signature opens that vault only (the earlier fixed string
+`BANKON-VAULT-KEY-BINDING/v1` opened every vault bound to the address, in any app
+using it). Every signer in the implementation MUST refuse a payload containing the
+prefix `BANKON-VAULT-KEY-BINDING`, so no dApp or message-signing request can obtain
+one; only the vault's own binding flow asks for it.
 
 ## Scheme registry
 
@@ -184,7 +206,8 @@ An implementation MUST:
 3. **Refuse to initialise over existing ciphertext.** If entries are present but
    the metadata is missing, fail loudly and name the files to restore.
 4. **Refuse to remove the last custodian.**
-5. **Enforce the cost floor** on parameters read from the file.
+5. **Enforce the cost floor and ceiling** on parameters read from the file, and
+   report a parameter outside them as tampering, not as a wrong credential.
 6. **Write atomically** — temp file, `fsync`, `rename`, `fsync` parent — with mode
    0600 set at creation rather than by a later `chmod`.
 7. **Wipe key material** on release, with writes the compiler cannot elide, and

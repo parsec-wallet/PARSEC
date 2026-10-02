@@ -22,16 +22,23 @@ use super::secure_mem::SecretBytes;
 
 /// The message a participant signs to bind a vault to their wallet key.
 ///
-/// SECURITY: a signature over this message is a bearer credential for the vault.
-/// Anyone who can persuade the participant to sign this exact string can derive
-/// the KEK, so it must never be reachable from a generic dApp signing path.
-/// `parsec_connect` happens not to expose message signing today, but NOTHING
-/// refuses these bytes: the raw signers (`chain_algo_sign_transaction`) will sign
-/// them. Before this vault ships, every `*_sign_*` must refuse the message, and the
-/// message must bind the vault id and an app domain (audit 2026-10-01, H7). The
-/// per-vault salt is mixed in at derivation time so the same wallet key yields
-/// different vault keys for different vaults.
-pub const BINDING_MESSAGE: &str = "BANKON-VAULT-KEY-BINDING/v1";
+/// The message a participant's wallet signs to become a custodian of one vault.
+///
+/// SECURITY: a signature over it opens the vault, so it must only ever be made on
+/// purpose. Two defences (audit H7):
+///   * it names the app, the vault id and the address, so a signature for one vault
+///     opens no other — not another PARSEC vault, not a vault in another app that
+///     used the old fixed string;
+///   * every PARSEC Keycore signer refuses any payload containing its prefix
+///     (`binding::refuse_binding`), so no dApp or message request can obtain one.
+/// The per-custodian salt is still mixed in at derivation time.
+pub fn binding_message(vault_id_hex: &str, address: &str) -> String {
+    format!(
+        "{}/2\napp: PARSEC\nvault: {vault_id_hex}\naddress: {address}\n\
+         Signing this lets this signature open this vault. Sign it only in PARSEC's vault settings.",
+        std::str::from_utf8(super::binding::BINDING_PREFIX).unwrap_or("BANKON-VAULT-KEY-BINDING"),
+    )
+}
 
 const INFO_PASSPHRASE: &[u8] = b"bankon-overseer-passphrase-v1";
 const INFO_WALLET: &[u8] = b"bankon-overseer-wallet-v1:";
@@ -113,7 +120,7 @@ impl Overseer for PassphraseOverseer {
     }
 }
 
-/// Wallet-signature custody: the participant's signature over [`BINDING_MESSAGE`].
+/// Wallet-signature custody: the participant's signature over [`binding_message`].
 ///
 /// The signature is high-entropy, so HKDF alone is correct here — no stretching
 /// is needed or useful.
@@ -481,8 +488,11 @@ mod tests {
     }
 
     #[test]
-    fn binding_message_is_pinned() {
-        // Changing this string orphans every signature-bound vault in existence.
-        assert_eq!(BINDING_MESSAGE, "BANKON-VAULT-KEY-BINDING/v1");
+    fn binding_message_names_the_vault_and_is_refused_by_every_signer() {
+        // Changing this text orphans every signature-bound vault in existence.
+        let m = binding_message("00112233445566778899aabbccddeeff", "ADDR");
+        assert!(m.starts_with("BANKON-VAULT-KEY-BINDING/2\napp: PARSEC\nvault: 00112233445566778899aabbccddeeff\naddress: ADDR\n"));
+        assert_ne!(m, binding_message("ffeeddccbbaa99887766554433221100", "ADDR"));
+        assert!(super::super::binding::refuse_binding(m.as_bytes()).is_err());
     }
 }
