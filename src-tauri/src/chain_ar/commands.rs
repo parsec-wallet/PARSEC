@@ -111,6 +111,7 @@ pub fn chain_ar_sign(
     let payload = B64
         .decode(args.payload_b64.as_bytes())
         .map_err(|_| "payload_b64 is not valid base64".to_string())?;
+    crate::bankon_vault::binding::refuse_binding(&payload)?;
 
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
     let stored = guard.retrieve_by_address(&args.address)?;
@@ -131,22 +132,3 @@ pub fn chain_ar_sign(
     }))
 }
 
-/// Export the JWK. EXPORT PATH — the private exponent crosses the boundary here
-/// and becomes an unwipeable JavaScript string. For backup only, never signing.
-#[tauri::command]
-pub fn chain_ar_export_jwk(
-    state: tauri::State<'_, VaultState>,
-    address: String,
-) -> Result<serde_json::Value, String> {
-    let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-    let stored = guard.retrieve_by_address(&address)?;
-    let text = std::str::from_utf8(stored.as_slice())
-        .map_err(|_| "stored Arweave secret is not a JWK")?;
-    // Only a real Arweave key for exactly this address leaves: a mnemonic or another chain's
-    // secret stored under the address is refused, not exported.
-    let parsed = keys::jwk_from_json(text).map_err(|_| "the secret stored for this address is not an Arweave JWK")?;
-    if keys::address_from_jwk(&parsed)? != address {
-        return Err("the stored JWK belongs to a different address; nothing was exported".to_string());
-    }
-    Ok(serde_json::json!({ "jwk": text }))
-}

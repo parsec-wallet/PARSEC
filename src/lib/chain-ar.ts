@@ -43,12 +43,3 @@ export async function arSign(
 ): Promise<{ signature_b64: string; scheme: 'rsa-pss-sha256'; salt_len: number }> {
   return await invoke('chain_ar_sign', { args: { address, payload_b64: payloadB64 } });
 }
-
-/**
- * Export the JWK for backup. EXPORT PATH — the private exponent crosses this
- * boundary and becomes an unwipeable JavaScript string. Never use for signing.
- */
-export async function arExportJwk(address: string): Promise<string> {
-  const r = await invoke<{ jwk: string }>('chain_ar_export_jwk', { address });
-  return r.jwk;
-}

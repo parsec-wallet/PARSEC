@@ -1,13 +1,14 @@
 // PARSEC Wallet — opt in to an Algorand asset: the one function every screen uses.
 //
 // Desktop: the transaction is signed by the PARSEC Keycore (no phrase enters
-// JavaScript); if the vault session has timed out, it is reopened once with
-// the session passphrase. Browser build (no Keycore): the key is read from the
+// JavaScript); if the vault is locked the person is asked to unlock again.
+// Browser build (no Keycore): the key is read from the
 // browser keystore for the moment of signing and overwritten after.
 
 import { store } from '../store';
 import { isTauri } from '../platform';
-import { keystoreRetrieve, keystoreUnlock } from '../keystore';
+import { keystoreRetrieve } from '../keystore';
+import { lockedOr } from './signer';
 import { optInWithKeycore, optInToAsset } from './assets';
 import type { NetworkId } from '../../types/wallet';
 
@@ -16,9 +17,7 @@ export async function optInAsset(address: string, assetId: number, network: Netw
     try {
       return await optInWithKeycore(address, assetId, network);
     } catch (e) {
-      const pass = store.getPassphrase();
-      if (!pass || !/locked/i.test(String(e)) || !(await keystoreUnlock(pass))) throw e;
-      return await optInWithKeycore(address, assetId, network);
+      throw lockedOr(e);
     }
   }
   const pass = store.getPassphrase();

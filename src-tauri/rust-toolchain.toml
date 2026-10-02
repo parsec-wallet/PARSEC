@@ -1,0 +1,8 @@
+# The PARSEC Keycore builds with exactly this compiler, on the laptop, the Android build
+# and CI. 1.99 is the first release with C-variadic function definitions and
+# `core::ffi::VaList` stable. Android targets are added per machine (`rustup target add`),
+# not here, so desktop CI does not download them.
+[toolchain]
+channel = "1.99.0"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

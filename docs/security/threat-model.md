@@ -141,15 +141,21 @@ allocates a *new* string and leaves the original for the collector.
   mints, Solana sends and @solana/kit writes, and every Arweave transaction, upload,
   DataItem and dApp signature. The browser build has no Keycore and still reads the
   key for the moment of signing.
-- ***Open:* the retrieve command that returns plaintext is still registered**, and
-  signing commands have no Rust-side approval step. Removing it (with one
-  re-authenticated export in its place) and adding the approval complete 0.2.0.
+- **No command returns a secret for signing** (0.1.9). `vault_retrieve_key` is gone;
+  the one way a secret leaves the Keycore is `vault_export_secret`, which needs an
+  unlocked vault, the passphrase again (attempt-limited) and the address typed as
+  confirmation. On the desktop the passphrase is not kept in JavaScript after
+  unlock — the store holds a non-secret session marker.
+- **Every signer refuses the vault key-binding message** (`BANKON-VAULT-KEY-BINDING`,
+  0.1.9), so no signing request can mint a v2 custodian signature.
+- ***Open:* signing commands have no Rust-side approval step** bound to what is
+  signed. Adding it completes 0.2.0.
 - **Key generation moved for the participant-facing path.**
   `chain_algo_create_account` and `chain_ar_create_account` generate, store and
   drop the secret inside Rust, returning an address rather than a seed, and
   `create-wallet.ts` now creates the vault *before* any key exists. Showing a
-  backup phrase is a separate, explicit command
-  (`chain_algo_reveal_mnemonic`) rather than a side effect of creation. A
+  backup phrase is a separate, explicit act (at creation, then only through
+  `vault_export_secret`) rather than a side effect of creation. A
   consequence worth having: a crash during backup no longer loses the key, because
   it was sealed before it was displayed.
 - **Residual:** the admin ceremony in `src/views/admin-keygen.ts` still mints in
@@ -158,8 +164,8 @@ allocates a *new* string and leaves the original for the collector.
   the remaining piece.
 - **Residual:** the browser build has no Rust and keeps in-renderer keygen. That
   is Tier 1 and is labelled as such in the UI.
-- `vault_retrieve_key`, `vault_retrieve_key_bytes`, `chain_algo_reveal_mnemonic`
-  and `chain_ar_export_jwk` are export paths, not signing paths, and say so.
+- `vault_export_secret` is the only export path (0.1.9); `vault_retrieve_key`,
+  `chain_algo_reveal_mnemonic` and `chain_ar_export_jwk` were removed.
 - **Residual:** an imported mnemonic still arrives as an IPC parameter — a
   participant typing one in has to send it somewhere. It is wiped on arrival, but
   it existed as a JavaScript string first, and that copy cannot be reclaimed.

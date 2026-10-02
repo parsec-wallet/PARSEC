@@ -10,6 +10,8 @@ import type { WalletAccount } from '../../../types/wallet';
 import { deriveSolanaFromMnemonic } from '../../solana/seed';
 import { keypairFromVaultSecret, toKeypairJson } from '../../solana/secret';
 import { readArio } from '../client';
+import { isTauri } from '../../platform';
+import { vaultExportSecret } from '../../vault';
 
 export const OBSERVER_CHAIN_ID = 'solana-observer';
 export const UPLOAD_CHAIN_ID = 'solana-upload';
@@ -32,9 +34,15 @@ export async function createNodeKey(
   return { account: setAccountAddress(account, chainId, kp.address), address: kp.address };
 }
 
-/** Keypair JSON (64-byte array) for `OBSERVER_KEYPAIR_PATH` / `SOLANA_UPLOAD_KEYPAIR_PATH`. */
-export async function exportNodeKeypairJson(address: string, passphrase: string): Promise<string> {
-  const secret = await keystoreRetrieve(address, passphrase);
+/**
+ * Keypair JSON (64-byte array) for `OBSERVER_KEYPAIR_PATH` / `SOLANA_UPLOAD_KEYPAIR_PATH`.
+ * An export: on the desktop the passphrase is checked again and `confirm` must be the
+ * address, typed by the operator (`vault_export_secret`).
+ */
+export async function exportNodeKeypairJson(address: string, passphrase: string, confirm: string): Promise<string> {
+  const secret = isTauri
+    ? (await vaultExportSecret(address, passphrase, confirm)).secret
+    : await keystoreRetrieve(address, passphrase);
   if (!secret) throw new Error(`No key in vault for ${address}`);
   const kp = await keypairFromVaultSecret(secret);
   if (kp.address !== address) throw new Error('vault key mismatch');

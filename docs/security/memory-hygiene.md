@@ -93,9 +93,9 @@ keeping outside the locked region.
 
 1. **A secret never becomes a JavaScript string.** Once it does it is immutable
    and garbage-collected and cannot be wiped. Signing stays in Rust.
-   *Open:* the shipping vault still has `vault_retrieve_key`, which returns a
-   secret to the frontend, and several frontend paths still sign with it. Removing
-   them is the next remediation step; until then this rule is not met.
+   Met on the desktop since 0.1.9: no command returns a secret except
+   `vault_export_secret`, an explicit, re-authenticated backup export. The browser
+   build (no Rust) still reads a key for the moment of signing.
 2. **Retrieve a secret only for the moment of signing**, and let `SecretBytes`
    drop end the exposure. Do not hold one across an `await`.
 3. **Never `Debug`, log, or format a secret.** Use the redacting types.

@@ -216,7 +216,7 @@ list UI used by the Red Pill and Settings.
 | `vault_unlock(passphrase)` | no | Check the passphrase, derive the vault key, start a session |
 | `vault_lock` | yes (teardown) | Erase the vault key from memory |
 | `vault_store_key(address, chain, label, secret)` | no | Encrypt and save a key; add it to the manifest |
-| `vault_retrieve_key(address)` | no | Decrypt a key for signing (legacy path; the Keycore's signers read it directly) |
+| `vault_export_secret({address, passphrase, confirm})` | no | Backup export, the only command that returns a secret: needs an unlocked vault, the passphrase again (attempt-limited) and `confirm` equal to the address. Replaced `vault_retrieve_key` in 0.1.9 |
 | `vault_remove_account(address)` | no | Delete one key file and its manifest entry |
 | `vault_list_accounts` | no | Manifest entries with `created_at` |
 | `vault_destroy(passphrase)` | no | Delete the open profile's vault, after checking its passphrase |

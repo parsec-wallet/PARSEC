@@ -6,6 +6,7 @@ import type { WalletState, AppView, PendingSend, WalletAccount } from '../types/
 import type { ChainId } from './pouch/types';
 import { isTauri } from './vault';
 import { keystoreLock } from './keystore';
+import { KEYCORE_SESSION } from './session-marker';
 import { defaultAvatarFor } from './avatars';
 import { isModalRoute } from './nav';
 import { stateKey, webKeysKey, activeProfile, selectProfileBackend, setActiveProfileLocal } from './profiles';
@@ -121,8 +122,15 @@ class Store {
 
   // --- Sensitive data accessors (never touch localStorage) ---
 
+  /**
+   * Desktop: `KEYCORE_SESSION` while the vault is open — the passphrase itself is not
+   * kept (see session-marker.ts). Browser build: the passphrase, which its keystore needs.
+   */
   getPassphrase(): string | null { return this._sessionPassphrase; }
-  setPassphrase(p: string | null): void { this._sessionPassphrase = p; this.resetLockTimer(); }
+  setPassphrase(p: string | null): void {
+    this._sessionPassphrase = p && isTauri() && p !== '__watch_only__' ? KEYCORE_SESSION : p;
+    this.resetLockTimer();
+  }
 
   getTempMnemonic(): string | null { return this._tempMnemonic; }
   setTempMnemonic(m: string | null): void { this._tempMnemonic = m; }

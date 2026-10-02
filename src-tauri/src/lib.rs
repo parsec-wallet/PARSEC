@@ -83,7 +83,7 @@ pub fn run() {
             vault_unlock,
             vault_lock,
             vault_store_key,
-            vault_retrieve_key,
+            vault_export_secret,
             vault_remove_account,
             vault_list_accounts,
             vault_destroy,
@@ -172,7 +172,6 @@ pub fn run() {
             chain_algo_validate_mnemonic,
             chain_algo_create_account,
             chain_algo_import_account,
-            chain_algo_reveal_mnemonic,
             chain_algo_sign_bytes,
             chain_algo_sign_transaction,
             // chain_evm — EVM chain pack (EIP-1559 transactions, EIP-3009 x402 authorizations)
@@ -184,7 +183,6 @@ pub fn run() {
             chain_ar_import_account,
             chain_ar_account_info,
             chain_ar_sign,
-            chain_ar_export_jwk,
             // chain_sol — Solana chain pack (ed25519, BIP-44 m/44'/501')
             chain_sol_address_from_mnemonic,
             chain_sol_import_account,

@@ -3,6 +3,29 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.1.9 — 2026-10-01 (increment towards 0.2.0)
+
+Keys stay in the Keycore, step 5 of 5 — and the toolchain moves to Rust 1.99.
+- **No command returns a secret for signing.** `vault_retrieve_key` is removed, and with it
+  `chain_algo_reveal_mnemonic` and `chain_ar_export_jwk`. The one way a secret leaves the PARSEC
+  Keycore is **`vault_export_secret`**: the vault must be unlocked, the passphrase is asked for
+  again and checked under the same attempt limiter as unlock, and the address must be typed back
+  as confirmation. This changes the `bankon_vault` IPC surface on purpose — the retrieve command
+  was the audit's critical finding.
+- **The passphrase is not kept in JavaScript on the desktop.** After unlock the store holds a
+  non-secret session marker; "is the wallet unlocked?" checks keep working, and the marker is
+  refused before it can reach `vault_unlock` (where it would count as a failed attempt). If the
+  vault is locked while signing, PARSEC says so and asks to unlock, instead of reopening it with a
+  stored passphrase.
+- **Every signer refuses the vault key-binding message** (`BANKON-VAULT-KEY-BINDING`) — alone,
+  `MX`-prefixed or embedded — in `chain_algo_sign_bytes`, `chain_algo_sign_transaction`,
+  `chain_sol_sign`, `chain_ar_sign` and `pmvpn_sign_challenge`, so no signing request can produce
+  a `bankon-vault/2` custodian signature.
+- **Rust 1.99.0**, pinned in `src-tauri/rust-toolchain.toml`, `rust-version = "1.99"`, and in CI.
+  1.99 makes C-variadic function definitions and `core::ffi::VaList` stable.
+- Tests: the session marker, the refused desktop retrieve, the export call; Rust tests for the
+  binding guard.
+
 ## 0.1.8 — 2026-10-01 (increment towards 0.2.0)
 
 Keys stay in the Keycore, step 4 of 5.

@@ -104,6 +104,7 @@ pub fn chain_sol_sign(
     let payload = B64
         .decode(args.payload_b64.as_bytes())
         .map_err(|_| "payload_b64 is not valid base64".to_string())?;
+    crate::bankon_vault::binding::refuse_binding(&payload)?;
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
     let sk = secret_for(&guard, &args.address)?;
     let sig = sign::sign(sk.as_slice(), &payload)?;

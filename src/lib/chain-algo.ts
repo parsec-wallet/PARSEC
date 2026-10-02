@@ -40,15 +40,6 @@ export async function algoValidateMnemonic(mnemonic: string): Promise<boolean> {
   return await invoke<boolean>('chain_algo_validate_mnemonic', { mnemonicPhrase: mnemonic });
 }
 
-/**
- * Reveal the backup phrase. EXPORT PATH — show it, let the participant record it,
- * and do not retain it. The returned string is an unwipeable JS value.
- */
-export async function algoRevealMnemonic(address: string): Promise<string> {
-  const r = await invoke<{ mnemonic: string }>('chain_algo_reveal_mnemonic', { address });
-  return r.mnemonic;
-}
-
 export interface AlgoSignature {
   signature_b64: string;
   scheme: 'ed25519';
