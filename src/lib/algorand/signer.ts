@@ -1,15 +1,15 @@
 // PARSEC Wallet — an Algorand transaction signer for the active account.
 //
 // Desktop: the PARSEC Keycore signs (`chain_algo_sign_transaction` through the
-// x402 adapter's signer); no phrase enters JavaScript. If the vault session
-// has timed out it is reopened once with the session passphrase.
+// x402 adapter's signer); no phrase enters JavaScript. If the vault is locked
+// the person is asked to unlock again — the passphrase is not kept to reopen it.
 // Browser build (no Keycore): the key is read from the browser keystore for
 // the moment of signing; call `dispose()` afterwards to overwrite it.
 
 import algosdk from 'algosdk';
 import { store } from '../store';
 import { isTauri } from '../platform';
-import { keystoreRetrieve, keystoreUnlock } from '../keystore';
+import { keystoreRetrieve } from '../keystore';
 import { parsecAvmSigner } from '../x402/adapters/parsec';
 
 export interface WalletSigner {
@@ -26,9 +26,7 @@ export async function walletSigner(address: string): Promise<WalletSigner> {
       try {
         return await keycore.sign(group, indexes);
       } catch (e) {
-        const pass = store.getPassphrase();
-        if (!pass || !/locked/i.test(String(e)) || !(await keystoreUnlock(pass))) throw e;
-        return await keycore.sign(group, indexes);
+        throw lockedOr(e);
       }
     };
     return { address, sign, dispose: () => { /* nothing held */ } };
@@ -48,4 +46,9 @@ export async function walletSigner(address: string): Promise<WalletSigner> {
     },
     dispose: () => { if (account) { account.sk.fill(0); account = null; } },
   };
+}
+
+/** A "vault is locked" error from the Keycore, said so the person knows what to do. */
+export function lockedOr(e: unknown): unknown {
+  return /locked/i.test(String(e)) ? new Error('The vault is locked. Unlock PARSEC again.') : e;
 }

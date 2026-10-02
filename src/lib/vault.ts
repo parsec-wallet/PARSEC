@@ -43,16 +43,18 @@ export async function vaultStoreKey(
 }
 
 /**
- * Retrieve decrypted secret — hold briefly for signing, then discard.
- * Returns null if vault is locked or key not found.
+ * Export a secret (recovery phrase, Arweave JWK, Solana key) for backup.
+ *
+ * The one place a secret leaves the PARSEC Keycore. The vault must be unlocked, the
+ * passphrase is asked for again and checked (attempt-limited), and `confirm` must be the
+ * address being exported — typed by the person, not filled in by the app.
  */
-export async function vaultRetrieveKey(address: string): Promise<string | null> {
-  try {
-    const result = await invoke<{ secret: string }>('vault_retrieve_key', { address });
-    return result.secret;
-  } catch {
-    return null;
-  }
+export async function vaultExportSecret(
+  address: string,
+  passphrase: string,
+  confirm: string,
+): Promise<{ secret: string; chain: string }> {
+  return await invoke('vault_export_secret', { args: { address, passphrase, confirm } });
 }
 
 /** Remove an account from the vault */

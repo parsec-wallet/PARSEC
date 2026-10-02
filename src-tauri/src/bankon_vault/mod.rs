@@ -6,6 +6,7 @@
 //           Tauri app_data_dir / vaults / <name> /  (every other profile)
 // Interface: create, unlock, lock, store, retrieve, remove, list
 
+pub mod binding;
 pub mod crypto;
 pub mod kdf;
 pub mod secure_mem;

@@ -53,7 +53,7 @@ compiled for the first time).
 
 | Severity | Area | Plan |
 |---|---|---|
-| Critical | Some frontend paths still retrieve a secret and sign in JavaScript, through a retrieve command that returns plaintext; signing commands have no Rust-side approval step | **Next:** every signature through the PARSEC Keycore; remove the plaintext retrieve; a Rust-side approval bound to what is signed |
+| Critical | Some frontend paths still retrieve a secret and sign in JavaScript, through a retrieve command that returns plaintext; signing commands have no Rust-side approval step | **Mostly fixed in 0.1.5–0.1.9:** every desktop signature goes through the PARSEC Keycore, the plaintext retrieve is removed (one re-authenticated export instead), and every signer refuses the key-binding message. **Remaining for 0.2.0:** a Rust-side approval bound to what is signed |
 | High | v1 key derivation is Argon2id at library defaults (19 MiB), with a verification token; ciphertexts are not bound to their address; the account index is plaintext | **Ship `bankon-vault/2`** (256 MiB desktop / 64 MiB phone, authenticated header, wrapped key, AAD, encrypted index), migrating v1 vaults on next unlock |
 | High | The Tomb passphrase reaches `tomb` as a command-line argument; the Tomb key path is not confined | Desktop-Linux only and optional. `tomb` has no non-interactive alternative; tracked |
 | High/Medium | `bankon-vault/2` itself needs fixes before it ships: atomic migration, re-authentication for custodian changes, bound KDF parameters with ceilings, a vault-bound key-binding message refused by every signer, rollback protection, profile support | Part of shipping v2 |

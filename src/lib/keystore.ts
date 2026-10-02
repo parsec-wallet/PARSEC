@@ -6,7 +6,8 @@
 // This module picks the right one automatically.
 
 import { assertAllowed } from './mode';
-import { isTauri, vaultCreate, vaultUnlock, vaultLock, vaultStatus, vaultStoreKey, vaultRetrieveKey, vaultRemoveAccount, vaultDestroy } from './vault';
+import { isTauri, vaultCreate, vaultUnlock, vaultLock, vaultStatus, vaultStoreKey, vaultRemoveAccount, vaultDestroy } from './vault';
+import { isSessionMarker } from './session-marker';
 import * as webCrypto from './crypto';
 import { webKeysKey } from './profiles';
 
@@ -29,6 +30,8 @@ export async function keystoreCreate(passphrase: string): Promise<void> {
 /** Unlock keystore */
 export async function keystoreUnlock(passphrase: string): Promise<boolean> {
   if (isTauri()) {
+    // A session marker is not a passphrase; sending it would count as a failed attempt.
+    if (isSessionMarker(passphrase)) return false;
     try {
       await vaultUnlock(passphrase);
       return true;
@@ -70,6 +73,7 @@ export async function keystoreStore(
     // Ensure vault is unlocked
     const status = await vaultStatus();
     if (!status.unlocked) {
+      if (isSessionMarker(passphrase)) throw new Error('The vault is locked. Unlock PARSEC again.');
       await vaultUnlock(passphrase);
     }
     await vaultStoreKey(address, chain, label, secret);
@@ -80,26 +84,23 @@ export async function keystoreStore(
   }
 }
 
-/** Retrieve a secret — hold briefly for signing, then discard */
+/**
+ * Browser build only: read a secret for the moment of signing, then discard it.
+ *
+ * The desktop never reads a secret into JavaScript: signing goes through the PARSEC
+ * Keycore (`chain_*_sign*`), and an export through `vaultExportSecret`, which asks for
+ * the passphrase again.
+ */
 export async function keystoreRetrieve(
   address: string,
   passphrase: string,
 ): Promise<string | null> {
   if (isTauri()) {
-    const status = await vaultStatus();
-    if (!status.unlocked) {
-      try {
-        await vaultUnlock(passphrase);
-      } catch {
-        return null;
-      }
-    }
-    return vaultRetrieveKey(address);
-  } else {
-    // The browser build has no IPC, so the mode guard is applied here.
-    assertAllowed('keystore_retrieve');
-    return webCrypto.loadMnemonic(address, passphrase);
+    throw new Error('Secrets are not read into the app on the desktop; the PARSEC Keycore signs.');
   }
+  // The browser build has no IPC, so the mode guard is applied here.
+  assertAllowed('keystore_retrieve');
+  return webCrypto.loadMnemonic(address, passphrase);
 }
 
 /** Remove an account */

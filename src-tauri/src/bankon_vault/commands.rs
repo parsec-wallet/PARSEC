@@ -1,7 +1,8 @@
 // bankon_vault::commands — Tauri IPC commands
 // These are the only interface between frontend and vault.
 // Secrets flow: frontend → Rust (encrypt) → disk
-//               disk → Rust (decrypt) → frontend (brief, for signing)
+//               disk → Rust (decrypt) → the Keycore signers, never the frontend;
+//               the one exception is vault_export_secret (re-authenticated backup).
 
 use tauri::AppHandle;
 use tauri::Manager;
@@ -142,22 +143,60 @@ pub fn vault_store_key(
     Ok(serde_json::json!({ "ok": true, "address": address }))
 }
 
-/// Retrieve a decrypted secret — frontend holds it briefly for signing, then discards
+#[derive(Debug, serde::Deserialize)]
+pub struct ExportArgs {
+    pub address: String,
+    pub passphrase: String,
+    /// The address, typed by the person — not filled in by the app.
+    pub confirm: String,
+}
+
+/// Export a secret for backup — the only command that returns one.
+///
+/// Signing never needs this: every Keycore signer reads the key itself. An export needs an
+/// unlocked vault, the passphrase again (checked under the same attempt limiter as unlock)
+/// and the address typed back as confirmation.
 #[tauri::command]
-pub fn vault_retrieve_key(
+pub fn vault_export_secret(
     state: tauri::State<'_, VaultState>,
-    address: String,
+    args: ExportArgs,
 ) -> Result<serde_json::Value, String> {
+    if args.confirm.trim() != args.address {
+        return Err("type the address being exported to confirm".to_string());
+    }
+    // The directory of the open session; the lock is not held through the Argon2 check.
+    let dir = {
+        let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
+        guard.key().ok_or("vault is locked")?;
+        guard.dir().ok_or("vault is locked")?.to_path_buf()
+    };
+    super::throttle::check(&dir)?;
+    if !VaultStore::verify_passphrase(&dir, args.passphrase.as_bytes())? {
+        let log = super::throttle::record_failure(&dir);
+        let wait = super::throttle::delay_for(log.failures);
+        return Err(if wait > 0 {
+            format!("wrong passphrase — further attempts wait {wait} s")
+        } else {
+            "wrong passphrase".to_string()
+        });
+    }
+    super::throttle::record_success(&dir);
+
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-
     let key = guard.key().ok_or("vault is locked")?;
-    let dir = guard.dir().ok_or("vault is locked")?;
-
-    let secret_bytes = VaultStore::retrieve_secret(dir, key, &address)?;
-    let secret = String::from_utf8(secret_bytes)
-        .map_err(|_| "stored secret is not valid utf-8")?;
-
-    Ok(serde_json::json!({ "secret": secret }))
+    let open = guard.dir().ok_or("vault is locked")?;
+    if open != dir.as_path() {
+        return Err("the open vault changed during the export; nothing was exported".to_string());
+    }
+    let chain = VaultStore::read_manifest(&dir)?
+        .accounts
+        .into_iter()
+        .find(|a| a.address == args.address)
+        .map(|a| a.chain)
+        .ok_or("no account with that address in this vault")?;
+    let secret_bytes = VaultStore::retrieve_secret(&dir, key, &args.address)?;
+    let secret = String::from_utf8(secret_bytes).map_err(|_| "stored secret is not valid utf-8")?;
+    Ok(serde_json::json!({ "secret": secret, "chain": chain }))
 }
 
 /// Remove an account from the vault

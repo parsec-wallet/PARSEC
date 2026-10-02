@@ -98,26 +98,6 @@ pub fn chain_algo_import_account(
     })
 }
 
-/// Reveal the mnemonic for backup. EXPORT PATH — not part of any signing flow.
-///
-/// Deliberately its own command rather than a return value from account creation,
-/// so that showing a secret to the participant is always an explicit act with its
-/// own audit point, and never a side effect of something else.
-#[tauri::command]
-pub fn chain_algo_reveal_mnemonic(
-    state: tauri::State<'_, VaultState>,
-    address: String,
-) -> Result<serde_json::Value, String> {
-    let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-    let secret = guard.retrieve_by_address(&address)?;
-    let phrase = std::str::from_utf8(secret.as_slice())
-        .map_err(|_| "stored Algorand secret is not a mnemonic")?;
-    if !mnemonic::is_valid(phrase) {
-        return Err("stored secret is not a valid 25-word Algorand mnemonic".to_string());
-    }
-    Ok(serde_json::json!({ "mnemonic": phrase, "words": 25 }))
-}
-
 #[derive(Debug, Deserialize)]
 pub struct AlgoSignArgs {
     pub address: String,
@@ -153,6 +133,7 @@ pub fn chain_algo_sign_bytes(
     let payload = B64
         .decode(args.payload_b64.as_bytes())
         .map_err(|_| "payload_b64 is not valid base64".to_string())?;
+    crate::bankon_vault::binding::refuse_binding(&payload)?;
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
     let seed = seed_for(&guard, &args.address)?;
     let sig = sign::sign_bytes(seed.as_slice(), &payload)?;
@@ -168,6 +149,7 @@ pub fn chain_algo_sign_transaction(
     let payload = B64
         .decode(args.payload_b64.as_bytes())
         .map_err(|_| "payload_b64 is not valid base64".to_string())?;
+    crate::bankon_vault::binding::refuse_binding(&payload)?;
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
     let seed = seed_for(&guard, &args.address)?;
     let sig = sign::sign_raw(seed.as_slice(), &payload)?;

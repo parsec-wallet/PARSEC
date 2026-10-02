@@ -12,7 +12,7 @@ describe('viewing and armed modes', () => {
     for (const cmd of [
       'vault_unlock', 'vault_retrieve_key', 'vault_store_key', 'vault_create', 'vault_destroy', 'vault_list_accounts',
       'chain_algo_sign_transaction', 'chain_algo_reveal_mnemonic', 'chain_evm_sign_tx', 'chain_sol_sign', 'chain_ar_sign',
-      'chain_ar_export_jwk', 'chain_btc_sign_psbt', 'connect_start', 'connect_approve_sign', 'connect_approve_name',
+      'chain_ar_export_jwk', 'vault_export_secret', 'chain_btc_sign_psbt', 'connect_start', 'connect_approve_sign', 'connect_approve_name',
       'tomb_open', 'tomb_create', 'pmvpn_connect', 'pmvpn_sign_challenge', 'sandbox_grant', 'search_index',
       'keystore_retrieve', 'keystore_store', 'some_command_added_later',
     ]) {

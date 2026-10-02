@@ -203,6 +203,7 @@ pub async fn pmvpn_sign_challenge(
     address: String,
     message: String,
 ) -> Result<String, String> {
+    crate::bankon_vault::binding::refuse_binding(message.as_bytes())?;
     // 1. Retrieve the private key from vault
     let guard = vault_state.inner.lock().map_err(|_| "vault state poisoned")?;
     let key = guard.key().ok_or("vault is locked")?;
