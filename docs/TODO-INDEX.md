@@ -44,12 +44,12 @@ Ctrl/Cmd-K command palette.
 - [x] Asset views and the add-asset screen use the same classification; the dashboard values only
   verified dollar stablecoins, by id.
 
-### 0.3.4 — SPINTRADE uses the whitelist as its authority
-- [ ] Every pair picker, quote, route and confirmation identifies an asset by id; "verified" only when
+### 0.3.4 — SPINTRADE uses the whitelist as its authority *(done 2026-10-02)*
+- [x] Every pair picker, quote, route and confirmation identifies an asset by id; "verified" only when
   id and creator match the whitelist; unverified shown with id and creator, not only a ticker.
-- [ ] Routes label each leg's status; a swap into or out of an unverified asset needs explicit
+- [x] Routes label each leg's status; a swap into or out of an unverified asset needs explicit
   confirmation; "swap to USDC" only ever means the whitelisted USDC.
-- [ ] Test: no SPINTRADE surface renders a lookalike as verified.
+- [x] Test: no SPINTRADE surface renders a lookalike as verified.
 
 ### 0.3.5 — Recorded-response tests for every money path
 - [ ] Fixtures recorded from mainnet/testnet responses (facilitator verify/settle, x402 402

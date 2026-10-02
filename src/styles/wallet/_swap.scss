@@ -252,3 +252,48 @@
   .parsec-swap2__from { grid-template-columns: 1fr; }
   .parsec-swap2__hrow { grid-template-columns: 1fr 1fr; }
 }
+
+// ── Verified status in SPINTRADE (0.3.4) ─────────────────────────────────────
+.parsec-swap2__route {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-1;
+}
+
+.parsec-swap2__leg {
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-1;
+}
+
+.parsec-swap2__badge {
+  padding: 1px $spacing-2;
+  border-radius: 999px;
+  font-size: $font-size-xs;
+  white-space: nowrap;
+
+  &--ok {
+    background: rgba($color-success, 0.15);
+    color: $color-success;
+  }
+
+  &--warn {
+    background: rgba($color-warning, 0.15);
+    color: $color-warning;
+  }
+
+  &--danger {
+    background: rgba($color-danger, 0.15);
+    color: $color-danger;
+  }
+}
+
+.parsec-swap2__ack {
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-2;
+  margin: $spacing-2 0;
+  font-size: $font-size-sm;
+  line-height: 1.4;
+}
