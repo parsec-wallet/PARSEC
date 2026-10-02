@@ -93,12 +93,14 @@ The full analysis is in [`docs/security/threat-model.md`](docs/security/threat-m
 ## Supported versions
 
 PARSEC is pre-1.0 and moves fast. **Only the latest release is supported** — today
-**0.1.4**. Fixes land on the default branch and in the next release; there is no
+**0.3.0**. Fixes land on the default branch and in the next release; there is no
 backport channel yet.
 
 | Version | Status |
 |---|---|
-| 0.1.4 | Supported. Carries the vault fixes of the 2026-10-01 audit. |
+| 0.3.0 | Supported. `bankon-vault/2` (256 MiB Argon2id, encrypted index, tamper and rollback checks); a v1 vault migrates on its first unlock. Closes the audit's remaining High findings. |
+| 0.2.0 | Unsupported — update. Every signature in the PARSEC Keycore behind its own approval dialog, but still the v1 vault and key generation in the app. |
+| 0.1.4 | Unsupported — update. v1 vault fixes only; some signing still in the app. |
 | 0.1.0 – 0.1.2 | Unsupported — update. They lack the 0.1.4 vault fixes (attempt limiting, process hardening, vault paths denied to the web layer, Android backup off) and, for 0.1.0, the 0.1.1 payment-safety fixes. |
 | 0.1.0-android.1 | Withdrawn test build — do not install. |
 
@@ -106,7 +108,7 @@ backport channel yet.
 
 | Date | What | Status |
 |---|---|---|
-| 2026-10-01 | [BANKON vault audit](docs/security/vault-audit-2026-10-01.md) (internal) | 12 findings fixed in 0.1.4; open items listed with their plan |
+| 2026-10-01 | [BANKON vault audit](docs/security/vault-audit-2026-10-01.md) (internal) | 12 findings fixed in 0.1.4; the Critical one in 0.2.0; `bankon-vault/2` and its fixes in 0.3.0; what remains is listed with its plan |
 
 Open findings are published by name, severity and plan; their detail is withheld until
 a fixed release exists, so a participant on the latest release is never the target of

@@ -78,7 +78,8 @@ npm run dev            # Vite dev server → http://localhost:1420
 npm run tauri:dev      # Tauri desktop app (dev)
 npm run build          # tsc && vite build  → dist/
 npm run tauri:build    # production desktop bundle
-npm test               # vitest run  (~765 tests)
+npm test               # vitest run  (~800 tests)
+cd src-tauri && cargo test --lib   # the Keycore: vault v1/v2, approval, surface exit tests (~170)
 npm run test:watch
 npm run lint:css       # stylelint src/**/*.scss --fix
 npm run lint:css:ci    # CI-clean output
@@ -110,7 +111,7 @@ src/
 ├── styles/             SCSS 7-1-ish; wallet/_views.scss is the app skin
 └── types/wallet.ts     WalletState, WalletAccount, AppView
 src-tauri/src/
-├── lib.rs              17 modules, 113 commands in one generate_handler!
+├── lib.rs              17 modules, 135 commands in one generate_handler!
 ├── bankon_vault/       Argon2id + AES-256-GCM key storage; Tomb (LUKS) commands
 ├── chain_btc|chain_ltc|chain_evm/   derivation + signing
 ├── parsec_connect/     dApp WebSocket bridge (127.0.0.1:9876)

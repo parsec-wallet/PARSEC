@@ -2,7 +2,7 @@
 
 | Document | What it covers |
 |---|---|
-| [`vault-audit-2026-10-01.md`](vault-audit-2026-10-01.md) | The 2026-10-01 vault audit: what was fixed in 0.1.4, what is open and the plan |
+| [`vault-audit-2026-10-01.md`](vault-audit-2026-10-01.md) | The 2026-10-01 vault audit: what was fixed in 0.1.4, 0.2.0 and 0.3.0, what is open and the plan |
 | [`threat-model.md`](threat-model.md) | What PARSEC defends against and what it does not, attacker by attacker |
 | [`bankon-vault-spec.md`](bankon-vault-spec.md) | The `bankon-vault/2` format, normatively — the contract other projects build against |
 | [`vault-family.md`](vault-family.md) | The five codebases named "bankon vault", which is canonical for what, and what interoperates |
