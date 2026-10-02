@@ -51,6 +51,16 @@ Ctrl/Cmd-K command palette.
   confirmation; "swap to USDC" only ever means the whitelisted USDC.
 - [x] Test: no SPINTRADE surface renders a lookalike as verified.
 
+### SPINTRADE — the Algorand branch (owner request, 2026-10-02; scoped after the survey)
+Source on the KINGSTON USB: `SPINTRADE/` and `SPINBRIDGE/`; the frontend comes across later.
+- [ ] Finish the Algorand branch from the Tinyman fork: the **liquidity controller with a timelock**.
+- [ ] **ASA logos from an immutable graphic** (ARC-3/19/69 metadata on Arweave/IPFS), shown in
+  SPINTRADE and the asset views — including NFTs, iNFTs, **BONA FIDE**, and the **NAKAMOTO SATOSHI**
+  pegged asset.
+- [ ] **A local and distributed database of verified and verifiable ASAs**, fed from the RAGEbar
+  (RAGE / pgvectorscale as that advances); PARSEC's committed verified list is its local, signed-off
+  core.
+
 ### 0.3.5 — Recorded-response tests for every money path
 - [ ] Fixtures recorded from mainnet/testnet responses (facilitator verify/settle, x402 402
   envelopes, Turbo price and upload, NFD and ArNS store endpoints) and automated tests against them,
