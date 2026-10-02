@@ -1,5 +1,6 @@
 // PARSEC Wallet — Dashboard View
 
+import { walletSigner } from '../lib/algorand/signer';
 import { isMobile } from '../lib/platform';
 import { el, btn, toast, copyText } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
@@ -13,7 +14,6 @@ import { fetchTransactions } from '../lib/algorand/transactions';
 import { enrichAssets, formatAssetAmount, optOutFromAsset, lookupAsset } from '../lib/algorand/assets';
 import { resolveIpfsUrl } from '../lib/algorand/ipfs-gateway';
 import { resolveAddress, searchByOwner } from '../lib/nfd';
-import { keystoreRetrieve } from '../lib/keystore';
 import { formatPrice, fetchPrices, fetchPricesByIds } from '../lib/prices';
 import type { CoinPrice } from '../lib/prices';
 import type { AccountInfo, TransactionRecord, NetworkId, WalletAccount } from '../types/wallet';
@@ -433,20 +433,21 @@ function renderAssets(container: HTMLElement, info: AccountInfo, userAddress: st
             minimal: true, intent: 'danger',
             onClick: async () => {
               if (!confirm(`Remove ${asset.unitName || `ASA #${asset.assetId}`}? This recovers 0.1 ALGO min balance.`)) return;
-              const passphrase = store.getPassphrase();
-              if (!passphrase) { toast('Session expired.', 'danger'); store.navigate('unlock'); return; }
-              const mnemonic = await keystoreRetrieve(userAddress, passphrase);
-              if (!mnemonic) { toast('Could not retrieve key.', 'danger'); return; }
-
+              if (!store.getPassphrase()) { toast('Session expired.', 'danger'); store.navigate('unlock'); return; }
+              let signer: Awaited<ReturnType<typeof walletSigner>> | null = null;
               try {
+                // The PARSEC Keycore signs; no recovery phrase enters JavaScript.
+                signer = await walletSigner(userAddress);
                 const assetInfo = await lookupAsset(asset.assetId, network);
                 const creator = assetInfo?.creator || userAddress;
-                await optOutFromAsset(mnemonic, asset.assetId, creator, network);
+                await optOutFromAsset(signer, asset.assetId, creator, network);
                 store.set({ accountInfo: null });
                 toast(`Removed ${asset.unitName || `ASA #${asset.assetId}`}`, 'success');
                 store.navigate('dashboard');
               } catch (err) {
                 toast(err instanceof Error ? err.message : 'Opt-out failed', 'danger');
+              } finally {
+                signer?.dispose();
               }
             },
           }) : el('span'),

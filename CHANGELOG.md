@@ -3,6 +3,16 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.1.5 — 2026-10-01 (increment towards 0.2.0)
+
+Keys stay in the Keycore, step 1 of 5 ([roadmap](docs/ROADMAP-1.0.md#020--keys-stay-in-the-keycore-audit-p1)).
+- **ALGO and ASA sends are signed by the PARSEC Keycore.** The send screen built the transaction
+  and signed it in JavaScript from the recovery phrase; it now hands the transaction to Rust and
+  gets back only the signature. `sendPayment` / `sendAssetTransfer` take a signer, not a phrase.
+- **Removing an asset (opt-out) is signed by the Keycore** the same way.
+- Tests: the sends and the opt-out are signed by the supplied signer, from its address, and the
+  functions no longer accept a phrase.
+
 ## 0.1.4 — 2026-10-01
 
 Includes everything in 0.1.3 (held, never published) and the vault fixes below.

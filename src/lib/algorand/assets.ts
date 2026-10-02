@@ -2,6 +2,7 @@
 // Opt-in, opt-out, lookup, enrichment, known registry.
 // 6 decimal precision default for all assets.
 
+import type { WalletSigner } from './signer';
 import algosdk from 'algosdk';
 import pMap from 'p-map';
 import type { AssetHolding, NetworkId } from '../../types/wallet';
@@ -159,17 +160,17 @@ export async function optInToAsset(mnemonic: string, assetId: number, network: N
 
 /** Opt out of an ASA — closes asset to creator, recovers 0.1 ALGO min balance */
 export async function optOutFromAsset(
-  mnemonic: string,
+  signer: WalletSigner,
   assetId: number,
   creatorAddress: string,
   network: NetworkId,
 ): Promise<{ txId: string }> {
+  // Signed by the PARSEC Keycore (desktop, phone) through `walletSigner`; no phrase in JS.
   const client = getAlgodClient(network);
-  const account = algosdk.mnemonicToSecretKey(mnemonic.trim());
   const suggestedParams = await client.getTransactionParams().do();
 
   const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-    sender: account.addr,
+    sender: signer.address,
     receiver: creatorAddress,
     amount: 0,
     assetIndex: assetId,
@@ -177,7 +178,7 @@ export async function optOutFromAsset(
     suggestedParams,
   });
 
-  const signedTxn = txn.signTxn(account.sk);
+  const [signedTxn] = await signer.sign([txn], [0]);
   const { txid } = await client.sendRawTransaction(signedTxn).do();
   await algosdk.waitForConfirmation(client, txid, 4);
   return { txId: txid };
