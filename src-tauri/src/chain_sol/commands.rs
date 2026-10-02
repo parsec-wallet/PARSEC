@@ -30,6 +30,26 @@ pub struct SolImportArgs {
     pub label: Option<String>,
 }
 
+/// Create a Solana account inside the Keycore: a 24-word BIP-39 phrase from the OS CSPRNG,
+/// stored in the vault; only the address returns (the phrase is revealed once for backup
+/// through `vault_reveal_new`).
+#[tauri::command]
+pub fn chain_sol_create_account(
+    state: tauri::State<'_, VaultState>,
+    label: Option<String>,
+) -> Result<SolAccountInfo, String> {
+    let mut phrase = crate::chain_btc::keys::generate_mnemonic(crate::chain_btc::keys::MnemonicWords::TwentyFour)?;
+    let info = chain_sol_address_from_mnemonic(phrase.clone());
+    let stored = info.as_ref().map_err(String::clone).and_then(|info| {
+        let mut guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
+        guard.store_new(CHAIN, &info.address, label.as_deref().unwrap_or("Solana"), phrase.as_bytes())
+    });
+    // SAFETY: overwriting a String's bytes in place with zero bytes of equal length.
+    unsafe { crate::bankon_vault::secure_mem::wipe(phrase.as_bytes_mut()) };
+    stored?;
+    info
+}
+
 /// Import a Solana account from a BIP-39 mnemonic.
 #[tauri::command]
 pub fn chain_sol_import_account(

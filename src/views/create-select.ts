@@ -239,7 +239,7 @@ async function createInline(offer: ChainOffer, trigger: HTMLButtonElement): Prom
   // land on the first-paint path.
   const { getChainModule } = await import('../lib/pouch/chains');
   const mod = getChainModule(offer.id);
-  if (!mod || !mod.enabled) {
+  if (!isTauri && (!mod || !mod.enabled)) {
     toast(`${offer.label} module is not available in this build`, 'warning');
     return;
   }
@@ -247,11 +247,18 @@ async function createInline(offer: ChainOffer, trigger: HTMLButtonElement): Prom
   trigger.disabled = true;
   store.set({ isLoading: true });
   try {
-    const created = await mod.createWallet();
-    const secret = created.recoveryMaterial;
-    if (!secret) throw new Error('module returned no recovery material');
-
-    await keystoreStore(created.address, secret, passphrase, `${offer.label} account`, offer.id);
+    let createdAddress: string;
+    if (isTauri) {
+      // The PARSEC Keycore generates and seals the key; back it up later with the export.
+      createdAddress = await keycoreCreate(offer.id, `${offer.label} account`);
+    } else {
+      const created = await mod!.createWallet();
+      const secret = created.recoveryMaterial;
+      if (!secret) throw new Error('module returned no recovery material');
+      await keystoreStore(created.address, secret, passphrase, `${offer.label} account`, offer.id);
+      createdAddress = created.address;
+    }
+    const created = { address: createdAddress };
 
     const updated = setAccountAddress(account, offer.id, created.address);
     const accounts = [...state.accounts];
@@ -266,5 +273,15 @@ async function createInline(offer: ChainOffer, trigger: HTMLButtonElement): Prom
     trigger.disabled = false;
   } finally {
     store.set({ isLoading: false });
+  }
+}
+
+/** Desktop: create a key for `chainId` inside the PARSEC Keycore; returns its address. */
+async function keycoreCreate(chainId: string, label: string): Promise<string> {
+  switch (chainId) {
+    case 'bitcoin': return (await (await import('../lib/bitcoin/account')).btcCreateAccount(label)).address;
+    case 'litecoin': return (await (await import('../lib/litecoin/account')).ltcCreateAccount(label)).address;
+    case 'ethereum': return (await (await import('../lib/chain-evm')).evmCreateAccount(label)).address;
+    default: throw new Error(`The Keycore does not create ${chainId} keys yet`);
   }
 }

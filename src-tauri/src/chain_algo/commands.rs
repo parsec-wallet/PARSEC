@@ -37,8 +37,8 @@ pub fn chain_algo_validate_mnemonic(mnemonic_phrase: String) -> Result<bool, Str
 
 /// Create a new account: generate a seed, store it, return the public data.
 ///
-/// The seed never leaves Rust. Call `chain_algo_reveal_mnemonic` to show the
-/// participant their backup phrase.
+/// The seed never leaves Rust. The backup phrase is shown once through
+/// `vault_reveal_new`, later only through `vault_export_secret`.
 #[tauri::command]
 pub fn chain_algo_create_account(
     state: tauri::State<'_, VaultState>,
@@ -52,7 +52,7 @@ pub fn chain_algo_create_account(
     // write down, and what every other Algorand tool will accept on recovery.
     let mut phrase = mnemonic::from_seed(seed.as_slice())?;
     let mut guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-    let stored = guard.store_by_address(
+    let stored = guard.store_new(
         CHAIN,
         &address,
         label.as_deref().unwrap_or("Algorand"),

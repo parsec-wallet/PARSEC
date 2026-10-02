@@ -204,6 +204,33 @@ pub fn vault_export_secret(
     Ok(serde_json::json!({ "secret": secret, "chain": chain }))
 }
 
+/// The backup phrase of an account the Keycore created this session — once.
+///
+/// The backup step right after creation, so a new wallet can be written down without the
+/// passphrase being asked again. Only for an address `store_new` stored (a Keycore-generated
+/// key nobody has funded yet), once, within ten minutes, before lock; anything else must use
+/// `vault_export_secret`.
+#[tauri::command]
+pub fn vault_reveal_new(
+    state: tauri::State<'_, VaultState>,
+    address: String,
+) -> Result<serde_json::Value, String> {
+    let mut guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
+    if !guard.take_fresh(&address) {
+        return Err("only a key the Keycore just created can be shown this way, once; use the export".to_string());
+    }
+    let dir = guard.dir().ok_or("vault is locked")?.to_path_buf();
+    let chain = VaultStore::read_manifest(&dir)?
+        .accounts
+        .into_iter()
+        .find(|a| a.address == address)
+        .map(|a| a.chain)
+        .ok_or("no account with that address in this vault")?;
+    let secret = guard.retrieve_by_address(&address)?;
+    let text = std::str::from_utf8(secret.as_slice()).map_err(|_| "stored secret is not valid utf-8")?;
+    Ok(serde_json::json!({ "secret": text, "chain": chain }))
+}
+
 /// Remove an account from the vault
 #[tauri::command]
 pub fn vault_remove_account(

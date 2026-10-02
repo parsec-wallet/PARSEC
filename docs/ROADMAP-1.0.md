@@ -53,11 +53,12 @@ first vault hardening from the [2026-10-01 audit](security/vault-audit-2026-10-0
   issued), not an in-app nonce — an in-app view shares the webview it would be guarding.
   `surface_tests.rs` and `keycore-js-surface.test.ts` are the exit tests.
 
-### 0.2.x — Generation in the Keycore
+### 0.2.x — Generation in the Keycore — **0.2.1**
 - Creating a wallet generates the key in Rust after the vault exists, for every chain (today the
   Algorand create flow, the inline Bitcoin/EVM packs, Solana and Arweave generate in the app and
   then seal the key); the backup phrase is shown through a one-time reveal of the new account.
-- **Exit:** the `generation` entries leave `keycore-js-surface.test.ts`.
+- **Exit:** the `generation` entries leave `keycore-js-surface.test.ts`. *(Met in 0.2.1; Arweave HD
+  stays the documented exception, and the admin key ceremony remains a residual.)*
 
 ### 0.3.0 — `bankon-vault/2` ships *(audit P2)*
 - v2 compiled in; the audit's v2 findings fixed (atomic migration, re-authenticated custodians,

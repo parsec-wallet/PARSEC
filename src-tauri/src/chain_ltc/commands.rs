@@ -111,13 +111,9 @@ pub fn chain_ltc_create_account(
     )?;
     let address = primary_address(&mnemonic, "")?;
 
-    let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-    let key = guard.key().ok_or("vault is locked")?;
-    let dir = guard.dir().ok_or("vault is locked")?;
+    let mut guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
 
-    VaultStore::store_secret(
-        dir,
-        key,
+    guard.store_new(
         &address,
         "litecoin",
         label.as_deref().unwrap_or("Litecoin"),

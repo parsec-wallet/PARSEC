@@ -87,6 +87,7 @@ pub fn run() {
             vault_lock,
             vault_store_key,
             vault_export_secret,
+            vault_reveal_new,
             bankon_vault::approval::keycore_approve,
             bankon_vault::approval::keycore_allowance_grant,
             bankon_vault::approval::keycore_allowance_revoke,
@@ -183,6 +184,7 @@ pub fn run() {
             // chain_evm — EVM chain pack (EIP-1559 transactions, EIP-3009 x402 authorizations)
             chain_evm_sign_tx,
             chain_evm_address_from_key,
+            chain_evm_create_account,
             chain_evm_sign_transfer_authorization,
             // chain_ar — Arweave chain pack (RSA-4096 JWK, ANS-104 data items)
             chain_ar_create_account,
@@ -191,6 +193,7 @@ pub fn run() {
             chain_ar_sign,
             // chain_sol — Solana chain pack (ed25519, BIP-44 m/44'/501')
             chain_sol_address_from_mnemonic,
+            chain_sol_create_account,
             chain_sol_import_account,
             chain_sol_sign,
             // network_monitor — opt-in local network + system snapshot

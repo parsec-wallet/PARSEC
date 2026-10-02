@@ -57,6 +57,17 @@ export async function vaultExportSecret(
   return await invoke('vault_export_secret', { args: { address, passphrase, confirm } });
 }
 
+/**
+ * The backup phrase of an account the PARSEC Keycore created in this session, once.
+ *
+ * For the backup step right after creation, so a new wallet's phrase can be written down
+ * without asking for the passphrase again. Refused for any other account (use
+ * `vaultExportSecret`), after the first reveal, after ten minutes, and after lock.
+ */
+export async function vaultRevealNew(address: string): Promise<{ secret: string; chain: string }> {
+  return await invoke('vault_reveal_new', { address });
+}
+
 /** Remove an account from the vault */
 export async function vaultRemoveAccount(address: string): Promise<void> {
   await invoke('vault_remove_account', { address });

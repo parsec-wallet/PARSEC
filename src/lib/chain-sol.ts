@@ -28,6 +28,11 @@ export async function solImportAccount(
   });
 }
 
+/** Create a Solana account inside the PARSEC Keycore (24-word BIP-39); returns the address only. */
+export async function solCreateAccount(label?: string): Promise<SolAccountInfo> {
+  return await invoke<SolAccountInfo>('chain_sol_create_account', { label });
+}
+
 /** Sign a Solana message. The signature returns; the key does not. */
 export async function solSign(
   address: string,
