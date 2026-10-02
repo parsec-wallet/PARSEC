@@ -263,3 +263,13 @@ cp4096 commitment III requires that a stranger be able to re-run every claim.
 - Passphrase rotation leaving every entry ciphertext byte-identical.
 - Refusal of parameters below the floor, including the old `Argon2::default()`.
 - A locked vault's document containing no address, chain, or label.
+- KDF parameters outside the floor or ceiling refused, and an edited wrap cost failing to open.
+- Length-prefixed fields: no reshuffling of a `:`-containing chain, address or label collides.
+- The key-binding message naming the vault, and refused by every signer.
+- Migration: nothing half-built left behind, a stale `.migrating` discarded, the document read
+  back from disk and compared in constant time; a **committed `bankon-vault/1` vault**
+  (`src-tauri/tests/fixtures/bankon-vault-1`) migrating with every secret intact and typed.
+- The document MAC refusing a deleted entry, and an older generation refused as a rollback.
+- Custodian signatures verified for Algorand (raw and `MX`), Solana and EVM `personal_sign`.
+
+These run in CI on every push (`keycore-tests` in `.github/workflows/ci.yml`).

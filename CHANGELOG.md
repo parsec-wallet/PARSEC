@@ -3,6 +3,18 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.2.8 — 2026-10-01 (increment towards 0.3.0)
+
+`bankon-vault/2`, the exit checks.
+- **The Keycore's tests run in CI** on every push and pull request (`keycore-tests`): the vault
+  suite for both formats, the approval gate, and the command-surface exit tests. Until now CI ran
+  only the TypeScript tests and a build.
+- **A real v1 vault, committed as bytes** (`src-tauri/tests/fixtures/bankon-vault-1`, test keys
+  only), migrates in a test with every secret intact and its type inferred — Algorand 25 words,
+  BIP-39, a raw Solana key, an EVM key, an Arweave JWK, a Bitcoin phrase.
+- The spec's test-vector list covers everything added in 0.2.2–0.2.7; the roadmap marks the 0.3.0
+  exit met.
+
 ## 0.2.7 — 2026-10-01 (increment towards 0.3.0)
 
 `bankon-vault/2` is the vault.

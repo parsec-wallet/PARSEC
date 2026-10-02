@@ -620,6 +620,66 @@ mod tests {
     use super::*;
     use super::super::overseer::{KeyFileOverseer, PassphraseOverseer, SignatureOverseer};
 
+    /// The committed `bankon-vault/1` fixture (tests/fixtures/bankon-vault-1): a vault written
+    /// by the v1 store, holding well-known TEST keys only — never fund these.
+    const V1_FIXTURE_PASSPHRASE: &str = "parsec-v1-fixture-2026";
+    const V1_FIXTURE_ACCOUNTS: &[(&str, &str, &str, &str)] = &[
+        ("ALGOFIXTURE", "algorand", "main",
+         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon invest"),
+        ("HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk", "solana", "Solana",
+         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"),
+        ("SOLRAWFIXTURE", "solana", "Phantom import", "solana-raw:4wBqpZM9xaSheZzJSMawUKKwhdpChKbZ5eu5ky4Vigw"),
+        ("0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A", "ethereum", "EVM",
+         "0x1111111111111111111111111111111111111111111111111111111111111111"),
+        ("ARFIXTURE", "arweave-hd", "Arweave HD", "{\"kty\":\"RSA\",\"n\":\"test\",\"e\":\"AQAB\",\"d\":\"test\"}"),
+        ("bc1qfixture", "bitcoin", "Bitcoin", "legal winner thank year wave sausage worth useful legal winner thank yellow"),
+    ];
+
+    /// 0.3.0 exit test: a vault written by the v1 store, committed as bytes, migrates with every
+    /// secret intact and typed. If the v1 reader or the migration ever changes in a way that
+    /// would strand a real vault, this fails.
+    #[test]
+    fn the_committed_v1_vault_migrates_with_every_secret() {
+        let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/bankon-vault-1");
+        let d = scratch("fixture");
+        std::fs::create_dir_all(d.join("keys")).unwrap();
+        for f in ["vault.json", ".verify"] {
+            std::fs::copy(src.join(f), d.join(f)).unwrap();
+        }
+        for e in std::fs::read_dir(src.join("keys")).unwrap().flatten() {
+            std::fs::copy(e.path(), d.join("keys").join(e.file_name())).unwrap();
+        }
+
+        let o = pass(V1_FIXTURE_PASSPHRASE);
+        let v = migrate_v1(&d, V1_FIXTURE_PASSPHRASE, &o).unwrap();
+        let dek = Vault::load(&d).unwrap().unlock(&PassphraseOverseer::for_unlock(V1_FIXTURE_PASSPHRASE)).unwrap();
+        assert_eq!(v.entry_count(), V1_FIXTURE_ACCOUNTS.len());
+        for (addr, chain, _, secret) in V1_FIXTURE_ACCOUNTS {
+            assert_eq!(v.retrieve_secret(&dek, chain, addr).unwrap().as_slice(), secret.as_bytes(), "{addr}");
+        }
+        assert_eq!(v.scheme_of(&dek, "algorand", "ALGOFIXTURE").unwrap(), KeyScheme::MnemonicAlgo25);
+        assert_eq!(
+            v.scheme_of(&dek, "solana", "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk").unwrap(),
+            KeyScheme::MnemonicBip39
+        );
+        // The committed fixture itself is never touched.
+        assert!(VaultStore::exists(&src) && !Vault::exists(&src));
+        std::fs::remove_dir_all(&d).ok();
+    }
+
+    /// One-off: write the committed v1 fixture. `cargo test --lib write_v1_fixture -- --ignored`.
+    #[test]
+    #[ignore]
+    fn write_v1_fixture() {
+        let d = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/bankon-vault-1");
+        let _ = std::fs::remove_dir_all(&d);
+        VaultStore::create(&d, V1_FIXTURE_PASSPHRASE.as_bytes()).unwrap();
+        let k = VaultStore::derive_session_key(&d, V1_FIXTURE_PASSPHRASE.as_bytes()).unwrap();
+        for (addr, chain, label, secret) in V1_FIXTURE_ACCOUNTS {
+            VaultStore::store_secret(&d, &k, addr, chain, label, secret.as_bytes()).unwrap();
+        }
+    }
+
     fn scratch(tag: &str) -> PathBuf {
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
