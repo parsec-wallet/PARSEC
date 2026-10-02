@@ -2,9 +2,9 @@
 // Shows transaction signing requests from web dApps connected via WebSocket.
 // Follows the x402-confirm pattern: module-level pending state + setter.
 
+import { walletSigner, type WalletSigner } from '../lib/algorand/signer';
 import { el, btn, toast } from '../lib/dom';
 import { store } from '../lib/store';
-import { keystoreRetrieve } from '../lib/keystore';
 import {
   connectApproveSign,
   connectRejectSign,
@@ -212,27 +212,23 @@ async function handleApprove(req: SignRequest, address?: string) {
   }
 
   store.set({ isLoading: true });
-  let mnemonic: string | null = null;
+  let signer: WalletSigner | null = null;
 
   try {
-    mnemonic = await keystoreRetrieve(address, passphrase);
-    if (!mnemonic) {
-      toast('Could not retrieve key. Re-unlock.', 'danger');
-      store.set({ isLoading: false });
-      store.navigate('unlock');
-      return;
-    }
-
-    // Sign each transaction
+    // The PARSEC Keycore signs each transaction; no recovery phrase enters JavaScript.
+    signer = await walletSigner(address);
     const algosdk = await import('algosdk');
-    const { sk } = algosdk.default.mnemonicToSecretKey(mnemonic.trim());
 
     const signedTxnsB64: string[] = [];
     for (const txnB64 of req.txns_b64) {
       const txnBytes = base64ToBytes(txnB64);
       const decoded = algosdk.default.decodeUnsignedTransaction(txnBytes);
-      const signed = algosdk.default.signTransaction(decoded, sk);
-      signedTxnsB64.push(bytesToBase64(signed.blob));
+      // A dApp may only ask this account to sign its own transactions.
+      if (decoded.sender.toString() !== address) {
+        throw new Error(`the dApp asked to sign a transaction from ${decoded.sender.toString().slice(0, 8)}…, not this account`);
+      }
+      const [signed] = await signer.sign([decoded], [0]);
+      signedTxnsB64.push(bytesToBase64(signed));
     }
 
     await connectApproveSign(req.request_id, signedTxnsB64);
@@ -241,7 +237,7 @@ async function handleApprove(req: SignRequest, address?: string) {
     const msg = e instanceof Error ? e.message : String(e);
     toast(`Sign failed: ${msg}`, 'danger');
   } finally {
-    mnemonic = null; // Zero out
+    signer?.dispose();
     store.set({ isLoading: false });
     pendingRequest = null;
     store.navigate('dashboard');

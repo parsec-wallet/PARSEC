@@ -1,34 +1,28 @@
-// Bridge PARSEC's keystore to the SDK's TransactionSigner contract.
+// Bridge the NFD SDK's TransactionSigner contract to PARSEC's wallet signer.
 //
-// The SDK expects a function that signs an arbitrary group with a set of
-// `indexesToSign`. PARSEC holds the mnemonic inside the session passphrase-
-// derived keystore; this adapter retrieves it, uses algosdk to sign, then
-// wipes the mnemonic from local memory immediately.
+// The SDK signs an arbitrary group at `indexesToSign`. On desktop and phone the PARSEC
+// Keycore signs (`walletSigner` → `chain_algo_sign_transaction`): each transaction goes to
+// Rust and only the signature comes back — no recovery phrase enters JavaScript, and the
+// Keycore checks the stored key belongs to the address. The browser build (no Keycore) uses
+// its documented in-tab signer.
 
-import algosdk, { type TransactionSigner } from 'algosdk';
-import { keystoreRetrieve } from '../keystore';
+import type { TransactionSigner } from 'algosdk';
+import { walletSigner } from '../algorand/signer';
 
 /**
- * Build a TransactionSigner that signs exclusively with the account at the
- * given address. The passphrase is read once and held only for the duration
- * of signing — caller should ensure the session is unlocked.
- *
- * JS strings are immutable; we can't truly zero the mnemonic, but we drop
- * every reference to it as soon as signing completes so GC can reclaim it.
+ * A TransactionSigner that signs only as `address`. `passphrase` is kept in the signature for
+ * the callers' sake; the Keycore needs only the unlocked session.
  */
-export function makeParsecSigner(address: string, passphrase: string): TransactionSigner {
+export function makeParsecSigner(address: string, _passphrase?: string): TransactionSigner {
   return async (txnGroup, indexesToSign) => {
-    const mnemonic = await keystoreRetrieve(address, passphrase);
-    if (!mnemonic) throw new Error('parsec: mnemonic not in keystore');
-    let account: algosdk.Account | null = null;
+    for (const i of indexesToSign) {
+      if (txnGroup[i].sender.toString() !== address) throw new Error('parsec: signer address mismatch');
+    }
+    const signer = await walletSigner(address);
     try {
-      account = algosdk.mnemonicToSecretKey(mnemonic);
-      if (account.addr.toString() !== address) {
-        throw new Error('parsec: signer address mismatch');
-      }
-      return indexesToSign.map((i) => txnGroup[i].signTxn(account!.sk));
+      return await signer.sign(txnGroup, indexesToSign);
     } finally {
-      if (account?.sk) account.sk.fill(0);
+      signer.dispose();
     }
   };
 }
