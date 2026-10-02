@@ -75,7 +75,7 @@ src/lib/x402/
   oracle.ts          Vestige ALGO/USD, for display only
   discount.ts        BANKON holder lookup (see "the discount moved" below)
   agenticplace-client.ts   discovery API, SmartOracle, MindX, BANKON identity
-  bridge.ts          vault-held algosdk signer — used by AORC minting, not by payment
+  bridge.ts          Keycore-backed algosdk signer shape — used by AORC minting, not by payment
 
 src/lib/
   chain-algo.ts      typed wrapper for chain_algo (signs the Algorand group legs)
@@ -383,8 +383,8 @@ find out what it costs.
 
 Three files are the integration layer and are coupled on purpose: `adapters/parsec.ts`
 (the port implementations), `module.ts` (routes and the dashboard tile) and `choices.ts`
-(the privilege declaration). `bridge.ts` is a legacy vault signer kept for the AORC
-minters and is not on the payment path.
+(the privilege declaration). `bridge.ts` adapts the Keycore
+signer to the older signer shape the AORC minters use and is not on the payment path.
 
 The core keeps one shared dependency, `../money` — exact fixed-point arithmetic, pure and
 dependency-free, and what stops a float reaching a signed amount. An extraction would take

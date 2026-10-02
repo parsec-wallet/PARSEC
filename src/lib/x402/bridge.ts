@@ -1,12 +1,18 @@
-// PARSEC x402 Integration — Vault-Secured Signing Bridge
-// Retrieves keys from vault EPHEMERALLY, builds x402 signer, signs, discards.
-// Secrets pass through JS only for a single signing operation.
+// PARSEC x402 Integration — signing bridge
+// Builds the x402 signer shape over the PARSEC Keycore. On the desktop no key
+// enters JavaScript: transactions are signed by `chain_algo_sign_transaction`
+// and messages by `chain_algo_sign_bytes`. The browser build (no Keycore) reads
+// the key for the moment of signing, through `walletSigner`.
 // SPDX-FileCopyrightText: 2026 BANKON
 // SPDX-License-Identifier: Apache-2.0
 
 import algosdk from 'algosdk';
-import { keystoreRetrieve } from '../keystore';
 import { getAlgodClient } from '../algorand/client';
+import { walletSigner } from '../algorand/signer';
+import { algoSignBytes } from '../chain-algo';
+import { isTauri } from '../platform';
+import { keystoreRetrieve } from '../keystore';
+import { store } from '../store';
 import type { NetworkId } from '../../types/wallet';
 
 // ── x402 Signer Interface ────────────────────────────────────────
@@ -25,57 +31,45 @@ export interface X402Signer {
 // ── Algorand x402 Signer ─────────────────────────────────────────
 
 /**
- * Build a vault-secured x402 signer for Algorand.
+ * An x402 signer for a vault account, signed by the PARSEC Keycore.
  *
- * Flow:
- *   1. keystoreRetrieve(address, passphrase) → mnemonic (brief hold)
- *   2. algosdk.mnemonicToSecretKey(mnemonic) → { addr, sk }
- *   3. Build signer object with sk in closure
- *   4. Caller uses signer for one x402 payment cycle
- *   5. Caller discards signer reference → sk eligible for GC
- *
- * The signer closure is the ONLY place the secret key lives in JS.
+ * `_passphrase` is kept for callers written against the old bridge; the vault
+ * session decides, not a passphrase passed around in JavaScript. A transaction
+ * whose sender is not `address` is refused before it reaches the signer.
  */
 export async function buildAlgorandX402Signer(
   address: string,
-  passphrase: string,
+  _passphrase: string,
   network: NetworkId = 'testnet',
 ): Promise<X402Signer> {
-  // Step 1: Retrieve mnemonic from vault (Rust AES-256-GCM → JS briefly)
-  const mnemonic = await keystoreRetrieve(address, passphrase);
-  if (!mnemonic) {
-    throw new Error(`No key found in vault for ${address}`);
-  }
-
-  // Step 2: Derive signing key
-  const { addr, sk } = algosdk.mnemonicToSecretKey(mnemonic.trim());
-  const addrStr = addr.toString();
-
-  // Verify address matches
-  if (addrStr !== address) {
-    throw new Error(`Vault key mismatch: expected ${address}, got ${addrStr}`);
-  }
-
-  // Step 3: Build algod client for this network
   const client = getAlgodClient(network);
 
-  // Step 4: Return x402-compatible signer (sk lives in closure only)
-  return {
-    address: addrStr,
-    getAddresses: () => [addrStr],
+  async function signAt(txns: Uint8Array[], indexes: number[]): Promise<Uint8Array[]> {
+    const group = txns.map((t) => algosdk.decodeUnsignedTransaction(t));
+    for (const i of indexes) {
+      const sender = group[i].sender.toString();
+      if (sender !== address) throw new Error(`Refusing to sign for ${sender}: this signer is ${address}`);
+    }
+    const signer = await walletSigner(address);
+    try {
+      return await signer.sign(group, indexes);
+    } finally {
+      signer.dispose();
+    }
+  }
 
-    signTransaction: async (txnBytes: Uint8Array) => {
-      const decoded = algosdk.decodeUnsignedTransaction(txnBytes);
-      const signed = algosdk.signTransaction(decoded, sk);
-      return signed.blob;
-    },
+  return {
+    address,
+    getAddresses: () => [address],
+
+    signTransaction: async (txnBytes: Uint8Array) => (await signAt([txnBytes], [0]))[0],
 
     signTransactions: async (txns: Uint8Array[], indexesToSign?: number[]) => {
-      return txns.map((txn, i) => {
-        if (indexesToSign && !indexesToSign.includes(i)) return null;
-        const decoded = algosdk.decodeUnsignedTransaction(txn);
-        const signed = algosdk.signTransaction(decoded, sk);
-        return signed.blob;
+      const indexes = indexesToSign ?? txns.map((_, i) => i);
+      const signed = await signAt(txns, indexes);
+      return txns.map((_, i) => {
+        const at = indexes.indexOf(i);
+        return at < 0 ? null : signed[at];
       });
     },
 
@@ -86,8 +80,8 @@ export async function buildAlgorandX402Signer(
       return response.txid as string;
     },
 
-    waitForConfirmation: async (_txId: string, _network: string, waitRounds = 4) => {
-      const result = await algosdk.waitForConfirmation(client, _txId, waitRounds);
+    waitForConfirmation: async (txId: string, _network: string, waitRounds = 4) => {
+      const result = await algosdk.waitForConfirmation(client, txId, waitRounds);
       return result as unknown as Record<string, unknown>;
     },
   };
@@ -145,136 +139,45 @@ export async function buildXchainX402Signer(
   };
 }
 
-// ── algorand-hd (ARC-52) x402 Signer ─────────────────────────────
-
-/**
- * Build a vault-secured x402 signer for an ARC-52 HD-derived child key.
- * The 24-word BIP-39 seed is retrieved briefly from bankon_vault, the
- * extended root key is derived, the requested account/index signs, then
- * the rootKey buffer is zeroed.
- */
-export async function buildAlgorandHdX402Signer(
-  primaryAddress: string,
-  account: number,
-  keyIndex: number,
-  network: NetworkId = 'testnet',
-): Promise<X402Signer> {
-  const { rootKeyFromMnemonic } = await import('../algorand-hd/seed');
-  const { signTxn: hdSignTxn, deriveAlgo } = await import('../algorand-hd/derive');
-
-  const mnemonic = await keystoreRetrieve(primaryAddress, '');
-  if (!mnemonic) throw new Error(`No HD seed in vault for ${primaryAddress}`);
-
-  // Derive the child address up front to populate `address` / `getAddresses`.
-  const rootKeyForAddr = rootKeyFromMnemonic(mnemonic);
-  let childAddress: string;
-  try {
-    const k = await deriveAlgo(rootKeyForAddr, account, keyIndex);
-    childAddress = k.address;
-  } finally {
-    rootKeyForAddr.fill(0);
-  }
-
-  const client = getAlgodClient(network);
-
-  // sign helper that re-derives rootKey on each call and zeroes after.
-  async function signOne(prefixEncodedTx: Uint8Array): Promise<Uint8Array> {
-    const rootKey = rootKeyFromMnemonic(mnemonic!);
-    try {
-      return await hdSignTxn(rootKey, account, keyIndex, prefixEncodedTx);
-    } finally {
-      rootKey.fill(0);
-    }
-  }
-
-  return {
-    address: childAddress,
-    getAddresses: () => [childAddress],
-
-    signTransaction: signOne,
-
-    signTransactions: async (txns: Uint8Array[], indexesToSign?: number[]) => {
-      const out: (Uint8Array | null)[] = [];
-      for (let i = 0; i < txns.length; i++) {
-        if (indexesToSign && !indexesToSign.includes(i)) {
-          out.push(null);
-          continue;
-        }
-        out.push(await signOne(txns[i]));
-      }
-      return out;
-    },
-
-    getAlgodClient: () => client,
-
-    sendTransactions: async (signedTxns: Uint8Array[]) => {
-      const response = await client.sendRawTransaction(signedTxns).do();
-      return response.txid as string;
-    },
-
-    waitForConfirmation: async (txId: string, _network: string, waitRounds = 4) => {
-      const result = await algosdk.waitForConfirmation(client, txId, waitRounds);
-      return result as unknown as Record<string, unknown>;
-    },
-  };
-}
-
 // ── Algorand Message Signing ─────────────────────────────────────
 
 /**
- * Sign arbitrary bytes using vault-secured key.
+ * Sign arbitrary bytes (Algorand `MX` prefix) with a vault account.
  * Used for: identity challenges, command channel, EIP-712 equivalent on Algorand.
+ * Desktop: `chain_algo_sign_bytes` in the Keycore. Browser build: the key is
+ * read for the moment of signing and overwritten after.
  */
 export async function signBytesWithVault(
   address: string,
-  passphrase: string,
+  _passphrase: string,
   message: Uint8Array,
 ): Promise<Uint8Array> {
-  const mnemonic = await keystoreRetrieve(address, passphrase);
-  if (!mnemonic) {
-    throw new Error(`No key found in vault for ${address}`);
+  if (isTauri) {
+    const { signature_b64 } = await algoSignBytes(address, bytesToB64(message));
+    return b64ToBytes(signature_b64);
   }
-
-  const { sk } = algosdk.mnemonicToSecretKey(mnemonic.trim());
-  const signature = algosdk.signBytes(message, sk);
-  // sk goes out of scope here → eligible for GC
-  return signature;
+  const pass = store.getPassphrase();
+  if (!pass) throw new Error('Unlock the wallet first.');
+  const mnemonic = await keystoreRetrieve(address, pass);
+  if (!mnemonic) throw new Error(`No key found in vault for ${address}`);
+  const { addr, sk } = algosdk.mnemonicToSecretKey(mnemonic.trim());
+  try {
+    if (addr.toString() !== address) throw new Error(`Vault key mismatch for ${address}`);
+    return algosdk.signBytes(message, sk);
+  } finally {
+    sk.fill(0);
+  }
 }
 
-// ── Algorand Payment (direct, non-x402) ──────────────────────────
+function bytesToB64(bytes: Uint8Array): string {
+  let s = '';
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s);
+}
 
-/**
- * Send a direct ALGO payment using vault-secured key.
- * For x402 payments, use buildAlgorandX402Signer() instead.
- */
-export async function sendPaymentWithVault(
-  address: string,
-  passphrase: string,
-  receiver: string,
-  amountMicroAlgos: number,
-  note: string,
-  network: NetworkId = 'testnet',
-): Promise<{ txId: string; confirmedRound: number }> {
-  const mnemonic = await keystoreRetrieve(address, passphrase);
-  if (!mnemonic) {
-    throw new Error(`No key found in vault for ${address}`);
-  }
-
-  const client = getAlgodClient(network);
-  const account = algosdk.mnemonicToSecretKey(mnemonic.trim());
-  const suggestedParams = await client.getTransactionParams().do();
-
-  const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-    sender: account.addr,
-    receiver,
-    amount: amountMicroAlgos,
-    note: note ? new TextEncoder().encode(note) : undefined,
-    suggestedParams,
-  });
-
-  const signedTxn = txn.signTxn(account.sk);
-  const { txid } = await client.sendRawTransaction(signedTxn).do();
-  const result = await algosdk.waitForConfirmation(client, txid, 4);
-  // account goes out of scope → sk eligible for GC
-  return { txId: txid, confirmedRound: Number(result.confirmedRound || 0) };
+function b64ToBytes(b64: string): Uint8Array {
+  const s = atob(b64);
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
 }

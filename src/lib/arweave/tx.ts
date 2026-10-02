@@ -1,8 +1,7 @@
 // Arweave transaction builder + vault-bridged signer.
 //
 // The signing flow is Arweave-specific (deep-hash → RSA-PSS → derive id from
-// signature) and doesn't slot cleanly into the generic vaultSign() in
-// builder/isolation.ts, which expects "sign this payload, return signature".
+// signature) and is not a plain "sign this payload, return signature" call.
 // Arweave needs the signature THEN sets it back onto the tx and derives an
 // id from it. So this module owns its own vault-retrieval path — but uses
 // the same primitives (keystoreRetrieve + WebCrypto RSA-PSS) for parity.
@@ -131,7 +130,6 @@ export async function signTx(
 
 /**
  * Retrieve the JWK from the vault, sign the tx, zero the plaintext JWK.
- * The keystore retrieval mirrors builder/isolation.ts vaultSign().
  */
 export async function signTxFromVault(
   address: string,

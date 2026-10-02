@@ -62,9 +62,9 @@ Real mainnet settlement is the measure of this module, not code — see
 
 ### Module
 
-- **[`bridge.ts`](bridge.ts) is legacy.** A vault-held algosdk signer, still used by the AORC minters,
-  not on the payment path. It retrieves a mnemonic into the renderer, which the rest of
-  the module no longer does. Migrating AORC to `parsecAvmSigner` would let it go.
+- ~~**[`bridge.ts`](bridge.ts) is legacy.**~~ Done in 0.1.7: it now signs through the Keycore
+  (`walletSigner`), refuses another sender, and no longer reads a phrase into the renderer.
+  It stays only as the signer shape the AORC minters use.
 - **`X402Signers` still declares `arweave` as `never`** — it type-errors at the call site
   rather than accepting a signer nothing will read. `svm` is a real signer now.
 - **The Solana rail has no mainnet exercise.** Its associated-token-account derivation is
