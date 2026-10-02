@@ -15,6 +15,7 @@ use super::format::{
     self, AccountIndex, AccountRecord, CustodyKind, Entry, KeyScheme, VaultDoc, Wrap, DEK_LEN,
     SALT_LEN, VAULT_ID_LEN,
 };
+use super::kdf::KdfParams;
 use super::overseer::Overseer;
 use super::secure_mem::SecretBytes;
 use super::store::VaultStore;
@@ -100,6 +101,11 @@ impl Vault {
         Ok(v)
     }
 
+    /// The vault's id (hex), as named in its key-binding message.
+    pub fn vault_id(&self) -> &str {
+        &self.doc.vault_id
+    }
+
     pub fn load(dir: &Path) -> Result<Self, String> {
         let path = Self::doc_path(dir);
         let raw = std::fs::read(&path).map_err(|e| format!("failed to read vault: {e}"))?;
@@ -117,7 +123,7 @@ impl Vault {
         let params = overseer.kdf_params();
         let kek = overseer.kek(&salt, params)?;
         let vid = doc.vault_id_bytes()?;
-        let aad = Self::wrap_aad(&vid, overseer.kind(), overseer.label());
+        let aad = Self::wrap_aad(&vid, overseer.kind(), overseer.label(), params);
         let sealed = format::seal(kek.as_slice(), dek, &aad)?;
         Ok(Wrap {
             kind: overseer.kind(),
@@ -129,10 +135,12 @@ impl Vault {
         })
     }
 
-    /// Associated data for a DEK wrap. The custody kind and label are bound in,
-    /// so a wrap cannot be relabelled or reinterpreted as a different kind.
-    fn wrap_aad(vault_id: &[u8], kind: CustodyKind, label: &str) -> Vec<u8> {
-        format::aad(vault_id, &format!("wrap:{}:{}", kind.tag(), label))
+    /// Associated data for a DEK wrap. The custody kind, the label and the KDF
+    /// parameters are bound in, so a wrap cannot be relabelled, reinterpreted as a
+    /// different kind, or have its derivation cost edited (audit H10).
+    fn wrap_aad(vault_id: &[u8], kind: CustodyKind, label: &str, params: Option<KdfParams>) -> Vec<u8> {
+        let p = params.map(|p| p.aad_bytes().to_vec()).unwrap_or_default();
+        format::aad_parts(vault_id, "wrap", &[kind.tag().as_bytes(), label.as_bytes(), &p])
     }
 
     /// Unwrap the DEK with any custodian that matches.
@@ -145,6 +153,7 @@ impl Vault {
         let vid = self.doc.vault_id_bytes()?;
         let kind = overseer.kind();
         let mut tried = 0usize;
+        let mut bad_params: Option<String> = None;
 
         for wrap in self.doc.wraps.iter().filter(|w| w.kind == kind) {
             tried += 1;
@@ -152,10 +161,25 @@ impl Vault {
                 Ok(s) if s.len() == SALT_LEN => s,
                 _ => continue,
             };
+            // A passphrase wrap must state its cost, within floor and ceiling, before
+            // any derivation; other kinds must state none.
+            match (kind.needs_stretching(), wrap.kdf) {
+                (true, Some(p)) => {
+                    if let Err(e) = p.check() {
+                        bad_params = Some(e);
+                        continue;
+                    }
+                }
+                (true, None) | (false, Some(_)) => {
+                    bad_params = Some("a custodian's key-derivation settings are malformed".to_string());
+                    continue;
+                }
+                (false, None) => {}
+            }
             let Ok(kek) = overseer.kek(&salt, wrap.kdf) else {
                 continue;
             };
-            let aad = Self::wrap_aad(&vid, wrap.kind, &wrap.label);
+            let aad = Self::wrap_aad(&vid, wrap.kind, &wrap.label, wrap.kdf);
             if let Ok(dek) = format::open(kek.as_slice(), &wrap.sealed, &aad) {
                 if dek.len() != DEK_LEN {
                     return Err("unwrapped DEK has the wrong length".to_string());
@@ -164,6 +188,9 @@ impl Vault {
             }
         }
 
+        if let Some(e) = bad_params {
+            return Err(e);
+        }
         if tried == 0 {
             return Err(format!(
                 "this vault has no {} custodian",
@@ -243,7 +270,7 @@ impl Vault {
 
     fn entry_aad(&self, oid: &str, scheme: KeyScheme) -> Result<Vec<u8>, String> {
         let vid = self.doc.vault_id_bytes()?;
-        Ok(format::aad(&vid, &format!("entry:{}:{}", oid, scheme.tag())))
+        Ok(format::aad_parts(&vid, "entry", &[oid.as_bytes(), scheme.tag().as_bytes()]))
     }
 
     pub fn store_secret(
@@ -494,7 +521,6 @@ pub fn v1_chains(dir: &Path) -> Result<BTreeSet<String>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::kdf::KdfParams;
     use super::super::overseer::{KeyFileOverseer, PassphraseOverseer, SignatureOverseer};
 
     fn scratch(tag: &str) -> PathBuf {
@@ -516,6 +542,30 @@ mod tests {
 
     fn pass(p: &str) -> PassphraseOverseer {
         PassphraseOverseer::new(p, "primary", KdfParams::FLOOR).unwrap()
+    }
+
+    /// H10: a wrap's KDF cost is bound into its AEAD; editing it breaks the wrap, and a
+    /// cost above the ceiling is refused before any derivation, with its own error.
+    #[test]
+    fn edited_or_excessive_kdf_parameters_are_refused() {
+        let d = scratch("kdf");
+        let o = pass("Corr3ct-Horse-Battery");
+        Vault::create(&d, &o).unwrap();
+        let path = Vault::doc_path(&d);
+
+        // Raise the cost by one pass: still within bounds, but no longer what was sealed.
+        let mut doc: VaultDoc = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        doc.wraps[0].kdf.as_mut().unwrap().t_cost += 1;
+        std::fs::write(&path, serde_json::to_vec(&doc).unwrap()).unwrap();
+        let unlock = PassphraseOverseer::for_unlock("Corr3ct-Horse-Battery");
+        assert!(Vault::load(&d).unwrap().unlock(&unlock).is_err());
+
+        // A cost over the ceiling: a distinct error, before any Argon2 work.
+        doc.wraps[0].kdf.as_mut().unwrap().m_cost = u32::MAX;
+        std::fs::write(&path, serde_json::to_vec(&doc).unwrap()).unwrap();
+        let err = match Vault::load(&d).unwrap().unlock(&unlock) { Err(e) => e, Ok(_) => panic!("opened") };
+        assert!(err.contains("unsafe key-derivation cost"), "{err}");
+        std::fs::remove_dir_all(&d).ok();
     }
 
     /// M9: the backup file alone is a vault's only copy; create must not overwrite it.

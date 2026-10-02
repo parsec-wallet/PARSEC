@@ -7,7 +7,7 @@
 // `refuse_binding` on the bytes it is about to sign, and refuses any payload carrying the
 // message's prefix anywhere (alone, prefixed with `MX`, or wrapped in a larger message).
 
-/// The version-independent prefix of `overseer::BINDING_MESSAGE`.
+/// The version-independent prefix of `overseer::binding_message` (v1 and v2).
 pub const BINDING_PREFIX: &[u8] = b"BANKON-VAULT-KEY-BINDING";
 
 /// Refuse to sign `payload` if it carries the key-binding message.

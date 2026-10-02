@@ -3,6 +3,22 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.2.3 — 2026-10-01 (increment towards 0.3.0)
+
+`bankon-vault/2`, step 2: the format fixes from the audit. (No v2 vault exists yet, so the format
+changed freely; `docs/security/bankon-vault-spec.md` is updated to match.)
+- **KDF cost bound and capped (H10).** A wrap's Argon2id parameters are now part of its associated
+  data, so editing them breaks the wrap; a header asking for more than 1 GiB / 16 passes / 16 lanes
+  is refused before any work, and a cost outside the floor or ceiling is reported as tampering, not
+  as a wrong passphrase.
+- **Unambiguous encodings (M10).** Associated data and HKDF info strings are length-prefixed fields
+  (`bankon-oid/2`, `bankon-entry/2`, `bankon-index/2`), so no chain, address or label containing
+  `:` can collide with another.
+- **The key-binding message names the vault (H7).** `BANKON-VAULT-KEY-BINDING/2` states the app,
+  the vault id and the address, so a signature opens that one vault; every signer already refuses
+  the prefix (0.1.9).
+- Tests: edited and excessive KDF parameters, field reshuffling, the ceiling, the binding message.
+
 ## 0.2.2 — 2026-10-01 (increment towards 0.3.0)
 
 `bankon-vault/2`, step 1: compiled and tested.

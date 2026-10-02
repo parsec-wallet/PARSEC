@@ -249,7 +249,7 @@ pub fn vault_change_passphrase(
 
 /// Bind a participant wallet signature as an additional custodian.
 ///
-/// The signature must be over `overseer::BINDING_MESSAGE` and must come from a
+/// The signature must be over `overseer::binding_message(vault_id, address)` and must come from a
 /// deterministic scheme (Ed25519, or ECDSA with RFC-6979 nonces) — a wallet
 /// signing with a random `k` would produce a different key every time and make
 /// the vault unopenable through this custodian.
@@ -300,8 +300,9 @@ pub fn vault_remove_custodian(
 /// NOT reachable through `parsec_connect`: a signature over this string is a
 /// bearer credential for the vault, so no dApp may ever be handed it to sign.
 #[tauri::command]
-pub fn vault_binding_message() -> Result<serde_json::Value, String> {
-    Ok(serde_json::json!({ "message": super::overseer::BINDING_MESSAGE }))
+pub fn vault_binding_message(app: AppHandle, address: String) -> Result<serde_json::Value, String> {
+    let vault = super::vault::Vault::load(&vault_dir(&app)?)?;
+    Ok(serde_json::json!({ "message": super::overseer::binding_message(vault.vault_id(), &address) }))
 }
 
 /// Report what a v1 → v2 migration would move, without touching anything.

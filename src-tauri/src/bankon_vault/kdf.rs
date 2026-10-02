@@ -150,6 +150,11 @@ impl KdfParams {
     /// "whatever the file says" must have a floor under it.
     pub const FLOOR: Self = Self { m_cost: 65_536, t_cost: 2, p_cost: 1 };
 
+    /// The most any vault may ask for: 1 GiB, 16 passes, 16 lanes. A header is
+    /// attacker-reachable, and one asking for 4 TiB would hang or abort the unlock
+    /// (audit H10) — refused before any work is done.
+    pub const CEILING: Self = Self { m_cost: 1_048_576, t_cost: 16, p_cost: 16 };
+
     /// Cheap parameters for tests only. Never reachable from a real vault.
     #[cfg(test)]
     pub const TEST: Self = Self { m_cost: 8, t_cost: 1, p_cost: 1 };
@@ -168,6 +173,44 @@ impl KdfParams {
         self.m_cost >= Self::FLOOR.m_cost
             && self.t_cost >= Self::FLOOR.t_cost
             && self.p_cost >= Self::FLOOR.p_cost
+    }
+
+    /// True if these parameters are at or under the ceiling on every axis.
+    pub fn within_ceiling(&self) -> bool {
+        self.m_cost <= Self::CEILING.m_cost
+            && self.t_cost <= Self::CEILING.t_cost
+            && self.p_cost <= Self::CEILING.p_cost
+    }
+
+    /// Floor and ceiling, with an error that says which — distinct from a wrong
+    /// passphrase, so a tampered header is reported as tampering.
+    pub fn check(&self) -> Result<(), String> {
+        if !self.within_ceiling() {
+            return Err(format!(
+                "the vault asks for an unsafe key-derivation cost (m={} t={} p={}, maximum m={} t={} p={}); \
+                 refusing — the file may have been tampered with",
+                self.m_cost, self.t_cost, self.p_cost,
+                Self::CEILING.m_cost, Self::CEILING.t_cost, Self::CEILING.p_cost,
+            ));
+        }
+        if !self.meets_floor() {
+            return Err(format!(
+                "refusing to derive with parameters below the floor \
+                 (m={} t={} p={}, minimum m={} t={} p={})",
+                self.m_cost, self.t_cost, self.p_cost,
+                Self::FLOOR.m_cost, Self::FLOOR.t_cost, Self::FLOOR.p_cost,
+            ));
+        }
+        Ok(())
+    }
+
+    /// The canonical bytes bound into a wrap's associated data.
+    pub fn aad_bytes(&self) -> [u8; 12] {
+        let mut b = [0u8; 12];
+        b[..4].copy_from_slice(&self.m_cost.to_be_bytes());
+        b[4..8].copy_from_slice(&self.t_cost.to_be_bytes());
+        b[8..].copy_from_slice(&self.p_cost.to_be_bytes());
+        b
     }
 
     fn to_argon2(self) -> Result<Argon2<'static>, String> {
@@ -203,18 +246,7 @@ fn argon2id_unchecked(
 /// edited file could ask for m=8 KiB and the vault would obligingly derive at a
 /// cost an attacker can brute-force.
 pub fn argon2id(passphrase: &[u8], salt: &[u8], params: KdfParams) -> Result<SecretBytes, String> {
-    if !params.meets_floor() {
-        return Err(format!(
-            "refusing to derive with parameters below the floor \
-             (m={} t={} p={}, minimum m={} t={} p={})",
-            params.m_cost,
-            params.t_cost,
-            params.p_cost,
-            KdfParams::FLOOR.m_cost,
-            KdfParams::FLOOR.t_cost,
-            KdfParams::FLOOR.p_cost,
-        ));
-    }
+    params.check()?;
     argon2id_unchecked(passphrase, salt, params)
 }
 
@@ -247,6 +279,17 @@ pub fn calibrate(target_ms: u64) -> KdfParams {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn the_ceiling_and_floor_bound_what_a_header_may_ask_for() {
+        assert!(KdfParams::DESKTOP.check().is_ok());
+        assert!(KdfParams::MOBILE.check().is_ok());
+        assert!(KdfParams::CEILING.check().is_ok());
+        let huge = KdfParams { m_cost: KdfParams::CEILING.m_cost + 1, ..KdfParams::DESKTOP };
+        assert!(huge.check().unwrap_err().contains("unsafe"));
+        assert!(argon2id(b"pw", &[0u8; 32], KdfParams { t_cost: 1_000, ..KdfParams::FLOOR }).is_err());
+        assert!(KdfParams::TEST.check().unwrap_err().contains("below the floor"));
+    }
     use super::*;
 
     fn hx(s: &str) -> Vec<u8> {
