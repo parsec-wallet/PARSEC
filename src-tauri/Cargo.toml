@@ -1,6 +1,6 @@
 [package]
 name = "parsec-wallet"
-version = "0.3.0"
+version = "0.3.1"
 description = "PARSEC Wallet — Algorand desktop wallet built on cypherpunk2048 principles"
 authors = ["cypherpunk2048"]
 edition = "2021"

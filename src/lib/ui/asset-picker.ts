@@ -19,7 +19,7 @@ import { onCleanup } from '../lifecycle';
 import { searchAssets } from '../algorand/assets';
 import { fetchAccountInfo, microAlgosToAlgo } from '../algorand/account';
 import { optInAsset } from '../algorand/opt-in';
-import { standardAssets, standardAsset, lookalikeOf, searchStandard, type StandardAsset, type AssetGroup } from '../algorand/asset-whitelist';
+import { standardAssets, standardAsset, lookalikeOf, searchStandard, displayName, type StandardAsset, type AssetGroup } from '../algorand/asset-whitelist';
 import { cleanText } from '../agenticplace/directory';
 import type { NetworkId } from '../../types/wallet';
 
@@ -166,7 +166,7 @@ export function assetPicker(opts: AssetPickerOptions = {}): HTMLElement {
     // Verified matches first, at once and locally; the indexer's answer follows.
     const verified = searchStandard(network, q);
     for (const a of verified) {
-      results.appendChild(card({ assetId: a.assetId, unitName: a.unitName, name: a.name, decimals: a.decimals, freeze: a.freeze, clawback: a.clawback, issuer: a.issuer }, { standard: a }));
+      results.appendChild(card({ assetId: a.assetId, unitName: a.unitName, name: displayName(a), decimals: a.decimals, freeze: a.freeze, clawback: a.clawback, issuer: a.issuer }, { standard: a }));
     }
     const shownIds = new Set(verified.map((a) => a.assetId));
     status.textContent = verified.length
@@ -213,7 +213,7 @@ export function assetPicker(opts: AssetPickerOptions = {}): HTMLElement {
       ? el('section', { cls: 'parsec-assets__needed', children: [
         el('h3', { cls: 'parsec-assets__section', text: opts.highlightLabel ?? 'Needed here' }),
         el('div', { cls: 'parsec-assets__grid', children: [card(
-          { assetId: needed.assetId, unitName: needed.unitName, name: needed.name, decimals: needed.decimals, freeze: needed.freeze, clawback: needed.clawback, issuer: needed.issuer },
+          { assetId: needed.assetId, unitName: needed.unitName, name: displayName(needed), decimals: needed.decimals, freeze: needed.freeze, clawback: needed.clawback, issuer: needed.issuer },
           { standard: needed },
         )] }),
       ] })
@@ -228,7 +228,7 @@ export function assetPicker(opts: AssetPickerOptions = {}): HTMLElement {
       ...groups.filter((g) => listed.some((a) => a.group === g)).map((g) => el('div', { cls: 'parsec-assets__group', children: [
         el('h4', { text: g }),
         el('div', { cls: 'parsec-assets__grid', children: listed.filter((a) => a.group === g).map((a) => card(
-          { assetId: a.assetId, unitName: a.unitName, name: a.name, decimals: a.decimals, freeze: a.freeze, clawback: a.clawback, issuer: a.issuer },
+          { assetId: a.assetId, unitName: a.unitName, name: displayName(a), decimals: a.decimals, freeze: a.freeze, clawback: a.clawback, issuer: a.issuer },
           { standard: a },
         )) }),
       ] })),

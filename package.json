@@ -1,7 +1,7 @@
 {
   "name": "parsec-wallet",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "description": "PARSEC Wallet — Algorand desktop wallet built on cypherpunk2048 principles",
   "author": "cypherpunk2048",
@@ -17,6 +17,7 @@
     "lint:css:production": "stylelint \"src/**/*.scss\" --config .stylelintrc.production.cjs",
     "lint:css:ci": "stylelint \"src/**/*.scss\" --config .stylelintrc.production.cjs --formatter compact",
     "prepare": "husky install",
+    "asa:check": "node scripts/asa-whitelist-check.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "deploy:permaweb": "npm run build && cp dist/index.html dist/404.html && permaweb-deploy deploy --arns-name pythai --ario-process mainnet --deploy-folder ./dist --ttl-seconds 3600",

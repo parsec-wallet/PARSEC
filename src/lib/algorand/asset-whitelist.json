@@ -1,0 +1,337 @@
+{
+  "$comment": "PARSEC verified Algorand assets. Each entry pinned by id, creator, unit, on-chain name, decimals and freeze/clawback rights, with its sources; re-derived against the indexer and Pera by scripts/asa-whitelist-check.mjs. Edit here; regenerate the snapshot with --write-snapshot.",
+  "checked": "2026-10-02",
+  "mainnet": [
+    {
+      "assetId": 31566704,
+      "unitName": "USDC",
+      "name": "USDC",
+      "label": "USD Coin",
+      "decimals": 6,
+      "issuer": "Circle",
+      "creator": "2UEQTE5QDNXPI7M3TU44G6SYKLFWLPQO7EBZM7K7MHMQQMFI4QJPLHQFHM",
+      "group": "Stablecoins",
+      "freeze": true,
+      "clawback": false,
+      "sources": [
+        "https://developers.circle.com/stablecoins/usdc-contract-addresses"
+      ]
+    },
+    {
+      "assetId": 312769,
+      "unitName": "USDt",
+      "name": "Tether USDt",
+      "decimals": 6,
+      "issuer": "Tether",
+      "creator": "XIU7HGGAJ3QOTATPDSIIHPFVKMICXKHMOR2FJKHTVLII4FAOA3CYZQDLG4",
+      "group": "Stablecoins",
+      "freeze": true,
+      "clawback": true,
+      "sources": [
+        "https://tether.to"
+      ]
+    },
+    {
+      "assetId": 227855942,
+      "unitName": "EURS",
+      "name": "STASIS EURO",
+      "decimals": 6,
+      "issuer": "STASIS",
+      "creator": "XOS4GHMBFJD3I7TYZQFB7FPZ25NHW5V2LS7O54JFSVTPNDAE45DFTKVN3U",
+      "group": "Stablecoins",
+      "freeze": true,
+      "clawback": false,
+      "sources": [
+        "https://stasis.net/"
+      ]
+    },
+    {
+      "assetId": 672913181,
+      "unitName": "goUSD",
+      "name": "goUSD",
+      "decimals": 6,
+      "issuer": "Algomint",
+      "creator": "PNC3CKZTHOIMGMSG7KPUCF3XA6ILZMBXMD5YVOBIWO2BJ43ZJ6M775JVRQ",
+      "group": "Stablecoins",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://www.algomint.io"
+      ]
+    },
+    {
+      "assetId": 887407002,
+      "unitName": "USDC",
+      "name": "USD Coin",
+      "label": "USD Coin (Wormhole)",
+      "decimals": 6,
+      "issuer": "Wormhole (bridged from Ethereum)",
+      "creator": "BDAMMNG3PAP3TAV3VUXIQEZWZ6NTN45TLPPAPOUEK4V6MUQIRHIBHZAQ5Q",
+      "group": "Stablecoins",
+      "freeze": true,
+      "clawback": true,
+      "sources": [
+        "https://wormhole.com"
+      ]
+    },
+    {
+      "assetId": 386192725,
+      "unitName": "goBTC",
+      "name": "goBTC",
+      "decimals": 8,
+      "issuer": "Algomint",
+      "creator": "ETGSQKACKC56JWGMDAEP5S2JVQWRKTQUVKCZTMPNUGZLDVCWPY63LSI3H4",
+      "group": "Bitcoin & Ether",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://algomint.io"
+      ]
+    },
+    {
+      "assetId": 386195940,
+      "unitName": "goETH",
+      "name": "goETH",
+      "decimals": 8,
+      "issuer": "Algomint",
+      "creator": "ETGSQKACKC56JWGMDAEP5S2JVQWRKTQUVKCZTMPNUGZLDVCWPY63LSI3H4",
+      "group": "Bitcoin & Ether",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://algomint.io"
+      ]
+    },
+    {
+      "assetId": 1058926737,
+      "unitName": "WBTC",
+      "name": "Wrapped BTC",
+      "label": "Wrapped BTC (Wormhole)",
+      "decimals": 8,
+      "issuer": "Wormhole (bridged from Ethereum)",
+      "creator": "3VVXZS5IONAE4PJMCZMV3NM6WFXRYEHUGT7KH5GG5M3HJWSJDTP7X6VFPM",
+      "group": "Bitcoin & Ether",
+      "freeze": true,
+      "clawback": true,
+      "sources": [
+        "https://wormhole.com"
+      ]
+    },
+    {
+      "assetId": 887406851,
+      "unitName": "WETH",
+      "name": "Wrapped Ether",
+      "label": "Wrapped Ether (Wormhole)",
+      "decimals": 8,
+      "issuer": "Wormhole (bridged from Ethereum)",
+      "creator": "GRH5NFD3A5YZT4IYUVSKGY7X4ZFR4O7FD47PJBHVAXSZ2ZHTJRJD5COPQY",
+      "group": "Bitcoin & Ether",
+      "freeze": true,
+      "clawback": true,
+      "sources": [
+        "https://wormhole.com"
+      ]
+    },
+    {
+      "assetId": 3495558025,
+      "unitName": "WBTC",
+      "name": "Wrapped BTC",
+      "label": "Wrapped BTC (NTT)",
+      "decimals": 8,
+      "issuer": "Folks Finance · Wormhole NTT",
+      "creator": "RKBPWO3MXTHHMK2IZQSZK63XQQSWR7LCUCP4GXKD3T6WT5GZNNZI5XZUQE",
+      "group": "Bitcoin & Ether",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://folks.finance"
+      ]
+    },
+    {
+      "assetId": 3495722210,
+      "unitName": "WETH",
+      "name": "Wrapped Ether",
+      "label": "Wrapped Ether (NTT)",
+      "decimals": 8,
+      "issuer": "Folks Finance · Wormhole NTT",
+      "creator": "RKBPWO3MXTHHMK2IZQSZK63XQQSWR7LCUCP4GXKD3T6WT5GZNNZI5XZUQE",
+      "group": "Bitcoin & Ether",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://folks.finance"
+      ]
+    },
+    {
+      "assetId": 793124631,
+      "unitName": "gALGO",
+      "name": "Governance Algo",
+      "decimals": 6,
+      "issuer": "Folks Finance",
+      "creator": "GGP73AZM3CMLDLXUDVR2NIULL3M7SORSI4N7DFIOZTVL62UOVSQUTZYEA4",
+      "group": "Algorand ecosystem",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://folks.finance"
+      ]
+    },
+    {
+      "assetId": 1134696561,
+      "unitName": "xALGO",
+      "name": "Governance xAlgo",
+      "decimals": 6,
+      "issuer": "Folks Finance",
+      "creator": "4MBB6O7EV2ZRIUKJT47B2NJ2BQPNJ3BQEQBPA7UN7MXWRG7U4OMPP6VOTY",
+      "group": "Algorand ecosystem",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://folks.finance"
+      ]
+    },
+    {
+      "assetId": 3203964481,
+      "unitName": "FOLKS",
+      "name": "Folks Finance",
+      "decimals": 6,
+      "issuer": "Folks Finance",
+      "creator": "RKBPWO3MXTHHMK2IZQSZK63XQQSWR7LCUCP4GXKD3T6WT5GZNNZI5XZUQE",
+      "group": "Algorand ecosystem",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://folks.finance"
+      ]
+    },
+    {
+      "assetId": 2200000000,
+      "unitName": "TINY",
+      "name": "TINY",
+      "decimals": 6,
+      "issuer": "Tinyman",
+      "creator": "TINY2IS2LVHYXH6YCVXMRKWET5YTMAUXOTGAMLVYKTJGQOEKNB2BZ6TINY",
+      "group": "Algorand ecosystem",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://tinyman.org"
+      ]
+    },
+    {
+      "assetId": 700965019,
+      "unitName": "VEST",
+      "name": "Vestige",
+      "decimals": 6,
+      "issuer": "Vestige",
+      "creator": "VESTIG3V77NNVBT5SM636UKAZ3M5OQHM76TC5622RQ4Q2XUCYZ5E4ENB3E",
+      "group": "Algorand ecosystem",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://vestige.fi"
+      ]
+    },
+    {
+      "assetId": 1138500612,
+      "unitName": "GORA",
+      "name": "GORA",
+      "decimals": 9,
+      "issuer": "Gora",
+      "creator": "J2GVFTADZB7QPJOZ4R3FHABV4NWGE6CN6SYPHW32N3CNEWCRD6ACYTPYVU",
+      "group": "Algorand ecosystem",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://gora.io"
+      ]
+    },
+    {
+      "assetId": 470842789,
+      "unitName": "DEFLY",
+      "name": "Defly Token",
+      "decimals": 6,
+      "issuer": "Defly",
+      "creator": "ZSASGQZ37L5SVV2VSEKBJTSRTNVPV3IJ7NEWM6BRCXY5AZD5HQLLVYU76I",
+      "group": "Algorand ecosystem",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://defly.app"
+      ]
+    },
+    {
+      "assetId": 287867876,
+      "unitName": "OPUL",
+      "name": "Opulous",
+      "decimals": 10,
+      "issuer": "Opulous",
+      "creator": "V537CZUKQJH2ETEJRXHAQI6OUHL54MZU5OIBCAU4J6OE3557ODF74WVQCA",
+      "group": "Algorand ecosystem",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://opulous.org/"
+      ]
+    },
+    {
+      "assetId": 137594422,
+      "unitName": "HDL",
+      "name": "HEADLINE",
+      "decimals": 6,
+      "issuer": "Headline",
+      "creator": "K3NSXYMHPRCK7PMYT3QUQXUGPZJ4MKWJXW2HJRYPVMQUMKJAOJEIEO4HK4",
+      "group": "Algorand ecosystem",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://headline.dev"
+      ]
+    },
+    {
+      "assetId": 1732165149,
+      "unitName": "COMPX",
+      "name": "CompX Token",
+      "decimals": 6,
+      "issuer": "CompX",
+      "creator": "UVNDN2Y6YR25JX4G6W5SIGFSPDZSEAM5RODOB74YQ6YEVJVNGHGZUT454M",
+      "group": "Algorand ecosystem",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://compx.io"
+      ]
+    },
+    {
+      "assetId": 523683256,
+      "unitName": "AKTA",
+      "name": "AKITA INU",
+      "decimals": 6,
+      "issuer": "Akita Inu",
+      "creator": "QUUQHH4HJ3FHUWMKTKFBUA72XTSW6F7YLLTRI7FWENJBKQYWTESSCZPQLU",
+      "group": "Algorand ecosystem",
+      "freeze": false,
+      "clawback": false,
+      "sources": [
+        "https://akita.community/"
+      ]
+    }
+  ],
+  "testnet": [
+    {
+      "assetId": 10458941,
+      "unitName": "USDC",
+      "name": "USDC",
+      "label": "USDC (Testnet)",
+      "decimals": 6,
+      "issuer": "Circle",
+      "creator": "VETIGP3I6RCUVLVYNDW5UA2OJMXB5WP6L6HJ3RWO2R37GP4AVETICXC55I",
+      "group": "Stablecoins",
+      "freeze": true,
+      "clawback": true,
+      "sources": [
+        "https://developers.circle.com/stablecoins/usdc-contract-addresses"
+      ]
+    }
+  ]
+}
