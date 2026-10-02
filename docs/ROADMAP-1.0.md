@@ -60,7 +60,7 @@ first vault hardening from the [2026-10-01 audit](security/vault-audit-2026-10-0
 - **Exit:** the `generation` entries leave `keycore-js-surface.test.ts`. *(Met in 0.2.1; Arweave HD
   stays the documented exception, and the admin key ceremony remains a residual.)*
 
-### 0.3.0 — `bankon-vault/2` ships *(audit P2)*
+### 0.3.0 — `bankon-vault/2` ships *(audit P2)* — increments 0.2.2–0.2.8
 - v2 compiled in; the audit's v2 findings fixed (atomic migration, re-authenticated custodians,
   bound KDF parameters with ceilings, vault-bound key-binding message, rollback protection,
   profile support, unambiguous HKDF info).
@@ -68,6 +68,8 @@ first vault hardening from the [2026-10-01 audit](security/vault-audit-2026-10-0
   encrypted index. v1 vaults migrate on next unlock, keeping the v1 files until v2 verifies from disk.
 - **Exit:** `cargo test --lib bankon_vault` runs the full v2 suite (43 + the spec's missing cases)
   in CI; a migration test from a real v1 vault; the threat model's "today (v1)" notes removed.
+  *(Met in 0.2.8: the `keycore-tests` CI job; the committed v1 fixture; the threat model describes
+  v2 as the vault. Still v1: Tomb volumes — tracked.)*
 
 ### 0.4.0 — Money paths proven, and verified assets
 - First mainnet settlements recorded: x402 on Algorand and Base, a .algo store purchase, an ArNS

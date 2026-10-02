@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "accounts": [
+    {
+      "address": "ALGOFIXTURE",
+      "chain": "algorand",
+      "label": "main",
+      "created_at": 1790923364
+    },
+    {
+      "address": "HAgk14JpMQLgt6rVgv7cBQFJWFto5Dqxi472uT3DKpqk",
+      "chain": "solana",
+      "label": "Solana",
+      "created_at": 1790923365
+    },
+    {
+      "address": "SOLRAWFIXTURE",
+      "chain": "solana",
+      "label": "Phantom import",
+      "created_at": 1790923365
+    },
+    {
+      "address": "0x19E7E376E7C213B7E7e7e46cc70A5dD086DAff2A",
+      "chain": "ethereum",
+      "label": "EVM",
+      "created_at": 1790923365
+    },
+    {
+      "address": "ARFIXTURE",
+      "chain": "arweave-hd",
+      "label": "Arweave HD",
+      "created_at": 1790923366
+    },
+    {
+      "address": "bc1qfixture",
+      "chain": "bitcoin",
+      "label": "Bitcoin",
+      "created_at": 1790923366
+    }
+  ]
+}

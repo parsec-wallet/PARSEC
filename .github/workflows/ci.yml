@@ -38,6 +38,29 @@ jobs:
       - name: 🛠️ Build Frontend
         run: npm run build
 
+  # The PARSEC Keycore's own tests: the vault suite (v1 and bankon-vault/2, the migration
+  # fixture), the Keycore approval, and the command-surface exit tests. On every run.
+  keycore-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout
+        uses: actions/checkout@v4
+
+      - name: 🦀 Install Rust
+        uses: dtolnay/rust-toolchain@1.99.0
+
+      - name: 🐧 Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: 🔐 cargo test --lib
+        working-directory: src-tauri
+        # generate_context! needs frontendDist to exist; the tests do not use its contents.
+        run: |
+          mkdir -p ../dist && test -e ../dist/index.html || echo '<!doctype html>' > ../dist/index.html
+          cargo test --lib --locked
+
   # Desktop build validation for pull requests into dev
   tauri-validation:
     if: github.event_name == 'pull_request' && github.base_ref == 'dev'
