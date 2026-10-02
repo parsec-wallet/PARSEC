@@ -80,12 +80,10 @@ pub fn chain_ltc_import_account(
         return Err("invalid BIP-39 mnemonic".to_string());
     }
 
-    let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-    let key = guard.key().ok_or("vault is locked")?;
-    let dir = guard.dir().ok_or("vault is locked")?;
+    let mut guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
 
     let address = primary_address(&args.mnemonic, &args.passphrase)?;
-    VaultStore::store_secret(dir, key, &address, "litecoin", &args.label, args.mnemonic.as_bytes())?;
+    guard.store_by_address("litecoin", &address, &args.label, args.mnemonic.as_bytes())?;
 
     Ok(LtcAddressInfo {
         address,
@@ -149,10 +147,9 @@ pub fn chain_ltc_derive_from_vault(
     args: VaultDeriveArgs,
 ) -> Result<LtcAddressInfo, String> {
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-    let key = guard.key().ok_or("vault is locked")?;
-    let dir = guard.dir().ok_or("vault is locked")?;
 
-    let mut secret = VaultStore::retrieve_secret(dir, key, &args.primary_address)?;
+    // Through the session seam: bankon-vault/1 or /2.
+    let mut secret = guard.retrieve_by_address(&args.primary_address)?.as_slice().to_vec();
     let result = (|| -> Result<LtcAddressInfo, String> {
         let mnemonic = std::str::from_utf8(&secret)
             .map_err(|_| "stored mnemonic is not valid utf-8")?;
@@ -206,10 +203,9 @@ pub async fn chain_ltc_sign_psbt(
         .await?;
     }
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
-    let key = guard.key().ok_or("vault is locked")?;
-    let dir = guard.dir().ok_or("vault is locked")?;
 
-    let mut secret = VaultStore::retrieve_secret(dir, key, &args.primary_address)?;
+    // Through the session seam: bankon-vault/1 or /2.
+    let mut secret = guard.retrieve_by_address(&args.primary_address)?.as_slice().to_vec();
     let result = (|| -> Result<SignedPsbt, String> {
         let mnemonic = std::str::from_utf8(&secret)
             .map_err(|_| "stored mnemonic is not valid utf-8")?;

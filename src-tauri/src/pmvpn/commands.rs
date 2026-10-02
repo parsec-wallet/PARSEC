@@ -219,11 +219,9 @@ pub async fn pmvpn_sign_challenge(
     }
     // 1. Retrieve the private key from vault
     let guard = vault_state.inner.lock().map_err(|_| "vault state poisoned")?;
-    let key = guard.key().ok_or("vault is locked")?;
-    let dir = guard.dir().ok_or("vault is locked")?;
-
-    let secret_bytes = crate::bankon_vault::store::VaultStore::retrieve_secret(dir, key, &address)?;
-    let secret = String::from_utf8(secret_bytes)
+    // Through the session seam: bankon-vault/1 or /2.
+    let stored = guard.retrieve_by_address(&address)?;
+    let secret = std::str::from_utf8(stored.as_slice())
         .map_err(|_| "stored secret is not valid utf-8")?;
 
     // 2. Sign the message using the private key

@@ -173,14 +173,63 @@ impl VaultSession {
     /// or the vault path itself. Thin by design: the encryption, the manifest and the
     /// on-disk format are `store`'s, unchanged.
     pub fn store_by_address(
-        &self,
+        &mut self,
         chain: &str,
         address: &str,
         label: &str,
         secret: &[u8],
     ) -> Result<(), String> {
+        if let Some(v2) = self.v2.as_mut() {
+            let scheme = vault::infer_scheme(chain, secret);
+            return v2.vault.store_secret(&v2.dek, chain, address, label, scheme, secret);
+        }
         let (dir, key) = self.unlocked()?;
         store::VaultStore::store_secret(dir, key, address, chain, label, secret)
+    }
+
+    /// Every account in the open vault: (address, chain, label, created_at).
+    /// v1 reads its plaintext manifest; v2 its encrypted index (so only while unlocked).
+    pub fn accounts(&self) -> Result<Vec<(String, String, String, u64)>, String> {
+        if let Some(v2) = self.v2.as_ref() {
+            return Ok(v2
+                .vault
+                .list_accounts(&v2.dek)?
+                .into_iter()
+                .map(|a| (a.address, a.chain, a.label, a.created_at))
+                .collect());
+        }
+        let (dir, _) = self.unlocked()?;
+        Ok(store::VaultStore::read_manifest(dir)?
+            .accounts
+            .into_iter()
+            .map(|a| (a.address, a.chain, a.label, a.created_at))
+            .collect())
+    }
+
+    /// The chain an address is stored under, if it is in the open vault.
+    pub fn chain_of(&self, address: &str) -> Result<Option<String>, String> {
+        Ok(self.accounts()?.into_iter().find(|a| a.0 == address).map(|a| a.1))
+    }
+
+    /// Remove an account and its key from the open vault.
+    pub fn remove_by_address(&mut self, address: &str) -> Result<(), String> {
+        if self.v2.is_some() {
+            let chain = self.chain_of(address)?.ok_or("no account with that address in this vault")?;
+            let v2 = self.v2.as_mut().ok_or("vault is locked")?;
+            return v2.vault.remove_account(&v2.dek, &chain, address);
+        }
+        let (dir, _) = self.unlocked()?;
+        store::VaultStore::remove_account(dir, address)
+    }
+
+    /// Check a passphrase against the open vault (for re-authenticated actions). Throttling is
+    /// the caller's: it knows the directory.
+    pub fn passphrase_matches(&self, passphrase: &str) -> Result<bool, String> {
+        if let Some(v2) = self.v2.as_ref() {
+            return Ok(v2.vault.unlock(&overseer::PassphraseOverseer::for_unlock(passphrase)).is_ok());
+        }
+        let (dir, _) = self.unlocked()?;
+        store::VaultStore::verify_passphrase(dir, passphrase.as_bytes())
     }
 
     /// Store a key the Keycore just generated, and remember it as revealable once for its
@@ -202,16 +251,57 @@ impl VaultSession {
     /// wiped when the caller drops it. A `Vec` would leave it in the allocator for
     /// whatever reads that page next.
     pub fn retrieve_by_address(&self, address: &str) -> Result<secure_mem::SecretBytes, String> {
+        if let Some(v2) = self.v2.as_ref() {
+            let chain = self.chain_of(address)?.ok_or_else(|| format!("no key stored for {address}"))?;
+            return v2.vault.retrieve_secret(&v2.dek, &chain, address);
+        }
         let (dir, key) = self.unlocked()?;
         let mut plain = store::VaultStore::retrieve_secret(dir, key, address)?;
         let out = secure_mem::SecretBytes::from_slice(&plain);
         secure_mem::wipe(&mut plain);
         Ok(out)
     }
+
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    /// 0.2.6: with a v2 session open, every seam operation goes to the v2 vault.
+    #[test]
+    fn the_session_seam_routes_to_an_open_v2_vault() {
+        let d = std::env::temp_dir().join(format!("bkseam_{}_{}", std::process::id(),
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        std::fs::create_dir_all(&d).unwrap();
+        let o = overseer::KeyFileOverseer::new(&[0x5Au8; 64], "usb").unwrap();
+        let v = vault::Vault::create(&d, &o).unwrap();
+        let dek = v.unlock(&o).unwrap();
+        let mut s = VaultSession::default();
+        s.unlock_v2(v, dek, d.clone());
+        assert!(s.is_unlocked());
+
+        s.store_by_address("algorand", "ALGO1", "main", b"twenty five words").unwrap();
+        s.store_new("solana", "SOL1", "new", b"fresh words").unwrap();
+        assert_eq!(s.retrieve_by_address("ALGO1").unwrap().as_slice(), b"twenty five words");
+        assert_eq!(s.chain_of("SOL1").unwrap().as_deref(), Some("solana"));
+        assert_eq!(s.accounts().unwrap().len(), 2);
+        assert!(s.take_fresh("SOL1"));
+        assert!(!d.join("vault.json").exists(), "nothing was written to a v1 store");
+
+        s.remove_by_address("ALGO1").unwrap();
+        assert!(s.retrieve_by_address("ALGO1").is_err());
+
+        // A reopened vault sees the same data.
+        let reopened = vault::Vault::load(&d).unwrap();
+        let dek2 = reopened.unlock(&o).unwrap();
+        assert_eq!(reopened.list_accounts(&dek2).unwrap().len(), 1);
+
+        s.lock();
+        assert!(!s.is_unlocked());
+        assert!(s.retrieve_by_address("SOL1").is_err());
+        std::fs::remove_dir_all(&d).ok();
+    }
 
     #[test]
     fn a_fresh_account_is_revealable_once_and_lock_forgets_it() {
