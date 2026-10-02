@@ -49,6 +49,24 @@ fix or remove the entry. Drift (a changed manager, reserve, URL or supply) is re
 `--write-snapshot` records it once reviewed. The check needs the network, so CI holds the list to
 its committed snapshot (`asset-whitelist.test.ts`) rather than calling the chain.
 
-Next ([plan](TODO-INDEX.md)): lookalike detection that folds case, look-alike characters and spacing
-(0.3.2); finding and adding assets from the ragebar (0.3.3); SPINTRADE using this list as its
-authority (0.3.4).
+## Verified, lookalike or unverified
+
+One function decides, everywhere: `classifyAsset` in
+[`asset-classify.ts`](../src/lib/algorand/asset-classify.ts).
+
+- **verified** — the id is on the list (and, when the creator is known, it matches).
+- **lookalike** — not listed, but its unit or name reads the same as a listed asset's once
+  `foldTicker` has folded case, look-alike letters (Cyrillic and Greek ones that render as Latin,
+  fullwidth forms), invisible and combining characters, spacing and punctuation, and the stand-ins
+  0→O, 1/I→l, 5/$→S. "UЅDС" with Cyrillic letters, "ＵＳＤＣ" and "U S D C" are all lookalikes of
+  Circle's USDC.
+- **unverified** — anything else.
+
+A lookalike can never be verified: verification is by id, and folding only finds what an asset is
+pretending to be. A property test disguises every listed asset 40 ways under other ids and requires
+every disguise to come out a lookalike. A name that merely *contains* a ticker ("Folks USDC") is not
+flagged — it would flag most of the ecosystem — and the confusables table covers the scripts used in
+real impersonation, extended as new ones are found.
+
+Next ([plan](TODO-INDEX.md)): finding and adding assets from the ragebar (0.3.3); SPINTRADE using
+this list as its authority (0.3.4).

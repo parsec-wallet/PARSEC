@@ -14,6 +14,7 @@
 
 import type { NetworkId } from '../../types/wallet';
 import data from './asset-whitelist.json';
+import { classifyAsset } from './asset-classify';
 
 export type AssetGroup = 'Stablecoins' | 'Bitcoin & Ether' | 'Algorand ecosystem';
 
@@ -57,17 +58,14 @@ export function standardAsset(network: NetworkId, assetId: number): StandardAsse
 }
 
 /**
- * A listed asset whose unit or name this one borrows under a different id —
- * the shape of a lookalike ("USDC" that is not Circle's USDC). Undefined when
- * it is the listed asset itself or borrows nothing.
+ * A listed asset whose unit or name this one borrows under a different id — the shape of a
+ * lookalike ("USDC" that is not Circle's USDC), including look-alike letters, invisible
+ * characters and spacing (see `asset-classify.ts`). Undefined when it is a listed asset itself
+ * or borrows nothing.
  */
 export function lookalikeOf(network: NetworkId, assetId: number, unitName: string, name: string): StandardAsset | undefined {
-  // A listed asset is never a lookalike, even when another listed asset shares its ticker.
-  if (standardAsset(network, assetId)) return undefined;
-  const u = unitName.trim().toLowerCase();
-  const n = name.trim().toLowerCase();
-  return standardAssets(network).find((a) => a.assetId !== assetId
-    && (a.unitName.toLowerCase() === u || a.name.toLowerCase() === n));
+  const c = classifyAsset(network, { assetId, unitName, name });
+  return c.kind === 'lookalike' ? c.of : undefined;
 }
 
 /**

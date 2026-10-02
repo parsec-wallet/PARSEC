@@ -3,6 +3,18 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.3.2 — 2026-10-02 (increment towards 0.4.0)
+
+Lookalikes, folded.
+- **`classifyAsset`** is the one answer to "is this the verified asset?" — verified (by id, and by
+  creator when known), lookalike, or unverified — for every surface that asks.
+- **A lookalike is caught through disguises**: case, Cyrillic and Greek letters that render as
+  Latin, fullwidth forms, zero-width and combining characters, spaces and punctuation, and 0/O,
+  1/I/l, 5/$/S stand-ins ("UЅDС", "ＵＳＤＣ", "U S D C" are all Circle's USDC impersonated). A
+  property test disguises every listed asset 40 ways and requires each to be a lookalike — never
+  verified.
+- The asset picker's lookalike warning uses it.
+
 ## 0.3.1 — 2026-10-02 (increment towards 0.4.0)
 
 The verified asset list, as data that can be checked.
