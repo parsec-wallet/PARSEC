@@ -28,10 +28,10 @@ the person signs in the Keycore dialog.
 - [x] Test: the shipped list matches its snapshot; listed assets sharing a ticker are told apart by
   issuer and label, never flagged as lookalikes.
 
-### 0.3.2 — Lookalike detection
-- [ ] `classifyAsset(id, meta)` → `verified | unverified | lookalike(of)`: same unit or name (case,
+### 0.3.2 — Lookalike detection *(done 2026-10-02)*
+- [x] `classifyAsset(id, meta)` → `verified | unverified | lookalike(of)`: same unit or name (case,
   homoglyph and whitespace-folded) under another id or creator is a lookalike, never verified.
-- [ ] Test: a lookalike can never be classified verified (property test over the list).
+- [x] Test: a lookalike can never be classified verified (property test over the list).
 
 ### 0.3.3 — Find and add an ASA from the ragebar
 - [ ] Ragebar search by name, unit or id across the whitelist and the indexer; results badged
