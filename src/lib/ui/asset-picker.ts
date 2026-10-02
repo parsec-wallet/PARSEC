@@ -16,7 +16,9 @@
 import { el, btn, toast } from '../dom';
 import { store } from '../store';
 import { onCleanup } from '../lifecycle';
-import { searchAssets } from '../algorand/assets';
+import { searchAssets, lookupAsset, optOutFromAsset } from '../algorand/assets';
+import { walletSigner } from '../algorand/signer';
+import { classifyAsset } from '../algorand/asset-classify';
 import { fetchAccountInfo, microAlgosToAlgo } from '../algorand/account';
 import { optInAsset } from '../algorand/opt-in';
 import { standardAssets, standardAsset, lookalikeOf, searchStandard, displayName, type StandardAsset, type AssetGroup } from '../algorand/asset-whitelist';
@@ -38,6 +40,8 @@ interface Candidate {
 export interface AssetPickerOptions {
   /** An asset to show first, e.g. USDC on the x402 desk. */
   highlight?: number;
+  /** Any asset to show first — what the person picked in the command palette. */
+  focus?: number;
   /** Heading for the highlighted asset. */
   highlightLabel?: string;
   /** Embedded in another screen: tighter, and the search box is not focused. */
@@ -62,6 +66,8 @@ export function assetPicker(opts: AssetPickerOptions = {}): HTMLElement {
   const network = state.settings.network as NetworkId;
   const address = account.chains?.algorand ?? account.address;
   const optedIn = new Set<number>();
+  /** Base-unit balance of each held asset, from the chain. */
+  const holdings = new Map<number, number>();
   let available: number | null = null;
   const balanceLine = el('p', { cls: 'parsec-assets__balance', text: 'Reading this account…' });
 
@@ -97,6 +103,35 @@ export function assetPicker(opts: AssetPickerOptions = {}): HTMLElement {
     }
   }
 
+  // ── Removing (opting out) ─────────────────────────────────────────────────
+  async function optOut(c: Candidate, button: HTMLButtonElement): Promise<void> {
+    const label = button.querySelector('.bp5-button-text');
+    button.disabled = true;
+    if (label) label.textContent = 'Signing…';
+    store.set({ isLoading: true });
+    try {
+      const creator = standardAsset(network, c.assetId)?.creator ?? (await lookupAsset(c.assetId, network))?.creator;
+      if (!creator) throw new Error('could not read the asset’s creator');
+      const signer = await walletSigner(address);
+      try {
+        await optOutFromAsset(signer, c.assetId, creator, network);
+      } finally {
+        signer.dispose();
+      }
+      optedIn.delete(c.assetId);
+      holdings.delete(c.assetId);
+      store.set({ accountInfo: null });
+      toast(`${c.unitName || c.name} removed. The 0.1 ALGO minimum balance is free again.`, 'success');
+      if (label) label.textContent = 'Removed';
+    } catch (e) {
+      toast(`Removing failed: ${e instanceof Error ? e.message : String(e)}`, 'danger', 8000);
+      if (label) label.textContent = 'Remove';
+      button.disabled = false;
+    } finally {
+      store.set({ isLoading: false });
+    }
+  }
+
   // ── One asset, as a card ──────────────────────────────────────────────────
   function card(c: Candidate, mark: { standard?: StandardAsset; lookalike?: StandardAsset }): HTMLElement {
     const unit = cleanText(c.unitName, 16) || '—';
@@ -115,7 +150,29 @@ export function assetPicker(opts: AssetPickerOptions = {}): HTMLElement {
       : null;
 
     const has = optedIn.has(c.assetId);
-    const action = btn(has ? 'Added' : 'Add', { intent: has ? 'none' : 'primary', cls: 'parsec-assets__add', disabled: has });
+    const held = holdings.get(c.assetId) ?? 0;
+    if (has) {
+      // Already held: removing (opting out) returns the 0.1 ALGO, but only an empty holding can go.
+      const remove = btn(held === 0 ? 'Remove' : 'Held', { intent: 'none', cls: 'parsec-assets__add', disabled: held !== 0 });
+      if (held === 0) remove.addEventListener('click', () => void optOut(c, remove as HTMLButtonElement));
+      return el('article', { cls: 'parsec-assets__card', children: [
+        el('header', { cls: 'parsec-assets__head', children: [
+          tile,
+          el('div', { cls: 'parsec-assets__titles', children: [
+            el('h3', { cls: 'parsec-assets__unit', text: unit }),
+            el('p', { cls: 'parsec-assets__name', text: name }),
+          ] }),
+          remove,
+        ] }),
+        el('div', { cls: 'parsec-assets__meta', text: `ASA ${c.assetId} · ${c.decimals} decimals · held` }),
+        el('div', { cls: 'parsec-assets__badges', children: badges }),
+        ...(warn ? [warn] : []),
+        el('p', { cls: 'parsec-assets__muted', text: held === 0
+          ? 'Removing it frees the 0.1 ALGO set aside for it (0.001 ALGO fee).'
+          : 'This account holds some. Send the balance away before removing the asset.' }),
+      ] });
+    }
+    const action = btn('Add', { intent: 'primary', cls: 'parsec-assets__add' });
     let armed = !(c.freeze || c.clawback || !mark.standard);
     const note = el('p', { cls: 'parsec-assets__confirm', attrs: { hidden: 'true' } });
     action.addEventListener('click', () => {
@@ -147,6 +204,7 @@ export function assetPicker(opts: AssetPickerOptions = {}): HTMLElement {
       el('div', { cls: 'parsec-assets__meta', text: `ASA ${c.assetId} · ${c.decimals} decimals` }),
       el('div', { cls: 'parsec-assets__badges', children: badges }),
       ...(warn ? [warn] : []),
+      el('p', { cls: 'parsec-assets__cost', text: 'Adding sets aside 0.1 ALGO of minimum balance (returned if you remove it) and costs a 0.001 ALGO fee.' }),
       note,
     ] });
   }
@@ -219,6 +277,29 @@ export function assetPicker(opts: AssetPickerOptions = {}): HTMLElement {
       ] })
       : null;
 
+    // ── The asset picked in the command palette, first ───────────────────────
+    let focusSection: HTMLElement | null = null;
+    if (opts.focus !== undefined && opts.focus !== needed?.assetId) {
+      const id = opts.focus;
+      const slot = el('div', { cls: 'parsec-assets__grid', children: [el('p', { cls: 'parsec-assets__muted', text: `Reading ASA ${id}…` })] });
+      focusSection = el('section', { cls: 'parsec-assets__needed', children: [
+        el('h3', { cls: 'parsec-assets__section', text: 'From your search' }), slot,
+      ] });
+      const std = standardAsset(network, id);
+      if (std) {
+        slot.replaceChildren(card({ assetId: std.assetId, unitName: std.unitName, name: displayName(std), decimals: std.decimals, freeze: std.freeze, clawback: std.clawback, issuer: std.issuer }, { standard: std }));
+      } else {
+        void lookupAsset(id, network).then((info) => {
+          if (!info) { slot.replaceChildren(el('p', { cls: 'parsec-assets__muted', text: `ASA ${id} was not found on Algorand ${network}.` })); return; }
+          const c = classifyAsset(network, { assetId: id, unitName: info.unitName, name: info.name, creator: info.creator });
+          slot.replaceChildren(card(
+            { assetId: id, unitName: info.unitName, name: info.name, decimals: info.decimals, freeze: info.hasFreezeAddr, clawback: info.hasClawbackAddr },
+            { lookalike: c.kind === 'lookalike' ? c.of : undefined },
+          ));
+        });
+      }
+    }
+
     // ── Standard assets, grouped ──────────────────────────────────────────────
     const listed = standardAssets(network).filter((a) => a.assetId !== needed?.assetId);
     const groups: AssetGroup[] = ['Stablecoins', 'Bitcoin & Ether', 'Algorand ecosystem'];
@@ -240,6 +321,7 @@ export function assetPicker(opts: AssetPickerOptions = {}): HTMLElement {
       ] }),
       status,
       results,
+      ...(focusSection ? [focusSection] : []),
       ...(neededSection ? [neededSection] : []),
       standardSection,
     ] });
@@ -249,7 +331,7 @@ export function assetPicker(opts: AssetPickerOptions = {}): HTMLElement {
   root.append(balanceLine, el('p', { cls: 'parsec-assets__muted', text: 'Loading…' }));
   void fetchAccountInfo(address, network)
     .then((info) => {
-      for (const a of info.assets) optedIn.add(a.assetId);
+      for (const a of info.assets) { optedIn.add(a.assetId); holdings.set(a.assetId, a.amount); }
       available = Math.max(0, info.amount - info.minBalance);
       balanceLine.textContent = `Available to spend: ${microAlgosToAlgo(available)} ALGO · ${info.assets.length} asset${info.assets.length === 1 ? '' : 's'} held`;
     })

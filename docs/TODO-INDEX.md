@@ -33,12 +33,16 @@ the person signs in the Keycore dialog.
   homoglyph and whitespace-folded) under another id or creator is a lookalike, never verified.
 - [x] Test: a lookalike can never be classified verified (property test over the list).
 
-### 0.3.3 — Find and add an ASA from the ragebar
-- [ ] Ragebar search by name, unit or id across the whitelist and the indexer; results badged
-  verified / unverified / lookalike with id and creator shown.
-- [ ] Opt-in (and opt-out) from the result, signed in the Keycore, minimum-balance cost shown first;
+### 0.3.3 — Find and add an ASA *(done 2026-10-02)*
+Clarified: the **RAGEbar** is the EVM chain search (chainmarketcap + adding chains to MetaMask),
+RAGE/pgvectorscale-backed as that advances. ASA search is separate and Algorand-only, in the
+Ctrl/Cmd-K command palette.
+- [x] Palette search by name, unit or id across the verified list and the indexer; results badged
+  verified / unverified / lookalike with ASA id and network shown.
+- [x] Opt-in (and opt-out) from the result, signed in the Keycore, minimum-balance cost shown first;
   an unverified or lookalike asset needs an explicit confirmation.
-- [ ] Asset views and the add-asset screen use the same classification.
+- [x] Asset views and the add-asset screen use the same classification; the dashboard values only
+  verified dollar stablecoins, by id.
 
 ### 0.3.4 — SPINTRADE uses the whitelist as its authority
 - [ ] Every pair picker, quote, route and confirmation identifies an asset by id; "verified" only when

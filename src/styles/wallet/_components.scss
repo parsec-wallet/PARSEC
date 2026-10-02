@@ -48,6 +48,11 @@
     background: rgba($color-danger, 0.15);
     color: $color-danger;
   }
+
+  &--ok {
+    background: rgba($color-success, 0.15);
+    color: $color-success;
+  }
 }
 
 .parsec-asset-row__badges {

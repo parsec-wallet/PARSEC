@@ -3,6 +3,21 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.3.3 — 2026-10-02 (increment towards 0.4.0)
+
+Find and add an Algorand asset.
+- **The command palette (Ctrl/Cmd-K) finds Algorand assets** by name, ticker or id, in an
+  Algorand-only section: verified matches at once, then the indexer's, each badged verified,
+  lookalike ("⚠ Not USDC") or unverified, with its ASA id and network. Choosing one opens ADD
+  ASSETS on it.
+- **ADD ASSETS** shows the cost before adding (0.1 ALGO set aside, returned on removal; 0.001 ALGO
+  fee), asks twice for an unverified or lookalike asset, and can **remove** a held asset with a
+  zero balance — both signed in the Keycore.
+- **The dashboard** badges held assets verified or lookalike, and shows a dollar value only for
+  verified dollar stablecoins chosen by id. Before, any asset whose ticker was "USDC" or "USDt" was
+  shown at a dollar a token, computed in floating point; now it is exact.
+- The EVM chain search (the RAGEbar) is separate; ASA results never mix with it.
+
 ## 0.3.2 — 2026-10-02 (increment towards 0.4.0)
 
 Lookalikes, folded.
