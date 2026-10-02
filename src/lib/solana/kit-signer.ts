@@ -1,30 +1,102 @@
-// Vault → @solana/kit signer bridge. Wraps the existing keystoreRetrieve → SLIP-0010 derive →
-// zeroize flow (module.ts) into the TransactionSigner interface the @ar.io/sdk expects, so ArNS
-// writes sign with the parsec-held key without the key ever leaving this module's scope.
+// Solana signers for vault accounts.
 //
-// Loaded lazily (the sdk + kit are dynamic imports) so the base wallet bundle is unchanged.
+// Desktop: the PARSEC Keycore signs (`chain_sol_sign`); the key never enters JavaScript.
+// Browser build (no Keycore): the vault secret is read for the moment of signing — mnemonic
+// or tagged raw key, through `keypairFromVaultSecret` — and the seed is zeroed after.
+//
+// `createVaultTransactionSigner` gives the @solana/kit `TransactionPartialSigner` the
+// @ar.io/sdk expects. Loaded lazily (the sdk + kit are dynamic imports) so the base wallet
+// bundle is unchanged.
 
+import type { Address, SignatureBytes, SignatureDictionary, TransactionPartialSigner } from '@solana/kit';
+import { ed25519 } from '@noble/curves/ed25519.js';
+import { isTauri } from '../platform';
 import { keystoreRetrieve } from '../keystore';
-import { deriveSolanaFromMnemonic } from './seed';
+import { solSign } from '../chain-sol';
+import { keypairFromVaultSecret } from './secret';
+
+/** Signs a compiled Solana message (no prefix) as `address`. */
+export interface SolanaMessageSigner {
+  address: string;
+  sign(message: Uint8Array): Promise<Uint8Array>;
+}
+
+export function solanaMessageSigner(address: string, passphrase = ''): SolanaMessageSigner {
+  if (isTauri) {
+    return {
+      address,
+      async sign(message) {
+        const { signature_b64 } = await solSign(address, bytesToB64(message));
+        return b64ToBytes(signature_b64);
+      },
+    };
+  }
+  return {
+    address,
+    async sign(message) {
+      const secret = await keystoreRetrieve(address, passphrase);
+      if (!secret) throw new Error(`No Solana key in vault for ${address}`);
+      const kp = await keypairFromVaultSecret(secret);
+      try {
+        if (kp.address !== address) throw new Error(`Vault key mismatch: expected ${address}, got ${kp.address}`);
+        return ed25519.sign(message, kp.secretSeed);
+      } finally {
+        kp.secretSeed.fill(0);
+      }
+    },
+  };
+}
 
 /**
- * Build a @solana/kit KeyPairSigner for the vault-held Solana wallet.
+ * A @solana/kit `TransactionPartialSigner` for the vault-held Solana account.
  * `address` is the base58 Solana address (== walletId in the solana module).
- * The 64-byte secret is zeroized after the kit imports it into WebCrypto.
  */
-export async function createVaultTransactionSigner(address: string, passphrase: string) {
-  const mnemonic = await keystoreRetrieve(address, passphrase);
-  if (!mnemonic) throw new Error(`No Solana key in vault for ${address}`);
-  const kp = await deriveSolanaFromMnemonic(mnemonic);
-  if (kp.address !== address) throw new Error(`Vault key mismatch: expected ${address}, got ${kp.address}`);
+export async function createVaultTransactionSigner(
+  address: string,
+  passphrase: string,
+): Promise<TransactionPartialSigner> {
+  if (isTauri) {
+    const inner = solanaMessageSigner(address);
+    return {
+      address: address as Address,
+      async signTransactions(transactions) {
+        const out: SignatureDictionary[] = [];
+        for (const tx of transactions) {
+          const sig = (await inner.sign(Uint8Array.from(tx.messageBytes as unknown as Uint8Array))) as SignatureBytes;
+          out.push({ [address]: sig } as SignatureDictionary);
+        }
+        return out;
+      },
+    };
+  }
+  const secret = await keystoreRetrieve(address, passphrase);
+  if (!secret) throw new Error(`No Solana key in vault for ${address}`);
+  const kp = await keypairFromVaultSecret(secret);
+  if (kp.address !== address) {
+    kp.secretSeed.fill(0);
+    throw new Error(`Vault key mismatch: expected ${address}, got ${kp.address}`);
+  }
   const { createKeyPairSignerFromBytes } = await import('@solana/kit');
-  const secret = new Uint8Array(64);
-  secret.set(kp.secretSeed, 0);
-  secret.set(kp.publicKey, 32);
+  const full = new Uint8Array(64);
+  full.set(kp.secretSeed, 0);
+  full.set(kp.publicKey, 32);
   try {
-    return await createKeyPairSignerFromBytes(secret);
+    return await createKeyPairSignerFromBytes(full);
   } finally {
-    secret.fill(0);
+    full.fill(0);
     kp.secretSeed.fill(0);
   }
+}
+
+function bytesToB64(bytes: Uint8Array): string {
+  let s = '';
+  for (const b of bytes) s += String.fromCharCode(b);
+  return btoa(s);
+}
+
+function b64ToBytes(b64: string): Uint8Array {
+  const s = atob(b64);
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
 }

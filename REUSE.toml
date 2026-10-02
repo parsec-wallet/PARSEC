@@ -116,6 +116,7 @@ path = [
   "src/lib/arweave/ans104.ts",
   "src/lib/arweave/signer.ts",
   "src/lib/arweave/tx.ts",
+  "src/lib/arweave/vault-key.ts",
   "src/lib/solana/seed.ts",
   "src/lib/solana/module.ts",
   "src/lib/solana/transfer.ts",

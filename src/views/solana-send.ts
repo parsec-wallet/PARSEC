@@ -1,11 +1,10 @@
 // Solana send — transfer SOL from the active account's Solana address.
-// The mnemonic is retrieved from the BANKON vault only at sign time and
-// discarded immediately after (sendSol zeroes the derived secret seed).
+// Signed by the PARSEC Keycore (`chain_sol_sign`); the key never enters JavaScript.
 
 import { normalizeAmountInput } from '../lib/money';
 import { el, btn, input, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
-import { keystoreRetrieve } from '../lib/keystore';
+import { solanaMessageSigner } from '../lib/solana/kit-signer';
 import { isSolanaAddress } from '../lib/solana/address';
 import { fetchSolBalance } from '../lib/solana/balance';
 import { sendSol } from '../lib/solana/transfer';
@@ -49,9 +48,7 @@ export function solanaSendView(): HTMLElement {
     busy = true;
     submit.disabled = true;
     try {
-      const mnemonic = await keystoreRetrieve(from!, passphrase);
-      if (!mnemonic) throw new Error('No Solana key in vault for this account');
-      const sig = await sendSol(mnemonic, to, amt);
+      const sig = await sendSol(solanaMessageSigner(from!, passphrase), to, amt);
       toast(`Sent — signature ${sig.slice(0, 12)}…`, 'success');
       store.navigate('dashboard');
     } catch (err) {

@@ -31,7 +31,7 @@ import {
   type BnrInfo,
 } from '../lib/bankon-names/client';
 import type { PaymentMethod } from '../lib/bankon-names/payment';
-import { signDataItem, signDataItemFromVault } from '../lib/arweave/ans104';
+import { signDataItemFromVault, signDataItemWith } from '../lib/arweave/ans104';
 import {
   aoMessage,
   aoResult,
@@ -44,8 +44,7 @@ import {
   AO_AUTHORITY,
   DEFAULT_SCHEDULER,
 } from '../lib/arweave/ario';
-import { keystoreRetrieve } from '../lib/keystore';
-import { addressFromJwk, parseJwk } from '../lib/arweave/jwk';
+import { vaultArweaveKey, type ArweaveVaultKey } from '../lib/arweave/vault-key';
 
 const SPAWN_TIMEOUT_MS = 90_000;
 const AO_MAINNET_MU = 'https://mu.ao-testnet.xyz';
@@ -217,20 +216,14 @@ async function runSpawn(
     return;
   }
 
-  // Resolve the JWK once so we can sign the Spawn DataItem (the owner field
-  // must be the maintainer's modulus, not a per-call vault retrieval, because
-  // we sign the spawn ourselves instead of going through signDataItemFromVault
-  // — that helper hardcodes a Message-typed DataItem).
-  log('Reading JWK from vault...');
-  const secret = await keystoreRetrieve(address, passphrase);
-  if (!secret) {
-    log('Vault has no key for the active address.');
-    return;
-  }
-  const jwk = parseJwk(secret);
-  const derived = await addressFromJwk(jwk);
-  if (derived !== address) {
-    log(`JWK address mismatch (got ${derived}, expected ${address}).`);
+  // Sign the Spawn DataItem ourselves (signDataItemFromVault hardcodes a
+  // Message-typed DataItem); the owner is the maintainer's modulus.
+  log('Opening the vault key...');
+  let key: ArweaveVaultKey;
+  try {
+    key = await vaultArweaveKey(address, passphrase);
+  } catch (e) {
+    log(e instanceof Error ? e.message : String(e));
     return;
   }
 
@@ -251,9 +244,7 @@ async function runSpawn(
   });
 
   log('Signing...');
-  const signed = await signDataItem({ ...spawnInput, owner: jwk.n! }, jwk);
-  // Best-effort: zero JWK fields so the secret isn't retained beyond this scope.
-  jwk.d = ''; jwk.p = ''; jwk.q = ''; jwk.dp = ''; jwk.dq = ''; jwk.qi = '';
+  const signed = await signDataItemWith({ ...spawnInput, owner: key.owner }, key.sign).finally(() => key.dispose());
   log(`Signed (id=${signed.id}). Posting to AO MU...`);
 
   // Ensure the CU is set to the AR.IO CU so the result poll hits the right endpoint.
@@ -424,14 +415,14 @@ async function runBmrSpawn(
     store.navigate('unlock');
     return;
   }
-  log('Reading JWK from vault...');
-  const { keystoreRetrieve } = await import('../lib/keystore');
-  const secret = await keystoreRetrieve(address, passphrase);
-  if (!secret) { log('Vault has no key for the active address.'); return; }
-  const { parseJwk, addressFromJwk } = await import('../lib/arweave/jwk');
-  const jwk = parseJwk(secret);
-  const derived = await addressFromJwk(jwk);
-  if (derived !== address) { log(`JWK address mismatch (${derived} vs ${address}).`); return; }
+  log('Opening the vault key...');
+  let key: ArweaveVaultKey;
+  try {
+    key = await vaultArweaveKey(address, passphrase);
+  } catch (e) {
+    log(e instanceof Error ? e.message : String(e));
+    return;
+  }
 
   log(`Bundled BMR Lua: ${BMR_LUA_SIZE} bytes`);
   log('Building Spawn DataItem...');
@@ -450,8 +441,7 @@ async function runBmrSpawn(
     ],
     data: BMR_LUA_SOURCE,
   });
-  const signed = await signDataItem({ ...spawnInput, owner: jwk.n! }, jwk);
-  jwk.d = ''; jwk.p = ''; jwk.q = ''; jwk.dp = ''; jwk.dq = ''; jwk.qi = '';
+  const signed = await signDataItemWith({ ...spawnInput, owner: key.owner }, key.sign).finally(() => key.dispose());
   log(`Signed (id=${signed.id}). Posting...`);
 
   setAoEndpoints({ mu: AO_MAINNET_MU, cu: AR_IO_CU });
