@@ -25,6 +25,8 @@ import type { DexAsset } from '../lib/dex/types';
 import { addSwapRecord, getSwapHistory, formatSwapDate } from '../lib/dex/history';
 import { parseDecimal, formatDecimal } from '../lib/money';
 import { USDC_ASA_MAINNET, USDC_ASA_TESTNET } from '../lib/x402/networks';
+import { swapStatus, isTrusted, assetLabel, statusBadge, confirmationFor, poolRank, type SwapAssetFacts } from '../lib/dex/spintrade-assets';
+import { standardAsset, displayName } from '../lib/algorand/asset-whitelist';
 import type { NetworkId } from '../types/wallet';
 
 interface Held { assetId: number; unitName: string; name: string; decimals: number; amount: bigint }
@@ -98,12 +100,33 @@ export function swapView(): HTMLElement {
     renderQuote(q, fromA, toA);
   }
 
+  /** A leg of the route: label plus its status badge. */
+  function leg(a: SwapAssetFacts): HTMLElement {
+    const b = statusBadge(swapStatus(network, a));
+    return el('span', { cls: 'parsec-swap2__leg', children: [
+      el('span', { text: assetLabel(a) }),
+      el('span', { cls: `parsec-swap2__badge parsec-swap2__badge--${b.tone}`, text: b.text }),
+    ] });
+  }
+
   function renderQuote(q: MultiHopQuote, fromA: Held, toA: DexAsset): void {
-    const route = q.isMultiHop ? `${fromA.unitName} → ALGO → ${toA.unitName}` : `${fromA.unitName} → ${toA.unitName}`;
+    const algo: SwapAssetFacts = { assetId: 0, unitName: 'ALGO', name: 'Algorand' };
+    const legs = q.isMultiHop ? [fromA, algo, toA] : [fromA, toA];
+    const route = el('div', { cls: 'parsec-swap2__route', children: legs.flatMap((a, i) => i ? [el('span', { text: ' → ' }), leg(a)] : [leg(a)]) });
     const swapBtn = btn(`Swap ${fmt(q.inputAmount, fromA.decimals)} ${fromA.unitName}`, {
       intent: 'primary', large: true, cls: 'parsec-swap2__go',
       onClick: () => void doSwap(q, fromA, toA, swapBtn),
     });
+    // An unverified or lookalike asset on either end must be acknowledged before the button works.
+    const needs = [fromA, toA]
+      .map((a) => confirmationFor(swapStatus(network, a), a))
+      .filter((t): t is string => t !== null);
+    const acks = needs.map((text) => {
+      const box = el('input', { attrs: { type: 'checkbox' } }) as HTMLInputElement;
+      box.addEventListener('change', () => { (swapBtn as HTMLButtonElement).disabled = acks.some((a) => !a.box.checked); });
+      return { box, row: el('label', { cls: 'parsec-swap2__ack', children: [box, el('span', { text: text })] }) };
+    });
+    if (acks.length) (swapBtn as HTMLButtonElement).disabled = true;
     quotePanel.replaceChildren(
       el('p', { cls: 'parsec-swap2__qkicker', text: `Best route · ${q.dex}` }),
       el('div', { cls: 'parsec-swap2__receive', children: [
@@ -111,12 +134,15 @@ export function swapView(): HTMLElement {
         el('strong', { text: `${fmt(q.outputAmount, toA.decimals)} ${toA.unitName}` }),
       ] }),
       quoteRow('At least', `${fmt(q.minOutput, toA.decimals)} ${toA.unitName}`),
-      quoteRow('Route', `${route}${q.isMultiHop ? ' (2 hops)' : ''}`),
+      quoteRow('You pay', assetLabel(fromA)),
+      quoteRow('You get', assetLabel(toA)),
+      el('div', { cls: 'parsec-swap2__qrow', children: [el('span', { text: q.isMultiHop ? 'Route (2 hops)' : 'Route' }), route] }),
       quoteRow('Rate', `1 ${fromA.unitName} ≈ ${q.exchangeRate.toPrecision(6)} ${toA.unitName}`),
       quoteRow('Price impact', `${q.priceImpact.toFixed(2)}%`),
       quoteRow('Pool fee', `${fmt(q.fee, fromA.decimals)} ${fromA.unitName} (${((q.fee / Math.max(1, q.inputAmount)) * 100).toFixed(2)}%)${q.isMultiHop ? ', first hop' : ''}`),
       quoteRow('Slippage tolerance', pct(slippageBps)),
       ...(q.priceImpact > 5 ? [el('p', { cls: 'parsec-swap2__error', text: 'High price impact: this trade moves the pool price noticeably. Consider a smaller amount.' })] : []),
+      ...acks.map((a) => a.row),
       swapBtn,
       el('p', { cls: 'parsec-swap2__muted', text: 'Signed by the PARSEC Keycore. If the price moves past your tolerance before it lands, the swap fails and nothing is spent but the network fee.' }),
     );
@@ -171,7 +197,8 @@ export function swapView(): HTMLElement {
         attrs: { type: 'button' },
         children: [
           el('strong', { text: a.unitName || a.name || `ASA ${a.assetId}` }),
-          el('span', { text: a.assetId === usdcId ? 'USDC · verified' : `ASA ${a.assetId}` }),
+          el('span', { text: `ASA ${a.assetId}` }),
+          (() => { const b = statusBadge(swapStatus(network, a)); return el('span', { cls: `parsec-swap2__badge parsec-swap2__badge--${b.tone}`, text: b.text }); })(),
           el('span', { text: a.poolLiquidity ? a.poolLiquidity : '' }),
         ],
       });
@@ -184,8 +211,8 @@ export function swapView(): HTMLElement {
     if (!from) return;
     pools.replaceChildren(el('p', { cls: 'parsec-swap2__muted', text: 'Finding pools…' }));
     poolAssets = await fetchAllPairs(from.assetId, network).catch(() => []);
-    // USDC first: it is what x402 pays in.
-    poolAssets.sort((a, b) => Number(b.assetId === usdcId) - Number(a.assetId === usdcId));
+    // USDC first (it is what x402 pays in), then verified, unverified, and lookalikes last.
+    poolAssets.sort((a, b) => poolRank(swapStatus(network, a), a.assetId, usdcId) - poolRank(swapStatus(network, b), b.assetId, usdcId));
     paintPools();
   }
 
@@ -193,7 +220,8 @@ export function swapView(): HTMLElement {
     fromSelect.replaceChildren(...held.map((h, i) => {
       const o = document.createElement('option');
       o.value = String(i);
-      o.textContent = `${h.unitName} · ${fmt(h.amount, h.decimals)}`;
+      const s = swapStatus(network, h);
+      o.textContent = `${assetLabel(h)} · ${fmt(h.amount, h.decimals)}${isTrusted(s) ? '' : ` · ${statusBadge(s).text}`}`;
       o.selected = h === from;
       return o;
     }));
@@ -242,7 +270,8 @@ export function swapView(): HTMLElement {
     const hasUsdc = held.some((h) => h.assetId === usdcId);
     const pick = (amt: string) => {
       from = algo ?? null;
-      to = poolAssets.find((a) => a.assetId === usdcId) ?? { assetId: usdcId, unitName: 'USDC', name: 'USD Coin', decimals: 6 };
+      const listedUsdc = standardAsset(network, usdcId);
+      to = poolAssets.find((a) => a.assetId === usdcId) ?? { assetId: usdcId, unitName: 'USDC', name: listedUsdc ? displayName(listedUsdc) : 'USDC', decimals: 6 };
       amountInput.value = amt;
       amountText = amt;
       paintFrom();

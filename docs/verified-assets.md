@@ -84,4 +84,11 @@ real impersonation, extended as new ones are found.
 Live Pera lookups for unlisted results are not made: that would tell a third party which assets a
 person looks at. The list records Pera's tier at each check instead.
 
-Next ([plan](TODO-INDEX.md)): SPINTRADE using this list as its authority (0.3.4).
+## SPINTRADE
+
+SPINTRADE names every asset by ticker **and** ASA id ("USDC (ASA 31566704)") in the pool list, the
+"from" list, the quote and each leg of the route, with its status: native (ALGO), verified (by id,
+with its issuer), unverified, or a lookalike ("⚠ not USDC"). Pools are ordered USDC, verified,
+unverified, lookalikes. A swap into or out of an unverified or lookalike asset is blocked until the
+person ticks a statement naming the asset and, for a lookalike, the asset it imitates. "Swap to
+USDC" only ever means the listed USDC, by id. (`src/lib/dex/spintrade-assets.ts`)

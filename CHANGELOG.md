@@ -3,6 +3,17 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.3.4 — 2026-10-02 (increment towards 0.4.0)
+
+SPINTRADE uses the verified list as its authority, never the ticker.
+- Every asset in SPINTRADE — pool list, "from" list, quote, each leg of the route — is named by
+  ticker and ASA id, with its status: native, verified (with issuer), unverified, or a lookalike.
+- Pools are ordered USDC, verified, unverified, lookalikes.
+- A swap into or out of an unverified or lookalike asset is blocked until the person ticks a
+  statement naming it (and, for a lookalike, the asset it imitates). Before, only the x402 USDC was
+  marked verified, by a hand check; every other asset was a bare ticker.
+- Test: a disguised copy of every listed asset is never trusted on any SPINTRADE surface.
+
 ## 0.3.3 — 2026-10-02 (increment towards 0.4.0)
 
 Find and add an Algorand asset.
