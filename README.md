@@ -114,7 +114,7 @@ offered.
 |---|---|
 | `npm run dev` · `npm run tauri:dev` | Web dev server · desktop app in dev mode |
 | `npm run build` · `npm run tauri:build` | Typecheck and build the frontend · package the desktop app |
-| `npm test` · `npm run test:watch` | The test suite (86 files, 765 tests) |
+| `npm test` · `npm run test:watch` | The TypeScript suite (95 files, 800 tests); the PARSEC Keycore's Rust tests: `cd src-tauri && cargo test --lib` (170) |
 | `npx tsc --noEmit` | Typecheck; with `npm test`, required before a change is done |
 | `npm run lint:css` · `lint:css:ci` · `lint:css:production` | Stylelint (fix) · CI output · production rules |
 | `npm run deploy:permaweb` · `deploy:permaweb:txid` | Publish `dist/` to Arweave (binding the ArNS name · by transaction id) |
@@ -159,15 +159,22 @@ document: [docs/modules.md](docs/modules.md).
 
 ## Security model
 
-- **Keys stay yours.** Keys rest encrypted on your device under your passphrase. On desktop the vault
-  is Rust's `bankon_vault` (Argon2id key derivation, AES-256-GCM); in the browser, Web Crypto
-  (PBKDF2, 600,000 iterations, AES-256-GCM). Signing runs in the **PARSEC Keycore** (the Rust core: `bankon_vault` plus a signer per chain) and returns a
-  signature, never a key.
+- **Keys stay yours.** Keys rest encrypted on your device under your passphrase. On desktop and
+  Android the vault is Rust's `bankon_vault` in its second-generation format, **`bankon-vault/2`**
+  (Argon2id at 256 MiB on desktop, 64 MiB on phones; a wrapped data key; per-entry AES-256-GCM keys;
+  an encrypted account list; tamper and rollback checks). In the browser it is Web Crypto (PBKDF2,
+  600,000 iterations, AES-256-GCM).
+- **Keys never leave the PARSEC Keycore** (the Rust core: `bankon_vault` plus a signer per chain).
+  New wallets are generated there, every signature is made there and returns a signature, never a
+  key — and **every signature is approved in the Keycore's own dialog**, which shows what it read
+  from the transaction (rekeys, close-outs and clawbacks first, as warnings). A batch is approved
+  once; the x402 auto-approve cap is an allowance the Keycore enforces. The one way a key leaves is
+  a backup export that asks for the passphrase again.
 - **Profiles.** A device can hold several vaults, each with its own passphrase and wallets; one is open
   at a time. A forgotten passphrase is answered with a new vault beside the old one — nothing is
   deleted. How to use it: [docs/bankon-vault.md](docs/bankon-vault.md).
-- **Session hygiene.** The passphrase is held in private fields, never in `localStorage`; mnemonics are
-  retrieved only to sign and cleared in `finally` blocks.
+- **Session hygiene.** On the desktop the passphrase is not kept after unlock; the browser build holds
+  it in private fields, never in `localStorage`.
 - **Auto-lock.** On by default after 5 minutes of inactivity, enforced by the interface. The
   second-generation vault also offers an idle lock enforced in Rust.
 - **Content Security Policy.** Scripts: `'self'` only — no `unsafe-inline`, no `unsafe-eval` — and
@@ -186,8 +193,11 @@ Alpha, and the open items are stated rather than hidden:
 
 - **The first mainnet x402 settlement through PARSEC is the next step.** Until then the x402 path is
   verified against stubs, test shapes and live read endpoints.
-- **The second-generation vault** (`bankon-vault/2`: wrapped DEK, per-entry HKDF, encrypted index,
-  256 MiB Argon2id) is the vault since 0.2.7; first-generation vaults migrate on their next unlock.
+- **Release 0.3.0** ships the second-generation vault, `bankon-vault/2`. A first-generation vault
+  migrates on its first unlock, keeping its old files until you remove them. Tomb volumes still
+  hold the first-generation format.
+- **Next: 0.4.0** — the money paths proven on mainnet, and a verified asset list that the ragebar
+  and SPINTRADE use as their authority ([plan](docs/TODO-INDEX.md), [roadmap](docs/ROADMAP-1.0.md)).
 - **Bitcoin PSBT signing** is implemented in Rust (`chain_btc/sign.rs`) but not yet exercised end
   to end — the regtest run is open in [docs/TODO-INDEX.md](docs/TODO-INDEX.md).
 - **cypherpunk4096** is the destination and it is binary — all five commitments or none. Two are not

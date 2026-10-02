@@ -11,6 +11,72 @@
 > - [x402 module docs](../src/lib/x402/) — `README.md`, `technical.md`, `usage.md`, `todo.md` (the goal, the plan, what is open)
 > - [Snapshot Investigation](./snapshot-investigation.md) — ARIO Solana migration risk report (2026-05-16)
 
+## Plan: 0.3.x → 0.4.0 (written 2026-10-02, after 0.3.0 shipped)
+
+**Milestone 0.4.0 — money paths proven, and verified assets** ([roadmap](./ROADMAP-1.0.md#040--money-paths-proven-and-verified-assets)).
+Cadence as before: each 0.0.1 increment is pushed when its tests pass; installers and a published
+release only at 0.4.0. Mainnet steps that move funds are the participant's — PARSEC prepares,
+the person signs in the Keycore dialog.
+
+### 0.3.1 — Verified ASA whitelist, the data
+- [ ] `src/lib/assets/whitelist.ts` (+ JSON snapshot): every entry pinned by id, creator, unit, name,
+  decimals, freeze/clawback addresses, source URL and the date it was checked. Start from the
+  issuers' own published ids (Circle USDC/EURC, Tether, wrapped-asset bridges) and recognised
+  verification registries; grow from today's dozen.
+- [ ] `scripts/asa-whitelist-check.mjs`: re-derives every entry against the mainnet indexer and its
+  source snapshot; fails on any mismatch.
+- [ ] Test: the shipped list matches its snapshot; no two entries share a unit or name without the
+  lookalike flag.
+
+### 0.3.2 — Lookalike detection
+- [ ] `classifyAsset(id, meta)` → `verified | unverified | lookalike(of)`: same unit or name (case,
+  homoglyph and whitespace-folded) under another id or creator is a lookalike, never verified.
+- [ ] Test: a lookalike can never be classified verified (property test over the list).
+
+### 0.3.3 — Find and add an ASA from the ragebar
+- [ ] Ragebar search by name, unit or id across the whitelist and the indexer; results badged
+  verified / unverified / lookalike with id and creator shown.
+- [ ] Opt-in (and opt-out) from the result, signed in the Keycore, minimum-balance cost shown first;
+  an unverified or lookalike asset needs an explicit confirmation.
+- [ ] Asset views and the add-asset screen use the same classification.
+
+### 0.3.4 — SPINTRADE uses the whitelist as its authority
+- [ ] Every pair picker, quote, route and confirmation identifies an asset by id; "verified" only when
+  id and creator match the whitelist; unverified shown with id and creator, not only a ticker.
+- [ ] Routes label each leg's status; a swap into or out of an unverified asset needs explicit
+  confirmation; "swap to USDC" only ever means the whitelisted USDC.
+- [ ] Test: no SPINTRADE surface renders a lookalike as verified.
+
+### 0.3.5 — Recorded-response tests for every money path
+- [ ] Fixtures recorded from mainnet/testnet responses (facilitator verify/settle, x402 402
+  envelopes, Turbo price and upload, NFD and ArNS store endpoints) and automated tests against them,
+  so each path is covered before its live run.
+
+### 0.3.6 — Name-store fulfilment (stores phase 3)
+- [ ] Owner inbox for paid orders; mint/transfer the .algo segment or set the ArNS undername to the
+  buyer, signed in the Keycore by the store owner; order states visible to buyer and owner.
+
+### 0.3.7 — The mainnet runs (participant-funded)
+- [ ] x402 on Algorand (USDC), x402 on Base, a .algo store purchase, an ArNS undername purchase, an
+  Arweave upload over x402 — each settled once end to end; receipts linked in
+  `docs/money-paths.md`.
+
+### 0.3.8 — Carried over and hardening
+- [ ] Tomb volumes onto `bankon-vault/2` (they still hold v1); Tomb passphrase off the command line
+  if `tomb` allows; key-path confinement (audit H6 remainder).
+- [ ] Key-file custodian command (audit L8); `shell:allow-execute` scoped (L7); desktop navigation
+  allowlist (M12).
+- [ ] Keycore dialog: decode Solana system/SPL transfers so the dialog states amount and recipient;
+  one confirmation for x402 above the cap (today the in-app view and the Keycore dialog both ask).
+- [ ] Admin key ceremony (`admin-keygen.ts`) generates in the Keycore.
+- [ ] Clippy debt (45 warnings, all pre-existing); `russh` 0.54 future-incompat warning — update.
+- [ ] CI never runs on push in either repo (only `workflow_dispatch` works) — find out why.
+
+### 0.4.0 — milestone
+- [ ] Exit (roadmap): each money path has a mainnet receipt and a recorded-response test; the
+  whitelist test re-derives every entry; a lookalike is never shown as verified in the ragebar, the
+  asset views or SPINTRADE. Then installers + APK + release.
+
 ## Session: 2026-09-07 — Lightspeed + module choices
 
 **Focus**: first module registered through the manifest, and the template for the next one. Doc: [lightspeed.md](./lightspeed.md).

@@ -24,12 +24,12 @@ commands may run.
 
 | Module | Commands | What it does |
 |---|---|---|
-| `bankon_vault` | 18 | Encrypted key storage (Argon2id → AES-256-GCM, file-based) — 9 vault commands, 2 profile commands (one vault per profile; [guide](bankon-vault.md)) — and the Tomb: LUKS cold volumes with USB key separation, 7 commands. The second-generation format (`commands_v2.rs`, wrapped DEK, per-entry HKDF, Rust auto-lock) is on disk and specified ([vault spec](security/bankon-vault-spec.md)) but **not compiled in**; today's auto-lock is a frontend timer (5 minutes by default). |
-| `chain_algo` | 7 | Algorand: 25-word mnemonic accounts, transaction signing. |
-| `chain_sol` | 3 | Solana: SLIP-0010 ed25519 (m/44'/501'/0'/0'), import, signing. |
-| `chain_ar` | 5 | Arweave: RSA-4096 accounts, signing, JWK export. |
-| `chain_evm` | 3 | EVM: secp256k1, EIP-55 addresses, signing, the EIP-712 digest for x402's EIP-3009 rail. |
-| `chain_btc` | 7 | Bitcoin: BIP-44/49/84 derivation, native SegWit addresses, PSBT signing (`sign.rs`; refuses to return a partially signed PSBT). Not yet exercised end to end on regtest ([TODO index](TODO-INDEX.md)). |
+| `bankon_vault` | 41 | The vault and the Keycore's guard. **`bankon-vault/2`** since 0.2.7 (Argon2id 256 MiB desktop / 64 MiB phone → wrapped DEK → per-entry HKDF + AES-256-GCM, encrypted index, document MAC and rollback check; [vault spec](security/bankon-vault-spec.md)); a v1 vault migrates on unlock. 11 vault commands (incl. `vault_export_secret`, the only export, and `vault_reveal_new`), 17 `bankon-vault/2` commands (custodians, passphrase change, auto-lock, migration), 2 profile commands, 4 Keycore approval commands (`approval.rs`: the native dialog every signature passes, batch tokens, the x402 allowance), and the Tomb — LUKS cold volumes with USB key separation, 7 commands (still v1 inside). |
+| `chain_algo` | 6 | Algorand: 25-word mnemonic accounts generated in Rust, transaction and message signing (decoded for the approval dialog, `txn.rs`). |
+| `chain_sol` | 4 | Solana: SLIP-0010 ed25519 (m/44'/501'/0'/0'), create in Rust, import (phrase or raw key), signing. |
+| `chain_ar` | 4 | Arweave: RSA-4096 accounts, signing (backup goes through `vault_export_secret`). |
+| `chain_evm` | 4 | EVM: secp256k1 keys created in Rust, EIP-55 addresses, signing, the EIP-712 digest for x402's EIP-3009 rail. |
+| `chain_btc` | 6 | Bitcoin: BIP-44/49/84 derivation, native SegWit addresses, PSBT signing (`sign.rs`; refuses to return a partially signed PSBT). Not yet exercised end to end on regtest ([TODO index](TODO-INDEX.md)). |
 | `chain_ltc` | 5 | Litecoin pack. |
 | `parsec_validate` | 6 | Address validators — the gatekeepers for every chain-native format. |
 | `parsec_connect` | 7 | PARSEC Connect, the dApp bridge on `ws://127.0.0.1:9876`; each request is approved on screen ([parsec-connect.md](parsec-connect.md)). |
