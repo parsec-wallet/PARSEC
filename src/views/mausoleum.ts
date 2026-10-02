@@ -659,6 +659,7 @@ export function mausoleumView(): HTMLElement {
     // ── Custodians ────────────────────────────────────────────
     if (ks.unlocked && ks.format === 'bankon-vault/2') {
       const custodians = ks.custodians;
+      const custPass = passphraseField({ placeholder: 'Current passphrase (to change custodians)', meter: false });
       const rows = custodians.map((c) =>
         el('div', {
           cls: 'parsec-mausoleum__kv',
@@ -669,7 +670,7 @@ export function mausoleumView(): HTMLElement {
                   minimal: true, intent: 'danger',
                   onClick: async () => {
                     try {
-                      await vaultRemoveCustodian(c.kind, c.label);
+                      await vaultRemoveCustodian(c.kind, c.label, custPass.value());
                       toast('Custodian removed.', 'success');
                       await loadKeystoreState(); render();
                     } catch (e) { toast(String(e), 'danger'); }
@@ -685,12 +686,16 @@ export function mausoleumView(): HTMLElement {
           cls: 'bp5-text-muted',
           text: 'Each custodian is an independent way to open this vault. More than one means losing a passphrase or a wallet key is recoverable rather than final.',
         }),
+        custPass.el,
         ...rows,
         btn('Show wallet-binding message', {
           minimal: true,
           onClick: async () => {
-            const m = await vaultBindingMessage();
-            toast(`Sign exactly this to bind a wallet: ${m}`, 'primary');
+            const st = store.get();
+            const acct = st.accounts[st.activeAccountIndex];
+            if (!acct) { toast('No active account.', 'warning'); return; }
+            const m = await vaultBindingMessage(acct.address);
+            toast(`Sign exactly this to bind a wallet: ${m.message}`, 'primary');
           },
         }),
         note(

@@ -146,14 +146,14 @@ HKDF, scheme-tagged bytes, encrypted index). The format is specified in
 `bankon_vault` is **one component across several projects**, not a PARSEC
 internal. The same vault appears in BANKONBTCWaaS and elsewhere, and **PARSEC
 offers it as a service**. Treat its interface as a contract other applications
-depend on: additive changes, no silent breaks. Its public surface is 34 IPC commands:
-the original 16 (9 v1 in `commands.rs` + 7 Tomb in `tomb_commands.rs`) plus 18
-`bankon-vault/2` commands in `commands_v2.rs`, added without removing any.
-**Build status:** the v2 half is in the tree but not yet compiled in — `bankon_vault/mod.rs`
-does not declare `commands_v2`/`vault`/`format`/`overseer`/`throttle`, `lib.rs` does not
-register the 18 commands, and `VaultSession` has no v2 state. `src/lib/vault.ts` gates its v2
-wrappers on `VAULT_V2_IN_BUILD` (false): reads degrade to the v1 vault, writes refuse. Flip it
-in the same change that wires the Rust side.
+depend on: additive changes, no silent breaks — the deliberate exceptions are the audit's:
+`vault_retrieve_key` (0.1.9) and `vault_retrieve_key_bytes` (0.2.5) returned plaintext and are
+gone; `vault_export_secret` is the one export. Surface: the v1 commands in `commands.rs`, 7 Tomb
+in `tomb_commands.rs`, 17 `bankon-vault/2` in `commands_v2.rs`, and the Keycore approval commands
+in `approval.rs`. **Build status (0.2.5):** v2 is compiled, tested and its commands registered,
+with `VaultSession` holding a v2 session; the app itself still runs on v1 until 0.2.7, when v1
+vaults migrate on unlock and `src/lib/vault.ts` flips `VAULT_V2_IN_BUILD` (false today: reads
+degrade to v1, writes refuse before IPC).
 
 **Scope discipline:** in this repo, focus on PARSEC. Do not refactor for other
 consumers, chase their integrations, or vendor their code here — note the

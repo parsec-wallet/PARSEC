@@ -20,6 +20,7 @@ mod surface_tests;
 
 use bankon_vault::VaultState;
 use bankon_vault::commands::*;
+use bankon_vault::commands_v2::*;
 use bankon_vault::profiles::*;
 use bankon_vault::tomb_commands::*;
 use pmvpn::PmvpnState;
@@ -88,6 +89,24 @@ pub fn run() {
             vault_store_key,
             vault_export_secret,
             vault_reveal_new,
+            // bankon-vault/2 (0.2.5; the app moves onto it in 0.2.6–0.2.7)
+            vault_v2_status,
+            vault_v2_create,
+            vault_v2_unlock,
+            vault_store_key_bytes,
+            vault_v2_remove_account,
+            vault_change_passphrase,
+            vault_add_signature_custodian,
+            vault_remove_custodian,
+            vault_binding_message,
+            vault_migration_plan,
+            vault_migrate,
+            vault_kdf_profile,
+            vault_passphrase_strength,
+            vault_generate_passphrase,
+            vault_set_auto_lock,
+            vault_auto_lock_status,
+            vault_touch,
             bankon_vault::approval::keycore_approve,
             bankon_vault::approval::keycore_allowance_grant,
             bankon_vault::approval::keycore_allowance_revoke,

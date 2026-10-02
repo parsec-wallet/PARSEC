@@ -90,7 +90,8 @@ export async function vaultDestroy(passphrase: string): Promise<void> {
 // Typed wrappers for the 18 commands in src-tauri/src/bankon_vault/commands_v2.rs.
 // That backend is in the tree but not yet compiled in: bankon_vault/mod.rs does
 // not declare it, lib.rs does not register its commands, and VaultSession has
-// no v2 state. Until it is wired, VAULT_V2_IN_BUILD is false and:
+// no v2 state. (0.2.5: the v2 commands are compiled and registered; the app moves onto
+// them in 0.2.7.) Until then VAULT_V2_IN_BUILD is false and:
 //   - reads degrade: vaultV2Status() reports the v1 vault honestly, the plan
 //     says no migration is possible, the KDF and auto-lock read as unavailable;
 //   - writes refuse with VaultV2Unavailable before anything reaches IPC.
@@ -187,15 +188,34 @@ export async function vaultChangePassphrase(current: string, newPassphrase: stri
   await invoke('vault_change_passphrase', { current, newPassphrase });
 }
 
-export async function vaultRemoveCustodian(kind: string, label: string): Promise<void> {
+/** Remove a custodian. The current passphrase is checked again (attempt-limited). */
+export async function vaultRemoveCustodian(kind: string, label: string, passphrase: string): Promise<void> {
   if (!VAULT_V2_IN_BUILD) throw new VaultV2Unavailable('vaultRemoveCustodian');
-  await invoke('vault_remove_custodian', { kind, label });
+  await invoke('vault_remove_custodian', { kind, label, passphrase });
 }
 
-/** The message a signature custodian signs to bind a wallet to the vault. */
-export async function vaultBindingMessage(): Promise<{ message: string }> {
+/**
+ * Add a wallet-signature custodian. The Keycore checks the current passphrase and that
+ * `signatureB64` is `address`'s signature over this vault's binding message.
+ */
+export async function vaultAddSignatureCustodian(args: {
+  chain: 'algorand' | 'solana' | 'ethereum';
+  address: string;
+  label: string;
+  signatureB64: string;
+  passphrase: string;
+}): Promise<void> {
+  if (!VAULT_V2_IN_BUILD) throw new VaultV2Unavailable('vaultAddSignatureCustodian');
+  await invoke('vault_add_signature_custodian', {
+    chain: args.chain, address: args.address, label: args.label,
+    signatureB64: args.signatureB64, passphrase: args.passphrase,
+  });
+}
+
+/** The message `address`'s wallet signs to become a custodian of this vault (names the vault). */
+export async function vaultBindingMessage(address: string): Promise<{ message: string }> {
   if (!VAULT_V2_IN_BUILD) throw new VaultV2Unavailable('vaultBindingMessage');
-  return await invoke<{ message: string }>('vault_binding_message');
+  return await invoke<{ message: string }>('vault_binding_message', { address });
 }
 
 /** Argon2id cost profile, or null when bankon-vault/2 is not in this build. */
