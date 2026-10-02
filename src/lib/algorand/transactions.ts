@@ -4,68 +4,65 @@ import algosdk from 'algosdk';
 import type { NetworkId, TransactionRecord } from '../../types/wallet';
 import { getAlgodClient, getIndexerClient } from './client';
 import { rateLimitedQuery } from './query-cache';
+import type { WalletSigner } from './signer';
 
-/** Send ALGO payment */
+/**
+ * Sign and submit one transaction with a wallet signer, and wait for it to confirm.
+ *
+ * The signer is the PARSEC Keycore's on desktop and phone (`walletSigner`): the transaction
+ * is built here, signed in Rust, and only the signature comes back — no recovery phrase or
+ * key ever enters JavaScript. (The browser build's signer is its documented exception.)
+ */
+async function submitSigned(
+  signer: WalletSigner,
+  txn: algosdk.Transaction,
+  network: NetworkId,
+): Promise<{ txId: string; confirmedRound: number }> {
+  const client = getAlgodClient(network);
+  const [signed] = await signer.sign([txn], [0]);
+  const { txid } = await client.sendRawTransaction(signed).do();
+  const result = await algosdk.waitForConfirmation(client, txid, 10);
+  return { txId: txid, confirmedRound: Number(result.confirmedRound || 0) };
+}
+
+/** Send ALGO from `signer.address`. */
 export async function sendPayment(
-  mnemonic: string,
+  signer: WalletSigner,
   receiver: string,
   amountMicroAlgos: number,
   note: string,
   network: NetworkId
 ): Promise<{ txId: string; confirmedRound: number }> {
-  const client = getAlgodClient(network);
-  const account = algosdk.mnemonicToSecretKey(mnemonic.trim());
-  try {
-    const suggestedParams = await client.getTransactionParams().do();
-
-    const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      sender: account.addr,
-      receiver,
-      amount: amountMicroAlgos,
-      note: note ? new TextEncoder().encode(note) : undefined,
-      suggestedParams,
-    });
-
-    const signedTxn = txn.signTxn(account.sk);
-    const { txid } = await client.sendRawTransaction(signedTxn).do();
-    const result = await algosdk.waitForConfirmation(client, txid, 10);
-    return { txId: txid, confirmedRound: Number(result.confirmedRound || 0) };
-  } finally {
-    // Zero secret key bytes — defense against memory scraping
-    account.sk.fill(0);
-  }
+  const suggestedParams = await getAlgodClient(network).getTransactionParams().do();
+  const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+    sender: signer.address,
+    receiver,
+    amount: amountMicroAlgos,
+    note: note ? new TextEncoder().encode(note) : undefined,
+    suggestedParams,
+  });
+  return submitSigned(signer, txn, network);
 }
 
-/** Send ASA transfer */
+/** Send an ASA from `signer.address`. */
 export async function sendAssetTransfer(
-  mnemonic: string,
+  signer: WalletSigner,
   receiver: string,
   amount: number,
   assetId: number,
   note: string,
   network: NetworkId
 ): Promise<{ txId: string; confirmedRound: number }> {
-  const client = getAlgodClient(network);
-  const account = algosdk.mnemonicToSecretKey(mnemonic.trim());
-  try {
-    const suggestedParams = await client.getTransactionParams().do();
-
-    const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-      sender: account.addr,
-      receiver,
-      amount,
-      assetIndex: assetId,
-      note: note ? new TextEncoder().encode(note) : undefined,
-      suggestedParams,
-    });
-
-    const signedTxn = txn.signTxn(account.sk);
-    const { txid } = await client.sendRawTransaction(signedTxn).do();
-    const result = await algosdk.waitForConfirmation(client, txid, 10);
-    return { txId: txid, confirmedRound: Number(result.confirmedRound || 0) };
-  } finally {
-    account.sk.fill(0);
-  }
+  const suggestedParams = await getAlgodClient(network).getTransactionParams().do();
+  const txn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+    sender: signer.address,
+    receiver,
+    amount,
+    assetIndex: assetId,
+    note: note ? new TextEncoder().encode(note) : undefined,
+    suggestedParams,
+  });
+  return submitSigned(signer, txn, network);
 }
 
 /** Fetch recent transactions — all types including app calls and asset configs.

@@ -6,7 +6,7 @@ import { store } from '../lib/store';
 import { microAlgosToAlgo } from '../lib/algorand/account';
 import { formatAssetAmount } from '../lib/algorand/assets';
 import { sendPayment, sendAssetTransfer, isValidAddress } from '../lib/algorand/transactions';
-import { keystoreRetrieve } from '../lib/keystore';
+import { walletSigner, type WalletSigner } from '../lib/algorand/signer';
 import { getAlgodClient } from '../lib/algorand/client';
 
 export function confirmSendView(): HTMLElement {
@@ -73,7 +73,7 @@ export function confirmSendView(): HTMLElement {
               if (!passphrase) { toast('Session expired.', 'danger'); store.navigate('unlock'); return; }
 
               store.set({ isLoading: true });
-              let mnemonic: string | null = null;
+              let signer: WalletSigner | null = null;
               try {
                 // M2: Re-fetch fee from chain before signing (may have changed since review)
                 const currentParams = await getAlgodClient(state.settings.network).getTransactionParams().do();
@@ -85,15 +85,16 @@ export function confirmSendView(): HTMLElement {
                   return;
                 }
 
-                mnemonic = await keystoreRetrieve(account.address, passphrase);
-                if (!mnemonic) { toast('Could not retrieve key. Re-unlock.', 'danger'); store.set({ isLoading: false }); store.navigate('unlock'); return; }
+                // The PARSEC Keycore signs: the transaction goes to Rust, the signature comes
+                // back, and no recovery phrase enters JavaScript.
+                signer = await walletSigner(account.address);
 
                 let txId: string;
                 if (isAlgo) {
-                  const result = await sendPayment(mnemonic, pending.receiver, pending.amount, pending.note, state.settings.network);
+                  const result = await sendPayment(signer, pending.receiver, pending.amount, pending.note, state.settings.network);
                   txId = result.txId;
                 } else {
-                  const result = await sendAssetTransfer(mnemonic, pending.receiver, pending.amount, pending.assetId!, pending.note, state.settings.network);
+                  const result = await sendAssetTransfer(signer, pending.receiver, pending.amount, pending.assetId!, pending.note, state.settings.network);
                   txId = result.txId;
                 }
 
@@ -105,8 +106,7 @@ export function confirmSendView(): HTMLElement {
                 store.set({ isLoading: false });
                 toast(err instanceof Error ? err.message : 'Transaction failed', 'danger');
               } finally {
-                if (mnemonic) mnemonic = '\0'.repeat(mnemonic.length);
-                mnemonic = null;
+                signer?.dispose();
               }
             },
           }),
