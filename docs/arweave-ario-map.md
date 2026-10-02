@@ -62,18 +62,18 @@ are both live**, with different signing keys — `arweave-hd` for the AO era,
 
 | Group | Files | Lines |
 |---|--:|--:|
-| Keys & signing | 12 | 1,162 |
-| Transport & encoding | 9 | 1,974 |
+| Keys & signing | 12 | 1,151 |
+| Transport & encoding | 9 | 2,010 |
 | ar.io — AO era | 3 | 832 |
-| ar.io — Solana era | 40 | 2,370 |
+| ar.io — Solana era | 40 | 2,378 |
 | Sovereign registries (BNR + BMR) | 37 | 3,692 |
 | Name model & desk | 9 | 1,289 |
 | Name stores (.algo + ArNS undernames) | 3 | 747 |
 | Views | 31 | 6,053 |
 | Surfaces (tiles, styles, probes) | 5 | 351 |
-| Apps & scripts | 9 | 1,065 |
+| Apps & scripts | 9 | 1,068 |
 | Tests | 23 | 1,564 |
-| **Total (mapped, excluding peripheral)** | **181** | **21,099** |
+| **Total (mapped, excluding peripheral)** | **181** | **21,135** |
 
 Generated 2026-10-01. Every file in the tree carrying ≥3 Arweave/ar.io/AO/naming references is claimed by a group above or listed as a peripheral touchpoint — the map is complete.
 <!-- END INVENTORY -->

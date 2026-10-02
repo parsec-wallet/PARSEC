@@ -53,7 +53,7 @@ const fn hex_nibble(c: u8) -> u8 {
 
 /// The EIP-712 domain of the token being spent. For USDC, `name` and `version` come from
 /// the 402 challenge's `extra`, and `verifying_contract` is the requirement's `asset`.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 pub struct Eip712Domain {
     pub name: String,
     pub version: String,
@@ -63,7 +63,7 @@ pub struct Eip712Domain {
 }
 
 /// The authorization itself, exactly as it travels in the x402 payload.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, serde::Serialize)]
 pub struct TransferAuthorization {
     /// 0x-hex, 20 bytes. Must be the signing address.
     pub from: String,

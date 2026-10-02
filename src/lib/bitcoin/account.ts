@@ -24,10 +24,6 @@ export interface DeriveArgs {
   index?: number;
 }
 
-/** Generate a fresh BIP-39 mnemonic (12 or 24 words). */
-export function btcGenerateMnemonic(words: 12 | 24 = 24): Promise<string> {
-  return invoke<string>('chain_btc_generate_mnemonic', { words });
-}
 
 /** Validate a BIP-39 mnemonic (wordlist + checksum). */
 export function btcValidateMnemonic(phrase: string): Promise<boolean> {
@@ -49,10 +45,8 @@ export interface ImportArgs {
   label?: string;
 }
 
-export interface NewAccountInfo extends BtcAddressInfo {
-  /** Shown to the user once for backup. Clear from memory after the backup flow completes. */
-  mnemonic: string;
-}
+/** A new account: the phrase stays in the vault (back it up with `vaultExportSecret`). */
+export type NewAccountInfo = BtcAddressInfo;
 
 export interface VaultDeriveArgs {
   primaryAddress: string;
@@ -68,7 +62,7 @@ export function btcImportAccount(args: ImportArgs): Promise<BtcAddressInfo> {
   return invoke<BtcAddressInfo>('chain_btc_import_account', { args });
 }
 
-/** Generate a fresh 24-word mnemonic, persist it, return both address and mnemonic (once, for backup). */
+/** Generate a fresh 24-word mnemonic inside the Keycore and seal it in the vault; returns the address only. */
 export function btcCreateAccount(label?: string): Promise<NewAccountInfo> {
   return invoke<NewAccountInfo>('chain_btc_create_account', { label });
 }

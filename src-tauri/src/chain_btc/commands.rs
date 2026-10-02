@@ -31,16 +31,6 @@ pub struct DeriveArgs {
 }
 
 #[tauri::command]
-pub fn chain_btc_generate_mnemonic(words: u32) -> Result<String, String> {
-    let wc = match words {
-        12 => MnemonicWords::Twelve,
-        24 => MnemonicWords::TwentyFour,
-        n => return Err(format!("unsupported word count: {n} (use 12 or 24)")),
-    };
-    generate_mnemonic(wc)
-}
-
-#[tauri::command]
 pub fn chain_btc_validate_mnemonic(phrase: String) -> bool {
     validate_mnemonic(&phrase)
 }
@@ -112,8 +102,6 @@ pub fn chain_btc_import_account(
 pub struct NewAccountInfo {
     #[serde(flatten)]
     pub address: BtcAddressInfo,
-    /// Freshly generated mnemonic — shown to the user once for backup, never stored in JS state.
-    pub mnemonic: String,
 }
 
 #[tauri::command]
@@ -144,7 +132,6 @@ pub fn chain_btc_create_account(
             network: BtcNetwork::Mainnet,
             kind: AddressKind::NativeSegwit,
         },
-        mnemonic,
     })
 }
 
@@ -212,10 +199,22 @@ pub struct SignedPsbt {
 /// primary address. The mnemonic is decrypted, the signer runs, and the
 /// decrypted buffer is zeroed before the signed PSBT goes back across IPC.
 #[tauri::command]
-pub fn chain_btc_sign_psbt(
+pub async fn chain_btc_sign_psbt(
+    app: tauri::AppHandle,
     state: tauri::State<'_, VaultState>,
+    approvals: tauri::State<'_, crate::bankon_vault::approval::ApprovalState>,
     args: SignPsbtArgs,
 ) -> Result<SignedPsbt, String> {
+    {
+        use crate::bankon_vault::approval::{self, Request};
+        let facts = approval::psbt_facts(&args.psbt_base64, "BTC", |s| bitcoin::Address::from_script(s, args.network.as_bitcoin()).ok().map(|a| a.to_string()));
+        approval::authorize(&app, &approvals, None, &args.primary_address, args.psbt_base64.as_bytes(), |d| {
+            let mut r = Request::new("sign a BTC transaction", "bitcoin", &args.primary_address, std::slice::from_ref(d));
+            r.facts = facts;
+            r
+        })
+        .await?;
+    }
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
     let key = guard.key().ok_or("vault is locked")?;
     let dir = guard.dir().ok_or("vault is locked")?;

@@ -3,6 +3,37 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.2.0 — 2026-10-01 — Keys stay in the Keycore (milestone)
+
+The first milestone on the [road to 1.0.0](docs/ROADMAP-1.0.md#020--keys-stay-in-the-keycore-audit-p1),
+closing the 2026-10-01 audit's critical finding. Everything in 0.1.5–0.1.9, plus:
+
+- **The PARSEC Keycore asks before it signs, in its own window.** Every signature on the desktop
+  is approved in a native dialog the Keycore shows — not in the app's webview, so script in the
+  webview cannot approve for you. The dialog states what the Keycore read from the bytes itself
+  (Algorand: amount, receiver, asset, fee, network; EVM: recipient, value, network, call data;
+  Bitcoin and Litecoin: every output and the fee) apart from what the app says, and puts
+  **rekeys, account close-outs and clawbacks first, as warnings**.
+- **One dialog per batch.** A transaction group or an upload of many files is approved once: the
+  Keycore issues a single-use approval bound to the SHA-256 of each item, for that account, for two
+  minutes. A site upload asks twice — the files, then the manifest that names them.
+- **The x402 auto-approve cap is enforced by the Keycore.** Saving a cap on the x402 Desk asks the
+  Keycore for an allowance in USDC (per payment and in total, for two hours or until PARSEC locks);
+  it pays only plain transfers of that asset on that network, checked against the amount it decoded,
+  never a rekey or close-out. Locking ends it.
+- **New Bitcoin and Litecoin accounts no longer hand their recovery phrase to the app**; the phrase
+  stays sealed in the vault (back it up with the export). An unused command that generated a
+  phrase for the app is removed.
+- **Exit tests:** a Rust test fails if any registered command returns secret material other than
+  `vault_export_secret`, or if any signing command skips the Keycore's approval; a TypeScript test
+  fails if JavaScript derives or signs with a key outside a justified list (browser build, typed
+  phrase preview, MetaMask, and key generation — see below).
+- **Corrected:** creating a wallet still generates the key in the app before sealing it in the
+  vault (Algorand, Bitcoin/EVM inline, Solana, Arweave). Earlier documents said Algorand creation
+  had moved to Rust; it had not. Moving generation into the Keycore is now its own step on the
+  roadmap.
+- Zero-dependency MessagePack reader in the Keycore (for reading Algorand transactions).
+
 ## 0.1.9 — 2026-10-01 (increment towards 0.2.0)
 
 Keys stay in the Keycore, step 5 of 5 — and the toolchain moves to Rust 1.99.

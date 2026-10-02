@@ -10,7 +10,8 @@ use base64::engine::general_purpose::STANDARD as B64;
 use base64::Engine;
 use serde::Deserialize;
 
-use super::{keys, mnemonic, sign, AlgoAccountInfo};
+use super::{keys, mnemonic, sign, txn, AlgoAccountInfo};
+use crate::bankon_vault::approval::{self, ApprovalState, Request};
 use crate::bankon_vault::secure_mem::{wipe, SecretBytes};
 use crate::bankon_vault::VaultState;
 
@@ -103,6 +104,9 @@ pub struct AlgoSignArgs {
     pub address: String,
     /// Base64 of the bytes to sign.
     pub payload_b64: String,
+    /// A `keycore_approve` token covering these bytes; without one the Keycore asks.
+    #[serde(default)]
+    pub approval: Option<String>,
 }
 
 fn seed_for(guard: &crate::bankon_vault::VaultSession, address: &str) -> Result<SecretBytes, String> {
@@ -126,14 +130,25 @@ fn seed_for(guard: &crate::bankon_vault::VaultSession, address: &str) -> Result<
 /// The signature comes back; the key does not. This is the pattern the whole
 /// Phase 3 work exists to establish.
 #[tauri::command]
-pub fn chain_algo_sign_bytes(
+pub async fn chain_algo_sign_bytes(
+    app: tauri::AppHandle,
     state: tauri::State<'_, VaultState>,
+    approvals: tauri::State<'_, ApprovalState>,
     args: AlgoSignArgs,
 ) -> Result<serde_json::Value, String> {
     let payload = B64
         .decode(args.payload_b64.as_bytes())
         .map_err(|_| "payload_b64 is not valid base64".to_string())?;
     crate::bankon_vault::binding::refuse_binding(&payload)?;
+    approval::authorize(&app, &approvals, args.approval.as_deref(), &args.address, &payload, |d| {
+        let mut r = Request::new("sign a message", CHAIN, &args.address, std::slice::from_ref(d));
+        r.facts = vec![
+            "A message, not a transaction (Algorand MX prefix)".to_string(),
+            approval::preview(&payload),
+        ];
+        r
+    })
+    .await?;
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
     let seed = seed_for(&guard, &args.address)?;
     let sig = sign::sign_bytes(seed.as_slice(), &payload)?;
@@ -141,15 +156,41 @@ pub fn chain_algo_sign_bytes(
 }
 
 /// Sign pre-built transaction bytes exactly as given, with no added prefix.
+///
+/// Approved by a `keycore_approve` token, by the session allowance (a plain asset payment
+/// within it), or by a Keycore dialog stating what the transaction does.
 #[tauri::command]
-pub fn chain_algo_sign_transaction(
+pub async fn chain_algo_sign_transaction(
+    app: tauri::AppHandle,
     state: tauri::State<'_, VaultState>,
+    approvals: tauri::State<'_, ApprovalState>,
     args: AlgoSignArgs,
 ) -> Result<serde_json::Value, String> {
     let payload = B64
         .decode(args.payload_b64.as_bytes())
         .map_err(|_| "payload_b64 is not valid base64".to_string())?;
     crate::bankon_vault::binding::refuse_binding(&payload)?;
+    let decoded = txn::decode(&payload);
+    let allowed = args.approval.is_none()
+        && match &decoded {
+            Ok(t) => approvals
+                .inner
+                .lock()
+                .map_err(|_| "approval state poisoned")?
+                .spend_allowance(t, &args.address, std::time::Instant::now()),
+            Err(_) => false,
+        };
+    if !allowed {
+        approval::authorize(&app, &approvals, args.approval.as_deref(), &args.address, &payload, |d| {
+            let mut r = Request::new("sign a transaction", CHAIN, &args.address, std::slice::from_ref(d));
+            r.facts = match &decoded {
+                Ok(t) => t.facts(&args.address),
+                Err(e) => vec![format!("WARNING: the Keycore could not read this transaction ({e})")],
+            };
+            r
+        })
+        .await?;
+    }
     let guard = state.inner.lock().map_err(|_| "vault state poisoned")?;
     let seed = seed_for(&guard, &args.address)?;
     let sig = sign::sign_raw(seed.as_slice(), &payload)?;

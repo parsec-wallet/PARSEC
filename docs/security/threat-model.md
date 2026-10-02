@@ -148,16 +148,21 @@ allocates a *new* string and leaves the original for the collector.
   unlock — the store holds a non-secret session marker.
 - **Every signer refuses the vault key-binding message** (`BANKON-VAULT-KEY-BINDING`,
   0.1.9), so no signing request can mint a v2 custodian signature.
-- ***Open:* signing commands have no Rust-side approval step** bound to what is
-  signed. Adding it completes 0.2.0.
-- **Key generation moved for the participant-facing path.**
-  `chain_algo_create_account` and `chain_ar_create_account` generate, store and
-  drop the secret inside Rust, returning an address rather than a seed, and
-  `create-wallet.ts` now creates the vault *before* any key exists. Showing a
-  backup phrase is a separate, explicit act (at creation, then only through
-  `vault_export_secret`) rather than a side effect of creation. A
-  consequence worth having: a crash during backup no longer loses the key, because
-  it was sealed before it was displayed.
+- **The Keycore approves every signature in its own native dialog** (0.2.0), not
+  in the webview. It states what it read from the bytes (Algorand, EVM, Bitcoin and
+  Litecoin are decoded; Solana messages and Arweave deep-hashes are not, and the
+  dialog says so) apart from the app's description, with rekeys, close-outs and
+  clawbacks first as warnings. A batch is approved once with a single-use token bound
+  to each item's SHA-256; the x402 auto-approve cap is a Keycore allowance checked
+  against the decoded amount. *Limit:* where the Keycore cannot decode (Solana,
+  Arweave), the person is confirming the app's description and the item count.
+- ***Open:* key generation is still in the renderer on the desktop.** Creating an
+  Algorand account (`create-wallet.ts`), the inline Bitcoin/EVM packs, Solana and
+  Arweave generate the key in JavaScript and then seal it in the vault.
+  `chain_algo_create_account` and `chain_ar_create_account` generate inside Rust but
+  are not yet called; earlier versions of this document said they were. Roadmap
+  step 0.2.x moves generation into the Keycore. New Bitcoin and Litecoin accounts
+  created *by the Keycore* no longer return their phrase (0.2.0).
 - **Residual:** the admin ceremony in `src/views/admin-keygen.ts` still mints in
   the renderer with `algosdk`, because it chooses its passphrase after generating
   and so has no vault to write into. Marked in the source; inverting that flow is

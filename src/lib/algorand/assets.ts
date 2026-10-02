@@ -9,6 +9,7 @@ import type { AssetHolding, NetworkId } from '../../types/wallet';
 import { getAlgodClient, getIndexerClient } from './client';
 import { rateLimitedQuery } from './query-cache';
 import { resolveNftMetadata } from './nft-metadata';
+import { isTauri } from '../platform';
 
 export const DEFAULT_DECIMALS = 6;
 
@@ -140,6 +141,7 @@ export async function optInWithKeycore(address: string, assetId: number, network
 
 /** Opt in to an ASA with a mnemonic held in JS — the browser build only, which has no Keycore. */
 export async function optInToAsset(mnemonic: string, assetId: number, network: NetworkId): Promise<{ txId: string }> {
+  if (isTauri) throw new Error('On the desktop the PARSEC Keycore signs opt-ins (optInWithKeycore).');
   const client = getAlgodClient(network);
   const account = algosdk.mnemonicToSecretKey(mnemonic.trim());
   const suggestedParams = await client.getTransactionParams().do();

@@ -34,6 +34,8 @@ import { preparePayment } from '../lib/x402/client';
 import { approveThroughView } from './x402-confirm';
 import { formatDecimal } from '../lib/money';
 import { explorerTxUrl, sameNetwork, USDC_ASA_MAINNET, USDC_ASA_TESTNET } from '../lib/x402/networks';
+import { isTauri } from '../lib/platform';
+import { keycoreAllowanceGrant, keycoreAllowanceRevoke } from '../lib/keycore-approval';
 
 /** A request handed over from elsewhere (the Bazaar's "Open in desk"), applied once. */
 let deskPrefill: { url: string; method: 'GET' | 'POST' } | null = null;
@@ -279,6 +281,27 @@ export function x402DeskView(): HTMLElement {
 
   const facilitatorField = input({ value: settings.facilitatorUrl, placeholder: DEFAULT_FACILITATOR, cls: 'bp5-input parsec-input--wide' });
   const capField = input({ value: String(settings.autoApproveMicroUsd), type: 'number', cls: 'bp5-input' });
+  const sessionField = input({ value: String(settings.autoApproveMicroUsd * 10), type: 'number', cls: 'bp5-input' });
+
+  /**
+   * Desktop: the cap is enforced by the PARSEC Keycore, not here. A cap above zero asks it, in
+   * a native dialog, for an allowance in the network's USDC for this session; zero ends it.
+   */
+  async function applyAllowance(capMicro: number): Promise<void> {
+    if (!isTauri || !payer) return;
+    if (capMicro <= 0) { await keycoreAllowanceRevoke(); return; }
+    const mainnet = sameNetwork(networkSelect.value, ALGORAND_MAINNET);
+    const total = Math.max(capMicro, Math.floor(Number(sessionField.value) || capMicro * 10));
+    await keycoreAllowanceGrant({
+      address: payer,
+      genesisId: mainnet ? 'mainnet-v1.0' : 'testnet-v1.0',
+      assetId: mainnet ? USDC_ASA_MAINNET : USDC_ASA_TESTNET,
+      perPayment: BigInt(capMicro),
+      total: BigInt(total),
+      minutes: 120,
+      claims: [`x402 payments in USDC: up to $${formatDecimal(BigInt(capMicro), 6, { trim: true })} each, $${formatDecimal(BigInt(total), 6, { trim: true })} in total`],
+    });
+  }
 
   return el('div', {
     cls: 'parsec-view parsec-x402desk',
@@ -318,12 +341,24 @@ export function x402DeskView(): HTMLElement {
           labelled('Preferred network', networkSelect),
           labelled('Facilitator', facilitatorField),
           labelled('Auto-approve under (micro-USD, 0 = always ask)', capField),
+          labelled('Auto-approve session total (micro-USD)', sessionField),
+          el('p', {
+            cls: 'parsec-muted',
+            text: 'On the desktop the PARSEC Keycore holds this limit: saving asks it in its own dialog, for two hours or until PARSEC locks. Anything above the limit is asked about one payment at a time.',
+          }),
           el('div', {
             cls: 'parsec-confirm__actions',
             children: [
               btn('Save', {
                 intent: 'primary',
-                onClick: () => {
+                onClick: async () => {
+                  const cap = Math.max(0, Math.floor(Number(capField.value) || 0));
+                  try {
+                    await applyAllowance(cap);
+                  } catch (e) {
+                    toast(e instanceof Error ? e.message : String(e), 'danger');
+                    return;
+                  }
                   setX402Settings({
                     preferNetwork: networkSelect.value as typeof settings.preferNetwork,
                     facilitatorUrl: facilitatorField.value.trim() || DEFAULT_FACILITATOR,

@@ -15,6 +15,8 @@ mod chain_sol;
 mod network_monitor;
 mod app_shell;
 mod parsec_http;
+#[cfg(test)]
+mod surface_tests;
 
 use bankon_vault::VaultState;
 use bankon_vault::commands::*;
@@ -59,6 +61,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_os::init())
         .manage(VaultState::default())
+        .manage(bankon_vault::approval::ApprovalState::default())
         .manage(PmvpnState::default())
         .manage(SearchState::default())
         .manage(MeshState::default())
@@ -84,6 +87,10 @@ pub fn run() {
             vault_lock,
             vault_store_key,
             vault_export_secret,
+            bankon_vault::approval::keycore_approve,
+            bankon_vault::approval::keycore_allowance_grant,
+            bankon_vault::approval::keycore_allowance_revoke,
+            bankon_vault::approval::keycore_allowance_status,
             vault_remove_account,
             vault_list_accounts,
             vault_destroy,
@@ -153,7 +160,6 @@ pub fn run() {
             validate_address_cosmos,
             validate_address_any,
             // chain_btc — Bitcoin chain pack (scaffold: derivation + addresses only)
-            chain_btc_generate_mnemonic,
             chain_btc_validate_mnemonic,
             chain_btc_derive_address,
             chain_btc_import_account,

@@ -199,11 +199,24 @@ pub async fn pmvpn_resize(
 #[tauri::command]
 pub async fn pmvpn_sign_challenge(
     app: AppHandle,
+    approvals: tauri::State<'_, crate::bankon_vault::approval::ApprovalState>,
     vault_state: tauri::State<'_, crate::bankon_vault::VaultState>,
     address: String,
     message: String,
 ) -> Result<String, String> {
     crate::bankon_vault::binding::refuse_binding(message.as_bytes())?;
+    {
+        use crate::bankon_vault::approval::{self, Request};
+        approval::authorize(&app, &approvals, None, &address, message.as_bytes(), |d| {
+            let mut r = Request::new("sign in to pmVPN", "evm", &address, std::slice::from_ref(d));
+            r.facts = vec![
+                "A sign-in message (EIP-191 personal_sign), not a transaction".to_string(),
+                approval::preview(message.as_bytes()),
+            ];
+            r
+        })
+        .await?;
+    }
     // 1. Retrieve the private key from vault
     let guard = vault_state.inner.lock().map_err(|_| "vault state poisoned")?;
     let key = guard.key().ok_or("vault is locked")?;
