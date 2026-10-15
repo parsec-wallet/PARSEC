@@ -38,6 +38,7 @@ import {
 } from '../lib/names/controller-model';
 import { peekUploadSlot, setUploadReturn, setUploadSlot, takeUploadSlot, takeUploadedTarget } from '../lib/permaweb/handoff';
 import { storeEditor } from '../lib/ui/store-editor';
+import { openOffer } from '../lib/ui/offer';
 import { readArio } from '../lib/permaweb/client';
 import { PRESETS, SLIDER_MAX, exactDecimal, maxAffordable, perSlot, quoteSlots } from '../lib/names/undername-plan';
 
@@ -393,7 +394,8 @@ function increaseLimitForm(ctx: Ctx, limit: number, atLimit: boolean): HTMLEleme
       fact('Slots', `${limit} → ${limit + quantity}`),
       // One price, no breakdown on screen (operator, 2026-10-15). It is what is signed today; when
       // the φ delivery fee is collected it joins this figure (quoteSlots(...).fee), and the Keycore
-      // approval lists each transfer, as it does every payment.
+      // approval lists each transfer, as it does every payment. The offer sheet (Price →) shows
+      // this same figure, so the two never disagree.
       fact('Price', `${exactDecimal(q.cost, ARIO_DECIMALS)} ARIO · ${exactDecimal(slot, ARIO_DECIMALS)} a slot, live`),
       ...(balance !== null ? [fact('Owner balance', `${exactDecimal(balance, ARIO_DECIMALS)} ARIO${short ? ' — not enough for this many' : ''}`)] : []),
     );
@@ -435,13 +437,26 @@ function increaseLimitForm(ctx: Ctx, limit: number, atLimit: boolean): HTMLEleme
       el('div', { cls: `${C}__row`, children: [range, qty] }),
       presets,
       out,
-      btn('Increase limit', {
+      btn('Price', {
         outlined: true,
-        onClick: async () => {
+        onClick: () => {
           if (!Number.isFinite(quantity) || quantity < 1) { toast('Enter how many more slots you need', 'warning'); return; }
-          if (slot !== null && balance !== null && slot * BigInt(quantity) > balance) { toast('The owner\'s ARIO does not cover that many slots', 'warning'); return; }
+          if (slot === null) { toast('Waiting for the live price from ar.io', 'primary'); return; }
           const q = quantity;
-          await write(ctx, () => ctx.ns.increaseUndernameLimit!({ address: ctx.address, passphrase: pass(), name: ctx.name, quantity: q }), `Limit raised by ${q}`);
+          const each = slot;
+          const cost = quoteSlots(q, each, ARIO_DECIMALS).cost;
+          // The offer's price is the same all-in figure the quote shows: what is signed today.
+          openOffer({
+            kicker: 'Price',
+            price: `${exactDecimal(cost, ARIO_DECIMALS)} ARIO`,
+            detail: `${q} more extension slots for ${ctx.name} · ${limit} → ${limit + q}`,
+            fine: `${exactDecimal(each, ARIO_DECIMALS)} ARIO a slot, live from ar.io`,
+            onBuy: async () => {
+              if (balance !== null && cost > balance) throw new Error('The owner\'s ARIO does not cover that many slots');
+              await writeThrough(ctx, () => ctx.ns.increaseUndernameLimit!({ address: ctx.address, passphrase: pass(), name: ctx.name, quantity: q }), `Limit raised by ${q}`);
+            },
+            onLeave: () => { set(10); out.replaceChildren(); },
+          });
         },
       }),
     ],
@@ -631,12 +646,17 @@ function safeOwnGateway(): string | undefined {
 
 /** Every write: lock check → sign → toast → live re-read. Errors stay on screen long enough to copy. */
 async function write(ctx: Ctx, fn: () => Promise<unknown>, done: string): Promise<void> {
-  if (!store.getPassphrase()) { toast('Wallet is locked', 'danger'); store.navigate('unlock'); return; }
   try {
-    await fn();
-    toast(done, 'success');
-    ctx.reload();
+    await writeThrough(ctx, fn, done);
   } catch (e) {
     toast(msg(e), 'danger');
   }
+}
+
+/** write(), but a failure is thrown to the caller — the offer sheet shows it inline and stays open. */
+async function writeThrough(ctx: Ctx, fn: () => Promise<unknown>, done: string): Promise<void> {
+  if (!store.getPassphrase()) { toast('Wallet is locked', 'danger'); store.navigate('unlock'); return; }
+  await fn();
+  toast(done, 'success');
+  ctx.reload();
 }

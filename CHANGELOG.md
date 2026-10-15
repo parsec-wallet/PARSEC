@@ -3,6 +3,22 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.3.6 — 2026-10-15 (increment towards 0.4.0)
+
+The offer sheet: one price, take it or leave it.
+- **`lib/ui/offer.ts`** is the delivery moment for anything PARSEC sells: a kicker ("Price"), the price
+  exactly as it will be signed, one line saying what it buys, one line of fine print, **Buy**, and a
+  **✕** in the top-right corner. Escape is ✕. Buy disables both buttons while it signs, so the sheet
+  cannot be closed halfway through a signature. A failure shows inline and keeps the sheet open.
+- **✕ leaves cleanly:** the sheet and its listeners are removed, focus returns, the caller's form is
+  reset, and the per-tab upload hand-offs are forgotten (`clearHandoffs()`). No toast, because a
+  toast would itself be a trace. What a web page cannot do is written in the source: shred the
+  WebView's HTTP cache or overwrite memory. Secrets are overwritten in the Rust Keycore, and only a
+  price ever enters the sheet.
+- **Extension slots** use it: the slider's button is now "Price". The sheet shows the exact ARIO
+  figure, and Buy checks the balance and signs.
+- 6 tests (a minimal DOM double; no new dependency).
+
 ## 0.3.5 — 2026-10-15 (increment towards 0.4.0)
 
 The key that owns a name now uploads to it, and buys undername slots in bulk.
