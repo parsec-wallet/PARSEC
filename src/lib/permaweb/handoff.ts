@@ -42,3 +42,22 @@ export function takeUploadedTarget(): string | null {
   if (v !== null) write(TARGET_KEY, null);
   return v && /^[A-Za-z0-9_-]{43}$/.test(v) ? v : null;
 }
+
+const SLOT_KEY = 'parsec:upload-undername';
+
+/** The undername an upload is for; null (or never set) means the name's root. */
+export function setUploadSlot(undername: string | null): void {
+  write(SLOT_KEY, undername);
+}
+
+export function peekUploadSlot(): string | null {
+  const v = read(SLOT_KEY);
+  return v && /^[a-z0-9-]{1,61}$/.test(v) ? v : null;
+}
+
+/** Take the slot, once — alongside takeUploadedTarget, so the id lands in the undername form. */
+export function takeUploadSlot(): string | null {
+  const v = peekUploadSlot();
+  write(SLOT_KEY, null);
+  return v;
+}

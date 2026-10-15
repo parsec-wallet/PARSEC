@@ -141,3 +141,100 @@ export function truncId(a: string | undefined, head = 8, tail = 6): string {
   if (a.length <= head + tail + 3) return a;
   return `${a.slice(0, head)}…${a.slice(-tail)}`;
 }
+
+// ── The Target field: what people paste, and what it really points at ──────────
+
+/**
+ * What a pasted target turned out to be. People paste what other tools gave them — an IPFS CID, a
+ * gateway URL, `ar://…`, a name — so the field reads all of them and says plainly what ArNS needs:
+ * a 43-character Arweave id (a "CID" elsewhere; on Arweave, the id of an upload or a manifest).
+ */
+export type TargetInput =
+  | { kind: 'empty' }
+  | { kind: 'id'; id: string; from: 'id' | 'url' | 'ar' }
+  | { kind: 'name'; name: string; undername?: string }
+  | { kind: 'ipfs'; note: string }
+  | { kind: 'invalid'; note: string };
+
+export const TARGET_HELP =
+  'The Target ID is the 43-character Arweave id of an upload — other tools call this a CID. Point at a site\'s manifest id to serve a folder (index.html at the root), or at one file\'s id. Paste an id, an ar:// link or any gateway link; or upload here and it fills itself.';
+
+const ID_RE = /^[A-Za-z0-9_-]{43}$/;
+const IPFS_RE = /^(Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{50,})$/;
+const NAME_RE = /^[a-z0-9-]{1,51}$/;
+
+export function readTargetInput(raw: string): TargetInput {
+  const v = raw.trim();
+  if (!v) return { kind: 'empty' };
+  if (ID_RE.test(v)) return { kind: 'id', id: v, from: 'id' };
+  const ipfs = v.replace(/^ipfs:\/\//i, '').replace(/^https?:\/\/[^/]+\/ipfs\//i, '').split(/[/?#]/)[0];
+  if (IPFS_RE.test(ipfs) || /^ipfs:\/\//i.test(v) || /\/ipfs\//i.test(v)) {
+    return { kind: 'ipfs', note: 'That is an IPFS CID. ArNS serves Arweave, not IPFS — upload the same files here and the Arweave id fills in.' };
+  }
+  const ar = /^ar:\/\/([^/?#]+)/i.exec(v);
+  if (ar) {
+    if (ID_RE.test(ar[1])) return { kind: 'id', id: ar[1], from: 'ar' };
+    return nameInput(ar[1].toLowerCase()) ?? { kind: 'invalid', note: 'Not an Arweave id or an ArNS name.' };
+  }
+  let url: URL | null = null;
+  try { url = new URL(/^https?:\/\//i.test(v) ? v : `https://${v}`); } catch { url = null; }
+  if (url && url.hostname.includes('.')) {
+    const parts = url.pathname.split('/').filter(Boolean);
+    const id = (parts[0] === 'raw' ? parts[1] : parts[0]) ?? '';
+    if (ID_RE.test(id)) return { kind: 'id', id, from: 'url' };
+    if (!parts.length) {
+      const label = url.hostname.split('.')[0].toLowerCase();
+      if (url.hostname.split('.').length >= 3) { const n = nameInput(label); if (n) return n; }
+    }
+  }
+  if (NAME_RE.test(v)) return { kind: 'invalid', note: 'Needs 43 characters. To copy what a name serves, paste ar://' + v + '.' };
+  return { kind: 'invalid', note: 'Needs exactly 43 base64url characters (A–Z a–z 0–9 - _).' };
+}
+
+function nameInput(label: string): TargetInput | null {
+  const [under, base] = label.includes('_') ? [label.slice(0, label.lastIndexOf('_')), label.slice(label.lastIndexOf('_') + 1)] : [undefined, label];
+  if (!NAME_RE.test(base) || (under !== undefined && !/^[a-z0-9-]{1,61}$/.test(under))) return null;
+  return under ? { kind: 'name', name: base, undername: under } : { kind: 'name', name: base };
+}
+
+/** What an id serves, read from a gateway: enough to see it is the right thing before pointing. */
+export interface TargetDetails {
+  readonly state: 'found' | 'pending' | 'unknown';
+  readonly contentType?: string;
+  readonly bytes?: number;
+  readonly manifest?: { readonly paths: number; readonly index?: string };
+}
+
+export const DETAILS_GATEWAY = 'https://turbo-gateway.com';
+const MANIFEST_TYPE = 'application/x.arweave-manifest+json';
+
+export async function inspectTarget(id: string, fetchImpl: typeof fetch = fetch): Promise<TargetDetails> {
+  try {
+    const res = await fetchImpl(`${DETAILS_GATEWAY}/raw/${id}`, { method: 'HEAD' });
+    if (res.status === 404) return { state: 'pending' };
+    if (!res.ok) return { state: 'unknown' };
+    const contentType = (res.headers.get('content-type') ?? '').split(';')[0].trim() || undefined;
+    const len = Number(res.headers.get('content-length'));
+    const bytes = Number.isFinite(len) && len >= 0 ? len : undefined;
+    if (contentType !== MANIFEST_TYPE) return { state: 'found', contentType, bytes };
+    const m = (await (await fetchImpl(`${DETAILS_GATEWAY}/raw/${id}`)).json()) as { paths?: Record<string, unknown>; index?: { path?: string } };
+    return { state: 'found', contentType, bytes, manifest: { paths: Object.keys(m.paths ?? {}).length, ...(m.index?.path ? { index: m.index.path } : {}) } };
+  } catch {
+    return { state: 'unknown' };
+  }
+}
+
+/** One plain line for the details. */
+export function describeDetails(d: TargetDetails): string {
+  if (d.state === 'pending') return 'Not on the gateways yet — fine right after an upload; it appears within minutes.';
+  if (d.state === 'unknown') return 'Could not read it from a gateway just now.';
+  const size = d.bytes === undefined ? '' : d.bytes < 1024 ? ` · ${d.bytes} B` : ` · ${(d.bytes / 1024).toFixed(1)} KiB`;
+  if (d.manifest) return `A site: ${d.manifest.paths} file${d.manifest.paths === 1 ? '' : 's'}${d.manifest.index ? `, opens ${d.manifest.index}` : ', no index page'}${size}`;
+  return `One file: ${d.contentType ?? 'unknown type'}${size}`;
+}
+
+/** The id a name (or undername) serves now, from the header every ar.io gateway sets. */
+export async function resolveNameTarget(name: string, undername: string | undefined, fetchImpl: typeof fetch = fetch): Promise<string | null> {
+  const p = await probeGateway(gatewayUrl(name, 'ar.io', undername), undefined, fetchImpl);
+  return p.resolvedId && ID_RE.test(p.resolvedId) ? p.resolvedId : null;
+}

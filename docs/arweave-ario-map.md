@@ -100,8 +100,8 @@ Generated 2026-10-01. Every file in the tree carrying ≥3 Arweave/ar.io/AO/nami
 |---|--:|---|
 | `src/lib/arweave/client.ts` | 103 | Gateway client over `arweave-js`; `DEFAULT_GATEWAY` lives here |
 | `src/lib/arweave/tx.ts` | 250 | Transaction build → sign → upload |
-| `src/lib/arweave/ans104.ts` | 535 | **ANS-104 DataItem encode/sign/verify — PARSEC-owned.** No `arbundles` dependency. `signDataItemWith` takes an external signer (Rust on desktop); `estimateDataItemSize` is exact before signing |
-| `src/lib/arweave/turbo.ts` | 263 | **Turbo upload — PARSEC-owned.** Info, price, `POST /v1/tx/arweave`, per-platform signer, `planUpload` / `runUpload`. No `@ardrive/turbo-sdk` dependency |
+| `src/lib/arweave/ans104.ts` | 535 | **ANS-104 DataItem encode/sign/verify — PARSEC-owned.** No `arbundles` dependency. `signDataItemWith` takes an external signer (Rust on desktop); `estimateDataItemSize` is exact before signing. Signature types 1 (Arweave RSA-PSS) and, since 0.3.5, **4 (Solana ed25519 over the hex deep-hash)** |
+| `src/lib/arweave/turbo.ts` | 263 | **Turbo upload — PARSEC-owned.** Info, price, `POST /v1/tx/{arweave|solana}` (chosen by the item's signature type), per-platform signer, `solanaUploadSignerFor` (the name-owning Solana key pays with its own credits), `getTurboBalanceWinc`, `planUpload` / `runUpload`. No `@ardrive/turbo-sdk` dependency |
 | `src/lib/arweave/manifest.ts` | 105 | `arweave/paths` 0.2.0 manifests — a folder becomes one id |
 | `src/lib/arweave/ao.ts` | 198 | **AO transport — PARSEC-owned subset of `@permaweb/aoconnect`.** MU `mu.ao-testnet.xyz`, CU `cu.ardrive.io`, `AOS_MODULE` pinned |
 | `src/lib/arweave/inject.ts` | 378 | `window.arweaveWallet` — ArConnect/Wander-compatible injected API |
@@ -230,8 +230,8 @@ dependency and should be argued for.
 | Host | Used by | For |
 |---|---|---|
 | `arweave.net` | `arweave/client.ts`, `ao.ts`, `permaweb/verify.ts` | Gateway reads, uploads, tag lookups, verification |
-| `upload.ardrive.io` | `arweave/turbo.ts` | Turbo: `/v1/info` (free limit), `POST /v1/tx/arweave` |
-| `payment.ardrive.io` | `arweave/turbo.ts` | Turbo price: `/v1/price/bytes/<n>` |
+| `upload.ardrive.io` | `arweave/turbo.ts` | Turbo: `/v1/info` (free limit), `POST /v1/tx/arweave`, `POST /v1/tx/solana` |
+| `payment.ardrive.io` | `arweave/turbo.ts` | Turbo price: `/v1/price/bytes/<n>`; credits: `/v1/account/balance/{token}?address=` |
 | `turbo-gateway.com` | `permaweb/verify.ts`, upload links | Serves a fresh upload first; `/raw/<id>` with `x-ar-io-digest` |
 | `mu.ao-testnet.xyz` | `arweave/ao.ts` | AO Messaging Unit (mainnet, legacy name) |
 | `cu.ardrive.io` | `arweave/ao.ts`, resolver SPA | AO Compute Unit — `/dry-run`, `/result` |
@@ -250,7 +250,7 @@ dependency and should be argued for.
 | `arweave` ^1.15.7 | **Dependency** (`arweave/client.ts`, types elsewhere) | Gateway client + transaction type |
 | `node-forge` ^1.4.0 | **Dependency** (`arweave/seed.ts`) | Determinism is a property of its prime search — reimplementing would strand existing accounts |
 | `@permaweb/aoconnect` | **Not a dependency** — re-implemented in `arweave/ao.ts` | Zero-dependency commitment; we need a narrow subset |
-| `arbundles` | **Not a dependency** — re-implemented in `arweave/ans104.ts` | Same |
+| `arbundles` | **Not a dependency** — re-implemented in `arweave/ans104.ts`. The tests import `@dha-team/arbundles` (already installed under `@ar.io/sdk`) only to check that type-4 items are identical | Same |
 | `@ardrive/turbo-sdk` | **Not a dependency** — re-implemented in `arweave/turbo.ts` | Two GETs and one POST; the SDK's signers would hold the key in JS |
 | `@ar.io/wayfinder-core` | **Not a dependency** — the verification idea is in `permaweb/verify.ts` | Hash-compare only; routing not built |
 | `permaweb-deploy` | devDependency, pinned `3.4.6` | Publishing only. **Two majors behind**, with flags that no longer exist upstream — see [`integration/ario-deploy.md`](./integration/ario-deploy.md) |

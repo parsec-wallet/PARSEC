@@ -12,11 +12,15 @@
 // estimateDataItemSize, which is exact.
 //
 // Signing: on desktop the deep-hash goes to Rust (`chain_ar_sign`) and only a signature comes back
-// — the key never enters JS. The browser build has no Rust, so it signs with the vault JWK and
+// — the key never enters JS. A Solana key signs too (`chain_sol_sign`, ANS-104 type 4): the key that
+// owns an ArNS name then also pays with its own Turbo credits and free allowance. The browser build has no Rust, so it signs with the vault JWK and
 // zeroes it after (signDataItemFromVault), the fallback every Arweave write in the web build uses.
 
 import { isTauri } from '../platform';
 import { arAccountInfo, arSign } from '../chain-ar';
+import { solSign } from '../chain-sol';
+import { base58Decode } from '../solana/address';
+import { bytesToBase64url } from './jwk';
 import { keycoreApprove } from '../keycore-approval';
 import {
   estimateDataItemSize,
@@ -24,6 +28,9 @@ import {
   signDataItemWith,
   dataItemSignatureData,
   encodeTags,
+  solanaSigningMessage,
+  SIG_TYPE_SOLANA,
+  type SigType,
   type DataItemInput,
   type DataItemTag,
   type SignedDataItem,
@@ -92,8 +99,13 @@ export class TurboError extends Error {
   }
 }
 
+/** The Turbo token path for a signed item: its signature type decides whose credits pay. */
+export function turboTokenFor(raw: Uint8Array): 'arweave' | 'solana' {
+  return (raw[0] | (raw[1] << 8)) === SIG_TYPE_SOLANA ? 'solana' : 'arweave';
+}
+
 export async function postDataItem(raw: Uint8Array): Promise<TurboReceipt> {
-  const res = await fetch(`${TURBO_UPLOAD_URL}/v1/tx/arweave`, {
+  const res = await fetch(`${TURBO_UPLOAD_URL}/v1/tx/${turboTokenFor(raw)}`, {
     method: 'POST',
     headers: { 'content-type': 'application/octet-stream' },
     body: raw as unknown as BodyInit,
@@ -118,15 +130,28 @@ export async function postDataItem(raw: Uint8Array): Promise<TurboReceipt> {
   };
 }
 
+/** Turbo credits (winc) held by an address; an address Turbo has never seen holds 0. */
+export async function getTurboBalanceWinc(address: string, token: 'arweave' | 'solana'): Promise<bigint> {
+  const res = await fetch(`${TURBO_PAYMENT_URL}/v1/account/balance/${token}?address=${encodeURIComponent(address)}`);
+  if (res.status === 404) return 0n;
+  if (!res.ok) throw new TurboError(`Turbo balance: HTTP ${res.status}`, res.status);
+  const j = (await res.json()) as { effectiveBalance?: unknown; winc?: unknown };
+  const v = typeof j.effectiveBalance === 'string' ? j.effectiveBalance : j.winc;
+  if (typeof v !== 'string' || !/^\d+$/.test(v)) throw new TurboError('Turbo balance: no winc in the answer', res.status);
+  return BigInt(v);
+}
+
 // ── Signing ───────────────────────────────────────────────────────────────────
 
 /** Sign a data item for `owner`. Supplied per platform by uploadSignerFor. */
-export type UploadSigner = ((input: Omit<DataItemInput, 'owner'>) => Promise<SignedDataItem>) & {
+export type UploadSigner = ((input: Omit<DataItemInput, 'owner' | 'sigType'>) => Promise<SignedDataItem>) & {
+  /** The signature type this signer produces; plans size items with it. Absent means Arweave (1). */
+  sigType?: SigType;
   /**
    * Desktop: ask the PARSEC Keycore once for all of these items (one native dialog) before
    * signing them; items signed later without a prepare — the manifest — are asked about singly.
    */
-  prepare?: (inputs: readonly Omit<DataItemInput, 'owner'>[], claims?: string[]) => Promise<void>;
+  prepare?: (inputs: readonly Omit<DataItemInput, 'owner' | 'sigType'>[], claims?: string[]) => Promise<void>;
 };
 
 function toB64(bytes: Uint8Array): string {
@@ -180,6 +205,40 @@ export function uploadSignerFor(address: string, passphrase: string | null): Upl
   return (input) => signDataItemFromVault(address, passphrase, input);
 }
 
+/**
+ * A Solana key as the uploader (desktop only): the Keycore signs the hex of each item's deep-hash
+ * with ed25519 and Turbo bills the address's credits. One approval covers a prepared batch.
+ */
+export function solanaUploadSignerFor(address: string): UploadSigner {
+  if (!isTauri) throw new Error('Uploading with a Solana key needs the PARSEC desktop app (the Keycore signs).');
+  const owner = bytesToBase64url(base58Decode(address));
+  let approval: string | undefined;
+  const covered = new Set<string>();
+  const messageFor = async (input: Omit<DataItemInput, 'owner' | 'sigType'>): Promise<Uint8Array> => {
+    const data = typeof input.data === 'string' ? new TextEncoder().encode(input.data) : input.data;
+    return solanaSigningMessage(await dataItemSignatureData({
+      sigType: SIG_TYPE_SOLANA, owner, target: input.target, anchor: input.anchor, tagsBytes: encodeTags(input.tags ?? []), data,
+    }));
+  };
+  const signer: UploadSigner = async (input) => signDataItemWith({ ...input, owner, sigType: SIG_TYPE_SOLANA }, async (sigData) => {
+    const b64 = toB64(solanaSigningMessage(sigData));
+    const token = covered.delete(b64) ? approval : undefined;
+    return fromB64((await solSign(address, b64, token)).signature_b64);
+  });
+  signer.sigType = SIG_TYPE_SOLANA;
+  signer.prepare = async (inputs, claims) => {
+    const payloads: Uint8Array[] = [];
+    for (const input of inputs) payloads.push(await messageFor(input));
+    approval = await keycoreApprove({
+      address, chain: 'solana', title: `upload ${inputs.length} item${inputs.length === 1 ? '' : 's'} to Arweave`,
+      claims, payloads,
+    });
+    covered.clear();
+    for (const p of payloads) covered.add(toB64(p));
+  };
+  return signer;
+}
+
 // ── Planning ──────────────────────────────────────────────────────────────────
 
 export interface UploadFile {
@@ -212,11 +271,12 @@ function tagsFor(contentType: string): DataItemTag[] {
 
 const PLACEHOLDER_ID = '_'.repeat(43);
 
-export function planUpload(files: readonly UploadFile[], freeLimit: number, opts: { asSite?: boolean } = {}): UploadPlan {
+export function planUpload(files: readonly UploadFile[], freeLimit: number, opts: { asSite?: boolean; sigType?: SigType } = {}): UploadPlan {
+  const sigType = opts.sigType;
   if (files.length === 0) throw new Error('Nothing to upload');
   const items: PlannedItem[] = files.map((f) => {
     const tags = tagsFor(f.contentType);
-    const size = estimateDataItemSize({ dataLength: f.bytes.length, tags });
+    const size = estimateDataItemSize({ dataLength: f.bytes.length, tags, sigType });
     return { path: f.path, bytes: f.bytes, tags, size, free: size <= freeLimit };
   });
 
@@ -227,7 +287,7 @@ export function planUpload(files: readonly UploadFile[], freeLimit: number, opts
     const fallback = paths.has('404.html') ? '404.html' : undefined;
     // Every id is 43 characters, so a manifest built from placeholders has the exact final length.
     const json = encodeManifest(buildPathManifest(files.map((f) => ({ path: f.path, id: PLACEHOLDER_ID })), { ...(index ? { index } : {}), ...(fallback ? { fallbackPath: fallback } : {}) }));
-    const size = estimateDataItemSize({ dataLength: new TextEncoder().encode(json).length, tags: tagsFor(MANIFEST_CONTENT_TYPE) });
+    const size = estimateDataItemSize({ dataLength: new TextEncoder().encode(json).length, tags: tagsFor(MANIFEST_CONTENT_TYPE), sigType });
     manifest = { size, free: size <= freeLimit, ...(index ? { index } : {}), ...(fallback ? { fallback } : {}) };
   }
 

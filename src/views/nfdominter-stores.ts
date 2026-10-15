@@ -47,14 +47,14 @@ export function buildStoresTab(buyer: string, network: StoreRegistry): HTMLEleme
 
   function openShop(s: Store): void {
     for (const c of list.querySelectorAll('.parsec-stores__store')) c.classList.toggle('parsec-stores__store--on', (c as HTMLElement).dataset.parent === s.parent);
-    const field = el('input', { cls: 'parsec-stores__input', attrs: { type: 'search', placeholder: arns ? `an undername of ${s.parent}` : `a name under ${s.parent}`, 'aria-label': 'Name to quote', maxlength: arns ? '61' : '27', spellcheck: 'false', autocomplete: 'off' } }) as HTMLInputElement;
+    const field = el('input', { cls: 'parsec-stores__input', attrs: { type: 'search', placeholder: arns ? `an extension of ${s.parent}` : `a name under ${s.parent}`, 'aria-label': 'Name to quote', maxlength: arns ? '61' : '27', spellcheck: 'false', autocomplete: 'off' } }) as HTMLInputElement;
     const quote = el('div', { cls: 'parsec-stores__quote' });
 
     async function run(): Promise<void> {
       const my = ++seq;
       const label = field.value.trim().toLowerCase();
       if (!label) { quote.replaceChildren(); return; }
-      if (!labelValid(network, label)) { quote.replaceChildren(el('p', { cls: 'parsec-stores__error', text: arns ? 'Undernames use a–z, 0–9 and inner hyphens, up to 61 characters.' : 'Names use a–z and 0–9, up to 27 characters.' })); return; }
+      if (!labelValid(network, label)) { quote.replaceChildren(el('p', { cls: 'parsec-stores__error', text: arns ? 'Extensions use a–z, 0–9 and inner hyphens, up to 61 characters.' : 'Names use a–z and 0–9, up to 27 characters.' })); return; }
       quote.replaceChildren(el('p', { cls: 'parsec-stores__muted', text: 'Quoting…' }));
       try {
         const q = await quoteName(s.parent, label, network);
@@ -278,7 +278,7 @@ export function buildMarketspaceStores(): HTMLElement {
     const buyer = account ? getAccountAddress(account, current === 'arns' ? 'solana' : 'algorand') : undefined;
     if (!buyer) {
       body.replaceChildren(el('div', { cls: 'parsec-callout bp5-callout', children: [
-        el('p', { text: current === 'arns' ? 'ArNS undernames are handed to a Solana address. Add one to this account to buy.' : 'Add an Algorand account to buy .algo names.' }),
+        el('p', { text: current === 'arns' ? 'ArNS extensions are handed to a Solana address. Add one to this account to buy.' : 'Add an Algorand account to buy .algo names.' }),
         ...(current === 'arns' ? [btn('Import Solana key', { intent: 'primary', onClick: () => store.navigate('solana-import') })] : []),
       ] }));
       return;

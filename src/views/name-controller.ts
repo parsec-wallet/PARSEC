@@ -6,7 +6,7 @@
 // House rules (TIMELESS): the first thing on screen is the one number and the next action; every
 // write is followed by a live re-read; estimates are labelled; empty states point to the next step.
 
-import { formatNameCost, warmArioPrice } from '../lib/names/cost-display';
+import { warmArioPrice } from '../lib/names/cost-display';
 import { el, btn, input, toast } from '../lib/dom';
 import { store, getAccountAddress } from '../lib/store';
 import {
@@ -30,9 +30,18 @@ import {
   truncId,
   validateAddressFor,
   validateUndername,
+  TARGET_HELP,
+  describeDetails,
+  inspectTarget,
+  readTargetInput,
+  resolveNameTarget,
 } from '../lib/names/controller-model';
-import { setUploadReturn, takeUploadedTarget } from '../lib/permaweb/handoff';
+import { peekUploadSlot, setUploadReturn, setUploadSlot, takeUploadSlot, takeUploadedTarget } from '../lib/permaweb/handoff';
 import { storeEditor } from '../lib/ui/store-editor';
+import { readArio } from '../lib/permaweb/client';
+import { PRESETS, SLIDER_MAX, exactDecimal, maxAffordable, perSlot, quoteSlots } from '../lib/names/undername-plan';
+
+const ARIO_DECIMALS = 6;
 
 const C = 'parsec-namectl';
 
@@ -128,8 +137,8 @@ async function render(ns: NamespaceAdapter, name: string, body: HTMLElement): Pr
 function storeSection(ctx: Ctx, algorand: string | undefined): HTMLElement {
   const used = Object.keys(ctx.record.undernames).length;
   const limit = ctx.record.undernameLimit;
-  return section('Undername store', [
-    el('p', { cls: 'parsec-view__desc', text: `Sell undernames of ${ctx.name} at your prices, by length, in the BANKON Marketspace. ${limit !== undefined ? `${used} of ${limit} undername slots are in use; add slots below as sales need them.` : ''}` }),
+  return section('Extension store', [
+    el('p', { cls: 'parsec-view__desc', text: `Sell extensions of ${ctx.name} at your prices — shorter is scarcer, so price by length —, in the BANKON Marketspace. ${limit !== undefined ? `${used} of ${limit} extension slots are in use; add slots below as sales need them.` : ''}` }),
     algorand
       ? storeEditor(ctx.name, ctx.address, 'arns', algorand)
       : callout('Buyers pay you in USDC on Algorand. Add an Algorand account, opted in to USDC, to receive payments.'),
@@ -153,7 +162,7 @@ function header(ns: NamespaceAdapter, r: NormalizedRecord, address: string | und
       el('div', { cls: `${C}__facts`, children: [
         fact('Owner', truncId(r.owner), r.owner),
         fact('Controllers', (r.controllers ?? []).length ? (r.controllers ?? []).map((c) => truncId(c)).join(', ') : 'none besides the owner'),
-        fact('Undernames', `${used} / ${r.undernameLimit ?? '∞'}`),
+        fact('Extensions', `${used} / ${r.undernameLimit ?? '∞'}`),
         fact('Registry', ns.displayName),
         ...(address ? [fact('Signing as', truncId(address), address)] : []),
       ] }),
@@ -189,35 +198,28 @@ function targetSection(ctx: Ctx, canWrite: boolean): HTMLElement {
 
   if (!canWrite) return sec;
 
-  const txInput = input({ placeholder: 'Manifest or tx id — 43 characters', cls: 'bp5-input bp5-fill' });
-  const hint = el('span', { cls: `${C}__hint` });
-  txInput.addEventListener('input', () => {
-    const v = txInput.value.trim();
-    hint.textContent = !v ? '' : isArweaveId(v) ? (v === current ? 'Already the current target' : 'Looks like an Arweave id') : 'Needs exactly 43 base64url characters';
-    hint.dataset.tone = !v ? '' : isArweaveId(v) && v !== current ? 'done' : 'warn';
-  });
-  // Coming back from the upload view: its id is waiting, once.
-  const offered = takeUploadedTarget();
-  if (offered) { txInput.value = offered; txInput.dispatchEvent(new Event('input')); }
+  const target = targetField(current);
+  // Coming back from the upload view: its id is waiting, once — unless it was for an undername.
+  if (!peekUploadSlot()) { const offered = takeUploadedTarget(); if (offered) target.set(offered); }
   const uploadHere = btn('Upload a file or site', {
     outlined: true,
     icon: 'cloud-upload',
-    onClick: () => { setUploadReturn('name-controller'); store.navigate('permaweb-upload'); },
+    onClick: () => { setUploadSlot(null); setUploadReturn('name-controller'); store.navigate('permaweb-upload'); },
   });
   const ttl = ttlSelect(record.rootTtl);
   const go = btn('Point the name here', {
     intent: 'primary',
     icon: 'send-to-map',
     onClick: async () => {
-      const v = txInput.value.trim();
-      if (!isArweaveId(v)) { toast('Target must be a 43-character Arweave id', 'warning'); return; }
+      const v = target.value();
+      if (!v) { toast('The Target ID must be a 43-character Arweave id — see the note under the field', 'warning'); return; }
       const ttlSeconds = clampTtl(Number(ttl.value));
       await write(ctx, () => ctx.ns.setRootRecord({ address: ctx.address, passphrase: pass(), name, transactionId: v, ttlSeconds }), `${name} now points at ${truncId(v)}`);
     },
   });
   sec.appendChild(el('div', { cls: `${C}__form`, children: [
-    el('label', { text: 'Point the name at' }),
-    txInput, hint, uploadHere,
+    el('label', { text: 'Point the name at — Target ID' }),
+    target.root, uploadHere,
     el('label', { text: 'Cache for' }), ttl,
     go,
   ] }));
@@ -232,8 +234,9 @@ function undernamesSection(ctx: Ctx, canWrite: boolean): HTMLElement {
   const limit = record.undernameLimit;
   const atLimit = limit !== undefined && entries.length >= limit;
 
-  const subInput = input({ placeholder: 'undername, e.g. docs', cls: 'bp5-input' });
-  const txInput = input({ placeholder: 'Manifest or tx id — 43 characters', cls: 'bp5-input bp5-fill' });
+  const subInput = input({ placeholder: 'extension, e.g. tnt', cls: 'bp5-input' });
+  const target = targetField(undefined);
+  const txInput = target.input;
   const ttl = ttlSelect(900);
   const preview = el('span', { cls: `${C}__hint` });
   const refreshPreview = (): void => {
@@ -251,34 +254,54 @@ function undernamesSection(ctx: Ctx, canWrite: boolean): HTMLElement {
         el('code', { cls: `${C}__id`, text: truncId(v.transactionId, 10, 8), attrs: { title: v.transactionId } }),
         el('span', { cls: `${C}__k`, text: `${v.ttlSeconds}s` }),
         ...(canWrite ? [
-          btn('Edit', { minimal: true, icon: 'edit', onClick: () => { subInput.value = sub; txInput.value = v.transactionId; ttl.value = String(v.ttlSeconds); refreshPreview(); txInput.focus(); } }),
+          btn('Edit', { minimal: true, icon: 'edit', onClick: () => { subInput.value = sub; target.set(v.transactionId); ttl.value = String(v.ttlSeconds); refreshPreview(); txInput.focus(); } }),
           btn('Remove', { minimal: true, intent: 'danger', icon: 'trash', onClick: () => void removeUndername(ctx, sub) }),
         ] : []),
       ],
     }))
     : [el('p', { cls: 'parsec-view__desc', text: canWrite
-      ? `No undernames yet. Each one becomes <undername>_${name} on every gateway — docs, api, app are the usual first three.`
-      : 'No undernames set.' })];
+      ? `No extensions yet. Each one grows a permanent address from ${name}: <extension>_${name} on every gateway (tnt_${name}, docs_${name}, app_${name}).`
+      : 'No extensions set.' })];
 
-  const sec = section(`Undernames · ${entries.length}${limit !== undefined ? ` of ${limit}` : ''}`, rows);
+  const sec = section(`Extensions · ${entries.length}${limit !== undefined ? ` of ${limit}` : ''}`, rows);
   if (!canWrite) return sec;
 
+  // Coming back from an upload made for an undername: fill both fields.
+  const slot = takeUploadSlot();
+  if (slot) {
+    subInput.value = slot;
+    refreshPreview();
+    const offered = takeUploadedTarget();
+    if (offered) target.set(offered);
+  }
+  const uploadFor = btn('Upload for this extension', {
+    outlined: true,
+    icon: 'cloud-upload',
+    onClick: () => {
+      const v = validateUndername(subInput.value);
+      if (!v.ok) { toast('Name the extension first (e.g. tnt), then upload', 'warning'); subInput.focus(); return; }
+      setUploadSlot(v.value); setUploadReturn('name-controller'); store.navigate('permaweb-upload');
+    },
+  });
+
   sec.appendChild(el('div', { cls: `${C}__form`, children: [
-    el('label', { text: 'Add or update an undername' }),
-    el('div', { cls: `${C}__row`, children: [subInput, txInput] }),
+    el('label', { text: 'Add or update an extension' }),
+    subInput,
     preview,
+    el('label', { text: 'Target ID' }),
+    target.root, uploadFor,
     el('label', { text: 'Cache for' }), ttl,
-    btn('Save undername', {
+    btn('Save extension', {
       intent: 'primary',
       icon: 'add',
       disabled: atLimit,
       onClick: async () => {
         const v = validateUndername(subInput.value);
-        if (!v.ok) { toast(v.reason ?? 'Invalid undername', 'warning'); return; }
-        const tx = txInput.value.trim();
-        if (!isArweaveId(tx)) { toast('Target must be a 43-character Arweave id', 'warning'); return; }
+        if (!v.ok) { toast(v.reason ?? 'Invalid extension', 'warning'); return; }
+        const tx = target.value();
+        if (!tx) { toast('The Target ID must be a 43-character Arweave id — see the note under the field', 'warning'); return; }
         const isNew = !(v.value in record.undernames);
-        if (isNew && atLimit) { toast(`All ${limit} undername slots are used — increase the limit first`, 'warning'); return; }
+        if (isNew && atLimit) { toast(`All ${limit} extension slots are used — add more below`, 'warning'); return; }
         await write(ctx, () => ctx.ns.setUndername({ address: ctx.address, passphrase: pass(), name, subdomain: v.value, transactionId: tx, ttlSeconds: clampTtl(Number(ttl.value)) }), `${v.value}_${name} saved`);
       },
     }),
@@ -290,29 +313,134 @@ function undernamesSection(ctx: Ctx, canWrite: boolean): HTMLElement {
   return sec;
 }
 
-function increaseLimitForm(ctx: Ctx, limit: number, atLimit: boolean): HTMLElement {
-  const qty = input({ placeholder: 'how many more', cls: 'bp5-input', value: '10' });
-  const cost = el('span', { cls: `${C}__hint`, text: 'cost: —' });
-  const quote = (): void => {
-    const q = parseInt(qty.value, 10);
-    if (!Number.isFinite(q) || q < 1) return;
-    void ctx.ns.getCost({ intent: 'Increase-Undername-Limit', name: ctx.name, quantity: q })
-      .then((c) => { cost.textContent = `cost: ${fmt(c.amount, c.unit)} (live quote)`; })
-      .catch(() => { cost.textContent = 'cost: quote unavailable'; });
+// ── The Target field ──────────────────────────────────────────────────────────
+
+interface TargetField {
+  readonly root: HTMLElement;
+  readonly input: HTMLInputElement;
+  /** The Arweave id the field holds now, or null. */
+  value(): string | null;
+  set(id: string): void;
+}
+
+/**
+ * One field for every "point at" form. It reads whatever is pasted — an id, ar://, a gateway link,
+ * a name, an IPFS CID — fills in the Arweave id where there is one, explains plainly where there is
+ * not, and shows what the id serves (a site and its files, or one file) before anything is signed.
+ */
+function targetField(current: string | undefined): TargetField {
+  const box = input({ placeholder: 'Arweave id (43 characters), ar:// link, or gateway link', cls: 'bp5-input bp5-fill' });
+  const hint = el('span', { cls: `${C}__hint` });
+  const details = el('span', { cls: `${C}__hint` });
+  const help = el('p', { cls: `${C}__help`, text: TARGET_HELP });
+  let id: string | null = null;
+  let seq = 0;
+
+  const show = async (): Promise<void> => {
+    const n = ++seq;
+    const r = readTargetInput(box.value);
+    id = null;
+    details.textContent = '';
+    if (r.kind === 'empty') { hint.textContent = ''; hint.dataset.tone = ''; return; }
+    if (r.kind === 'ipfs' || r.kind === 'invalid') { hint.textContent = r.note; hint.dataset.tone = 'warn'; return; }
+    if (r.kind === 'name') {
+      const label = r.undername ? `${r.undername}_${r.name}` : r.name;
+      hint.textContent = `Reading what ar://${label} serves…`; hint.dataset.tone = '';
+      const got = await resolveNameTarget(r.name, r.undername);
+      if (n !== seq) return;
+      if (!got) { hint.textContent = `ar://${label} does not resolve on ar.io — paste the id instead.`; hint.dataset.tone = 'warn'; return; }
+      box.value = got;
+      hint.textContent = `Copied from ar://${label}: the id it serves now.`;
+      hint.dataset.tone = 'done';
+      id = got;
+    } else {
+      if (r.from !== 'id') box.value = r.id;
+      id = r.id;
+      hint.textContent = r.id === current ? 'Already the current target' : r.from === 'id' ? 'An Arweave id' : 'Arweave id taken from the link';
+      hint.dataset.tone = r.id === current ? 'warn' : 'done';
+    }
+    details.textContent = 'Looking it up on a gateway…';
+    const d = await inspectTarget(id!);
+    if (n === seq) details.textContent = describeDetails(d);
   };
-  qty.addEventListener('input', quote);
-  quote();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  box.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => void show(), 350); });
+
+  return {
+    root: el('div', { cls: `${C}__target-field`, children: [box, hint, details, help] }),
+    input: box,
+    value: () => id ?? (isArweaveId(box.value.trim()) ? box.value.trim() : null),
+    set: (v: string) => { box.value = v; void show(); },
+  };
+}
+
+function increaseLimitForm(ctx: Ctx, limit: number, atLimit: boolean): HTMLElement {
+  // ar.io's console stops at 50; this slides to 4096, and "Max" goes as far as the owner's ARIO
+  // covers. One live quote gives the linear per-slot price; every figure after it is exact BigInt.
+  let slot: bigint | null = null;
+  let balance: bigint | null = null;
+  let quantity = 10;
+  const range = el('input', { cls: `${C}__slider`, attrs: { type: 'range', min: '1', max: String(SLIDER_MAX), step: '1', value: '10', 'aria-label': 'Extension slots to add' } }) as HTMLInputElement;
+  const qty = input({ placeholder: 'how many more', cls: 'bp5-input', value: '10' });
+  const out = el('div', { cls: `${C}__quote`, children: [el('span', { cls: `${C}__hint`, text: 'Reading the live price…' })] });
+
+  const render = (): void => {
+    out.replaceChildren();
+    if (slot === null) { out.appendChild(el('span', { cls: `${C}__hint`, text: 'cost: quote unavailable' })); return; }
+    const q = quoteSlots(quantity, slot, ARIO_DECIMALS);
+    const short = balance !== null && q.cost > balance;
+    out.append(
+      fact('Slots', `${limit} → ${limit + quantity}`),
+      // One price, no breakdown on screen (operator, 2026-10-15). It is what is signed today; when
+      // the φ delivery fee is collected it joins this figure (quoteSlots(...).fee), and the Keycore
+      // approval lists each transfer, as it does every payment.
+      fact('Price', `${exactDecimal(q.cost, ARIO_DECIMALS)} ARIO · ${exactDecimal(slot, ARIO_DECIMALS)} a slot, live`),
+      ...(balance !== null ? [fact('Owner balance', `${exactDecimal(balance, ARIO_DECIMALS)} ARIO${short ? ' — not enough for this many' : ''}`)] : []),
+    );
+  };
+  const set = (n: number): void => {
+    quantity = Math.max(1, Math.floor(n));
+    qty.value = String(quantity);
+    range.value = String(Math.min(quantity, SLIDER_MAX));
+    render();
+  };
+  range.addEventListener('input', () => set(Number(range.value)));
+  qty.addEventListener('input', () => { const n = parseInt(qty.value, 10); if (Number.isFinite(n) && n >= 1) set(n); });
+
+  const presets = el('div', { cls: `${C}__presets`, children: [
+    ...PRESETS.map((n) => btn(String(n), { minimal: true, onClick: () => set(n) })),
+    btn('Max', { minimal: true, onClick: () => {
+      if (slot === null || balance === null) { toast('Waiting for the price and the balance', 'primary'); return; }
+      const n = maxAffordable(balance, slot);
+      if (n < 1) { toast('The owner\'s ARIO does not cover one more slot', 'warning'); return; }
+      set(n);
+    } }),
+  ] });
+
+  void ctx.ns.getCost({ intent: 'Increase-Undername-Limit', name: ctx.name, quantity: 50 })
+    .then((c) => { slot = perSlot(c.amount, 50); render(); })
+    .catch(() => { slot = null; render(); });
+  if (ctx.address) {
+    void readArio()
+      .then((a) => (a as unknown as { getBalance(o: { address: string }): Promise<number | bigint> }).getBalance({ address: ctx.address }))
+      .then((b) => { balance = BigInt(b); render(); })
+      .catch(() => { balance = null; render(); });
+  }
+
   return el('details', {
     cls: `${C}__more`,
     attrs: atLimit ? { open: '' } : {},
     children: [
-      el('summary', { text: `Need more than ${limit} undernames?` }),
-      el('div', { cls: `${C}__row`, children: [qty, cost] }),
+      el('summary', { text: `Need more than ${limit} extensions?` }),
+      el('div', { cls: `${C}__row`, children: [range, qty] }),
+      presets,
+      out,
       btn('Increase limit', {
         outlined: true,
         onClick: async () => {
-          const q = parseInt(qty.value, 10);
-          if (!Number.isFinite(q) || q < 1) { toast('Enter how many more slots you need', 'warning'); return; }
+          if (!Number.isFinite(quantity) || quantity < 1) { toast('Enter how many more slots you need', 'warning'); return; }
+          if (slot !== null && balance !== null && slot * BigInt(quantity) > balance) { toast('The owner\'s ARIO does not cover that many slots', 'warning'); return; }
+          const q = quantity;
           await write(ctx, () => ctx.ns.increaseUndernameLimit!({ address: ctx.address, passphrase: pass(), name: ctx.name, quantity: q }), `Limit raised by ${q}`);
         },
       }),
@@ -390,7 +518,7 @@ function accessSection(ctx: Ctx, isOwner: boolean): HTMLElement {
 
   if (ns.capabilities.controllers && ns.addController && ns.removeController) {
     const list = (record.controllers ?? []).filter((c) => c !== record.owner);
-    children.push(el('p', { cls: 'parsec-view__desc', text: 'Controllers can change targets, undernames and identity, but cannot transfer the name.' }));
+    children.push(el('p', { cls: 'parsec-view__desc', text: 'Controllers can change targets, extensions and identity, but cannot transfer the name.' }));
     children.push(...(list.length
       ? list.map((c) => el('div', { cls: `${C}__urow`, children: [
         el('code', { cls: `${C}__id`, text: truncId(c, 10, 8), attrs: { title: c } }),
@@ -489,9 +617,6 @@ function ttlSelect(current: number): HTMLSelectElement {
 }
 function copy(text: string, done: string): void {
   void navigator.clipboard.writeText(text).then(() => toast(done, 'success')).catch(() => toast('Clipboard unavailable', 'warning'));
-}
-function fmt(amount: bigint, unit: string): string {
-  return formatNameCost(amount, unit); // exact; the old form divided as a float
 }
 function pass(): string {
   return store.getPassphrase()!;

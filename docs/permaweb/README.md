@@ -130,6 +130,56 @@ side by side, exactly (integer winston, winc and micro-USD; `lib/permaweb/storag
 Measured 2026-10-01 for 1 MB: Arweave direct ≈ $0.056 (AR $4.26), Turbo credits ≈ $0.081,
 Turbo x402 $0.0828.
 
+## The key that owns the name uploads to it (0.3.5)
+
+A name, its ARIO and its Turbo credits all belong to one **Solana** key. Since 0.3.5 that key also
+signs the upload, so nothing has to be moved between keys:
+
+| Step | What happens | Where |
+|---|---|---|
+| Sign | ANS-104 **signature type 4**: ed25519 over the ASCII hex of the 48-byte deep-hash, in the PARSEC Keycore (`chain_sol_sign`, one approval for the batch) | `ans104.ts` `solanaSigningMessage`, `turbo.ts` `solanaUploadSignerFor` |
+| Post | `POST upload.ardrive.io/v1/tx/solana`. The path comes from the item's own signature type (`turboTokenFor`) | `turbo.ts` `postDataItem` |
+| Pay | Turbo charges the Solana address: its free allowance first, then its credits (`GET payment.ardrive.io/v1/account/balance/solana?address=`) | `turbo.ts` `getTurboBalanceWinc` |
+| Point | Same key, `setRecord` on the ANT | `name-controller.ts` |
+
+The bytes match `@dha-team/arbundles` `HexSolanaSigner`, the signer `@ardrive/turbo-sdk` uses for
+token `solana`. The test (`__tests__/ans104-solana.test.ts`) builds an item with our code and
+verifies it with arbundles, and shows that a signature over the raw hash is refused. A type-4 item
+is 928 bytes lighter than an Arweave-signed one (64 + 32 bytes against 512 + 512).
+
+Upstream does the same. **ar.io Deploy** (`@ar.io/deploy` v2.1.1, 2026-10-09; listed under "Build
+with the protocol" at <https://ar.io/products/>) uploads with `--sig-type solana`, and keeps the
+**upload key** and the **ArNS authority key** as two keys that may be the same Solana wallet. PARSEC
+holds both in the vault and signs in the Keycore instead of reading a `DEPLOY_KEY` or a `.json`
+wallet file.
+
+**Owner wallet `Dhma3U…ymvMg`, 2026-10-15:** 1,518,694,833,784 winc ≈ 111 MiB of credits; 0.0454 SOL;
+owns spintrade · bankon · deltaverse · dreamodus, all four still on ar.io's placeholder.
+
+### "CID" — what the Target ID field wants
+
+ArNS does not use IPFS. The field that other tools call a CID is the **Arweave id**: 43 characters
+of base64url (`A–Z a–z 0–9 - _`), returned when an upload is signed. Point a name at a **manifest**
+id to serve a folder (`index.html` at the root), or at a single file's id. An IPFS CID (`bafy…`,
+`Qm…`) will not resolve. The id names bytes that never change. The name is a pointer the owner
+can move, so the permanent link is `ar://<id>` and the friendly one is `ar://<name>`.
+
+### Undernames in bulk, and the BANKON delivery fee
+
+ar.io's console sells undername slots up to 50 at a time. PARSEC's name screen offers a slider to
+**4096** with presets 10 · 50 · 512 · 4096 and **Max**, which is as many as the owner's ARIO covers.
+The price is linear per slot, read live (`getTokenCost({intent:'Increase-Undername-Limit'})`):
+**17.437772 ARIO a slot** on 2026-10-15, so 4096 slots = 71,425.114112 ARIO. The quote does not cap
+the quantity (20,000 still priced).
+
+The BANKON delivery fee is **φ% = 1.618033988749894848 %**, the fraction 0.01618033988749894848,
+the same digits as THRUST `PhiFee.sol`. `lib/names/undername-plan.ts` computes it as BigInt
+`cost × 1618033988749894848 / 10^20`. The fee is a terminating decimal, so it is shown **exactly**
+(for 4096 slots, 1155.68262283555763746400894976 ARIO-equivalent). The one cut is the paying
+token's base unit, and that cut truncates. It is distinct from the BANKONx402 upload facilitation
+fee (10 %, min $0.05, `lib/bankon-fee.ts`). 0.3.5 shows it but does not collect it; the rail to
+bankon.eth is still to be chosen.
+
 ## Not built yet
 
 - **BANKON-delivered purchases** (one x402 payment to BANKON, which performs the Turbo upload or
@@ -138,5 +188,6 @@ Turbo x402 $0.0828.
 - **Wayfinder routing.** Verification asks a fixed gateway list; ranking gateways by the ar.io
   registry or `/ar-io/peers` is next.
 - **Undername uploads.** The upload hand-off fills the root target; the undername form still takes a
-  pasted id.
+  pasted id (0.3.6).
+- **Collecting the φ delivery fee** to bankon.eth (rail not chosen).
 - **Permanence tags (THOT).** Items carry `Content-Type` and `App-Name: PARSEC` only.

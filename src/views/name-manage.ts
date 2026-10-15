@@ -76,7 +76,7 @@ async function render(ns: NamespaceAdapter, name: string, body: HTMLElement): Pr
         : el('span', {}),
       row('Root @', record.rootTarget ?? '— not set —'),
       row('TTL', `${record.rootTtl}s`),
-      row('Undernames', `${Object.keys(record.undernames).length}${record.undernameLimit !== undefined ? ` / ${record.undernameLimit}` : ''}`),
+      row('Extensions', `${Object.keys(record.undernames).length}${record.undernameLimit !== undefined ? ` / ${record.undernameLimit}` : ''}`),
     ].filter(node => (node as HTMLElement).childNodes.length > 0) as HTMLElement[],
   }));
 
@@ -165,7 +165,7 @@ function buildUndernamesSection(
             minimal: true,
             intent: 'danger',
             onClick: async () => {
-              if (!confirm(`Remove undername "${sub}"?`)) return;
+              if (!confirm(`Remove extension "${sub}"?`)) return;
               try {
                 await ns.removeUndername({ address, passphrase: store.getPassphrase()!, name, subdomain: sub });
                 toast(`Removed ${sub}`, 'success');
@@ -183,11 +183,11 @@ function buildUndernamesSection(
   return el('div', {
     cls: 'parsec-confirm__details',
     children: [
-      el('h4', { text: `Undernames (${Object.keys(record.undernames).length})` }),
+      el('h4', { text: `Extensions (${Object.keys(record.undernames).length})` }),
       list,
       subInput,
       txInput,
-      btn('Add / update undername', {
+      btn('Add / update extension', {
         onClick: async () => {
           const sub = subInput.value.trim().toLowerCase();
           const tx = txInput.value.trim();
@@ -248,14 +248,14 @@ function buildIncreaseUndernameSection(
   return el('div', {
     cls: 'parsec-confirm__details',
     children: [
-      el('h4', { text: `Undername limit (current: ${currentLimit})` }),
+      el('h4', { text: `Extension slots (current: ${currentLimit})` }),
       row('Cost', costEl),
       qtyInput,
       btn('Increase limit', {
         onClick: async () => {
           const q = parseInt(qtyInput.value, 10);
           if (!Number.isFinite(q) || q < 1) { toast('Quantity must be >= 1', 'warning'); return; }
-          await call(() => ns.increaseUndernameLimit!({ address, passphrase: store.getPassphrase()!, name, quantity: q }), 'Undername limit increased', onChange);
+          await call(() => ns.increaseUndernameLimit!({ address, passphrase: store.getPassphrase()!, name, quantity: q }), 'Extension slots added', onChange);
         },
       }),
     ],
