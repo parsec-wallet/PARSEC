@@ -154,6 +154,8 @@ export type AppView =
   | 'permaweb-gateway-join'
   | 'permaweb-bridge'
   | 'permaweb-upload'
+  | 'permaweb-create'
+  | 'smart-domain'
   | 'solana-import';
 
 export interface WalletState {

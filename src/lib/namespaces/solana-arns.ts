@@ -10,6 +10,7 @@ import type {
   CostQuote,
   NamespaceAdapter,
   NamespaceCapabilities,
+  NameIdentity,
   NormalizedRecord,
   SignedWrite,
 } from './types';
@@ -77,6 +78,14 @@ export const solanaArnsAdapter: NamespaceAdapter = {
       quantity: query.quantity,
     });
     return { amount, unit: 'ARIO' };
+  },
+
+  // Read-only for now: no setIdentity, so the name controller's identity editor stays hidden for
+  // this registry; the page creator (views/permaweb-create.ts) reads it to autofill a page.
+  async getIdentity(name): Promise<NameIdentity> {
+    const rec = await client.getRecord(name);
+    if (!rec) throw new Error(`${name} is not registered`);
+    return client.getAntIdentity(rec.processId);
   },
 
   async isReserved(name): Promise<boolean> {

@@ -73,6 +73,12 @@ describe('postDataItem', () => {
 });
 
 describe('planUpload', () => {
+  it('adds a file\'s extra tags after Content-Type and App-Name, never replacing those two', () => {
+    const p = planUpload([{ ...file('index.html', 'x'), tags: [{ name: 'Page-Title', value: 'T' }, { name: 'app-name', value: 'Other' }, { name: 'Content-Type', value: 'text/plain' }] }], 107520);
+    expect(p.items[0].tags).toEqual([{ name: 'Content-Type', value: 'text/html' }, { name: 'App-Name', value: 'Parsec' }, { name: 'Page-Title', value: 'T' }]);
+    expect(p.items[0].size).toBe(estimateDataItemSize({ dataLength: 1, tags: [...p.items[0].tags] }));
+  });
+
   it('plans a single file with no manifest and an exact size', () => {
     const p = planUpload([file('photo.png', 'x'.repeat(1000), 'image/png')], 107520);
     expect(p.manifest).toBeUndefined();

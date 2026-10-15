@@ -143,6 +143,7 @@ The module whose constants are verified against
 | `permaweb/verify.ts` | 108 | Verified reads — hash what a gateway serves, compare with what we trust (Wayfinder's idea, zero-dep) |
 | `permaweb/module.ts` · `choices.ts` | 63 | The `registerModule` manifest: desk, upload, bridge, gateway-join + tile |
 | `permaweb/handoff.ts` | 44 | One-shot upload ↔ name-controller hand-off |
+| `src/lib/creator/*` · `views/permaweb-create.ts` | — | **creator.agent** — the permanent page creator: ① LOAD (import any page, autofill from the name) · ② ARM (editor, preview, suggestions) · ③ DEPLOY (3·2·1, upload + point); see [`permaweb/creator.md`](./permaweb/creator.md) |
 | `permaweb/wallet/ario-transfer.ts` | 40 | SPL ARIO balance + send |
 | `permaweb/wallet/keys.ts` · `observer.ts` | 91 | Solana key handling; the node's observer key |
 | `src/lib/arweave/solana-arns-client.ts` | 201 | Solana-era ArNS client (lazy `@ar.io/sdk`) |
@@ -184,10 +185,10 @@ AO processes we author and deploy, plus their clients. The Lua is the contract;
 
 ## 7. Views
 
-**Core (21 files)** — `arweave-{create,send,approve,ario-migrate}`,
+**Core (22 files)** — `arweave-{create,send,approve,ario-migrate}`,
 `ario-transfer`, `name-{hub,claim,manage,mint,resolve,controller}`,
 `market-{hub,create,listing,auction}`, `bankon-admin`,
-`permaweb-{desk,upload,bridge,gateway-join}`, `connect-name-approve`. See [`permaweb/README.md`](./permaweb/README.md) for the upload → verify → point flow.
+`permaweb-{desk,upload,create,bridge,gateway-join}`, `connect-name-approve`. See [`permaweb/README.md`](./permaweb/README.md) for the upload → verify → point flow.
 
 **Back-compat forwarders (10 files, 137 lines)** — `ario-{hub,claim,claim-pythai,name,resolve,migrate-solana}`
 and `bankon-{hub,claim,name,resolve}` all redirect into the unified `name-*`

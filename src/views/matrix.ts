@@ -11,6 +11,7 @@ import { formatPercent, describeChange, isFlat } from '../lib/percent';
 import { changeFor, CHANGE_PERIODS, type ChangePeriod } from '../lib/prices';
 import * as events from '../lib/events';
 import { fetchChains, searchChains, CHAINMARKETCAP_URL, type EvmChain } from '../lib/chainmarketcap';
+import { formatUsd, quoteSmartDomain, smartDomainQuery, type SmartDomainQuote } from '../lib/names/smart-domain';
 import { getChainDescriptor } from '../lib/chains';
 import {
   cloudZones, cloudWeather, isSurging, driftSeconds, findSpot, capacity,
@@ -2799,11 +2800,42 @@ export function matrixView(): HTMLElement {
     const results = el('div', { cls: 'parsec-matrix__evmlist' });
     let chains: EvmChain[] = [];
 
+    // SMART domains: a name typed here is offered at its set.price. The Blue Pill holds no keys, so
+    // BUY NOW carries the name into the live wallet (views/smart-domain.ts), where it is bought.
+    const quotes = new Map<string, Promise<SmartDomainQuote>>();
+    let domainTimer: ReturnType<typeof setTimeout> | undefined;
+    function smartDomainRow(name: string): HTMLElement {
+      const row = el('div', { cls: 'parsec-matrix__diag-row parsec-matrix__smartdomain' });
+      row.appendChild(el('span', { cls: 'parsec-matrix__diag-label', text: `SMART domain · ${name}.ar.io` }));
+      const value = el('span', { cls: 'parsec-matrix__diag-value', text: 'checking…' });
+      row.appendChild(value);
+      clearTimeout(domainTimer);
+      domainTimer = setTimeout(() => {
+        if (!quotes.has(name)) {
+          quotes.set(name, import('../views/smart-domain').then((m) => quoteSmartDomain(name, m.smartDomainDeps)));
+        }
+        void quotes.get(name)!.then((q) => {
+          value.replaceChildren();
+          if (!q.available) { value.textContent = q.reserved ? 'reserved' : 'owned'; return; }
+          value.append(
+            el('span', { text: q.setPriceMicroUsd != null ? `PRICE ${formatUsd(q.setPriceMicroUsd)}` : 'available' }),
+            btn('BUY NOW', { minimal: true, intent: 'primary', onClick: () => {
+              try { sessionStorage.setItem('parsec:smart-domain', name); } catch { /* fine */ }
+              store.navigate('smart-domain');
+            } }),
+          );
+        }).catch(() => { quotes.delete(name); value.textContent = 'registry unreachable'; });
+      }, 350);
+      return row;
+    }
+
     function paint(query: string): void {
       results.innerHTML = '';
+      const domain = smartDomainQuery(query);
+      if (domain) results.appendChild(smartDomainRow(domain));
       const found = searchChains(chains, query).slice(0, 40);
       if (found.length === 0) {
-        results.appendChild(el('p', { cls: 'bp5-text-muted', text: 'No chain matches that.' }));
+        if (!domain) results.appendChild(el('p', { cls: 'bp5-text-muted', text: 'No chain matches that.' }));
         return;
       }
       for (const c of found) {
@@ -2826,7 +2858,7 @@ export function matrixView(): HTMLElement {
 
     const search = input({
       type: 'text',
-      placeholder: 'Search 2,500+ chains by name, ticker or id',
+      placeholder: 'Search 2,500+ chains — or a SMART domain name to buy',
       cls: 'bp5-input parsec-matrix__evmsearch',
       onInput: (v) => paint(v),
     });
