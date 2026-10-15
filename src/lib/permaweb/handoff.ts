@@ -61,3 +61,8 @@ export function takeUploadSlot(): string | null {
   write(SLOT_KEY, null);
   return v;
 }
+
+/** Forget every hand-off at once — what an offer sheet's ✕ does on the way out. */
+export function clearHandoffs(): void {
+  for (const key of [RETURN_KEY, TARGET_KEY, SLOT_KEY]) write(key, null);
+}
