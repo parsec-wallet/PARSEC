@@ -76,6 +76,26 @@ export async function getAntState(processId: string): Promise<{
   return { owner, controllers, records: records as never };
 }
 
+/** The ANT's identity (AntConfig: name, ticker, description, keywords, logo). Read-only. */
+export async function getAntIdentity(processId: string): Promise<{
+  nickname: string;
+  ticker: string;
+  description: string;
+  keywords: string[];
+  logo: string;
+}> {
+  const ant = await antFor(processId);
+  const info = (await ant.getInfo()) as { Name?: unknown; Ticker?: unknown; Description?: unknown; Keywords?: unknown; Logo?: unknown };
+  const s = (v: unknown): string => (typeof v === 'string' ? v : '');
+  return {
+    nickname: s(info.Name),
+    ticker: s(info.Ticker),
+    description: s(info.Description),
+    keywords: Array.isArray(info.Keywords) ? info.Keywords.filter((k): k is string => typeof k === 'string') : [],
+    logo: s(info.Logo),
+  };
+}
+
 export async function getCost(opts: {
   intent: 'Buy-Name' | 'Extend-Lease' | 'Increase-Undername-Limit';
   name: string;

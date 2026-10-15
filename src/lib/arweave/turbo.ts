@@ -245,6 +245,11 @@ export interface UploadFile {
   readonly path: string;
   readonly bytes: Uint8Array;
   readonly contentType: string;
+  /**
+   * Extra tags for this item, after Content-Type and App-Name (e.g. the page creator's Page-Title).
+   * A tag named Content-Type or App-Name here is dropped: those two are always PARSEC's own.
+   */
+  readonly tags?: readonly DataItemTag[];
 }
 
 export interface PlannedItem {
@@ -265,8 +270,14 @@ export interface UploadPlan {
   readonly freeLimit: number;
 }
 
-function tagsFor(contentType: string): DataItemTag[] {
-  return [{ name: 'Content-Type', value: contentType }, ...APP_TAGS];
+const RESERVED_TAGS = new Set(['content-type', 'app-name']);
+
+function tagsFor(contentType: string, extra: readonly DataItemTag[] = []): DataItemTag[] {
+  return [
+    { name: 'Content-Type', value: contentType },
+    ...APP_TAGS,
+    ...extra.filter((t) => !RESERVED_TAGS.has(t.name.trim().toLowerCase())).map((t) => ({ name: t.name, value: t.value })),
+  ];
 }
 
 const PLACEHOLDER_ID = '_'.repeat(43);
@@ -275,7 +286,7 @@ export function planUpload(files: readonly UploadFile[], freeLimit: number, opts
   const sigType = opts.sigType;
   if (files.length === 0) throw new Error('Nothing to upload');
   const items: PlannedItem[] = files.map((f) => {
-    const tags = tagsFor(f.contentType);
+    const tags = tagsFor(f.contentType, f.tags);
     const size = estimateDataItemSize({ dataLength: f.bytes.length, tags, sigType });
     return { path: f.path, bytes: f.bytes, tags, size, free: size <= freeLimit };
   });

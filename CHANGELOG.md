@@ -3,6 +3,40 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.3.7 — 2026-10-15 (increment towards 0.4.0)
+
+creator.agent: permanent pages in ① LOAD · ② ARM · ③ DEPLOY. And SMART domain BUY NOW from the RAGEbar.
+
+**The page creator** (`views/permaweb-create.ts`, `lib/creator/`, `docs/permaweb/creator.md`). ar.io's
+console has the right fields; PARSEC delivers them.
+- **① LOAD:** a name or extension; start from its current page, one of 8 templates, or blank. Any page
+  loads: a name, `name_ext`, `ar://`, a gateway link or a Target ID, including pages made elsewhere
+  (HTML is read into editable fields; ar.io Pages data is mapped where it is recognised). **Autofill**
+  runs from the name's identity, its extensions and its logo, never inventing a value and never
+  overwriting what the person typed; each autofilled field says where it came from.
+- **② ARM:** every field is open (profile, blocks, theme, settings, address, versions), with a live
+  preview and **automatic edit suggestions**, each with Apply: missing or long title and description,
+  social image, avatar, favicon, alt text, http links, links pinned to one gateway, duplicates, empty
+  blocks, low contrast, over the free limit. When no image is found, a sigil and a social card are
+  generated from the name.
+- **③ DEPLOY** is forever, confirmed 3 · 2 · 1 (three explicit steps, no timer), then the offer sheet.
+  **Launch** is a name's first page; **Deploy** is a new version, and the old one stays permanent
+  ("Point back" rolls back). It uploads with the name-owning Solana key, points the name, and verifies.
+  The page embeds its own data, so it re-opens for editing anywhere. The upload is one approval, the
+  manifest a second signature and the pointer a third, and the screen says so.
+- **iNFT:** metadata is prepared (image, page, version) and can be uploaded free. **Mint stays
+  disabled** until the iNFT4 audit clears; the mint is the OVERLORD's signature.
+- `getIdentity` (read-only) on the Solana-era ArNS adapter; Turbo items can carry extra tags.
+
+**SMART domain BUY NOW** (`lib/names/smart-domain.ts`, `views/smart-domain.ts`).
+- Type a name in the Matrix's chain search (the RAGEbar): it is offered at **one set.price**, the live
+  permabuy cost plus the φ markup (0.01618033988749894848 of the cost, exact). BUY NOW carries it into
+  the live wallet, because the Blue Pill holds no keys.
+- Buy: still free and the key holds the ARIO → the markup over x402 (the server computes it; PARSEC
+  refuses a higher figure) → the permabuy signed by the account's Solana key → the name's controller.
+  Non-custodial: the buyer's key buys from the protocol.
+- The x402 client loads only in the BUY NOW chunk, never in the RAGEbar's.
+
 ## 0.3.6 — 2026-10-15 (increment towards 0.4.0)
 
 The offer sheet: one price, take it or leave it.

@@ -12,6 +12,7 @@
 |---|---|---|
 | `permaweb-desk` | `views/permaweb-desk.ts` | See the operator wallet's ARIO, SOL and gateway status; jump to everything below |
 | `permaweb-upload` | `views/permaweb-upload.ts` | **Put a file or a whole site on Arweave, verify it, point a name at it** |
+| `permaweb-create` | `views/permaweb-create.ts` | **creator.agent — build or edit a name's permanent page: ① LOAD · ② ARM · ③ DEPLOY** ([creator.md](./creator.md)) |
 | `permaweb-bridge` | `views/permaweb-bridge.ts` | Burn ARIO on Base to receive it on Solana |
 | `permaweb-gateway-join` | `views/permaweb-gateway-join.ts` | Preflight and join the ar.io gateway registry (20,000 ARIO) |
 

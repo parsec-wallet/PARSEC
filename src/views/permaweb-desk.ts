@@ -72,6 +72,7 @@ function actions(hasSolana: boolean): HTMLElement {
       el('div', { cls: 'parsec-dashboard__actions', children: [
         btn('My ar.io names', { intent: 'primary', icon: 'tag', disabled: !hasSolana, onClick: () => { setActiveNamespaceId('solana-arns'); store.navigate('name-hub'); } }),
         btn('Upload to Arweave', { outlined: true, icon: 'cloud-upload', onClick: () => store.navigate('permaweb-upload') }),
+        btn('Create a permanent page', { outlined: true, icon: 'edit', onClick: () => { try { sessionStorage.removeItem('parsec:creator-return'); } catch { /* ok */ } store.navigate('permaweb-create'); } }),
         btn('Bridge ARIO from Base', { outlined: true, icon: 'exchange', onClick: () => store.navigate('permaweb-bridge') }),
         btn('Join as a gateway', { outlined: true, icon: 'cloud-upload', disabled: !hasSolana, onClick: () => store.navigate('permaweb-gateway-join') }),
         btn('Send ARIO', { outlined: true, icon: 'send-message', disabled: !hasSolana, onClick: () => store.navigate('ario-transfer') }),

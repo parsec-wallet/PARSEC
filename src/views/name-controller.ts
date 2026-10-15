@@ -207,6 +207,12 @@ function targetSection(ctx: Ctx, canWrite: boolean): HTMLElement {
     icon: 'cloud-upload',
     onClick: () => { setUploadSlot(null); setUploadReturn('name-controller'); store.navigate('permaweb-upload'); },
   });
+  // creator.agent: build or edit the page this name serves, then deploy and point it in one flow.
+  const createHere = btn('Create or edit the page', {
+    outlined: true,
+    icon: 'edit',
+    onClick: () => { openCreator(name, null); },
+  });
   const ttl = ttlSelect(record.rootTtl);
   const go = btn('Point the name here', {
     intent: 'primary',
@@ -220,7 +226,7 @@ function targetSection(ctx: Ctx, canWrite: boolean): HTMLElement {
   });
   sec.appendChild(el('div', { cls: `${C}__form`, children: [
     el('label', { text: 'Point the name at — Target ID' }),
-    target.root, uploadHere,
+    target.root, el('div', { cls: `${C}__row`, children: [uploadHere, createHere] }),
     el('label', { text: 'Cache for' }), ttl,
     go,
   ] }));
@@ -285,12 +291,22 @@ function undernamesSection(ctx: Ctx, canWrite: boolean): HTMLElement {
     },
   });
 
+  const createFor = btn('Create a page for this extension', {
+    outlined: true,
+    icon: 'edit',
+    onClick: () => {
+      const v = validateUndername(subInput.value);
+      if (!v.ok) { toast('Name the extension first (e.g. docs), then create its page', 'warning'); subInput.focus(); return; }
+      openCreator(name, v.value);
+    },
+  });
+
   sec.appendChild(el('div', { cls: `${C}__form`, children: [
     el('label', { text: 'Add or update an extension' }),
     subInput,
     preview,
     el('label', { text: 'Target ID' }),
-    target.root, uploadFor,
+    target.root, el('div', { cls: `${C}__row`, children: [uploadFor, createFor] }),
     el('label', { text: 'Cache for' }), ttl,
     btn('Save extension', {
       intent: 'primary',
@@ -606,6 +622,16 @@ async function runProbes(urls: string[], expected: string | undefined, out: HTML
 }
 
 // ── Small parts ───────────────────────────────────────────────────────────────
+
+/** Open the page creator on this name (and extension), coming back here when done. */
+function openCreator(name: string, extension: string | null): void {
+  try {
+    sessionStorage.setItem('parsec:active-name', name);
+    if (extension) sessionStorage.setItem('parsec:creator-ext', extension); else sessionStorage.removeItem('parsec:creator-ext');
+    sessionStorage.setItem('parsec:creator-return', 'name-controller');
+  } catch { /* per-tab convenience only */ }
+  store.navigate('permaweb-create');
+}
 
 function section(title: string, children: HTMLElement[]): HTMLElement {
   return el('section', { cls: `${C}__section parsec-confirm__details`, children: [el('h4', { text: title }), ...children] });

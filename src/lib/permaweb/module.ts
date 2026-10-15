@@ -30,6 +30,22 @@ registerModule({
       keywords: ['upload', 'turbo', 'publish', 'site', 'manifest', 'permanent', 'store'],
     },
     {
+      id: 'permaweb-create',
+      title: 'Create a permanent page',
+      load: async () => (await import('../../views/permaweb-create')).permawebCreateView,
+      disclosure: 'more',
+      inRail: true,
+      keywords: ['page', 'creator', 'site', 'profile', 'links', 'publish', 'launch', 'deploy', 'arns', 'inft'],
+    },
+    {
+      id: 'smart-domain',
+      title: 'Buy a SMART domain',
+      load: async () => (await import('../../views/smart-domain')).smartDomainView,
+      disclosure: 'more',
+      inRail: false,
+      keywords: ['smart domain', 'buy', 'name', 'arns', 'permabuy', 'domain', 'buy now'],
+    },
+    {
       id: 'permaweb-bridge',
       title: 'Bridge ARIO from Base',
       load: async () => (await import('../../views/permaweb-bridge')).permawebBridgeView,
