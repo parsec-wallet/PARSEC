@@ -20,6 +20,11 @@
 //
 // The signed payload is a deep-hash over a fixed list of fields per the spec
 // (NOT the binary above) — see dataItemSignatureData().
+//
+// Signature type 4 (Solana) has the same layout with a 64-byte ed25519 signature and a 32-byte
+// owner (the Solana public key). Its signer signs the ASCII hex of the 48-byte deep-hash, not the
+// hash itself — @dha-team/arbundles HexSolanaSigner, which @ardrive/turbo-sdk uses for
+// token 'solana' (read 2026-10-15). Turbo charges the credits of the owner's Solana address.
 
 import { base64urlToBytes, bytesToBase64url, type ArweaveJwk } from './jwk';
 import { signWithJwk, vaultArweaveKey } from './vault-key';
@@ -30,8 +35,10 @@ export interface DataItemTag {
 }
 
 export interface DataItemInput {
-  /** Owner: base64url RSA modulus `n` (matches Arweave Transaction.owner). */
+  /** Owner: base64url RSA modulus `n` (type 1), or base64url Solana public key (type 4). */
   owner: string;
+  /** ANS-104 signature type: 1 Arweave RSA-PSS (default), 4 Solana ed25519. */
+  sigType?: SigType;
   /** Optional recipient address (43-char base64url). */
   target?: string;
   /** Optional anchor (32 bytes, base64url-encoded). */
@@ -53,12 +60,24 @@ export interface SignedDataItem {
 }
 
 const SIG_TYPE_RSA_PSS = 1;
-const RSA_PSS_SIG_LENGTH = 512;
-const RSA_PSS_OWNER_LENGTH = 512;
+export const SIG_TYPE_SOLANA = 4;
+export type SigType = typeof SIG_TYPE_RSA_PSS | typeof SIG_TYPE_SOLANA;
+/** Signature and owner lengths per signature type (arbundles SIG_CONFIG). */
+const SIG_CONFIG: Record<SigType, { sig: number; owner: number }> = {
+  1: { sig: 512, owner: 512 },
+  4: { sig: 64, owner: 32 },
+};
+
+/** What a type-4 signer signs: the ASCII hex of the deep-hash (arbundles HexSolanaSigner). */
+export function solanaSigningMessage(sigData: Uint8Array): Uint8Array {
+  let hex = '';
+  for (const b of sigData) hex += b.toString(16).padStart(2, '0');
+  return new TextEncoder().encode(hex);
+}
 
 // ── Public API ───────────────────────────────────────────────
 
-/** Produces the 512-byte RSA-PSS signature over a DataItem's deep-hash. */
+/** Produces the signature over a DataItem's deep-hash: 512-byte RSA-PSS (type 1) or 64-byte ed25519 (type 4, over solanaSigningMessage). */
 export type DataItemSigner = (signatureData: Uint8Array) => Promise<Uint8Array>;
 
 /**
@@ -92,9 +111,13 @@ export async function signDataItemWith(
 
   const tags = input.tags ?? [];
   const tagsBytes = encodeTags(tags);
+  const sigType: SigType = input.sigType ?? SIG_TYPE_RSA_PSS;
+  const cfg = SIG_CONFIG[sigType];
+  if (!cfg) throw new Error(`Unsupported signature type ${String(sigType)}`);
 
   // 1. Deep-hash the spec-defined field list.
   const sigData = await dataItemSignatureData({
+    sigType,
     owner: input.owner,
     target: input.target,
     anchor: input.anchor,
@@ -104,7 +127,7 @@ export async function signDataItemWith(
 
   // 2. The signature, from whichever signer the caller supplied.
   const signature = await sign(sigData);
-  if (signature.length !== RSA_PSS_SIG_LENGTH) {
+  if (signature.length !== cfg.sig) {
     throw new Error(`Unexpected signature length ${signature.length}`);
   }
 
@@ -114,7 +137,7 @@ export async function signDataItemWith(
 
   // 4. Assemble the binary DataItem.
   const ownerBytes = base64urlToBytes(input.owner);
-  if (ownerBytes.length !== RSA_PSS_OWNER_LENGTH) {
+  if (ownerBytes.length !== cfg.owner) {
     throw new Error(`Unexpected owner length ${ownerBytes.length}`);
   }
   const targetBytes = input.target ? base64urlToBytes(input.target) : null;
@@ -127,6 +150,7 @@ export async function signDataItemWith(
   }
 
   const raw = assembleDataItem({
+    sigType,
     signature,
     ownerBytes,
     targetBytes,
@@ -156,8 +180,10 @@ export function estimateDataItemSize(opts: {
   tags?: DataItemTag[];
   target?: boolean;
   anchor?: boolean;
+  sigType?: SigType;
 }): number {
-  return 2 + RSA_PSS_SIG_LENGTH + RSA_PSS_OWNER_LENGTH
+  const cfg = SIG_CONFIG[opts.sigType ?? SIG_TYPE_RSA_PSS];
+  return 2 + cfg.sig + cfg.owner
     + (opts.target ? 33 : 1) + (opts.anchor ? 33 : 1)
     + 8 + 8 + encodeTags(opts.tags ?? []).length + opts.dataLength;
 }
@@ -182,18 +208,31 @@ export async function signDataItemFromVault(
  */
 export async function verifyDataItem(raw: Uint8Array): Promise<boolean> {
   const parsed = decodeDataItem(raw);
-  if (parsed.sigType !== SIG_TYPE_RSA_PSS) return false;
+  if (parsed.sigType !== SIG_TYPE_RSA_PSS && parsed.sigType !== SIG_TYPE_SOLANA) return false;
 
   // Use the raw tagsBytes the signer embedded in the binary, not a re-encoded
   // copy. Avro is canonical for our encoder but we still want to verify the
   // exact bytes that were signed.
   const sigData = await dataItemSignatureData({
+    sigType: parsed.sigType as SigType,
     owner: parsed.owner,
     target: parsed.target,
     anchor: parsed.anchor,
     tagsBytes: parsed.tagsBytes,
     data: parsed.data,
   });
+
+  if (parsed.sigType === SIG_TYPE_SOLANA) {
+    try {
+      const pk = await crypto.subtle.importKey('raw', base64urlToBytes(parsed.owner) as unknown as BufferSource, { name: 'Ed25519' }, false, ['verify']);
+      const ok = await crypto.subtle.verify({ name: 'Ed25519' }, pk, parsed.signature as unknown as BufferSource, solanaSigningMessage(sigData) as unknown as BufferSource);
+      if (!ok) return false;
+    } catch {
+      return false; // a runtime without WebCrypto Ed25519 cannot say yes
+    }
+    const idBuf = await crypto.subtle.digest('SHA-256', parsed.signature as unknown as BufferSource);
+    return bytesToBase64url(new Uint8Array(idBuf)).length === 43;
+  }
 
   const publicKey = await crypto.subtle.importKey(
     'jwk',
@@ -217,6 +256,8 @@ export async function verifyDataItem(raw: Uint8Array): Promise<boolean> {
 // Each leaf is hashed; lists hash by combining child hashes recursively.
 
 export async function dataItemSignatureData(opts: {
+  /** Defaults to 1; the type is itself one of the hashed fields. */
+  sigType?: SigType;
   owner: string;
   target?: string;
   anchor?: string;
@@ -230,7 +271,7 @@ export async function dataItemSignatureData(opts: {
   return deepHash([
     new TextEncoder().encode('dataitem'),
     new TextEncoder().encode('1'),    // version
-    new TextEncoder().encode('1'),    // signature type (RSA-PSS)
+    new TextEncoder().encode(String(opts.sigType ?? SIG_TYPE_RSA_PSS)), // signature type
     ownerBytes,
     targetBytes,
     anchorBytes,
@@ -380,6 +421,7 @@ function readAvroBytes(buf: Uint8Array, offset: number): { value: Uint8Array; ne
 // ── Binary assembly + decoding ───────────────────────────────
 
 function assembleDataItem(opts: {
+  sigType: SigType;
   signature: Uint8Array;
   ownerBytes: Uint8Array;
   targetBytes: Uint8Array | null;
@@ -399,7 +441,7 @@ function assembleDataItem(opts: {
   const tagsByteLen = leU64(BigInt(opts.tagsBytes.length));
 
   return concat([
-    leU16(SIG_TYPE_RSA_PSS),
+    leU16(opts.sigType),
     opts.signature,
     opts.ownerBytes,
     targetSection,
@@ -435,11 +477,12 @@ export async function decodeDataItemAsync(raw: Uint8Array): Promise<DecodedDataI
 function decodeDataItem(raw: Uint8Array): DecodedDataItem {
   let off = 0;
   const sigType = readU16LE(raw, off); off += 2;
-  if (sigType !== SIG_TYPE_RSA_PSS) {
+  const cfg = SIG_CONFIG[sigType as SigType];
+  if (!cfg) {
     throw new Error(`Unsupported signature type ${sigType}`);
   }
-  const signature = raw.slice(off, off + RSA_PSS_SIG_LENGTH); off += RSA_PSS_SIG_LENGTH;
-  const ownerBytes = raw.slice(off, off + RSA_PSS_OWNER_LENGTH); off += RSA_PSS_OWNER_LENGTH;
+  const signature = raw.slice(off, off + cfg.sig); off += cfg.sig;
+  const ownerBytes = raw.slice(off, off + cfg.owner); off += cfg.owner;
 
   let target: string | undefined;
   if (raw[off++] === 1) {

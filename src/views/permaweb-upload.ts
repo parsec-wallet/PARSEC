@@ -16,12 +16,15 @@ import { explorerTxUrl, BASE_MAINNET } from '../lib/x402/networks';
 import { quoteStorage, type StorageQuote } from '../lib/permaweb/storage-cost';
 import { UploadBudget, payUploadFee, postDataItemX402 } from '../lib/arweave/turbo-x402';
 import { postDataItem } from '../lib/arweave/turbo';
+import { SIG_TYPE_SOLANA } from '../lib/arweave/ans104';
 import {
   TurboError,
   WINC_DECIMALS,
   getTurboInfo,
   getTurboPriceWinc,
+  getTurboBalanceWinc,
   planUpload,
+  solanaUploadSignerFor,
   runUpload,
   uploadSignerFor,
   type TurboInfo,
@@ -48,6 +51,10 @@ interface State {
   quote?: StorageQuote;
   /** Pay the paid items over x402 (USDC on Base) instead of with Turbo credits. */
   payX402: boolean;
+  /** Which key signs — and so whose free allowance and Turbo credits pay. */
+  payer: 'arweave' | 'solana';
+  /** Turbo credits (winc) of the Solana payer; undefined = not asked, null = no answer. */
+  solCredits?: bigint | null;
   armed: boolean;
   busy: boolean;
   log: string[];
@@ -60,6 +67,9 @@ export function permawebUploadView(): HTMLElement {
   const s = store.get();
   const account = s.accounts[s.activeAccountIndex];
   const address = account ? getAccountAddress(account, 'arweave-hd') ?? getAccountAddress(account, 'arweave') : undefined;
+  // A Solana key signs uploads too (ANS-104 type 4) — the key that owns an ArNS name then pays with
+  // its own free allowance and Turbo credits. Desktop only: the Keycore signs.
+  const solAddress = account && isTauri ? getAccountAddress(account, 'solana') : undefined;
   const back = peekUploadReturn() ?? 'permaweb-desk';
 
   const root = el('div', { cls: `parsec-view parsec-confirm parsec-permaweb ${C}` });
@@ -71,7 +81,7 @@ export function permawebUploadView(): HTMLElement {
     ],
   }));
 
-  if (!address) {
+  if (!address && !solAddress) {
     root.appendChild(el('div', {
       cls: 'parsec-confirm__details',
       children: [
@@ -81,9 +91,15 @@ export function permawebUploadView(): HTMLElement {
     }));
     return root;
   }
-  const signer = address;
-
-  const st: State = { files: [], asSite: false, armed: false, busy: false, log: [], verifying: false, payX402: false };
+  // Names are owned by Solana keys: coming from a name, or with no Arweave key, the Solana key pays.
+  const st: State = {
+    files: [], asSite: false, armed: false, busy: false, log: [], verifying: false, payX402: false,
+    payer: solAddress && (!address || back === 'name-controller') ? 'solana' : 'arweave',
+  };
+  const signerAddress = (): string => (st.payer === 'solana' ? solAddress! : address!);
+  if (solAddress) {
+    void getTurboBalanceWinc(solAddress, 'solana').then((w) => { st.solCredits = w; render(); }).catch(() => { st.solCredits = null; render(); });
+  }
   // x402 pays from the account's Base (EVM) address, signed by the PARSEC Keycore (desktop/phone).
   const evmAddress = account ? getAccountAddress(account, 'ethereum') : undefined;
   const canX402 = isTauri && !!evmAddress;
@@ -139,7 +155,7 @@ export function permawebUploadView(): HTMLElement {
   async function replan(): Promise<void> {
     st.info ??= await infoPromise;
     try {
-      st.plan = planUpload(st.files, st.info.freeUploadLimitBytes, { asSite: st.asSite });
+      st.plan = planUpload(st.files, st.info.freeUploadLimitBytes, { asSite: st.asSite, ...(st.payer === 'solana' ? { sigType: SIG_TYPE_SOLANA } : {}) });
     } catch (e) {
       st.plan = undefined;
       toast(msg(e), 'warning');
@@ -171,7 +187,8 @@ export function permawebUploadView(): HTMLElement {
     const passphrase = store.getPassphrase();
     if (!passphrase) { toast('Wallet is locked', 'danger'); store.navigate('unlock'); return; }
     let sign;
-    try { sign = uploadSignerFor(signer, passphrase); } catch (e) { toast(msg(e), 'danger'); return; }
+    const signer = signerAddress();
+    try { sign = st.payer === 'solana' ? solanaUploadSignerFor(signer) : uploadSignerFor(signer, passphrase); } catch (e) { toast(msg(e), 'danger'); return; }
 
     st.busy = true;
     st.result = undefined;
@@ -303,13 +320,25 @@ export function permawebUploadView(): HTMLElement {
       (v) => { st.asSite = v; void replan(); },
     )] : [];
 
+    function payerChoice(): HTMLElement[] {
+      if (!solAddress) return [];
+      const credits = st.solCredits === undefined ? 'reading credits…' : st.solCredits === null ? 'credits unknown' : `${formatDecimal(st.solCredits, WINC_DECIMALS, { maxFractionDigits: 4 })} Turbo credits`;
+      if (!address) return [el('p', { cls: 'parsec-view__desc', text: `Signing and paying with the Solana key ${short(solAddress)} (${credits}).` })];
+      return [checkbox(
+        `Sign and pay with the Solana key ${short(solAddress)} — the key that owns your ar.io names, with its own free allowance (${credits}). Off: the Arweave key ${short(address)}.`,
+        st.payer === 'solana',
+        (v) => { st.payer = v ? 'solana' : 'arweave'; st.armed = false; void replan(); },
+      )];
+    }
+
     const arm = checkbox('I understand: anything uploaded to Arweave is public and permanent. It cannot be deleted or edited.', st.armed, (v) => { st.armed = v; render(); });
 
     return el('div', {
       cls: 'parsec-confirm__details',
       children: [
         el('div', { cls: `${C}__headline`, attrs: { 'data-tone': p.allFree ? 'done' : 'warn' }, text: headline }),
-        el('p', { cls: 'parsec-view__desc', text: `Sizes are exact signed sizes. Turbo stores items up to ${fmtBytes(p.freeLimit)} free${st.info?.live ? ' (live from upload.ardrive.io)' : ' (fallback figure — Turbo did not answer)'}.${p.allFree ? '' : ' Larger items need Turbo credits on this Arweave address; without them Turbo refuses the item and nothing is charged. The AR figure is an estimate from payment.ardrive.io.'}` }),
+        el('p', { cls: 'parsec-view__desc', text: `Sizes are exact signed sizes. Turbo stores items up to ${fmtBytes(p.freeLimit)} free${st.info?.live ? ' (live from upload.ardrive.io)' : ' (fallback figure — Turbo did not answer)'}.${p.allFree ? '' : ` Larger items need Turbo credits on the signing ${st.payer === 'solana' ? 'Solana' : 'Arweave'} address; without them Turbo refuses the item and nothing is charged. The AR figure is an estimate from payment.ardrive.io.`}` }),
+        ...payerChoice(),
         ...(p.allFree || !q ? [] : [costTable(q)]),
         ...(p.allFree || !q || !canX402 ? [] : [checkbox(
           q.x402.totalMicro != null
@@ -348,7 +377,7 @@ export function permawebUploadView(): HTMLElement {
         el('h4', { text: r.manifest ? 'Your site is on Arweave' : 'Your file is on Arweave' }),
         el('div', { cls: 'parsec-permaweb__grid-2', children: [
           stat(r.manifest ? 'Site (manifest) id — point names here' : 'File id', r.rootId),
-          stat('Signed by', short(signer)),
+          stat('Signed by', short(signerAddress())),
         ] }),
         el('div', { cls: `${C}__links`, children: [`https://turbo-gateway.com/${r.rootId}`, `https://arweave.net/${r.rootId}`].map((u) => el('a', { text: u, attrs: { href: u, target: '_blank', rel: 'noopener' } })) }),
         el('div', { cls: `${C}__headline`, attrs: { 'data-tone': tone }, text: summaryText[summary] ?? summary }),

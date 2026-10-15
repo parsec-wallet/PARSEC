@@ -100,7 +100,7 @@ function renderResolved(container: HTMLElement, r: NormalizedRecord): void {
 
   const subs = Object.entries(r.undernames);
   if (subs.length > 0) {
-    container.appendChild(el('h4', { text: 'Undernames' }));
+    container.appendChild(el('h4', { text: 'Extensions' }));
     for (const [sub, val] of subs) container.appendChild(row(sub, truncAddr(val.transactionId)));
   }
 }

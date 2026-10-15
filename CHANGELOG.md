@@ -3,6 +3,34 @@
 All notable changes to PARSEC Wallet. Versions follow `package.json`, `src-tauri/Cargo.toml` and
 `src-tauri/tauri.conf.json`, which move together.
 
+## 0.3.5 — 2026-10-15 (increment towards 0.4.0)
+
+The key that owns a name now uploads to it, and buys undername slots in bulk.
+- **Uploads signed by a Solana key** (ANS-104 signature type 4, signed in the Keycore by
+  `chain_sol_sign`). Turbo bills the Solana address's own free allowance and credits, so the key
+  that owns an ArNS name, its ARIO and its Turbo credits is the one that uploads. Byte-for-byte
+  equal to the signer `@ardrive/turbo-sdk` uses for `solana` (checked against
+  `@dha-team/arbundles` in the tests). Each item is 928 bytes lighter than an Arweave-signed one.
+- **Upload view:** "Sign and pay with the Solana key", showing its Turbo credits. It is the
+  default when you arrive from a name, or when the account has no Arweave key.
+- **Extension slots:** a slider to 4096 with presets (10 · 50 · 512 · 4096) and **Max** (as many as
+  the owner's ARIO covers). ar.io's own console stops at 50. The price is read live and is
+  linear (17.437772 ARIO a slot on 2026-10-15); every figure is an exact BigInt.
+- **The Target ID field reads what people paste.** An id, `ar://<id>`, or any gateway link fills in the
+  43-character Arweave id. `ar://name` or `<under>_<name>.ar.io` copies the id that name serves now.
+  An IPFS CID is explained, not accepted ("ArNS serves Arweave, not IPFS"). One line under the field
+  says the Target ID is what other tools call a CID. Before signing, the field shows what the id
+  serves: a site (its file count and index page) or one file (its type and size).
+- **Undername uploads:** "Upload for this undername" sends the uploaded id straight back into that
+  undername's row; before, only the root was filled.
+- **The φ delivery fee is computed, not yet shown or collected.** It is φ% = 1.618033988749894848 %
+  (0.01618033988749894848 of the cost; the PhiFee.sol digits), exact, with no rounding either way;
+  only the paying token's base unit truncates it (`lib/names/undername-plan.ts`). The screen shows
+  one price. The fee joins it once it is collected to bankon.eth, and the Keycore approval lists
+  every transfer.
+- **"Undernames" are called "extensions"** on every screen: each grows a permanent address from the
+  name (`tnt_spintrade`). Code and the ar.io SDK keep `undername`.
+
 ## 0.3.4 — 2026-10-02 (increment towards 0.4.0)
 
 SPINTRADE uses the verified list as its authority, never the ticker.
